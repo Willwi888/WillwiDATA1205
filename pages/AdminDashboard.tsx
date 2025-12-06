@@ -14,7 +14,8 @@ const AdminDashboard: React.FC = () => {
   const PROJECT_LINKS = {
       drive: 'https://drive.google.com/drive/folders/1PmP_GB7etr45T_DwcZcLt45Om2RDqTNI?usp=drive_link',
       supabase: 'https://supabase.com/dashboard/project/rzxqseimxhbokrhcdjbi',
-      vercel: 'https://vercel.com/willwi'
+      vercel: 'https://vercel.com/willwi',
+      live: 'https://willwi-music-manager-467949320732.us-west1.run.app/#/'
   };
 
   // 1. Calculate Catalog Health
@@ -188,7 +189,20 @@ const AdminDashboard: React.FC = () => {
                 <h2 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
                     🏗️ Project Infrastructure
                 </h2>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    <a 
+                        href={PROJECT_LINKS.live} 
+                        target="_blank" 
+                        rel="noreferrer"
+                        className="block p-4 bg-slate-950 border border-slate-800 hover:border-brand-accent rounded-lg group transition-all"
+                    >
+                        <div className="flex justify-between items-start mb-2">
+                            <span className="text-white font-bold">Live Website</span>
+                            <span className="text-[10px] bg-brand-accent/20 text-brand-accent px-2 py-1 rounded border border-brand-accent/50">ACTIVE</span>
+                        </div>
+                        <p className="text-xs text-slate-500 group-hover:text-slate-300">View current application.</p>
+                    </a>
+
                     <a 
                         href={PROJECT_LINKS.vercel} 
                         target="_blank" 
@@ -199,7 +213,7 @@ const AdminDashboard: React.FC = () => {
                             <span className="text-white font-bold">Vercel Dashboard</span>
                             <span className="text-[10px] bg-slate-800 text-slate-400 px-2 py-1 rounded border border-slate-700">HOSTING</span>
                         </div>
-                        <p className="text-xs text-slate-500 group-hover:text-slate-300">Manage deployments and domains.</p>
+                        <p className="text-xs text-slate-500 group-hover:text-slate-300">Manage deployments.</p>
                     </a>
 
                     <a 
@@ -209,21 +223,22 @@ const AdminDashboard: React.FC = () => {
                         className="block p-4 bg-slate-950 border border-slate-800 hover:border-green-500 rounded-lg group transition-all"
                     >
                         <div className="flex justify-between items-start mb-2">
-                            <span className="text-white font-bold">Supabase Project</span>
-                            <span className="text-[10px] bg-green-900/20 text-green-400 px-2 py-1 rounded border border-green-900/50">DATABASE</span>
+                            <span className="text-white font-bold">Supabase</span>
+                            <span className="text-[10px] bg-green-900/20 text-green-400 px-2 py-1 rounded border border-green-900/50">DB</span>
                         </div>
-                        <p className="text-xs text-slate-500 group-hover:text-slate-300">Manage users and SQL database.</p>
+                        <p className="text-xs text-slate-500 group-hover:text-slate-300">Manage database.</p>
                     </a>
                 </div>
                 
                 <div className="mt-6 pt-4 border-t border-slate-800">
                     <h3 className="text-brand-accent font-bold text-sm uppercase mb-2">Carrd Integration Guide</h3>
                     <p className="text-slate-400 text-xs leading-relaxed">
-                        1. 複製您的 Vercel 網址 (例如: <code>https://willwi-music-db.vercel.app</code>)。
+                        1. 您的網站目前運行於：<br/>
+                        <code className="bg-black px-2 py-1 rounded text-green-400 mt-1 block w-fit truncate max-w-full">{PROJECT_LINKS.live}</code>
                         <br/>
                         2. 在 Carrd 上建立一個按鈕，命名為 <strong>"Enter Database"</strong>。
                         <br/>
-                        3. 將 Vercel 網址貼上。這樣 Carrd 就是您的「門面」，而這裡是您的「工作室」。
+                        3. 將上述網址貼上。這樣 Carrd 就是您的「門面」，而這裡是您的「工作室」。
                     </p>
                 </div>
             </div>
