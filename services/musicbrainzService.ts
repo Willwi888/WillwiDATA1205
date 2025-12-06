@@ -24,6 +24,8 @@ export interface MBCoverArtResponse {
 export const getWillwiReleases = async (): Promise<MBReleaseGroup[]> => {
   try {
     // Browse release-groups by artist
+    // Important: MusicBrainz requires `fmt=json` parameter for JSON response
+    // And a valid User-Agent
     const url = `${MB_API_BASE}/release-group?artist=${WILLWI_MBID}&fmt=json&limit=100`;
     
     const response = await fetch(url, {

@@ -1,14 +1,19 @@
 import React, { useRef, useState } from 'react';
 import { useData } from '../context/DataContext';
-import { Link } from 'react-router-dom';
+import { useUser } from '../context/UserContext';
 import { dbService } from '../services/db';
 import { Song } from '../types';
 
 const AdminDashboard: React.FC = () => {
   const { songs } = useData();
+  const { isAdmin, enableAdmin } = useUser();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [restoreStatus, setRestoreStatus] = useState('');
+  
+  // Admin Login State
+  const [passwordInput, setPasswordInput] = useState('');
+  const [loginError, setLoginError] = useState('');
 
   // Project Links provided by user
   const PROJECT_LINKS = {
@@ -30,6 +35,16 @@ const AdminDashboard: React.FC = () => {
     dailyRevenueNTD: 16000, 
     hearts: 4500, // The 4500 hearts milestone
     downloads: 128
+  };
+
+  const handleAdminLogin = (e: React.FormEvent) => {
+      e.preventDefault();
+      if (passwordInput === '8888') {
+          enableAdmin();
+          setLoginError('');
+      } else {
+          setLoginError('Invalid Admin Code');
+      }
   };
 
   // --- Backup Functions ---
@@ -102,6 +117,34 @@ const AdminDashboard: React.FC = () => {
       window.open(PROJECT_LINKS.drive, '_blank');
   };
 
+  // If not admin, show login
+  if (!isAdmin) {
+      return (
+          <div className="min-h-[60vh] flex items-center justify-center px-4">
+               <div className="bg-slate-900 border border-slate-800 rounded-xl p-8 max-w-md w-full shadow-2xl text-center">
+                   <div className="w-16 h-16 bg-slate-800 rounded-full mx-auto flex items-center justify-center mb-6">
+                       <svg className="w-8 h-8 text-brand-gold" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
+                   </div>
+                   <h2 className="text-2xl font-bold text-white mb-2">Admin Login</h2>
+                   <p className="text-slate-400 text-sm mb-6">Enter access code to manage database.</p>
+                   <form onSubmit={handleAdminLogin} className="space-y-4">
+                       <input 
+                          type="password" 
+                          placeholder="Code"
+                          className="w-full bg-black border border-slate-700 rounded-lg px-4 py-3 text-white text-center tracking-[0.5em] font-mono outline-none focus:border-brand-accent"
+                          value={passwordInput}
+                          onChange={(e) => setPasswordInput(e.target.value)}
+                       />
+                       {loginError && <p className="text-red-500 text-xs">{loginError}</p>}
+                       <button className="w-full py-3 bg-brand-accent text-slate-900 font-bold rounded-lg hover:bg-white transition-colors">
+                           Unlock Dashboard
+                       </button>
+                   </form>
+               </div>
+          </div>
+      );
+  }
+
   return (
     <div className="max-w-7xl mx-auto px-4 py-12">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-10 gap-4">
@@ -110,8 +153,8 @@ const AdminDashboard: React.FC = () => {
             <p className="text-slate-400 text-sm mt-1">Willwi's Legacy Archive & Performance</p>
           </div>
           <div className="flex items-center gap-2">
-             <span className="w-2 h-2 bg-brand-accent rounded-full animate-pulse shadow-[0_0_10px_#38bdf8]"></span>
-             <span className="text-xs text-brand-accent font-mono uppercase font-bold">Virtual Manager: Active</span>
+             <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse shadow-[0_0_10px_#22c55e]"></span>
+             <span className="text-xs text-green-500 font-mono uppercase font-bold">Admin Unlocked</span>
           </div>
       </div>
 
@@ -267,42 +310,6 @@ const AdminDashboard: React.FC = () => {
                         <div className="text-[10px] text-slate-500 uppercase tracking-widest mt-1">Missing Lyrics</div>
                     </div>
                 </div>
-
-                {/* Missing Data List */}
-                {(missingISRC > 0 || missingLyrics > 0) && (
-                    <div className="bg-slate-950 rounded-lg border border-slate-800 overflow-hidden">
-                        <div className="px-4 py-3 bg-red-900/20 border-b border-red-900/30 text-red-200 text-xs font-bold uppercase tracking-wider flex justify-between">
-                            <span>Completeness Report</span>
-                            <span>{missingISRC + missingLyrics} Issues</span>
-                        </div>
-                        <div className="max-h-60 overflow-y-auto custom-scrollbar">
-                            {songs.map(song => {
-                                const issues = [];
-                                if (!song.isrc) issues.push('ISRC');
-                                if (!song.lyrics || song.lyrics.length < 10) issues.push('Lyrics');
-
-                                if (issues.length === 0) return null;
-
-                                return (
-                                    <div key={song.id} className="flex items-center justify-between p-3 border-b border-slate-800 last:border-0 hover:bg-slate-900 transition-colors">
-                                        <div className="flex items-center gap-3">
-                                            <img src={song.coverUrl} className="w-8 h-8 rounded bg-slate-800 object-cover" alt="cover"/>
-                                            <span className="text-sm font-medium text-slate-300">{song.title}</span>
-                                        </div>
-                                        <div className="flex gap-2 items-center">
-                                            <div className="flex gap-1">
-                                                {issues.map(i => (
-                                                    <span key={i} className="text-[10px] px-1.5 py-0.5 rounded bg-red-900/30 text-red-400 border border-red-900/50">{i}</span>
-                                                ))}
-                                            </div>
-                                            <Link to={`/song/${song.id}`} className="text-xs bg-slate-800 hover:bg-white text-slate-300 hover:text-black px-3 py-1 rounded transition-colors">Edit</Link>
-                                        </div>
-                                    </div>
-                                );
-                            })}
-                        </div>
-                    </div>
-                )}
             </div>
         </div>
 

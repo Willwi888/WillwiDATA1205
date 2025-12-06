@@ -14,12 +14,15 @@ interface UserContextType {
   addCredits: (amount: number) => void;
   deductCredit: () => boolean; // Returns true if successful
   isLoading: boolean;
+  isAdmin: boolean; // NEW: Global Admin State
+  enableAdmin: () => void; // NEW: Function to unlock admin
 }
 
 const UserContext = createContext<UserContextType | undefined>(undefined);
 
 export const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
+  const [isAdmin, setIsAdmin] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
   // Load user from local storage on mount
@@ -28,6 +31,13 @@ export const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     if (storedUser) {
       setUser(JSON.parse(storedUser));
     }
+    
+    // Check for admin session
+    const adminSession = localStorage.getItem('willwi_admin_unlocked');
+    if (adminSession === 'true') {
+        setIsAdmin(true);
+    }
+
     setIsLoading(false);
   }, []);
 
@@ -80,8 +90,13 @@ export const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     return false;
   };
 
+  const enableAdmin = () => {
+      setIsAdmin(true);
+      localStorage.setItem('willwi_admin_unlocked', 'true');
+  };
+
   return (
-    <UserContext.Provider value={{ user, login, logout, addCredits, deductCredit, isLoading }}>
+    <UserContext.Provider value={{ user, login, logout, addCredits, deductCredit, isLoading, isAdmin, enableAdmin }}>
       {children}
     </UserContext.Provider>
   );

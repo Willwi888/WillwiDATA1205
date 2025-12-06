@@ -1,12 +1,16 @@
 import React, { useState, useMemo } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useData } from '../context/DataContext';
 import { Language, ProjectType, getLanguageColor, Song } from '../types';
 import { useTranslation } from '../context/LanguageContext';
+import { useUser } from '../context/UserContext';
 
 const Database: React.FC = () => {
   const { songs } = useData();
   const { t } = useTranslation();
+  const { isAdmin } = useUser();
+  const navigate = useNavigate();
+  
   const [searchTerm, setSearchTerm] = useState('');
   const [filterLang, setFilterLang] = useState<string>('All');
   const [filterProject, setFilterProject] = useState<string>('All');
@@ -62,9 +66,11 @@ const Database: React.FC = () => {
         <div>
            <div className="flex items-center gap-3">
                <h2 className="text-2xl font-bold text-white tracking-wide">{t('db_title')}</h2>
-               <span className="text-xs bg-green-900/50 text-green-400 px-2 py-0.5 rounded border border-green-800">
-                   Storage: IndexedDB OK
-               </span>
+               {isAdmin && (
+                   <span className="text-[10px] bg-red-900/50 text-red-400 px-2 py-0.5 rounded border border-red-800 font-bold animate-pulse">
+                       ADMIN MODE
+                   </span>
+               )}
            </div>
            <p className="text-slate-400 text-sm mt-1 font-mono">{t('db_total')}: {songs.length}</p>
         </div>
@@ -226,7 +232,7 @@ const Database: React.FC = () => {
             )}
         </div>
       ) : (
-        // Table View (Unchanged logic, just keeping it consistent)
+        // Table View (Updated: Row Clickable, No Edit Button unless admin)
         <div className="overflow-x-auto bg-slate-900 rounded-xl border border-slate-800 shadow-xl">
             <table className="min-w-full divide-y divide-slate-800">
                 <thead className="bg-slate-950">
@@ -236,21 +242,26 @@ const Database: React.FC = () => {
                         <th scope="col" className="px-6 py-4 text-left text-xs font-bold text-slate-500 uppercase tracking-wider hidden md:table-cell">ISRC / UPC</th>
                         <th scope="col" className="px-6 py-4 text-left text-xs font-bold text-slate-500 uppercase tracking-wider hidden sm:table-cell">{t('db_col_release')}</th>
                         <th scope="col" className="px-6 py-4 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">{t('db_col_status')}</th>
-                        <th scope="col" className="px-6 py-4 text-right text-xs font-bold text-slate-500 uppercase tracking-wider"></th>
+                        {/* Empty Header for arrow */}
+                        <th scope="col" className="px-6 py-4"></th> 
                     </tr>
                 </thead>
                 <tbody className="bg-slate-900 divide-y divide-slate-800">
                     {filteredSongs.map(song => {
                         const missing = getMissingFields(song);
                         return (
-                            <tr key={song.id} className="hover:bg-slate-800/50 transition-colors group">
+                            <tr 
+                                key={song.id} 
+                                onClick={() => navigate(`/song/${song.id}`)}
+                                className="hover:bg-slate-800/50 transition-colors group cursor-pointer"
+                            >
                                 <td className="px-6 py-4 whitespace-nowrap">
-                                    <div className="flex-shrink-0 h-12 w-12 bg-black rounded overflow-hidden">
+                                    <div className="flex-shrink-0 h-12 w-12 bg-black rounded overflow-hidden relative">
                                         <img className="h-full w-full object-cover opacity-80 group-hover:opacity-100 transition-opacity" src={song.coverUrl} alt="" />
                                     </div>
                                 </td>
                                 <td className="px-6 py-4 whitespace-nowrap">
-                                    <div className="text-sm font-bold text-white mb-1">{song.title}</div>
+                                    <div className="text-sm font-bold text-white mb-1 group-hover:text-brand-accent transition-colors">{song.title}</div>
                                     <div className="flex items-center gap-2">
                                         <span className="inline-flex items-center gap-1.5 px-1.5 py-0.5 rounded-full text-[10px] font-medium bg-slate-950 border border-slate-700 text-slate-400">
                                             <span className={`w-1.5 h-1.5 rounded-full ${getLanguageColor(song.language)}`}></span>
@@ -282,9 +293,9 @@ const Database: React.FC = () => {
                                     )}
                                 </td>
                                 <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                    <Link to={`/song/${song.id}`} className="text-slate-400 hover:text-white transition-colors border border-slate-700 px-3 py-1 rounded hover:border-white">
-                                        {t('btn_edit')}
-                                    </Link>
+                                    <span className="text-slate-600 group-hover:text-white transition-colors">
+                                        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" /></svg>
+                                    </span>
                                 </td>
                             </tr>
                         );

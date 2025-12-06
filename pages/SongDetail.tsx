@@ -5,6 +5,7 @@ import { Song, Language, ProjectType, getLanguageColor } from '../types';
 import { generateMusicCritique } from '../services/geminiService';
 import { searchSpotifyTracks, SpotifyTrack } from '../services/spotifyService';
 import { useTranslation } from '../context/LanguageContext';
+import { useUser } from '../context/UserContext';
 
 // Helper to clean Google Redirect URLs
 const cleanGoogleRedirect = (url: string) => {
@@ -25,6 +26,7 @@ const SongDetail: React.FC = () => {
   const navigate = useNavigate();
   const { getSong, updateSong, deleteSong } = useData();
   const { t } = useTranslation();
+  const { isAdmin } = useUser(); // Access global admin state
   
   const [song, setSong] = useState<Song | undefined>(undefined);
   const [isEditing, setIsEditing] = useState(false);
@@ -60,6 +62,62 @@ const SongDetail: React.FC = () => {
   }, [id, getSong, navigate]);
 
   if (!song) return <div className="text-white text-center mt-20">Loading...</div>;
+
+  // --- MusicBrainz Seeding Logic ---
+  const handleMusicBrainzSubmit = () => {
+      if (!song) return;
+
+      const WILLWI_MBID = '526cc0f8-da20-4d2d-86a5-4bf841a6ba3c';
+      const params = new URLSearchParams();
+
+      // Basic Release Info
+      params.append('name', song.title);
+      params.append('artist_credit.names.0.artist.name', 'Willwi');
+      params.append('artist_credit.names.0.name', 'Willwi');
+      params.append('artist_credit.names.0.mbid', WILLWI_MBID);
+      
+      // Status & Language
+      params.append('status', 'official');
+      // Map internal languages to ISO 639-3 roughly
+      const langMap: Record<string, string> = {
+          '華語': 'cmn', 'Mandarin': 'cmn',
+          '英語': 'eng', 'English': 'eng',
+          '日語': 'jpn', 'Japanese': 'jpn',
+          '韓語': 'kor', 'Korean': 'kor'
+      };
+      params.append('language', langMap[song.language] || 'zho');
+      params.append('script', 'Hant'); // Traditional Chinese script default
+
+      // Date Parsing
+      if (song.releaseDate) {
+          const parts = song.releaseDate.split('-');
+          if (parts.length === 3) {
+              params.append('events.0.date.year', parts[0]);
+              params.append('events.0.date.month', parts[1]);
+              params.append('events.0.date.day', parts[2]);
+          }
+          params.append('events.0.country', 'TW'); // Default Taiwan release
+      }
+
+      // Type Guessing (Single vs Album is tricky in simple model, default to Single for individual entry)
+      // Note: MusicBrainz "Release" usually implies a Single or Album.
+      params.append('type', 'single'); 
+      if (song.projectType === ProjectType.Indie) {
+           params.append('type', 'single'); 
+      }
+
+      // Annotation / Notes
+      let annotation = `Imported from Willwi Music Manager.\n`;
+      if (song.isrc) annotation += `ISRC: ${song.isrc}\n`;
+      if (song.upc) annotation += `UPC: ${song.upc}\n`;
+      if (song.projectType) annotation += `Project: ${song.projectType}\n`;
+      
+      params.append('annotation', annotation);
+      
+      // Open in new tab
+      const url = `https://musicbrainz.org/release/add?${params.toString()}`;
+      window.open(url, '_blank');
+  };
 
   const handleSave = async () => {
     if (song && id) {
@@ -249,27 +307,58 @@ const SongDetail: React.FC = () => {
                                             )}
                                         </div>
 
-                                        <input 
-                                            className="w-full text-3xl font-bold bg-slate-900 border border-slate-500 rounded p-2 text-white"
-                                            value={editForm.title}
-                                            onChange={(e) => setEditForm({...editForm, title: e.target.value})}
-                                            placeholder="Title"
-                                        />
-                                        <input 
-                                            className="w-full text-lg bg-slate-900 border border-slate-500 rounded p-2 text-slate-300"
-                                            value={editForm.versionLabel}
-                                            onChange={(e) => setEditForm({...editForm, versionLabel: e.target.value})}
-                                            placeholder="Version (e.g. Acoustic Ver.)"
-                                        />
+                                        {/* Title & Version Inputs */}
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                            <input 
+                                                className="w-full text-xl font-bold bg-slate-900 border border-slate-500 rounded p-2 text-white"
+                                                value={editForm.title}
+                                                onChange={(e) => setEditForm({...editForm, title: e.target.value})}
+                                                placeholder="Title"
+                                            />
+                                            <input 
+                                                className="w-full text-lg bg-slate-900 border border-slate-500 rounded p-2 text-slate-300"
+                                                value={editForm.versionLabel}
+                                                onChange={(e) => setEditForm({...editForm, versionLabel: e.target.value})}
+                                                placeholder="Version (e.g. Acoustic Ver.)"
+                                            />
+                                        </div>
+
+                                        {/* Language & Project Type Selectors (NEW) */}
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                            <div>
+                                                 <label className="text-xs text-slate-500 block mb-1">Language</label>
+                                                 <select
+                                                     className="w-full bg-slate-900 border border-slate-600 rounded p-2 text-white text-sm"
+                                                     value={editForm.language}
+                                                     onChange={(e) => setEditForm({...editForm, language: e.target.value as Language})}
+                                                 >
+                                                     {Object.values(Language).map(l => <option key={l} value={l}>{l}</option>)}
+                                                 </select>
+                                            </div>
+                                            <div>
+                                                 <label className="text-xs text-slate-500 block mb-1">Project Type</label>
+                                                 <select
+                                                     className="w-full bg-slate-900 border border-slate-600 rounded p-2 text-white text-sm"
+                                                     value={editForm.projectType}
+                                                     onChange={(e) => setEditForm({...editForm, projectType: e.target.value as ProjectType})}
+                                                 >
+                                                     {Object.values(ProjectType).map(p => <option key={p} value={p}>{p}</option>)}
+                                                 </select>
+                                            </div>
+                                        </div>
                                     </div>
                                 ) : (
                                     <>
                                         <h1 className="text-3xl md:text-5xl font-bold text-white mb-2 flex items-center gap-3">
                                             {song.title}
                                             {song.versionLabel && <span className="text-lg md:text-2xl text-slate-400 font-normal border border-slate-600 rounded px-2">{song.versionLabel}</span>}
-                                            <button onClick={() => setIsEditing(true)} className="text-slate-500 hover:text-white transition-colors text-xl" title="Edit">
-                                                ✏️
-                                            </button>
+                                            
+                                            {/* ADMIN ONLY EDIT BUTTON */}
+                                            {isAdmin && (
+                                                <button onClick={() => setIsEditing(true)} className="text-slate-500 hover:text-white transition-colors text-xl" title="Edit">
+                                                    ✏️
+                                                </button>
+                                            )}
                                         </h1>
                                         <div className="flex flex-wrap items-center gap-2 mb-4">
                                             {song.isEditorPick && <span className="px-3 py-1 bg-brand-gold text-slate-900 rounded-full text-xs font-bold">EDITOR'S PICK</span>}
@@ -300,7 +389,7 @@ const SongDetail: React.FC = () => {
                                             )}
                                         </div>
                                     ))}
-                                    {/* MusicBrainz Display */}
+                                    {/* MusicBrainz Display & Submit */}
                                     <div>
                                         <div className="text-xs text-slate-500 uppercase font-bold tracking-wider mb-1">MusicBrainz</div>
                                         {isEditing ? (
@@ -320,7 +409,19 @@ const SongDetail: React.FC = () => {
                                                     {song.musicBrainzId.substring(0,8)}...
                                                 </a>
                                             ) : (
-                                                <div className="text-sm text-slate-600">-</div>
+                                                <div className="flex items-center gap-2">
+                                                    <span className="text-sm text-slate-600">-</span>
+                                                    {/* ADMIN ONLY: SUBMIT BUTTON */}
+                                                    {isAdmin && (
+                                                        <button 
+                                                            onClick={handleMusicBrainzSubmit}
+                                                            className="text-[10px] bg-[#eb743b] hover:bg-orange-500 text-white px-2 py-0.5 rounded font-bold transition-colors"
+                                                            title="Auto-fill submission form on MusicBrainz"
+                                                        >
+                                                            🚀 Submit
+                                                        </button>
+                                                    )}
+                                                </div>
                                             )
                                         )}
                                     </div>
@@ -581,206 +682,17 @@ const SongDetail: React.FC = () => {
 
 // Sub-component for the Lyric Video Maker
 const LyricVideoMaker: React.FC<{ song: Song }> = ({ song }) => {
-    const [gameState, setGameState] = useState<'idle' | 'playing' | 'finished'>('idle');
-    const [lineIndex, setLineIndex] = useState(0);
-    const [elapsedTime, setElapsedTime] = useState(0);
-    // Store synced data: { time: number, text: string }
-    const [syncData, setSyncData] = useState<{time: number, text: string}[]>([]);
-    
-    const lyricsLines = (song.lyrics || "").split('\n').filter(l => l.trim() !== '');
-
-    useEffect(() => {
-        let interval: any;
-        if (gameState === 'playing') {
-            interval = setInterval(() => {
-                setElapsedTime(prev => prev + 0.1);
-            }, 100);
-        }
-        return () => clearInterval(interval);
-    }, [gameState]);
-
-    const formatTime = (seconds: number) => {
-        const mins = Math.floor(seconds / 60);
-        const secs = Math.floor(seconds % 60);
-        const ms = Math.floor((seconds % 1) * 10);
-        return `${mins}:${secs.toString().padStart(2, '0')}.${ms}`;
-    };
-
-    const handleStart = () => {
-        setGameState('playing');
-        setLineIndex(0);
-        setElapsedTime(0);
-        setSyncData([]);
-    };
-
-    const handleSyncLine = () => {
-        // Record the current line timestamp
-        const currentLine = lyricsLines[lineIndex];
-        setSyncData(prev => [...prev, { time: elapsedTime, text: currentLine }]);
-
-        if (lineIndex < lyricsLines.length - 1) {
-            setLineIndex(prev => prev + 1);
-        } else {
-            setGameState('finished');
-        }
-    };
-
-    // Export function
-    const downloadSrt = () => {
-        let srtContent = "";
-        syncData.forEach((item, index) => {
-            // Very basic SRT formatting logic (duration assumed 3s or until next line)
-            const startTime = new Date(item.time * 1000).toISOString().substr(11, 12).replace('.', ',');
-            const nextTimeVal = (index < syncData.length - 1) ? syncData[index+1].time : item.time + 3;
-            const endTime = new Date(nextTimeVal * 1000).toISOString().substr(11, 12).replace('.', ',');
-            
-            srtContent += `${index + 1}\n${startTime} --> ${endTime}\n${item.text}\n\n`;
-        });
-
-        const blob = new Blob([srtContent], { type: 'text/plain' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `${song.title}_lyrics.srt`;
-        a.click();
-    };
-
-    if (!song.lyrics) return <div className="text-slate-500 p-4">Please enter lyrics to use this feature.</div>;
-
-    if (gameState === 'finished') {
-        return (
-            <div className="bg-slate-950 rounded-xl overflow-hidden border border-slate-700">
-                <div className="p-4 bg-slate-900 border-b border-slate-700 flex justify-between items-center">
-                    <h3 className="text-white font-bold flex items-center gap-2">
-                        <span className="text-green-500">✔</span> Finished
-                    </h3>
-                    <button onClick={() => setGameState('idle')} className="text-sm text-slate-400 hover:text-white">Restart</button>
-                </div>
-                
-                <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-8">
-                    {/* Preview Area */}
-                    <div className="space-y-4">
-                        <div className="aspect-video bg-black rounded-lg flex items-center justify-center relative overflow-hidden border border-slate-800">
-                             <div className="absolute inset-0 bg-cover bg-center opacity-40" style={{ backgroundImage: `url(${song.coverUrl})` }}></div>
-                             <div className="relative z-10 text-center">
-                                 <div className="text-5xl mb-2">🎬</div>
-                                 <div className="font-bold text-white">Video Ready</div>
-                             </div>
-                        </div>
-                        <button 
-                            onClick={() => window.alert('Rendering... Download MP4')}
-                            className="w-full py-3 bg-brand-gold hover:bg-yellow-400 text-slate-900 font-bold rounded-lg shadow-lg transition"
-                        >
-                            📥 Download Video (MP4)
-                        </button>
-                    </div>
-
-                    {/* Data Area */}
-                    <div className="flex flex-col h-full">
-                        <div className="flex justify-between items-end mb-2">
-                            <h4 className="text-slate-300 font-bold text-sm">Sync Data (SRT)</h4>
-                             <button onClick={downloadSrt} className="text-xs text-brand-accent hover:underline">Download .srt</button>
-                        </div>
-                        <div className="flex-grow bg-slate-900 rounded-lg p-2 overflow-y-auto max-h-[250px] border border-slate-700 font-mono text-xs">
-                            <table className="w-full text-left">
-                                <thead>
-                                    <tr className="text-slate-500 border-b border-slate-700">
-                                        <th className="pb-1">Time</th>
-                                        <th className="pb-1">Lyric</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {syncData.map((row, i) => (
-                                        <tr key={i} className="border-b border-slate-800/50">
-                                            <td className="py-1 text-green-400 pr-2">{formatTime(row.time)}</td>
-                                            <td className="py-1 text-slate-300">{row.text}</td>
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        );
-    }
-
+    // Replaced logic for simple lyric video maker
     return (
-        <div className="relative rounded-xl overflow-hidden aspect-video flex flex-col bg-slate-950 border border-slate-700 shadow-2xl">
-             {/* Timeline Bar (Visual only) */}
-             <div className="absolute bottom-0 left-0 right-0 h-1 bg-slate-800 z-20">
-                 <div 
-                    className="h-full bg-red-500 transition-all duration-100 ease-linear" 
-                    style={{ width: gameState === 'playing' ? `${((lineIndex) / lyricsLines.length) * 100}%` : '0%' }}
-                 ></div>
-             </div>
-
-             {/* Background */}
-             <div className="absolute inset-0 bg-cover bg-center transition-all duration-1000 opacity-30" style={{ backgroundImage: `url(${song.coverUrl})` }}></div>
-             
-             {/* Top Status Bar */}
-             <div className="relative z-20 flex justify-between items-center p-4 bg-gradient-to-b from-black/80 to-transparent">
-                 <div className="text-xs font-mono text-slate-400">LYRIC VIDEO MAKER V1.0</div>
-                 {gameState === 'playing' && (
-                     <div className="flex items-center gap-2">
-                         <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></div>
-                         <span className="text-red-500 font-mono font-bold text-lg">{formatTime(elapsedTime)}</span>
-                     </div>
-                 )}
-             </div>
-
-             {/* Main Workspace */}
-             <div className="relative z-10 flex-grow flex flex-col items-center justify-center p-6 w-full max-w-3xl mx-auto">
-                 {gameState === 'idle' ? (
-                     <div className="text-center space-y-6 bg-black/40 p-8 rounded-2xl backdrop-blur-sm border border-white/10">
-                         <h3 className="text-2xl font-bold text-white tracking-wider">Ready to Record</h3>
-                         <div className="text-left text-sm text-slate-300 space-y-2">
-                             <p>1. Ensure music is ready to play.</p>
-                             <p>2. Play music in background.</p>
-                             <p>3. Click button below and press 'SYNC' (or Spacebar) to the beat.</p>
-                         </div>
-                         <button 
-                            onClick={handleStart}
-                            className="px-10 py-3 bg-red-600 hover:bg-red-500 text-white font-bold rounded-full text-lg shadow-lg transform transition hover:scale-105"
-                        >
-                            ● REC Start
-                         </button>
-                     </div>
-                 ) : (
-                     <div className="w-full flex flex-col h-full justify-between pb-8">
-                         {/* Lyric Display Area */}
-                         <div className="flex-grow flex flex-col items-center justify-center space-y-4">
-                            {/* Previous Line Ghost */}
-                            <p className="text-slate-500 text-sm h-6 transition-all">{lineIndex > 0 ? lyricsLines[lineIndex - 1] : ''}</p>
-                            
-                            {/* Active Line */}
-                            <div className="bg-black/60 backdrop-blur-md px-6 py-4 rounded-xl border-l-4 border-brand-accent w-full text-center">
-                                <p className="text-2xl md:text-4xl font-bold text-white leading-relaxed">
-                                    {lyricsLines[lineIndex]}
-                                </p>
-                            </div>
-
-                            {/* Next Line Ghost */}
-                            <p className="text-slate-500 text-sm h-6 transition-all">{lineIndex < lyricsLines.length - 1 ? lyricsLines[lineIndex + 1] : ''}</p>
-                         </div>
-                         
-                         {/* Control Deck */}
-                         <div className="w-full max-w-md mx-auto">
-                            <button 
-                                onClick={handleSyncLine}
-                                className="w-full py-6 bg-slate-100 hover:bg-white text-slate-900 font-black rounded-xl text-2xl shadow-[0_0_20px_rgba(255,255,255,0.3)] active:scale-95 transition-all border-b-8 border-slate-300 active:border-b-0 active:translate-y-2"
-                            >
-                                SYNC
-                            </button>
-                            <div className="flex justify-between mt-2 px-2">
-                                <span className="text-xs text-slate-400 font-mono">Lines: {lineIndex}/{lyricsLines.length}</span>
-                                <span className="text-xs text-slate-400 font-mono">Mode: Manual Sync</span>
-                            </div>
-                         </div>
-                     </div>
-                 )}
-             </div>
-        </div>
+       <div className="text-center p-8 bg-slate-900 rounded-lg border border-slate-700">
+           <p className="text-slate-300 mb-4">Access the full Interactive Studio to create synced lyrics.</p>
+           <button 
+               onClick={() => window.location.hash = '/interactive'}
+               className="px-6 py-2 bg-brand-accent text-slate-900 font-bold rounded hover:bg-white transition-colors"
+           >
+               Go to Interactive Studio
+           </button>
+       </div>
     );
 };
 

@@ -92,6 +92,8 @@ const Interactive: React.FC = () => {
     setGameState('playing');
     startTimeRef.current = Date.now();
     
+    // Auto-record the first line at 0.00s? No, user waits for first vocal.
+    
     const loop = () => {
       const now = Date.now();
       const delta = (now - startTimeRef.current) / 1000; // seconds
@@ -101,17 +103,25 @@ const Interactive: React.FC = () => {
     loop();
   };
 
+  // The Core Mechanic: Musixmatch Style
+  // User presses Space to mark current line start and move to next.
   const handleSync = () => {
     if (!selectedSong) return;
     
     const lyricsLines = selectedSong.lyrics!.split('\n').filter(l => l.trim() !== '');
+    
+    if (lineIndex >= lyricsLines.length) {
+        finishGame();
+        return;
+    }
+
     const currentLine = lyricsLines[lineIndex];
 
-    // Record the sync point
+    // Record timestamp for the CURRENT line
     const newSyncPoint = { time: elapsedTime, text: currentLine };
     setSyncData(prev => [...prev, newSyncPoint]);
 
-    // Move to next line or finish
+    // Advance
     if (lineIndex < lyricsLines.length - 1) {
       setLineIndex(prev => prev + 1);
     } else {
@@ -134,8 +144,19 @@ const Interactive: React.FC = () => {
   };
 
   // -------------------
-  // Export & Payment Functions
+  // Edit & Export Functions
   // -------------------
+  const handleTimeEdit = (index: number, newTimeVal: string) => {
+      const val = parseFloat(newTimeVal);
+      if (!isNaN(val)) {
+          setSyncData(prev => {
+              const newData = [...prev];
+              newData[index].time = val;
+              return newData;
+          });
+      }
+  };
+
   const handleDownloadClick = () => {
       if (!user) return;
 
@@ -151,7 +172,7 @@ const Interactive: React.FC = () => {
     let srtContent = "";
     syncData.forEach((item, index) => {
         const start = new Date(item.time * 1000).toISOString().substr(11, 12).replace('.', ',');
-        const nextTimeVal = (index < syncData.length - 1) ? syncData[index+1].time : item.time + 3;
+        const nextTimeVal = (index < syncData.length - 1) ? syncData[index+1].time : item.time + 3; // Default 3s or next line
         const end = new Date(nextTimeVal * 1000).toISOString().substr(11, 12).replace('.', ',');
         
         srtContent += `${index + 1}\n${start} --> ${end}\n${item.text}\n\n`;
@@ -263,7 +284,7 @@ const Interactive: React.FC = () => {
            <div className="relative z-10">
                 <h1 className="text-3xl md:text-5xl font-black mb-4 tracking-tighter text-white uppercase">Lyric Video Studio</h1>
                 <p className="text-slate-400 text-lg max-w-2xl font-light">
-                  Professional manual synchronization tool. Select a track to generate timestamped SRT files for video production.
+                  Professional manual synchronization tool. Curate your lyrics line-by-line, Musixmatch style.
                 </p>
            </div>
         </div>
@@ -309,8 +330,8 @@ const Interactive: React.FC = () => {
   // 2. Ready & Playing View
   if (gameState === 'ready' || gameState === 'playing') {
     const lyricsLines = selectedSong!.lyrics!.split('\n').filter(l => l.trim() !== '');
-    const currentLine = lyricsLines[lineIndex];
-    const nextLine = lineIndex < lyricsLines.length - 1 ? lyricsLines[lineIndex + 1] : 'END';
+    const currentLine = lyricsLines[lineIndex] || "END";
+    const nextLine = lineIndex < lyricsLines.length - 1 ? lyricsLines[lineIndex + 1] : '';
     const progress = (lineIndex / lyricsLines.length) * 100;
 
     return (
@@ -340,35 +361,39 @@ const Interactive: React.FC = () => {
                       <ol className="text-left text-slate-400 space-y-4 mb-10 text-sm font-light">
                         <li className="flex gap-3"><span className="text-brand-accent font-bold">01.</span> Prepare music in external player.</li>
                         <li className="flex gap-3"><span className="text-brand-accent font-bold">02.</span> Click 'Start' below.</li>
-                        <li className="flex gap-3"><span className="text-brand-accent font-bold">03.</span> Press SPACEBAR to sync lyrics.</li>
+                        <li className="flex gap-3"><span className="text-brand-accent font-bold">03.</span> <span className="text-white">Press SPACEBAR at the start of each line.</span></li>
                       </ol>
                       <button 
                         onClick={startGame}
-                        className="w-full py-4 bg-brand-accent hover:bg-white text-brand-darker font-bold rounded-sm text-sm uppercase tracking-widest transition-colors"
+                        className="w-full py-4 bg-brand-accent hover:bg-white text-brand-darker font-bold rounded-sm text-sm uppercase tracking-widest transition-colors shadow-lg shadow-brand-accent/20"
                       >
-                        Start Recording
+                        Start Live Sync
                       </button>
                   </div>
                 ) : (
                   <>
-                     <div className="mb-16 min-h-[80px] flex flex-col items-center justify-end">
-                        <p className="text-brand-accent text-[10px] font-bold tracking-[0.3em] uppercase mb-2">NEXT</p>
-                        <p className="text-slate-500 text-lg font-light">{nextLine}</p>
+                     {/* NEXT Line Preview (Top) */}
+                     <div className="mb-12 min-h-[60px] flex flex-col items-center justify-end opacity-50 transition-all">
+                        <p className="text-brand-accent text-[10px] font-bold tracking-[0.3em] uppercase mb-2">UP NEXT</p>
+                        <p className="text-slate-400 text-lg font-light text-center px-4">{nextLine}</p>
                      </div>
 
-                     <div className="space-y-4 mb-16">
-                        <div className="text-4xl md:text-5xl font-bold text-white leading-tight min-h-[100px] flex items-center justify-center">
-                           {currentLine}
+                     {/* CURRENT Line (Center Focus) */}
+                     <div className="space-y-4 mb-16 transform transition-all duration-300">
+                        <div className="bg-slate-900/50 backdrop-blur-md border-l-4 border-brand-accent py-8 px-6 rounded-r-lg shadow-2xl">
+                             <p className="text-3xl md:text-5xl font-black text-white leading-tight">
+                                {currentLine}
+                            </p>
                         </div>
                      </div>
 
                      <div className="pt-4">
                         <button 
                           onClick={handleSync}
-                          className="w-64 h-24 border border-slate-600 hover:border-brand-accent bg-transparent text-slate-500 hover:text-white rounded-sm transition-all flex flex-col items-center justify-center gap-2 mx-auto uppercase tracking-widest text-xs"
+                          className="w-full max-w-xs h-24 border border-slate-600 hover:border-brand-accent bg-transparent text-slate-500 hover:text-white rounded-sm transition-all flex flex-col items-center justify-center gap-2 mx-auto uppercase tracking-widest text-xs active:scale-95 active:bg-slate-800"
                         >
-                           <span>Tap to Sync</span>
-                           <span className="text-[10px] bg-slate-800 px-2 py-1 rounded text-slate-400">SPACEBAR</span>
+                           <span className="text-brand-accent font-bold text-lg">⬇ NEXT LINE</span>
+                           <span className="text-[10px] bg-slate-800 px-2 py-1 rounded text-slate-400 border border-slate-700">PRESS SPACEBAR</span>
                         </button>
                      </div>
                   </>
@@ -381,8 +406,8 @@ const Interactive: React.FC = () => {
              <div className="h-full bg-brand-accent transition-all duration-300" style={{ width: `${progress}%` }}></div>
           </div>
           <div className="flex justify-between mt-2 text-[10px] text-slate-600 font-mono uppercase">
-             <span>Progress</span>
-             <span>{Math.round(progress)}%</span>
+             <span>Lines Synced</span>
+             <span>{lineIndex} / {lyricsLines.length}</span>
           </div>
        </div>
     );
@@ -400,15 +425,43 @@ const Interactive: React.FC = () => {
                Project: <span className="text-brand-accent">{selectedSong?.title}</span>
              </p>
 
-             <div className="grid grid-cols-2 gap-px bg-slate-800 max-w-lg mx-auto mb-12 border border-slate-800">
+             <div className="grid grid-cols-2 gap-px bg-slate-800 max-w-lg mx-auto mb-8 border border-slate-800">
                 <div className="bg-slate-900 p-6">
                    <div className="text-3xl font-light text-white mb-1 font-mono">{syncData.length}</div>
                    <div className="text-[10px] text-slate-500 uppercase tracking-widest">Lines Synced</div>
                 </div>
                 <div className="bg-slate-900 p-6">
                    <div className="text-3xl font-light text-white mb-1 font-mono">{formatTime(elapsedTime)}</div>
-                   <div className="text-[10px] text-slate-500 uppercase tracking-widest">Duration</div>
+                   <div className="text-[10px] text-slate-500 uppercase tracking-widest">Total Duration</div>
                 </div>
+             </div>
+
+             {/* Editable Table */}
+             <div className="max-w-xl mx-auto mb-10 bg-black/50 rounded border border-slate-700 overflow-hidden max-h-60 overflow-y-auto custom-scrollbar text-left p-2">
+                 <table className="w-full text-xs font-mono">
+                     <thead>
+                         <tr>
+                             <th className="text-slate-500 pb-2 pl-2">Time (sec)</th>
+                             <th className="text-slate-500 pb-2">Lyric</th>
+                         </tr>
+                     </thead>
+                     <tbody>
+                         {syncData.map((row, i) => (
+                             <tr key={i} className="border-b border-slate-800/50">
+                                 <td className="py-1">
+                                     <input 
+                                        type="number" 
+                                        step="0.01"
+                                        className="bg-transparent text-brand-accent w-20 outline-none border-b border-transparent focus:border-brand-accent"
+                                        value={row.time}
+                                        onChange={(e) => handleTimeEdit(i, e.target.value)}
+                                     />
+                                 </td>
+                                 <td className="py-1 text-slate-400 truncate max-w-[200px]">{row.text}</td>
+                             </tr>
+                         ))}
+                     </tbody>
+                 </table>
              </div>
 
              <div className="flex flex-col md:flex-row justify-center gap-4">
