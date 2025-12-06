@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useData } from '../context/DataContext';
-import { Song, Language, ProjectType, getLanguageColor } from '../types';
+import { Song, Language, ProjectType, ReleaseCategory, getLanguageColor } from '../types';
 import { generateMusicCritique } from '../services/geminiService';
 import { searchSpotifyTracks, SpotifyTrack } from '../services/spotifyService';
 import { useTranslation } from '../context/LanguageContext';
@@ -99,18 +99,18 @@ const SongDetail: React.FC = () => {
           params.append('events.0.country', 'TW'); // Default Taiwan release
       }
 
-      // Type Guessing (Single vs Album is tricky in simple model, default to Single for individual entry)
-      // Note: MusicBrainz "Release" usually implies a Single or Album.
-      params.append('type', 'single'); 
-      if (song.projectType === ProjectType.Indie) {
-           params.append('type', 'single'); 
-      }
+      // Type Guessing
+      let primaryType = 'single';
+      if (song.releaseCategory === ReleaseCategory.Album) primaryType = 'album';
+      if (song.releaseCategory === ReleaseCategory.EP) primaryType = 'ep';
+      params.append('type', primaryType);
 
       // Annotation / Notes
       let annotation = `Imported from Willwi Music Manager.\n`;
       if (song.isrc) annotation += `ISRC: ${song.isrc}\n`;
       if (song.upc) annotation += `UPC: ${song.upc}\n`;
       if (song.projectType) annotation += `Project: ${song.projectType}\n`;
+      if (song.releaseCompany) annotation += `Label: ${song.releaseCompany}\n`;
       
       params.append('annotation', annotation);
       
@@ -323,7 +323,7 @@ const SongDetail: React.FC = () => {
                                             />
                                         </div>
 
-                                        {/* Language & Project Type Selectors (NEW) */}
+                                        {/* Language, Project, Category Selectors (NEW) */}
                                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                             <div>
                                                  <label className="text-xs text-slate-500 block mb-1">Language</label>
@@ -344,6 +344,25 @@ const SongDetail: React.FC = () => {
                                                  >
                                                      {Object.values(ProjectType).map(p => <option key={p} value={p}>{p}</option>)}
                                                  </select>
+                                            </div>
+                                            <div>
+                                                 <label className="text-xs text-slate-500 block mb-1">Format</label>
+                                                 <select
+                                                     className="w-full bg-slate-900 border border-slate-600 rounded p-2 text-white text-sm"
+                                                     value={editForm.releaseCategory}
+                                                     onChange={(e) => setEditForm({...editForm, releaseCategory: e.target.value as ReleaseCategory})}
+                                                 >
+                                                     {Object.values(ReleaseCategory).map(c => <option key={c} value={c}>{c}</option>)}
+                                                 </select>
+                                            </div>
+                                            <div>
+                                                 <label className="text-xs text-slate-500 block mb-1">Label</label>
+                                                 <input 
+                                                    className="w-full bg-slate-900 border border-slate-600 rounded p-2 text-white text-sm"
+                                                    value={editForm.releaseCompany || ''}
+                                                    onChange={(e) => setEditForm({...editForm, releaseCompany: e.target.value})}
+                                                    placeholder="Willwi Music"
+                                                 />
                                             </div>
                                         </div>
                                     </div>
@@ -369,7 +388,19 @@ const SongDetail: React.FC = () => {
                                             </span>
 
                                             <span className="px-3 py-1 bg-slate-700 text-slate-200 rounded-full text-xs">{song.projectType}</span>
-                                            <span className="px-3 py-1 bg-slate-700 text-slate-200 rounded-full text-xs">{song.releaseDate}</span>
+                                            
+                                            {/* Release Category Badge (NEW) */}
+                                            {song.releaseCategory && (
+                                                <span className="px-3 py-1 bg-indigo-900/50 text-indigo-200 border border-indigo-700 rounded-full text-xs font-bold uppercase tracking-wider">
+                                                    {song.releaseCategory.split(' ')[0]} {/* Takes 'Single' from 'Single (單曲)' */}
+                                                </span>
+                                            )}
+                                            
+                                            <span className="px-3 py-1 bg-slate-700 text-slate-200 rounded-full text-xs flex items-center gap-2">
+                                                {song.releaseDate}
+                                                {/* Release Company Badge (NEW) */}
+                                                {song.releaseCompany && <span className="text-slate-400 border-l border-slate-500 pl-2">© {song.releaseCompany}</span>}
+                                            </span>
                                         </div>
                                     </>
                                 )}

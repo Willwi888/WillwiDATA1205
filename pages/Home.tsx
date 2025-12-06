@@ -10,118 +10,114 @@ const Home: React.FC = () => {
   const featured = songs.find(s => s.isEditorPick) || songs[0];
 
   return (
-    <div className="flex flex-col">
-      {/* 1. Hero Section - Text Only, relying on Layout BG */}
-      <div className="relative min-h-[calc(100vh-64px)] bg-transparent flex flex-col lg:flex-row items-center">
+    <div className="flex flex-col h-full justify-center">
+      {/* 1. Hero Section - Editorial Style */}
+      <div className="relative flex flex-col lg:flex-row items-center justify-center lg:justify-start min-h-[85vh] px-6 md:px-12 lg:px-20">
         
-        {/* Content (Text) - Left Aligned to leave space for background image subject */}
-        <div className="relative z-10 w-full lg:w-1/2 flex flex-col justify-center px-6 lg:px-16 py-12 lg:py-20">
-            <div className="max-w-xl mx-auto lg:mx-0">
-              <h1 className="text-6xl md:text-8xl lg:text-9xl font-black text-white tracking-tighter uppercase mb-4 drop-shadow-2xl">
-                Willwi
-              </h1>
-              
-              <div className="h-1 w-24 bg-brand-accent mb-8 shadow-[0_0_15px_rgba(56,189,248,0.6)]"></div>
-              
-              <h2 className="text-3xl md:text-4xl font-bold tracking-widest text-white mb-6 uppercase leading-tight drop-shadow-lg">
-                {t('hero_title')}
-              </h2>
-              
-              <p className="text-slate-200 text-lg md:text-xl leading-relaxed mb-12 font-light max-w-lg border-l-2 border-slate-400 pl-6 drop-shadow-lg bg-black/20 backdrop-blur-[1px] p-2 rounded-r">
-                 Reborn on Feb 25th.
-                 <br/>
-                 Simply to leave a record of existence.
-              </p>
+        {/* Content (Text) */}
+        <div className="relative z-10 w-full lg:w-2/3 max-w-4xl flex flex-col pt-12 lg:pt-0">
+            
+            {/* Decorative Line & Label */}
+            <div className="flex items-center gap-4 mb-6 animate-fade-in-up opacity-0" style={{animationDelay: '0.1s', animationFillMode: 'forwards'}}>
+                 <div className="h-px w-12 bg-brand-accent"></div>
+                 <span className="text-brand-accent font-bold text-xs tracking-[0.3em] uppercase">The Official Archive</span>
+            </div>
 
-              <div className="flex flex-col sm:flex-row gap-4 mb-16">
-                <Link 
-                    to="/database" 
-                    className="px-8 py-4 bg-brand-accent text-brand-darker font-black text-center uppercase tracking-widest hover:bg-white hover:scale-105 transition-all shadow-lg shadow-brand-accent/20 rounded-sm"
-                >
-                  {t('hero_btn_db')}
-                </Link>
-                <Link 
-                    to="/interactive" 
-                    className="px-8 py-4 border border-slate-300 text-slate-100 font-bold text-center uppercase tracking-widest hover:border-white hover:text-white hover:bg-white/10 transition-all backdrop-blur-sm rounded-sm"
-                >
-                  {t('hero_btn_interactive')}
+            <h1 className="text-7xl md:text-9xl font-black text-white tracking-tighter uppercase mb-6 leading-[0.9] drop-shadow-2xl animate-fade-in-up opacity-0" style={{animationDelay: '0.2s', animationFillMode: 'forwards'}}>
+              Willwi
+            </h1>
+            
+            <h2 className="text-xl md:text-2xl font-light tracking-[0.2em] text-slate-200 mb-8 uppercase animate-fade-in-up opacity-0" style={{animationDelay: '0.3s', animationFillMode: 'forwards'}}>
+              {t('hero_title')}
+            </h2>
+            
+            <p className="text-slate-300 text-sm md:text-base leading-relaxed mb-12 font-light max-w-lg border-l border-brand-accent/50 pl-6 animate-fade-in-up opacity-0" style={{animationDelay: '0.4s', animationFillMode: 'forwards'}}>
+               Reborn on Feb 25th.<br/>
+               Simply to leave a record of existence.<br/>
+               <span className="text-slate-500 text-xs mt-2 block">Est. 1995 • Taipei / Sydney</span>
+            </p>
+
+            {/* Premium Buttons */}
+            <div className="flex flex-col sm:flex-row gap-5 mb-16 animate-fade-in-up opacity-0" style={{animationDelay: '0.5s', animationFillMode: 'forwards'}}>
+              <Link 
+                  to="/database" 
+                  className="group relative px-8 py-4 overflow-hidden border border-white/20 hover:border-brand-accent transition-colors duration-300"
+              >
+                 <div className="absolute inset-0 w-0 bg-brand-accent transition-all duration-[250ms] ease-out group-hover:w-full opacity-10"></div>
+                 <div className="relative flex items-center gap-3">
+                    <span className="text-white font-bold uppercase tracking-[0.2em] text-sm group-hover:text-brand-accent transition-colors">{t('hero_btn_db')}</span>
+                    <svg className="w-4 h-4 text-slate-400 group-hover:translate-x-1 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M17 8l4 4m0 0l-4 4m4-4H3"/></svg>
+                 </div>
+              </Link>
+              
+              <Link 
+                  to="/interactive" 
+                  className="group relative px-8 py-4 overflow-hidden border border-white/20 hover:border-white transition-colors duration-300 backdrop-blur-sm"
+              >
+                  <div className="absolute inset-0 w-0 bg-white transition-all duration-[250ms] ease-out group-hover:w-full opacity-10"></div>
+                  <span className="relative text-slate-300 font-medium uppercase tracking-[0.2em] text-sm group-hover:text-white transition-colors">{t('hero_btn_interactive')}</span>
+              </Link>
+            </div>
+
+            {/* Featured Song Mini Player (Glassmorphism Refined) */}
+            {featured && (
+              <div className="animate-fade-in-up opacity-0" style={{animationDelay: '0.6s', animationFillMode: 'forwards'}}>
+                <Link to={`/song/${featured.id}`} className="group inline-flex items-center gap-4 bg-slate-900/40 backdrop-blur-md border border-white/10 pr-6 rounded-sm hover:bg-slate-900/60 hover:border-white/30 transition-all cursor-pointer">
+                  <div className="relative w-20 h-20 overflow-hidden">
+                      {/* Removed grayscale class here */}
+                      <img src={featured.coverUrl} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" alt="cover" />
+                      <div className="absolute inset-0 bg-black/10 group-hover:bg-transparent transition-colors"></div>
+                  </div>
+                  <div className="py-2">
+                    <div className="text-[10px] font-bold text-brand-accent uppercase tracking-[0.2em] mb-1">{t('hero_latest')}</div>
+                    <h3 className="text-lg font-bold text-white group-hover:text-brand-accent transition-colors truncate max-w-[200px]">{featured.title}</h3>
+                    <p className="text-xs text-slate-500 font-mono tracking-wide">{featured.releaseDate}</p>
+                  </div>
                 </Link>
               </div>
-
-              {/* Featured Song Mini Player */}
-              {featured && (
-                <div className="bg-slate-900/60 backdrop-blur-xl p-4 rounded-xl border border-white/10 max-w-md animate-fade-in hover:border-brand-accent/50 transition-colors shadow-2xl">
-                  <div className="flex justify-between items-center mb-3">
-                    <p className="text-[10px] font-bold text-brand-accent uppercase tracking-[0.2em]">{t('hero_latest')}</p>
-                    <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-medium bg-slate-800/80 border border-slate-700 text-slate-300">
-                      <span className={`w-1.5 h-1.5 rounded-full ${getLanguageColor(featured.language)}`}></span>
-                      {featured.language}
-                    </span>
-                  </div>
-                  <Link to={`/song/${featured.id}`} className="flex items-center gap-4 group cursor-pointer">
-                    <div className="relative w-16 h-16 overflow-hidden rounded-lg">
-                       <img src={featured.coverUrl} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" alt="cover" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <h3 className="text-lg font-bold text-white group-hover:text-brand-accent transition-colors truncate">{featured.title}</h3>
-                      <p className="text-xs text-slate-400 font-mono">{featured.releaseDate}</p>
-                    </div>
-                    <div className="w-10 h-10 rounded-full border border-slate-500/50 flex items-center justify-center text-slate-400 group-hover:border-brand-accent group-hover:text-brand-accent group-hover:bg-brand-accent/10 transition-all">
-                       <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M14 5l7 7m0 0l-7 7m7-7H3"></path></svg>
-                    </div>
-                  </Link>
-                </div>
-              )}
-            </div>
+            )}
         </div>
-        
-        {/* Right side is intentionally empty to let the background image (the person) show through */}
-        <div className="w-full lg:w-1/2 h-10 lg:h-auto"></div>
       </div>
 
-      {/* 2. Brand / Mission Section - Semi-transparent background */}
-      <div className="bg-slate-950/80 backdrop-blur-md py-24 px-6 lg:px-8 border-t border-white/5">
+      {/* 2. Brand / Mission Section - Refined dark layout */}
+      <div className="relative bg-black/40 backdrop-blur-xl border-t border-white/5 py-24 px-6 lg:px-20">
         <div className="max-w-7xl mx-auto">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-start">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-20 items-start">
             
-            {/* Left: Verification */}
+            {/* Left: Philosophy */}
             <div className="space-y-8">
-               <h3 className="text-3xl font-bold text-white tracking-wide border-l-4 border-brand-accent pl-6">
-                 {t('home_verified_title')}
+               <h3 className="text-xs font-bold text-brand-accent tracking-[0.3em] uppercase mb-4">
+                 Philosophy
                </h3>
-               <div className="grid grid-cols-1 gap-4 pl-6">
-                 {(t('home_verified_items') as string[]).map((item, idx) => (
-                   <div key={idx} className="flex items-center gap-4 text-slate-300 group">
-                      <div className="w-6 h-6 rounded-full bg-brand-gold/10 flex items-center justify-center border border-brand-gold/30 group-hover:bg-brand-gold group-hover:text-black transition-colors">
-                        <svg className="w-3 h-3 text-brand-gold group-hover:text-black" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd"></path></svg>
-                      </div>
-                      <span className="font-medium tracking-wide">{item}</span>
-                   </div>
-                 ))}
+               {/* REMOVED QUOTATION MARKS AROUND THE TEXT BELOW */}
+               <h2 className="text-3xl md:text-4xl font-light text-white leading-tight">
+                 {t('home_quote_main')}<br/> 
+                 <span className="font-bold text-slate-200">{t('home_quote_sub')}</span>
+               </h2>
+               <div className="text-slate-400 text-sm leading-relaxed max-w-md font-light space-y-6">
+                 <p>{t('home_purpose_text')}</p>
+                 <p>{t('home_eco_text')}</p>
+               </div>
+               
+               <div className="pt-8 flex gap-4">
+                  <div className="h-px flex-1 bg-gradient-to-r from-slate-700 to-transparent self-center"></div>
+                  <span className="text-[10px] text-slate-600 uppercase tracking-widest font-mono">Verified Artist</span>
                </div>
             </div>
 
-            {/* Right: Purpose */}
-            <div className="space-y-8 bg-slate-900/60 p-8 rounded-2xl border border-white/10 shadow-xl">
-               <div className="flex gap-2 mb-4">
-                  <span className="bg-slate-800/80 text-slate-400 text-[10px] px-2 py-1 rounded border border-slate-700 uppercase tracking-wider">Est. 1995</span>
-                  <span className="bg-slate-800/80 text-slate-400 text-[10px] px-2 py-1 rounded border border-slate-700 uppercase tracking-wider">Sydney / Taipei</span>
-               </div>
-               <h3 className="text-3xl font-bold text-white tracking-wide">
-                 Respecting the Art of Music
+            {/* Right: Verification List */}
+            <div className="bg-slate-950/50 border border-white/5 p-8 md:p-12 relative">
+               <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-brand-accent to-transparent"></div>
+               <h3 className="text-xl font-bold text-white tracking-widest uppercase mb-8">
+                 Global Presence
                </h3>
-               <p className="text-lg text-slate-300 leading-relaxed">
-                 {t('home_purpose_text')}
-                 <br/><br/>
-                 We believe in a fair ecosystem. By offering a "First Song Free, then 80 NTD" model for our interactive studio, we ensure that digital tools support rather than devalue the music industry. It's not about profit; it's about setting a standard of value for every creator.
-               </p>
-               <div className="pt-8 border-t border-white/10">
-                  <blockquote className="text-xl md:text-2xl font-serif italic text-white mb-4">
-                    "{t('home_quote_main')}"
-                  </blockquote>
-                  <cite className="block text-brand-accent font-bold not-italic tracking-widest text-sm uppercase">
-                    — {t('home_quote_sub')}
-                  </cite>
+               <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-4 gap-x-8">
+                 {(t('home_verified_items') as string[]).map((item, idx) => (
+                   <div key={idx} className="flex items-center gap-3 text-slate-400 group">
+                      <span className="w-1.5 h-1.5 bg-brand-gold rounded-full opacity-50 group-hover:opacity-100 group-hover:shadow-[0_0_8px_rgba(251,191,36,0.8)] transition-all"></span>
+                      <span className="text-xs font-medium tracking-wide uppercase group-hover:text-white transition-colors">{item}</span>
+                   </div>
+                 ))}
                </div>
             </div>
 

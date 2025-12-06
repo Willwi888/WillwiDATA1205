@@ -31,9 +31,10 @@ const TRANSLATIONS = {
       "Featured in Google Knowledge Graph"
     ],
     home_purpose_title: "Purpose-driven Creation",
-    home_purpose_text: "Centered on emotional storytelling, our professional team provides customized songwriting and production services. From story interviews, lyric development, and composition to final production, every moment of life deserves to be preserved and heard through music.",
-    home_quote_main: "Everyone deserves a theme song of their own.",
-    home_quote_sub: "Music is more than melody — it is the voice of a story and the echo of a soul.",
+    home_quote_main: "Music is more than melody.",
+    home_quote_sub: "It is the resonance of a soul.",
+    home_purpose_text: "Guided by the power of storytelling, we craft customized songwriting and production experiences centered on each person’s truth. From initial conversations and lyric exploration to composition and final production, life’s meaningful moments deserve to be held and remembered through music.",
+    home_eco_text: "We support a fair and sustainable creative ecosystem. Our “First Song Free, then 80 NTD” approach ensures that digital tools enhance artistic expression without diminishing the value of the music industry.",
 
     // Database
     db_title: "Music Catalog",
@@ -68,6 +69,8 @@ const TRANSLATIONS = {
     form_label_version: "Version Label (e.g. Acoustic)",
     form_label_lang: "Language",
     form_label_project: "Project Type",
+    form_label_category: "Format", // NEW
+    form_label_company: "Record Label", // NEW
     form_label_date: "Release Date",
     form_label_cover: "Cover URL",
     form_label_pick: "Editor's Pick",
@@ -127,9 +130,10 @@ const TRANSLATIONS = {
       "Google 知識圖譜收錄藝人"
     ],
     home_purpose_title: "以使命為核心的創作",
-    home_purpose_text: "以情感敘事為核心，我們的專業團隊提供客製化的詞曲創作與製作服務。從故事訪談、歌詞發展、作曲到最終製作，生命中的每一個時刻都值得透過音樂被保存與聽見。",
-    home_quote_main: "每個人都值得擁有一首主題曲。",
-    home_quote_sub: "音樂不只是旋律，它是故事的聲音，是靈魂的迴響。",
+    home_quote_main: "音樂不只是旋律。",
+    home_quote_sub: "它是靈魂的共鳴。",
+    home_purpose_text: "以故事的力量為引導，我們打造以個人真實經歷為核心的客製化詞曲創作與製作體驗。從初步訪談、歌詞探索到作曲與最終製作，生命中充滿意義的時刻都值得透過音樂被保存與紀念。",
+    home_eco_text: "我們支持公平且永續的創作生態。我們的「首曲免費，後續 80 元」模式，確保數位工具能提升藝術表現，而非貶低音樂產業的價值。",
 
     // Database
     db_title: "作品資料庫",
@@ -164,6 +168,8 @@ const TRANSLATIONS = {
     form_label_version: "版本標記 (如: Acoustic)",
     form_label_lang: "語言",
     form_label_project: "專案類型",
+    form_label_category: "發行形式", // NEW
+    form_label_company: "發行公司", // NEW
     form_label_date: "發行日期",
     form_label_cover: "封面圖片 URL",
     form_label_pick: "編輯精選",

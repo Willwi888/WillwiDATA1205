@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { Song, Language, ProjectType, SongContextType } from '../types';
+import { Song, Language, ProjectType, ReleaseCategory, SongContextType } from '../types';
 import { dbService } from '../services/db';
 
 const DataContext = createContext<SongContextType | undefined>(undefined);
@@ -7,133 +7,87 @@ const DataContext = createContext<SongContextType | undefined>(undefined);
 const LOCAL_STORAGE_KEY = 'willwi_music_db_v1';
 
 // Initial sample data if DB is completely empty and no local storage found
+// Replaced Picsum with Unsplash for better visual quality
 const INITIAL_DATA: Song[] = [
   {
     id: '1',
     title: '再愛一次',
     versionLabel: 'Original',
-    coverUrl: 'https://picsum.photos/id/26/400/400',
+    coverUrl: 'https://images.unsplash.com/photo-1514525253440-b393452e8d26?q=80&w=800&auto=format&fit=crop',
     language: Language.Mandarin,
     projectType: ProjectType.Indie,
-    releaseDate: '2023-10-15',
+    releaseCategory: ReleaseCategory.Single,
+    releaseDate: '2023-01-01',
     isEditorPick: true,
-    isrc: 'TW-A01-23-00001',
-    spotifyId: '4uLU6hMCjMI75M1A2tKZBC', 
-    lyrics: "走在 熟悉的街角\n回憶 像是海浪拍打\n每一個呼吸\n都是你的氣息\n再愛一次\n能不能\n再愛一次",
-    description: "一首關於失去與重逢的抒情搖滾。",
-    youtubeUrl: "https://www.youtube.com/watch?v=dQw4w9WgXcQ", 
-    musixmatchUrl: "https://www.musixmatch.com/artist/Willwi",
-    youtubeMusicUrl: "https://music.youtube.com/channel/WillwiID",
-    spotifyLink: "https://open.spotify.com/artist/3ascZ8Rb2KDw4QyCy29Om4",
-    appleMusicLink: "https://music.apple.com/us/artist/willwi/1798471457"
-  },
-  {
-    id: '2',
-    title: '泡麵之歌',
-    coverUrl: 'https://picsum.photos/id/192/400/400',
-    language: Language.Japanese,
-    projectType: ProjectType.PaoMien,
-    releaseDate: '2024-01-20',
-    isEditorPick: false,
-    isrc: 'TW-A01-24-00002',
-    description: "深夜肚子餓時的即興創作。",
-    musixmatchUrl: "https://www.musixmatch.com/artist/Willwi",
-    youtubeMusicUrl: "https://music.youtube.com/channel/WillwiID",
-    spotifyLink: "https://open.spotify.com/artist/3ascZ8Rb2KDw4QyCy29Om4",
-    appleMusicLink: "https://music.apple.com/us/artist/willwi/1798471457"
+    description: 'Sample song description.'
   }
 ];
 
 export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [songs, setSongs] = useState<Song[]>([]);
-  const [isLoaded, setIsLoaded] = useState(false);
 
-  // Initialize DB and Load Data
+  // Load data on mount
   useEffect(() => {
-    const initData = async () => {
+    const loadData = async () => {
       try {
-        // 1. Try to fetch from IndexedDB
-        let dbSongs = await dbService.getAllSongs();
-
-        // 2. Check for migration: If DB is empty but LocalStorage has data
-        if (dbSongs.length === 0) {
-           const localData = localStorage.getItem(LOCAL_STORAGE_KEY);
-           if (localData) {
-             try {
-               console.log("Migrating data from LocalStorage to IndexedDB...");
-               const parsedLocal: Song[] = JSON.parse(localData);
-               if (parsedLocal.length > 0) {
-                 await dbService.bulkAdd(parsedLocal);
-                 dbSongs = await dbService.getAllSongs();
-                 // Optional: Clear local storage after successful migration
-                 // localStorage.removeItem(LOCAL_STORAGE_KEY); 
-               }
-             } catch (e) {
-               console.error("Migration failed:", e);
-             }
-           } else {
-             // 3. If completely new, load initial sample data
-             console.log("Initializing with sample data...");
-             await dbService.bulkAdd(INITIAL_DATA);
-             dbSongs = INITIAL_DATA;
-           }
+        // Try IndexedDB first
+        let loadedSongs = await dbService.getAllSongs();
+        
+        if (loadedSongs.length === 0) {
+            // Check LocalStorage if IndexedDB is empty (migration scenario or fallback)
+            const localData = localStorage.getItem(LOCAL_STORAGE_KEY);
+            if (localData) {
+                loadedSongs = JSON.parse(localData);
+                // Migrate to IndexedDB
+                await dbService.bulkAdd(loadedSongs);
+            } else {
+                // Initialize with seed data if absolutely nothing exists
+                loadedSongs = INITIAL_DATA;
+                await dbService.bulkAdd(loadedSongs);
+            }
         }
-
-        // Sort by date descending
-        const sorted = dbSongs.sort((a, b) => 
-            new Date(b.releaseDate).getTime() - new Date(a.releaseDate).getTime()
-        );
-        setSongs(sorted);
-      } catch (err) {
-        console.error("Failed to initialize database:", err);
-        // Fallback to memory only if DB fails
+        setSongs(loadedSongs);
+      } catch (error) {
+        console.error("Failed to load data", error);
         setSongs(INITIAL_DATA);
-      } finally {
-        setIsLoaded(true);
       }
     };
-
-    initData();
+    loadData();
   }, []);
 
-  const addSong = async (song: Song): Promise<boolean> => {
+  const addSong = async (song: Song) => {
     try {
       await dbService.addSong(song);
       setSongs(prev => [song, ...prev]);
       return true;
-    } catch (e) {
-      console.error("DB Add Error:", e);
-      alert("儲存失敗：資料庫寫入錯誤。");
+    } catch (error) {
+      console.error("Failed to add song", error);
       return false;
     }
   };
 
-  const updateSong = async (id: string, updatedFields: Partial<Song>): Promise<boolean> => {
+  const updateSong = async (id: string, updatedSong: Partial<Song>) => {
     try {
-      const currentSong = songs.find(s => s.id === id);
-      if (!currentSong) return false;
-
-      const updatedSong = { ...currentSong, ...updatedFields };
-      await dbService.updateSong(updatedSong);
+      const existingSong = songs.find(s => s.id === id);
+      if (!existingSong) return false;
       
-      setSongs(prev => prev.map(s => s.id === id ? updatedSong : s));
+      const newSong = { ...existingSong, ...updatedSong };
+      await dbService.updateSong(newSong);
+      
+      setSongs(prev => prev.map(s => s.id === id ? newSong : s));
       return true;
-    } catch (e) {
-      console.error("DB Update Error:", e);
-      alert("更新失敗。");
+    } catch (error) {
+      console.error("Failed to update song", error);
       return false;
     }
   };
 
   const deleteSong = async (id: string) => {
-    if (window.confirm("確定要刪除這首歌嗎？此操作無法復原。")) {
-      try {
-        await dbService.deleteSong(id);
-        setSongs(prev => prev.filter(s => s.id !== id));
-      } catch (e) {
-        console.error("DB Delete Error:", e);
-        alert("刪除失敗。");
-      }
+    try {
+      await dbService.deleteSong(id);
+      setSongs(prev => prev.filter(s => s.id !== id));
+    } catch (error) {
+      console.error("Failed to delete song", error);
     }
   };
 

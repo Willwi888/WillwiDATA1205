@@ -308,7 +308,8 @@ const Interactive: React.FC = () => {
                 className="group relative bg-slate-900 rounded-lg overflow-hidden border border-slate-800 hover:border-brand-accent transition-all text-left hover:shadow-2xl"
               >
                 <div className="aspect-video bg-black relative">
-                  <img src={song.coverUrl} alt={song.title} className="w-full h-full object-cover opacity-60 group-hover:opacity-40 transition-opacity duration-500 grayscale group-hover:grayscale-0" />
+                  {/* Removed grayscale, changed opacity */}
+                  <img src={song.coverUrl} alt={song.title} className="w-full h-full object-cover transition-opacity duration-500" />
                   <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
                      <span className="px-4 py-2 border border-white text-white font-bold uppercase text-xs tracking-widest hover:bg-white hover:text-black transition-colors">
                         Launch

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useData } from '../context/DataContext';
-import { Language, ProjectType, Song } from '../types';
+import { Language, ProjectType, ReleaseCategory, Song } from '../types';
 import { searchSpotifyTracks, searchSpotifyAlbums, getSpotifyAlbumTracks, SpotifyTrack, SpotifyAlbum } from '../services/spotifyService';
 import { getWillwiReleases, getCoverArtUrl, MBReleaseGroup } from '../services/musicbrainzService';
 import { useTranslation } from '../context/LanguageContext';
@@ -47,13 +47,15 @@ const AddSong: React.FC = () => {
     versionLabel: '',
     language: Language.Mandarin,
     projectType: ProjectType.Indie,
+    releaseCategory: ReleaseCategory.Single, // Default to Single
+    releaseCompany: '',
     releaseDate: new Date().toISOString().split('T')[0],
     isEditorPick: false,
-    coverUrl: 'https://picsum.photos/400/400', 
+    coverUrl: '', 
     lyrics: '',
     description: '',
     credits: '',
-    spotifyLink: '', // Ensure initialized
+    spotifyLink: '', 
     musicBrainzId: '',
   });
 
@@ -128,7 +130,9 @@ const AddSong: React.FC = () => {
         upc: track.album.external_ids?.upc || track.album.external_ids?.ean || '',
         spotifyId: track.id,
         spotifyLink: track.external_urls.spotify,
-        versionLabel: track.name.includes('(') ? track.name.split('(')[1].replace(')', '') : '', 
+        versionLabel: track.name.includes('(') ? track.name.split('(')[1].replace(')', '') : '',
+        releaseCategory: ReleaseCategory.Single, // Default assumption
+        releaseCompany: 'Willwi Music' // Default assumption
     }));
     setTrackResults([]); // Clear results to show form
   };
@@ -138,12 +142,17 @@ const AddSong: React.FC = () => {
       // Try to fetch cover art
       const cover = await getCoverArtUrl(release.id);
       
+      let category = ReleaseCategory.Single;
+      if (release['primary-type'] === 'Album') category = ReleaseCategory.Album;
+      if (release['primary-type'] === 'EP') category = ReleaseCategory.EP;
+
       setFormData(prev => ({
           ...prev,
           title: release.title,
           releaseDate: release['first-release-date'] || '',
-          coverUrl: cover || 'https://picsum.photos/400/400',
+          coverUrl: cover || '',
           musicBrainzId: release.id,
+          releaseCategory: category,
           description: `Imported from MusicBrainz. Type: ${release['primary-type']}`
       }));
       setIsSearching(false);
@@ -164,7 +173,7 @@ const AddSong: React.FC = () => {
     setImportStatus('Importing...');
 
     let count = 0;
-    const coverUrl = selectedAlbum.images[0]?.url || 'https://picsum.photos/400/400';
+    const coverUrl = selectedAlbum.images[0]?.url || '';
 
     for (const track of albumTracks) {
         const newSong: Song = {
@@ -174,13 +183,13 @@ const AddSong: React.FC = () => {
             coverUrl: coverUrl,
             language: Language.Mandarin, // Default, user can edit later
             projectType: ProjectType.Indie, // Default
+            releaseCategory: selectedAlbum.total_tracks > 6 ? ReleaseCategory.Album : ReleaseCategory.EP,
+            releaseCompany: 'Willwi Music',
             releaseDate: selectedAlbum.release_date,
             isEditorPick: false,
-            // Track object from album endpoint doesn't usually have ISRC directly without extra calls, 
-            // but we use what we have. Note: SimplifiedTrackObject often lacks external_ids.
             isrc: (track as any).external_ids?.isrc || '', 
             spotifyId: track.id,
-            spotifyLink: track.external_urls.spotify, // CRITICAL: Populate the link!
+            spotifyLink: track.external_urls.spotify,
             description: `From Album: ${selectedAlbum.name}`
         };
         await addSong(newSong);
@@ -207,9 +216,11 @@ const AddSong: React.FC = () => {
       id: Date.now().toString(),
       title: formData.title!,
       versionLabel: formData.versionLabel || '',
-      coverUrl: formData.coverUrl || 'https://picsum.photos/400/400',
+      coverUrl: formData.coverUrl || '',
       language: formData.language as Language,
       projectType: formData.projectType as ProjectType,
+      releaseCategory: formData.releaseCategory as ReleaseCategory,
+      releaseCompany: formData.releaseCompany || '',
       releaseDate: formData.releaseDate || new Date().toISOString().split('T')[0],
       isEditorPick: !!formData.isEditorPick,
       isrc: formData.isrc,
@@ -247,24 +258,27 @@ const AddSong: React.FC = () => {
           <h2 className="text-3xl font-bold text-white">{t('form_title_add')}</h2>
           
           {/* Mode Switcher */}
-          <div className="bg-slate-800 p-1 rounded-lg flex border border-slate-700">
+          <div className="bg-slate-800 p-1 rounded-lg flex border border-slate-700 shadow-sm">
               <button 
                 onClick={() => { setImportMode('single'); setAlbumResults([]); setMbResults([]); setSelectedAlbum(null); }}
-                className={`px-4 py-2 rounded-md text-sm font-bold transition-all ${importMode === 'single' ? 'bg-brand-accent text-slate-900 shadow' : 'text-slate-400 hover:text-white'}`}
+                className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-bold transition-all ${importMode === 'single' ? 'bg-brand-accent text-slate-900 shadow' : 'text-slate-400 hover:text-white'}`}
               >
-                  🎵 {t('form_mode_single')}
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3" /></svg>
+                  {t('form_mode_single')}
               </button>
               <button 
                 onClick={() => { setImportMode('album'); setTrackResults([]); setMbResults([]); setFormData({}); }}
-                className={`px-4 py-2 rounded-md text-sm font-bold transition-all ${importMode === 'album' ? 'bg-brand-accent text-slate-900 shadow' : 'text-slate-400 hover:text-white'}`}
+                className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-bold transition-all ${importMode === 'album' ? 'bg-brand-accent text-slate-900 shadow' : 'text-slate-400 hover:text-white'}`}
               >
-                  💿 {t('form_mode_album')}
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" /></svg>
+                  {t('form_mode_album')}
               </button>
                <button 
                 onClick={() => { setImportMode('mb'); setTrackResults([]); setAlbumResults([]); setFormData({}); }}
-                className={`px-4 py-2 rounded-md text-sm font-bold transition-all ${importMode === 'mb' ? 'bg-[#eb743b] text-white shadow' : 'text-slate-400 hover:text-white'}`}
+                className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-bold transition-all ${importMode === 'mb' ? 'bg-[#eb743b] text-white shadow' : 'text-slate-400 hover:text-white'}`}
               >
-                  🧠 MusicBrainz
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9" /></svg>
+                  MusicBrainz
               </button>
           </div>
       </div>
@@ -280,15 +294,15 @@ const AddSong: React.FC = () => {
                 <input 
                     type="text" 
                     placeholder={importMode === 'single' ? "Song Title (e.g. Love Again)" : "Album Name"}
-                    className="flex-grow bg-slate-950 border border-slate-700 rounded-lg px-4 py-3 text-white focus:border-green-500 outline-none"
+                    className="flex-grow bg-slate-950 border border-slate-700 rounded-lg px-4 py-3 text-white focus:border-green-500 outline-none placeholder-slate-600"
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
                 />
             ) : (
                 <div className="flex-grow text-slate-300 flex items-center px-4 bg-slate-950/50 border border-slate-800 rounded-lg">
-                    <span>Target: </span>
-                    <span className="ml-2 font-mono text-[#eb743b] font-bold">Willwi (526cc0f8-da20...)</span>
+                    <span className="text-slate-500 mr-2">Target Artist:</span>
+                    <span className="font-mono text-[#eb743b] font-bold">Willwi (526cc0f8...)</span>
                 </div>
             )}
             <button 
@@ -332,8 +346,8 @@ const AddSong: React.FC = () => {
             <div className="mt-4 grid gap-3 max-h-80 overflow-y-auto pr-2 custom-scrollbar">
                 {mbResults.map(release => (
                     <div key={release.id} className="flex items-center gap-4 p-3 bg-slate-800 hover:bg-slate-700 rounded-lg border border-slate-700 cursor-pointer transition-colors" onClick={() => selectMBReleaseForForm(release)}>
-                        <div className="w-12 h-12 rounded bg-slate-700 flex items-center justify-center text-xs text-slate-400">
-                            MB
+                        <div className="w-12 h-12 rounded bg-slate-700 flex items-center justify-center text-slate-500">
+                            <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3" /></svg>
                         </div>
                         <div className="flex-grow">
                             <div className="font-bold text-white">{release.title}</div>
@@ -444,6 +458,16 @@ const AddSong: React.FC = () => {
                 </select>
                 </div>
                 <div>
+                    <label className="block text-sm font-medium text-slate-300 mb-1">{t('form_label_category')}</label>
+                    <select name="releaseCategory" value={formData.releaseCategory} onChange={handleChange} className="w-full bg-slate-900 border border-slate-600 rounded p-2 text-white">
+                        {Object.values(ReleaseCategory).map(c => <option key={c} value={c}>{c}</option>)}
+                    </select>
+                </div>
+                 <div>
+                    <label className="block text-sm font-medium text-slate-300 mb-1">{t('form_label_company')}</label>
+                    <input name="releaseCompany" value={formData.releaseCompany || ''} onChange={handleChange} className="w-full bg-slate-900 border border-slate-600 rounded p-2 text-white" placeholder="e.g. Willwi Music" />
+                </div>
+                <div>
                 <label className="block text-sm font-medium text-slate-300 mb-1">{t('form_label_date')}</label>
                 <input type="date" name="releaseDate" value={formData.releaseDate} onChange={handleChange} className="w-full bg-slate-900 border border-slate-600 rounded p-2 text-white" />
                 </div>
@@ -451,7 +475,13 @@ const AddSong: React.FC = () => {
                 <label className="block text-sm font-medium text-slate-300 mb-1">{t('form_label_cover')}</label>
                 <div className="flex gap-2">
                     <input name="coverUrl" value={formData.coverUrl} onChange={handleChange} className="w-full bg-slate-900 border border-slate-600 rounded p-2 text-white" placeholder="https://..." />
-                    {formData.coverUrl && <img src={formData.coverUrl} alt="Preview" className="w-10 h-10 rounded object-cover border border-slate-600" />}
+                    {formData.coverUrl ? (
+                        <img src={formData.coverUrl} alt="Preview" className="w-10 h-10 rounded object-cover border border-slate-600" />
+                    ) : (
+                        <div className="w-10 h-10 rounded border border-slate-700 bg-slate-800 flex items-center justify-center text-slate-600">
+                             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+                        </div>
+                    )}
                 </div>
                 <p className="text-xs text-slate-500 mt-1">Direct link or Google Image redirect</p>
                 </div>

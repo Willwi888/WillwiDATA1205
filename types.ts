@@ -16,6 +16,12 @@ export enum ProjectType {
   PaoMien = '泡麵聲學院'
 }
 
+export enum ReleaseCategory {
+  Single = 'Single (單曲)',
+  EP = 'EP (迷你專輯)',
+  Album = 'Album (專輯)'
+}
+
 export interface Song {
   id: string;
   title: string;
@@ -23,6 +29,8 @@ export interface Song {
   coverUrl: string;
   language: Language;
   projectType: ProjectType;
+  releaseCategory?: ReleaseCategory; // New: Single, EP, Album
+  releaseCompany?: string; // New: Record Label
   releaseDate: string;
   isEditorPick: boolean;
   
