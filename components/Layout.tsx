@@ -183,6 +183,9 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
                         <a href="https://www.instagram.com/willwi888" target="_blank" rel="noreferrer" className="hover:text-white transition-colors flex items-center gap-2 group">
                             <span className="w-1 h-1 bg-slate-600 rounded-full group-hover:bg-brand-accent transition-colors"></span> Instagram
                         </a>
+                        <a href="https://www.threads.net/@willwi888" target="_blank" rel="noreferrer" className="hover:text-white transition-colors flex items-center gap-2 group">
+                            <span className="w-1 h-1 bg-slate-600 rounded-full group-hover:bg-brand-accent transition-colors"></span> Threads
+                        </a>
                         <a href="https://x.com/Willwi888" target="_blank" rel="noreferrer" className="hover:text-white transition-colors flex items-center gap-2 group">
                              <span className="w-1 h-1 bg-slate-600 rounded-full group-hover:bg-brand-accent transition-colors"></span> X (Twitter)
                         </a>
