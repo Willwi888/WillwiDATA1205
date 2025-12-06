@@ -130,7 +130,7 @@ const Database: React.FC = () => {
                 <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8">
                     {Object.entries(groupedContent.albums).map(([upc, albumSongs]) => {
                         // Sort tracks by title or ID (or track number if we had it)
-                        const sortedTracks = albumSongs.sort((a,b) => a.title.localeCompare(b.title));
+                        const sortedTracks = (albumSongs as Song[]).sort((a,b) => a.title.localeCompare(b.title));
                         const coverSong = sortedTracks[0];
                         
                         return (

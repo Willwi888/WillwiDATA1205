@@ -10,6 +10,13 @@ const AdminDashboard: React.FC = () => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [restoreStatus, setRestoreStatus] = useState('');
 
+  // Project Links provided by user
+  const PROJECT_LINKS = {
+      drive: 'https://drive.google.com/drive/folders/1PmP_GB7etr45T_DwcZcLt45Om2RDqTNI?usp=drive_link',
+      supabase: 'https://supabase.com/dashboard/project/rzxqseimxhbokrhcdjbi',
+      vercel: 'https://vercel.com/willwi'
+  };
+
   // 1. Calculate Catalog Health
   const totalSongs = songs.length;
   const missingISRC = songs.filter(s => !s.isrc).length;
@@ -17,7 +24,6 @@ const AdminDashboard: React.FC = () => {
   const hasMusicBrainz = songs.filter(s => s.musicBrainzId).length;
 
   // 2. Mock Data for "Business Intelligence"
-  // Updated to reflect the user's real milestones (4500 hearts, approx revenue)
   const mockRevenue = {
     dailyRevenueUSD: 500, // Approx $500 USD/day
     dailyRevenueNTD: 16000, 
@@ -92,7 +98,7 @@ const AdminDashboard: React.FC = () => {
   };
 
   const openGoogleDrive = () => {
-      window.open('https://drive.google.com/drive/u/0/my-drive', '_blank');
+      window.open(PROJECT_LINKS.drive, '_blank');
   };
 
   return (
@@ -110,60 +116,60 @@ const AdminDashboard: React.FC = () => {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         
-        {/* COL 1: Legacy Archive Protocol (Google Drive Integration) */}
-        <div className="lg:col-span-2 space-y-6">
+        {/* COL 1: Legacy Archive & Carrd Guide */}
+        <div className="lg:col-span-2 space-y-8">
             
-            {/* Backup Center */}
+            {/* 1. CLOUD SYNC CENTER (Google Drive) */}
             <div className="bg-gradient-to-r from-slate-900 to-slate-800 border border-slate-700 rounded-xl p-8 shadow-2xl relative overflow-hidden group">
-                 <div className="absolute top-0 right-0 bg-brand-gold text-slate-900 text-[10px] font-bold px-3 py-1 rounded-bl shadow-lg uppercase tracking-wider">Priority Action</div>
+                 <div className="absolute top-0 right-0 bg-brand-gold text-slate-900 text-[10px] font-bold px-3 py-1 rounded-bl shadow-lg uppercase tracking-wider">CRITICAL</div>
                  
                  <h2 className="text-2xl font-bold text-white mb-2 flex items-center gap-3">
-                    ☁️ Google Drive Archiving Strategy
+                    ☁️ Cloud Sync (Google Drive)
                  </h2>
                  <p className="text-slate-300 text-sm mb-6 max-w-lg leading-relaxed">
-                    為了確保您的作品「永遠聽得到」，請定期執行此流程。將此網站產生的資料檔 (JSON) 上傳至您的 2TB 雲端空間，與您的音樂母帶放在一起。
+                    這是確保資料永久保存的唯一途徑。網站本身不儲存資料，資料在您的瀏覽器中。請定期下載 JSON 檔並上傳至 Google Drive 專屬金庫。
                  </p>
 
                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-center">
                      <div className="space-y-3">
                          <div className="flex items-center gap-3">
                              <span className="flex-shrink-0 w-6 h-6 rounded-full bg-brand-accent text-brand-darker font-bold flex items-center justify-center text-xs">1</span>
-                             <span className="text-white text-sm">Download Metadata File</span>
+                             <span className="text-white text-sm font-bold">匯出資料庫檔案</span>
                          </div>
                          <button 
                             onClick={handleExport}
-                            className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-slate-700 hover:bg-white hover:text-slate-900 text-white font-bold rounded-lg transition-all border border-slate-600"
+                            className="w-full flex items-center justify-center gap-2 px-4 py-4 bg-slate-700 hover:bg-white hover:text-slate-900 text-white font-bold rounded-lg transition-all border border-slate-600 group-hover:border-brand-accent"
                         >
-                             <span>⬇️ Export .JSON</span>
+                             <span>⬇️ 下載最新備份 (.json)</span>
                          </button>
                      </div>
 
                      <div className="space-y-3">
                          <div className="flex items-center gap-3">
                              <span className="flex-shrink-0 w-6 h-6 rounded-full bg-green-500 text-slate-900 font-bold flex items-center justify-center text-xs">2</span>
-                             <span className="text-white text-sm">Upload to Google Drive</span>
+                             <span className="text-white text-sm font-bold">上傳至雲端金庫</span>
                          </div>
                          <button 
                             onClick={openGoogleDrive}
-                            className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-green-700 hover:bg-green-600 text-white font-bold rounded-lg transition-all shadow-lg"
+                            className="w-full flex items-center justify-center gap-2 px-4 py-4 bg-green-700 hover:bg-green-600 text-white font-bold rounded-lg transition-all shadow-lg hover:shadow-green-500/20"
                         >
-                            <span>↗️ Open Google Drive</span>
+                            <span>↗️ 開啟 Google Drive</span>
                         </button>
                      </div>
                  </div>
 
-                 {/* Restore Section (Small) */}
-                 <div className="mt-8 pt-6 border-t border-slate-700/50 flex items-center justify-between">
+                 {/* Restore Section */}
+                 <div className="mt-8 pt-6 border-t border-slate-700/50 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                      <div className="text-xs text-slate-500">
-                         Need to restore data on a new device?
+                         換了新電腦或瀏覽器？請在此匯入之前的 JSON 檔案：
                      </div>
                      <div className="relative">
                         <button 
                             onClick={handleImportClick}
                             disabled={isProcessing}
-                            className="text-xs text-brand-accent hover:text-white underline"
+                            className="text-xs text-brand-accent hover:text-white underline font-bold px-2 py-1"
                         >
-                            Import Backup File
+                            🔄 從檔案還原資料庫
                         </button>
                         <input 
                             type="file" 
@@ -177,7 +183,52 @@ const AdminDashboard: React.FC = () => {
                  {restoreStatus && <p className="mt-2 text-brand-gold font-mono text-xs text-right">{restoreStatus}</p>}
             </div>
 
-            {/* Health Check */}
+             {/* 2. INFRASTRUCTURE & DEPLOYMENT */}
+             <div className="bg-slate-900 border border-slate-800 rounded-xl p-6 shadow-xl relative">
+                <h2 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
+                    🏗️ Project Infrastructure
+                </h2>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <a 
+                        href={PROJECT_LINKS.vercel} 
+                        target="_blank" 
+                        rel="noreferrer"
+                        className="block p-4 bg-slate-950 border border-slate-800 hover:border-white rounded-lg group transition-all"
+                    >
+                        <div className="flex justify-between items-start mb-2">
+                            <span className="text-white font-bold">Vercel Dashboard</span>
+                            <span className="text-[10px] bg-slate-800 text-slate-400 px-2 py-1 rounded border border-slate-700">HOSTING</span>
+                        </div>
+                        <p className="text-xs text-slate-500 group-hover:text-slate-300">Manage deployments and domains.</p>
+                    </a>
+
+                    <a 
+                        href={PROJECT_LINKS.supabase} 
+                        target="_blank" 
+                        rel="noreferrer"
+                        className="block p-4 bg-slate-950 border border-slate-800 hover:border-green-500 rounded-lg group transition-all"
+                    >
+                        <div className="flex justify-between items-start mb-2">
+                            <span className="text-white font-bold">Supabase Project</span>
+                            <span className="text-[10px] bg-green-900/20 text-green-400 px-2 py-1 rounded border border-green-900/50">DATABASE</span>
+                        </div>
+                        <p className="text-xs text-slate-500 group-hover:text-slate-300">Manage users and SQL database.</p>
+                    </a>
+                </div>
+                
+                <div className="mt-6 pt-4 border-t border-slate-800">
+                    <h3 className="text-brand-accent font-bold text-sm uppercase mb-2">Carrd Integration Guide</h3>
+                    <p className="text-slate-400 text-xs leading-relaxed">
+                        1. 複製您的 Vercel 網址 (例如: <code>https://willwi-music-db.vercel.app</code>)。
+                        <br/>
+                        2. 在 Carrd 上建立一個按鈕，命名為 <strong>"Enter Database"</strong>。
+                        <br/>
+                        3. 將 Vercel 網址貼上。這樣 Carrd 就是您的「門面」，而這裡是您的「工作室」。
+                    </p>
+                </div>
+            </div>
+
+            {/* 3. Health Check */}
             <div className="bg-slate-900 border border-slate-800 rounded-xl p-6 shadow-xl">
                 <h2 className="text-xl font-bold text-white mb-6 flex items-center gap-2">
                     💿 Catalog Health Check
@@ -240,7 +291,7 @@ const AdminDashboard: React.FC = () => {
             </div>
         </div>
 
-        {/* COL 2: Business Simulation (MOCK DATA) */}
+        {/* COL 2: Business Simulation */}
         <div className="space-y-6">
             <div className="bg-slate-900 border border-slate-800 rounded-xl p-6 shadow-xl relative overflow-hidden">
                 <div className="absolute top-0 right-0 bg-brand-gold text-slate-900 text-[10px] font-bold px-2 py-1 rounded-bl uppercase tracking-widest z-10">
@@ -271,17 +322,10 @@ const AdminDashboard: React.FC = () => {
                     </div>
                 </div>
 
-                <div className="space-y-4">
-                     <div className="flex justify-between items-center p-3 bg-slate-950 rounded border border-slate-800">
-                         <span className="text-sm text-slate-400">Lyric Videos Created</span>
-                         <span className="font-mono font-bold text-white">{mockRevenue.downloads}</span>
-                    </div>
-                </div>
-
                 <div className="mt-8 p-4 bg-slate-950 border border-slate-800 rounded-lg">
-                    <h4 className="text-brand-accent text-xs font-bold uppercase mb-2">Virtual Manager Note</h4>
+                    <h4 className="text-brand-accent text-xs font-bold uppercase mb-2">Manager Note</h4>
                     <p className="text-slate-400 text-xs leading-relaxed italic">
-                        "Data stored in local browser. Remember to use the backup feature to save your legacy to your 2TB Drive. I am here to help you preserve your history." — Gemini
+                        "Your Carrd is the beautiful storefront. This dashboard is the engine room. With your Cloud Vault connected, your legacy is safe." — Gemini
                     </p>
                 </div>
             </div>

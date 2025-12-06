@@ -143,7 +143,28 @@ const SongDetail: React.FC = () => {
     }
   };
 
+  // Robust Spotify ID Extractor
+  const getSpotifyEmbedId = (s: Song) => {
+      const candidates = [s.spotifyId, s.spotifyLink];
+      for (const c of candidates) {
+          if (!c) continue;
+          
+          // Case 1: Full URL (https://open.spotify.com/track/12345?si=...)
+          const urlMatch = c.match(/track\/([a-zA-Z0-9]+)/);
+          if (urlMatch) return urlMatch[1];
+
+          // Case 2: URI (spotify:track:12345)
+          const uriMatch = c.match(/track:([a-zA-Z0-9]+)/);
+          if (uriMatch) return uriMatch[1];
+          
+          // Case 3: Just ID (assume alphanumeric and reasonable length, no slashes/colons)
+          if (!c.includes('/') && !c.includes(':') && c.length > 15) return c;
+      }
+      return null;
+  };
+
   const embedUrl = getYoutubeEmbedUrl(song.youtubeUrl);
+  const spotifyEmbedId = getSpotifyEmbedId(song);
 
   return (
     <div className="animate-fade-in pb-32">
@@ -337,11 +358,11 @@ const SongDetail: React.FC = () => {
                 {/* 1. Player Section */}
                 <div className="bg-slate-800 rounded-2xl p-6 border border-slate-700">
                     <h3 className="text-xl font-bold text-white mb-4">{t('detail_player_header')}</h3>
-                    {song.spotifyId && (
+                    {spotifyEmbedId && (
                         <div className="mb-4">
                             <iframe 
                                 style={{borderRadius: '12px'}} 
-                                src={`https://open.spotify.com/embed/track/${song.spotifyId}?utm_source=generator&theme=0`} 
+                                src={`https://open.spotify.com/embed/track/${spotifyEmbedId}?utm_source=generator&theme=0`} 
                                 width="100%" 
                                 height="152" 
                                 frameBorder="0" 
