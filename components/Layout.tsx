@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useTranslation } from '../context/LanguageContext';
 
+const BG_IMAGE = "https://p17.zdusercontent.com/attachment/572742/nGBWtmpTNA1gAhYLblesSXoiZ?token=eyJhbGciOiJkaXIiLCJlbmMiOiJBMTI4Q0JDLUhTMjU2In0..DuNguqol2WAk3WiKEt2srw.Mbfpe6C7F0kNE5DFsRseRfcLpnmsFIJX6bbXNEIUD8vwVC42QZeqW2_-5mxN3DnaFJZ_jmssgO1yGm440mPn2JGjfN6LCYLEKR3XZl4w9DnHsnClS3IbVUkRZWlmhMaxWj3TI3K6hz-1ZSVYRSLDVZxMLLIzrC5X_6o_4E--8wu1cRwuPTlOef1AEgDS5ynUn4Dy7MS7sgZmhiw3Vcu1jxnIKwdnIZJm1VaZf9_9EXwmxDISSDzzZFp5J3sSW9D1vKO8oM8hzB-CXggM0R44sHQutGNCcKc5pt2F9UZSVfw.1y_aP3hPN5ziOiWi6Kf9hw";
+
 const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const location = useLocation();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -21,8 +23,20 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-brand-darker text-slate-100 font-sans selection:bg-brand-accent selection:text-brand-darker">
-      <nav className={`sticky top-0 z-50 border-b transition-colors duration-300 ${isHome ? 'bg-brand-darker/80 border-white/5 backdrop-blur-md' : 'bg-brand-darker/95 border-slate-800 backdrop-blur-md'}`}>
+    <div className="min-h-screen flex flex-col relative font-sans selection:bg-brand-accent selection:text-brand-darker text-slate-100">
+      
+      {/* Global Background Layer */}
+      <div className="fixed inset-0 z-[-1]">
+        <div className="absolute inset-0 bg-cover bg-center bg-no-repeat fixed" style={{ backgroundImage: `url(${BG_IMAGE})` }}></div>
+        
+        {/* Dynamic Overlay: Light on Home, Dark on other pages */}
+        <div className={`absolute inset-0 transition-all duration-700 ${isHome ? 'bg-slate-900/40' : 'bg-slate-950/90 backdrop-blur-[3px]'}`}></div>
+        
+        {/* Gradient for Home text readability */}
+        {isHome && <div className="absolute inset-0 bg-gradient-to-r from-slate-950/80 via-slate-950/40 to-transparent"></div>}
+      </div>
+
+      <nav className={`sticky top-0 z-50 border-b transition-colors duration-300 ${isHome ? 'bg-transparent border-white/10' : 'bg-slate-950/80 border-slate-800 backdrop-blur-md'}`}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
             
@@ -41,7 +55,7 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
                 <Link to="/interactive" className={`${location.pathname === '/interactive' ? 'text-brand-gold font-bold' : 'text-slate-400 hover:text-brand-gold transition-colors font-medium'}`}>
                   {t('nav_interactive')}
                 </Link>
-                <Link to="/add" className="px-4 py-1.5 rounded-full bg-slate-800 text-slate-300 border border-slate-700 hover:bg-brand-accent hover:text-brand-darker hover:border-brand-accent transition-all text-sm font-bold tracking-wide">
+                <Link to="/add" className="px-4 py-1.5 rounded-full bg-slate-800/80 text-slate-300 border border-slate-700 hover:bg-brand-accent hover:text-brand-darker hover:border-brand-accent transition-all text-sm font-bold tracking-wide">
                   + {t('nav_add')}
                 </Link>
               </div>
@@ -87,7 +101,7 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
 
         {/* Mobile Menu Panel */}
         {isMenuOpen && (
-          <div className="md:hidden bg-brand-darker border-b border-slate-800" id="mobile-menu">
+          <div className="md:hidden bg-slate-950/95 backdrop-blur-xl border-b border-slate-800" id="mobile-menu">
             <div className="px-2 pt-2 pb-3 space-y-1 sm:px-3">
               <Link to="/" onClick={() => setIsMenuOpen(false)} className={mobileLinkClass('/')}>{t('nav_home')}</Link>
               <Link to="/database" onClick={() => setIsMenuOpen(false)} className={mobileLinkClass('/database')}>{t('nav_catalog')}</Link>
@@ -100,14 +114,14 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
         )}
       </nav>
 
-      <main className="flex-grow">
+      <main className="flex-grow relative z-10">
         {/* Full bleed for Home, standard container for others */}
         <div className={isHome ? '' : "max-w-7xl mx-auto py-8 px-4 sm:px-6 lg:px-8"}>
           {children}
         </div>
       </main>
 
-      <footer className="bg-brand-darker border-t border-slate-800 mt-auto">
+      <footer className="bg-slate-950/80 backdrop-blur-md border-t border-slate-800 mt-auto relative z-10">
         <div className="max-w-7xl mx-auto py-10 px-4 sm:px-6 lg:px-8 flex flex-col md:flex-row justify-between items-start md:items-center gap-8">
           
           <div className="flex flex-col gap-3">
@@ -149,8 +163,8 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
               </div>
           </div>
         </div>
-        <div className="bg-black py-2 text-center">
-            <p className="text-[10px] text-slate-800 font-mono tracking-widest uppercase">Powered by Willwi & Gemini</p>
+        <div className="bg-black/80 backdrop-blur-sm py-2 text-center border-t border-slate-900">
+            <p className="text-[10px] text-slate-700 font-mono tracking-widest uppercase">Powered by Willwi & Gemini</p>
         </div>
       </footer>
     </div>
