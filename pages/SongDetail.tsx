@@ -431,14 +431,25 @@ const SongDetail: React.FC = () => {
                                             />
                                         ) : (
                                             song.musicBrainzId ? (
-                                                <a 
-                                                    href={`https://musicbrainz.org/release-group/${song.musicBrainzId}`} 
-                                                    target="_blank" 
-                                                    rel="noreferrer"
-                                                    className="font-mono text-sm text-[#eb743b] hover:underline"
-                                                >
-                                                    {song.musicBrainzId.substring(0,8)}...
-                                                </a>
+                                                <div className="flex items-center gap-2">
+                                                    <a 
+                                                        href={`https://musicbrainz.org/release-group/${song.musicBrainzId}`} 
+                                                        target="_blank" 
+                                                        rel="noreferrer"
+                                                        className="font-mono text-sm text-[#eb743b] hover:underline"
+                                                    >
+                                                        {song.musicBrainzId.substring(0,8)}...
+                                                    </a>
+                                                    {isAdmin && (
+                                                        <button 
+                                                            onClick={handleMusicBrainzSubmit}
+                                                            className="text-[10px] bg-slate-800 border border-slate-600 hover:bg-[#eb743b] hover:text-white text-slate-400 px-2 py-0.5 rounded transition-colors"
+                                                            title="Use current data to seed a new MusicBrainz release"
+                                                        >
+                                                            Seed
+                                                        </button>
+                                                    )}
+                                                </div>
                                             ) : (
                                                 <div className="flex items-center gap-2">
                                                     <span className="text-sm text-slate-600">-</span>

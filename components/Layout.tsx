@@ -40,12 +40,12 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
       <div className="fixed inset-0 z-[-1] pointer-events-none h-full w-full bg-slate-950">
         
         {/* 1. Base Image Layer */}
+        {/* Adjusted background position for mobile: shifted to 65% horizontal to better frame the subject */}
         <div 
-            className="absolute inset-0 bg-cover bg-no-repeat transition-all duration-1000 transform scale-[1.02]"
+            className="absolute inset-0 bg-cover bg-no-repeat transition-all duration-1000 transform scale-[1.02] bg-[position:65%_20%] md:bg-[position:center_20%]"
             style={{ 
                 backgroundImage: `url(${BG_IMAGE})`,
-                backgroundPosition: 'center 20%', // Focus on face
-                backgroundSize: 'cover' 
+                // backgroundPosition is now handled by Tailwind utility classes for responsiveness
             }}
         ></div>
 
@@ -183,7 +183,7 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
                         <a href="https://www.instagram.com/willwi888" target="_blank" rel="noreferrer" className="hover:text-white transition-colors flex items-center gap-2 group">
                             <span className="w-1 h-1 bg-slate-600 rounded-full group-hover:bg-brand-accent transition-colors"></span> Instagram
                         </a>
-                        <a href="https://www.threads.net/@willwi888" target="_blank" rel="noreferrer" className="hover:text-white transition-colors flex items-center gap-2 group">
+                        <a href="https://www.threads.com/@willwi888" target="_blank" rel="noreferrer" className="hover:text-white transition-colors flex items-center gap-2 group">
                             <span className="w-1 h-1 bg-slate-600 rounded-full group-hover:bg-brand-accent transition-colors"></span> Threads
                         </a>
                         <a href="https://x.com/Willwi888" target="_blank" rel="noreferrer" className="hover:text-white transition-colors flex items-center gap-2 group">
