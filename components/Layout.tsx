@@ -189,6 +189,9 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
                         <a href="https://x.com/Willwi888" target="_blank" rel="noreferrer" className="hover:text-white transition-colors flex items-center gap-2 group">
                              <span className="w-1 h-1 bg-slate-600 rounded-full group-hover:bg-brand-accent transition-colors"></span> X (Twitter)
                         </a>
+                        <a href="https://pro.musixmatch.com/roster/artist/64081678" target="_blank" rel="noreferrer" className="hover:text-white transition-colors flex items-center gap-2 group">
+                             <span className="w-1 h-1 bg-slate-600 rounded-full group-hover:bg-[#ff5300] transition-colors"></span> Musixmatch
+                        </a>
                     </div>
                 </div>
 
@@ -196,11 +199,12 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
                 <div className="space-y-4">
                     <h4 className="text-xs font-bold text-white uppercase tracking-[0.2em] mb-4">Listen</h4>
                      <div className="flex flex-col gap-2 text-xs text-slate-400 font-medium tracking-wide">
+                        {/* Moved YouTube to TOP for OAC Priority */}
+                        <a href="https://www.youtube.com/@Willwi888" target="_blank" rel="noreferrer" className="hover:text-red-500 transition-colors font-bold text-white/90">YouTube</a>
                         <a href="https://open.spotify.com/artist/3ascZ8Rb2KDw4QyCy29Om4" target="_blank" rel="noreferrer" className="hover:text-brand-green transition-colors">Spotify</a>
                         <a href="https://music.apple.com/us/artist/willwi/1798471457" target="_blank" rel="noreferrer" className="hover:text-pink-500 transition-colors">Apple Music</a>
                         <a href="https://music.youtube.com/channel/UCAF8vdEOJ5sBdRuZXL61ASw" target="_blank" rel="noreferrer" className="hover:text-red-500 transition-colors">YouTube Music</a>
                         <a href="https://music.amazon.com/artists/B0DYFC8CTG/willwi" target="_blank" rel="noreferrer" className="hover:text-cyan-400 transition-colors">Amazon Music</a>
-                        <a href="https://www.youtube.com/@Willwi888" target="_blank" rel="noreferrer" className="hover:text-red-500 transition-colors">YouTube</a>
                     </div>
                 </div>
             </div>
