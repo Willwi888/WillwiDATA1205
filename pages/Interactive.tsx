@@ -4,11 +4,13 @@ import { useUser } from '../context/UserContext';
 import { Song } from '../types';
 import { Link } from 'react-router-dom';
 import PaymentModal from '../components/PaymentModal';
+import { generateAiVideo } from '../services/geminiService';
 
 // -------------------
 // Types & Helper
 // -------------------
 type GameState = 'login' | 'select' | 'ready' | 'playing' | 'finished';
+type ViewMode = 'audience' | 'director'; // New Mode Switch
 
 interface SyncPoint {
   time: number;
@@ -24,7 +26,7 @@ const formatTime = (seconds: number) => {
 
 const Interactive: React.FC = () => {
   const { songs } = useData();
-  const { user, login, logout, deductCredit } = useUser();
+  const { user, login, logout, deductCredit, isAdmin } = useUser(); // Added isAdmin
   
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [loginEmail, setLoginEmail] = useState('');
@@ -33,6 +35,9 @@ const Interactive: React.FC = () => {
   const [isSystemLocked, setIsSystemLocked] = useState(true);
   const [passwordInput, setPasswordInput] = useState('');
   const [lockError, setLockError] = useState('');
+
+  // View Mode State
+  const [viewMode, setViewMode] = useState<ViewMode>('audience');
 
   // Filter songs that actually have lyrics
   const playableSongs = songs.filter(s => s.lyrics && s.lyrics.length > 10);
@@ -57,6 +62,13 @@ const Interactive: React.FC = () => {
         setGameState('login');
     }
   }, [user]);
+
+  // Auto-switch to Director Mode if Admin logs in (Optional, but convenient)
+  useEffect(() => {
+      if (isAdmin && isSystemLocked === false) {
+          setViewMode('director');
+      }
+  }, [isAdmin, isSystemLocked]);
 
   const handleUnlock = (e: React.FormEvent) => {
     e.preventDefault();
@@ -92,8 +104,6 @@ const Interactive: React.FC = () => {
     setGameState('playing');
     startTimeRef.current = Date.now();
     
-    // Auto-record the first line at 0.00s? No, user waits for first vocal.
-    
     const loop = () => {
       const now = Date.now();
       const delta = (now - startTimeRef.current) / 1000; // seconds
@@ -103,8 +113,6 @@ const Interactive: React.FC = () => {
     loop();
   };
 
-  // The Core Mechanic: Musixmatch Style
-  // User presses Space to mark current line start and move to next.
   const handleSync = () => {
     if (!selectedSong) return;
     
@@ -116,12 +124,9 @@ const Interactive: React.FC = () => {
     }
 
     const currentLine = lyricsLines[lineIndex];
-
-    // Record timestamp for the CURRENT line
     const newSyncPoint = { time: elapsedTime, text: currentLine };
     setSyncData(prev => [...prev, newSyncPoint]);
 
-    // Advance
     if (lineIndex < lyricsLines.length - 1) {
       setLineIndex(prev => prev + 1);
     } else {
@@ -143,9 +148,6 @@ const Interactive: React.FC = () => {
     setSyncData([]);
   };
 
-  // -------------------
-  // Edit & Export Functions
-  // -------------------
   const handleTimeEdit = (index: number, newTimeVal: string) => {
       const val = parseFloat(newTimeVal);
       if (!isNaN(val)) {
@@ -159,7 +161,6 @@ const Interactive: React.FC = () => {
 
   const handleDownloadClick = () => {
       if (!user) return;
-
       if (deductCredit()) {
           downloadSrt();
       } else {
@@ -172,7 +173,7 @@ const Interactive: React.FC = () => {
     let srtContent = "";
     syncData.forEach((item, index) => {
         const start = new Date(item.time * 1000).toISOString().substr(11, 12).replace('.', ',');
-        const nextTimeVal = (index < syncData.length - 1) ? syncData[index+1].time : item.time + 3; // Default 3s or next line
+        const nextTimeVal = (index < syncData.length - 1) ? syncData[index+1].time : item.time + 3;
         const end = new Date(nextTimeVal * 1000).toISOString().substr(11, 12).replace('.', ',');
         
         srtContent += `${index + 1}\n${start} --> ${end}\n${item.text}\n\n`;
@@ -192,7 +193,7 @@ const Interactive: React.FC = () => {
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.code === 'Space' && gameState === 'playing') {
-        e.preventDefault(); // prevent scroll
+        e.preventDefault();
         handleSync();
       }
     };
@@ -200,6 +201,166 @@ const Interactive: React.FC = () => {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [gameState, lineIndex, elapsedTime]);
 
+  // -------------------
+  // Director Interface Component (Admin Only)
+  // -------------------
+  const DirectorInterface = () => {
+      const [prompt, setPrompt] = useState('');
+      const [isGenerating, setIsGenerating] = useState(false);
+      const [videoUrl, setVideoUrl] = useState<string | null>(null);
+      const [uploadedImage, setUploadedImage] = useState<string | null>(null);
+      const [statusMsg, setStatusMsg] = useState('');
+      
+      const fileRef = useRef<HTMLInputElement>(null);
+
+      const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+          const file = e.target.files?.[0];
+          if (file) {
+              const reader = new FileReader();
+              reader.onload = () => {
+                  setUploadedImage(reader.result as string);
+              };
+              reader.readAsDataURL(file);
+          }
+      };
+
+      const handleGenerate = async () => {
+          if (!prompt && !uploadedImage) {
+              alert("請輸入提示詞或上傳圖片");
+              return;
+          }
+
+          setIsGenerating(true);
+          setVideoUrl(null);
+          setStatusMsg('Initializing Veo Model...');
+
+          try {
+              let imageBytes = undefined;
+              let mimeType = 'image/png';
+
+              if (uploadedImage) {
+                  // Extract base64 part
+                  const parts = uploadedImage.split(',');
+                  imageBytes = parts[1];
+                  mimeType = parts[0].split(':')[1].split(';')[0];
+              }
+
+              setStatusMsg('Generating video... This may take 1-2 minutes.');
+              const url = await generateAiVideo(prompt, imageBytes, mimeType);
+              
+              if (url) {
+                  setVideoUrl(url);
+                  setStatusMsg('Generation Complete!');
+              } else {
+                  setStatusMsg('Generation failed.');
+              }
+          } catch (e: any) {
+              console.error(e);
+              setStatusMsg(`Error: ${e.message || 'Unknown error'}`);
+          } finally {
+              setIsGenerating(false);
+          }
+      };
+
+      return (
+          <div className="max-w-4xl mx-auto px-4 py-8">
+              <div className="bg-slate-900 border border-slate-700 rounded-xl p-8 shadow-2xl">
+                  <div className="flex items-center gap-3 mb-6">
+                      <div className="bg-indigo-600 p-2 rounded text-white">🎬</div>
+                      <div>
+                          <h2 className="text-2xl font-bold text-white uppercase tracking-tight">Director Studio</h2>
+                          <p className="text-slate-400 text-xs">Powered by Google Veo (Generative Video)</p>
+                      </div>
+                      <div className="ml-auto px-3 py-1 bg-indigo-900/30 border border-indigo-500/50 text-indigo-300 rounded text-xs font-bold uppercase">
+                          Admin Only
+                      </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                      {/* Controls */}
+                      <div className="space-y-6">
+                          <div>
+                              <label className="block text-slate-300 text-sm font-bold mb-2">1. Prompt (提示詞)</label>
+                              <textarea 
+                                  className="w-full bg-slate-950 border border-slate-700 rounded p-4 text-white focus:border-indigo-500 outline-none h-32 text-sm"
+                                  placeholder="Describe the scene (e.g., A cyberpunk city with neon lights, slow motion)"
+                                  value={prompt}
+                                  onChange={(e) => setPrompt(e.target.value)}
+                              />
+                          </div>
+
+                          <div>
+                              <label className="block text-slate-300 text-sm font-bold mb-2">2. Reference Image (Optional)</label>
+                              <div 
+                                  onClick={() => fileRef.current?.click()}
+                                  className="border-2 border-dashed border-slate-700 hover:border-indigo-500 rounded-lg p-6 text-center cursor-pointer transition-colors"
+                              >
+                                  {uploadedImage ? (
+                                      <img src={uploadedImage} alt="ref" className="max-h-32 mx-auto rounded shadow-lg" />
+                                  ) : (
+                                      <div className="text-slate-500 text-sm">
+                                          <span>Click to upload image</span>
+                                      </div>
+                                  )}
+                                  <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleImageSelect} />
+                              </div>
+                              {uploadedImage && (
+                                  <button onClick={() => { setUploadedImage(null); if(fileRef.current) fileRef.current.value='' }} className="text-xs text-red-400 mt-2 hover:underline">Clear Image</button>
+                              )}
+                          </div>
+
+                          <div className="bg-slate-800 p-4 rounded text-xs text-slate-400 leading-relaxed">
+                              <strong>Note:</strong> Video generation takes time. You may need to select a billing project via the pop-up if this is your first time.
+                          </div>
+
+                          <button 
+                              onClick={handleGenerate}
+                              disabled={isGenerating}
+                              className="w-full py-4 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-lg transition-colors shadow-lg shadow-indigo-500/20 disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                              {isGenerating ? 'Generating (Please Wait)...' : '✨ Generate Video (MP4)'}
+                          </button>
+                          
+                          {statusMsg && (
+                              <p className={`text-center text-sm font-mono ${statusMsg.includes('Error') ? 'text-red-400' : 'text-indigo-300'} animate-pulse`}>
+                                  {statusMsg}
+                              </p>
+                          )}
+                      </div>
+
+                      {/* Preview */}
+                      <div className="bg-black rounded-lg border border-slate-800 flex items-center justify-center min-h-[300px] relative overflow-hidden">
+                          {videoUrl ? (
+                              <div className="w-full h-full flex flex-col">
+                                  <video 
+                                      src={videoUrl} 
+                                      controls 
+                                      className="w-full h-auto max-h-[400px]"
+                                      autoPlay
+                                      loop
+                                  />
+                                  <div className="p-4 bg-slate-900 border-t border-slate-800 flex justify-center">
+                                      <a 
+                                          href={videoUrl} 
+                                          download="willwi_veo_generated.mp4"
+                                          className="px-6 py-2 bg-green-600 hover:bg-green-500 text-white text-sm font-bold rounded flex items-center gap-2"
+                                      >
+                                          ⬇ Download MP4
+                                      </a>
+                                  </div>
+                              </div>
+                          ) : (
+                              <div className="text-center text-slate-600">
+                                  <div className="text-4xl mb-2">🎬</div>
+                                  <div className="text-sm">Preview will appear here</div>
+                              </div>
+                          )}
+                      </div>
+                  </div>
+              </div>
+          </div>
+      );
+  }
 
   // -------------------
   // Render Views
@@ -231,10 +392,43 @@ const Interactive: React.FC = () => {
       );
   }
 
+  // Admin View Switcher (Only visible if isAdmin is true)
+  const AdminSwitcher = () => (
+      <div className="flex justify-center mb-8">
+          <div className="bg-slate-900 p-1 rounded-lg border border-slate-700 flex gap-1">
+              <button 
+                onClick={() => setViewMode('audience')}
+                className={`px-4 py-2 rounded text-xs font-bold uppercase tracking-wider transition-all ${viewMode === 'audience' ? 'bg-slate-700 text-white shadow' : 'text-slate-500 hover:text-white'}`}
+              >
+                  👥 Audience Mode (Lyric Game)
+              </button>
+              <button 
+                onClick={() => setViewMode('director')}
+                className={`px-4 py-2 rounded text-xs font-bold uppercase tracking-wider transition-all ${viewMode === 'director' ? 'bg-indigo-600 text-white shadow' : 'text-slate-500 hover:text-white'}`}
+              >
+                  🎬 Director Mode (Veo Studio)
+              </button>
+          </div>
+      </div>
+  );
+
+  // Return Director Mode if selected
+  if (isAdmin && viewMode === 'director') {
+      return (
+          <div className="min-h-screen">
+              <AdminSwitcher />
+              <DirectorInterface />
+          </div>
+      );
+  }
+
+  // --- AUDIENCE MODE (Existing Game Logic) ---
+
   // 0. Login View
   if (gameState === 'login') {
       return (
         <div className="max-w-md mx-auto mt-20 px-4">
+             {isAdmin && <AdminSwitcher />}
              <div className="bg-slate-900 border border-slate-800 rounded-xl p-10 shadow-2xl text-center">
                  <h2 className="text-xl font-bold text-white mb-2 uppercase tracking-widest">Interactive Studio</h2>
                  <p className="text-slate-500 mb-8 text-sm">Login to access lyric synchronization tools.</p>
@@ -266,6 +460,7 @@ const Interactive: React.FC = () => {
   if (gameState === 'select') {
     return (
       <div className="max-w-6xl mx-auto pb-12 px-4 relative">
+        {isAdmin && <AdminSwitcher />}
         {/* User Stats Bar */}
         <div className="absolute top-0 right-4 z-20 flex items-center gap-4 bg-slate-900/90 backdrop-blur px-6 py-3 rounded-full border border-slate-800 shadow-lg">
              <span className="text-slate-300 text-xs font-bold uppercase tracking-wider">{user?.name}</span>
@@ -337,6 +532,7 @@ const Interactive: React.FC = () => {
 
     return (
        <div className="max-w-4xl mx-auto px-4 pb-12 min-h-screen flex flex-col">
+          {isAdmin && <AdminSwitcher />}
           {/* Top Bar */}
           <div className="flex justify-between items-center py-6 mb-4 border-b border-slate-800">
              <button onClick={resetGame} className="text-slate-500 hover:text-white flex items-center gap-2 text-xs uppercase tracking-widest">
@@ -418,6 +614,7 @@ const Interactive: React.FC = () => {
   if (gameState === 'finished') {
     return (
       <div className="max-w-4xl mx-auto px-4 py-12 text-center">
+         {isAdmin && <AdminSwitcher />}
          <PaymentModal isOpen={showPaymentModal} onClose={() => setShowPaymentModal(false)} />
          
          <div className="bg-slate-900 border border-slate-800 rounded-xl p-10 md:p-16 shadow-2xl">

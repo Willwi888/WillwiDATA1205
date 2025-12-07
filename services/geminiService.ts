@@ -1,10 +1,11 @@
 import { GoogleGenAI } from "@google/genai";
 import { Song } from "../types";
 
-const getClient = () => {
-  const apiKey = process.env.API_KEY;
+const getClient = (customKey?: string) => {
+  // Priority: Custom Key (from UI input) > Environment Variable
+  const apiKey = customKey || process.env.API_KEY;
   if (!apiKey) {
-    console.error("API Key not found in environment variables");
+    console.error("API Key not found");
     return null;
   }
   return new GoogleGenAI({ apiKey });
@@ -41,6 +42,89 @@ export const generateMusicCritique = async (song: Song): Promise<string> => {
   } catch (error) {
     console.error("Gemini API Error:", error);
     return "連線發生錯誤，無法生成評論。";
+  }
+};
+
+/**
+ * Generate Video using Veo Model
+ * Supports Text-to-Video and Image-to-Video
+ */
+export const generateAiVideo = async (
+  prompt: string, 
+  imageBase64?: string, 
+  mimeType: string = 'image/png'
+): Promise<string | null> => {
+  try {
+    // 1. Check for API Key selection (Required for Veo)
+    // @ts-ignore
+    if (window.aistudio && window.aistudio.hasSelectedApiKey) {
+        // @ts-ignore
+        const hasKey = await window.aistudio.hasSelectedApiKey();
+        if (!hasKey) {
+            // @ts-ignore
+            await window.aistudio.openSelectKey();
+            // Race condition mitigation: assume success if dialog closes
+        }
+    }
+
+    // 2. Initialize Client with the key from process.env (which is injected by the selection above)
+    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+    
+    let operation;
+
+    // 3. Configure Request
+    if (imageBase64) {
+        // Image-to-Video
+        console.log("Starting Image-to-Video generation...");
+        operation = await ai.models.generateVideos({
+            model: 'veo-3.1-fast-generate-preview',
+            prompt: prompt || "Animate this image cinematically",
+            image: {
+                imageBytes: imageBase64,
+                mimeType: mimeType,
+            },
+            config: {
+                numberOfVideos: 1,
+                resolution: '720p',
+                aspectRatio: '16:9' 
+            }
+        });
+    } else {
+        // Text-to-Video
+        console.log("Starting Text-to-Video generation...");
+        operation = await ai.models.generateVideos({
+            model: 'veo-3.1-fast-generate-preview',
+            prompt: prompt,
+            config: {
+                numberOfVideos: 1,
+                resolution: '720p',
+                aspectRatio: '16:9'
+            }
+        });
+    }
+
+    // 4. Poll for completion
+    console.log("Video generating... polling operation.");
+    while (!operation.done) {
+        await new Promise(resolve => setTimeout(resolve, 5000)); // Check every 5s
+        operation = await ai.operations.getVideosOperation({ operation: operation });
+    }
+
+    // 5. Retrieve Result
+    const videoUri = operation.response?.generatedVideos?.[0]?.video?.uri;
+    if (!videoUri) throw new Error("No video URI returned");
+
+    // 6. Fetch the actual blob (requires appending key)
+    const downloadUrl = `${videoUri}&key=${process.env.API_KEY}`;
+    
+    // We fetch it here to turn it into a local Blob URL for the browser to display easily
+    const videoRes = await fetch(downloadUrl);
+    const videoBlob = await videoRes.blob();
+    return URL.createObjectURL(videoBlob);
+
+  } catch (error) {
+    console.error("Veo Video Generation Error:", error);
+    throw error;
   }
 };
 
