@@ -76,6 +76,11 @@ const SongDetail: React.FC = () => {
       params.append('artist_credit.names.0.name', 'Willwi');
       params.append('artist_credit.names.0.mbid', WILLWI_MBID);
       
+      // If we already have a Release Group ID (musicBrainzId), link this new release to it
+      if (song.musicBrainzId) {
+          params.append('release_group', song.musicBrainzId);
+      }
+      
       // Status & Language
       params.append('status', 'official');
       // Map internal languages to ISO 639-3 roughly
@@ -444,7 +449,7 @@ const SongDetail: React.FC = () => {
                                                         <button 
                                                             onClick={handleMusicBrainzSubmit}
                                                             className="text-[10px] bg-slate-800 border border-slate-600 hover:bg-[#eb743b] hover:text-white text-slate-400 px-2 py-0.5 rounded transition-colors"
-                                                            title="Use current data to seed a new MusicBrainz release"
+                                                            title="Add new version to this release group"
                                                         >
                                                             Seed
                                                         </button>
