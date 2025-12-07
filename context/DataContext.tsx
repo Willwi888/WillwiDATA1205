@@ -6,20 +6,40 @@ const DataContext = createContext<SongContextType | undefined>(undefined);
 
 const LOCAL_STORAGE_KEY = 'willwi_music_db_v1';
 
-// Initial sample data if DB is completely empty and no local storage found
-// Replaced Picsum with Unsplash for better visual quality
-const INITIAL_DATA: Song[] = [
+// --- FACTORY DEFAULT DATA ---
+// This ensures the app is never empty even if the browser cache is cleared.
+export const INITIAL_DATA: Song[] = [
   {
-    id: '1',
+    id: 'seed-001',
     title: '再愛一次',
     versionLabel: 'Original',
-    coverUrl: 'https://images.unsplash.com/photo-1514525253440-b393452e8d26?q=80&w=800&auto=format&fit=crop',
+    coverUrl: 'https://is1-ssl.mzstatic.com/image/thumb/Music116/v4/4a/53/16/4a531649-1662-8356-6548-aa1d334544d6/198004739563.png/600x600bb.jpg',
     language: Language.Mandarin,
     projectType: ProjectType.Indie,
     releaseCategory: ReleaseCategory.Single,
-    releaseDate: '2023-01-01',
+    releaseCompany: 'Willwi Music',
+    releaseDate: '2023-01-20',
     isEditorPick: true,
-    description: 'Sample song description.'
+    isrc: 'QZNWQ2392729',
+    upc: '198004739563',
+    spotifyId: '5g5X2x1T9bZqQ1v8K3k9J2',
+    spotifyLink: 'https://open.spotify.com/track/5g5X2x1T9bZqQ1v8K3k9J2',
+    appleMusicLink: 'https://music.apple.com/tw/album/love-again/1666666666?i=1666666666',
+    musicBrainzId: '',
+    description: 'A heartfelt ballad exploring the courage to love again after heartbreak. \n\n這是一首關於在心碎後重新尋找愛與勇氣的抒情歌曲。'
+  },
+  {
+    id: 'seed-002',
+    title: 'Love Again',
+    versionLabel: 'English Ver.',
+    coverUrl: 'https://is1-ssl.mzstatic.com/image/thumb/Music116/v4/4a/53/16/4a531649-1662-8356-6548-aa1d334544d6/198004739563.png/600x600bb.jpg',
+    language: Language.English,
+    projectType: ProjectType.Indie,
+    releaseCategory: ReleaseCategory.Single,
+    releaseCompany: 'Willwi Music',
+    releaseDate: '2023-01-20',
+    isEditorPick: false,
+    description: 'The English interpretation of "再愛一次", bringing the same emotion to a global audience.'
   }
 ];
 
@@ -42,6 +62,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                 await dbService.bulkAdd(loadedSongs);
             } else {
                 // Initialize with seed data if absolutely nothing exists
+                console.log("Database empty. Seeding with initial data.");
                 loadedSongs = INITIAL_DATA;
                 await dbService.bulkAdd(loadedSongs);
             }
@@ -49,6 +70,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         setSongs(loadedSongs);
       } catch (error) {
         console.error("Failed to load data", error);
+        // Fallback to memory-only initial data so app doesn't crash
         setSongs(INITIAL_DATA);
       }
     };

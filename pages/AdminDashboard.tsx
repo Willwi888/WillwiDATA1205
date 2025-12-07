@@ -1,5 +1,5 @@
-import React, { useRef, useState } from 'react';
-import { useData } from '../context/DataContext';
+import React, { useRef, useState, useEffect } from 'react';
+import { useData, INITIAL_DATA } from '../context/DataContext';
 import { useUser } from '../context/UserContext';
 import { dbService } from '../services/db';
 import { Song } from '../types';
@@ -15,13 +15,27 @@ const AdminDashboard: React.FC = () => {
   const [passwordInput, setPasswordInput] = useState('');
   const [loginError, setLoginError] = useState('');
 
+  // Domain Check State
+  const [isOnWrongDomain, setIsOnWrongDomain] = useState(false);
+
   // Project Links provided by user
   const PROJECT_LINKS = {
       drive: 'https://drive.google.com/drive/folders/1PmP_GB7etr45T_DwcZcLt45Om2RDqTNI?usp=drive_link',
       supabase: 'https://supabase.com/dashboard/project/rzxqseimxhbokrhcdjbi',
       vercel: 'https://vercel.com/willwi',
-      live: 'https://willwi-music-manager-467949320732.us-west1.run.app/#/'
+      live: 'https://willwi-music-manager-467949320732.us-west1.run.app/' // Explicitly the correct one
   };
+
+  const CORRECT_DOMAIN_ID = '467949320732';
+
+  useEffect(() => {
+      // Check if current URL matches the expected ID
+      const currentUrl = window.location.href;
+      // We check if we are NOT on localhost (dev) AND NOT on the correct ID
+      if (!currentUrl.includes('localhost') && !currentUrl.includes(CORRECT_DOMAIN_ID)) {
+          setIsOnWrongDomain(true);
+      }
+  }, []);
 
   // 1. Calculate Catalog Health
   const totalSongs = songs.length;
@@ -113,6 +127,23 @@ const AdminDashboard: React.FC = () => {
       reader.readAsText(file);
   };
 
+  // --- Factory Reset Function ---
+  const handleFactoryReset = async () => {
+      if (window.confirm("🚨 緊急重置\n\n這將會清除所有現有資料，並重新載入「預設」的 Willwi 歌曲目錄。\n\n當您發現資料庫意外清空時，請使用此功能恢復基本資料。\n確定執行？")) {
+          setIsProcessing(true);
+          try {
+              await dbService.clearAllSongs();
+              await dbService.bulkAdd(INITIAL_DATA);
+              alert("已恢復預設資料。網頁將重新整理。");
+              window.location.reload();
+          } catch(e) {
+              alert("重置失敗");
+          } finally {
+              setIsProcessing(false);
+          }
+      }
+  };
+
   const openGoogleDrive = () => {
       window.open(PROJECT_LINKS.drive, '_blank');
   };
@@ -147,6 +178,28 @@ const AdminDashboard: React.FC = () => {
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-12 animate-fade-in">
+      
+      {/* WARNING BANNER FOR WRONG DOMAIN */}
+      {isOnWrongDomain && (
+          <div className="bg-red-900/80 border border-red-600 p-6 rounded-xl mb-8 flex flex-col md:flex-row items-center justify-between gap-4 animate-pulse shadow-[0_0_20px_rgba(220,38,38,0.5)]">
+              <div className="flex items-center gap-4">
+                  <span className="text-3xl">⚠️</span>
+                  <div>
+                      <h3 className="text-xl font-bold text-white">您可能位在錯誤的網址 (Wrong Domain)</h3>
+                      <p className="text-red-200 text-sm">
+                          這可能是造成資料遺失的原因。瀏覽器認為這是不一樣的網站。
+                      </p>
+                  </div>
+              </div>
+              <a 
+                  href={PROJECT_LINKS.live}
+                  className="px-6 py-3 bg-white text-red-900 font-bold rounded shadow-lg hover:bg-slate-200 transition-colors uppercase tracking-widest text-sm whitespace-nowrap"
+              >
+                  前往正確網址
+              </a>
+          </div>
+      )}
+
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-10 gap-4">
           <div>
             <h1 className="text-3xl font-black text-white uppercase tracking-tighter">Manager Dashboard</h1>
@@ -226,6 +279,18 @@ const AdminDashboard: React.FC = () => {
                         />
                      </div>
                  </div>
+
+                 {/* Factory Reset Section */}
+                 <div className="mt-2 pt-2 flex justify-end">
+                     <button 
+                        onClick={handleFactoryReset}
+                        disabled={isProcessing}
+                        className="text-[10px] text-red-500 hover:text-red-300 underline"
+                     >
+                        資料庫異常？重置為原廠設定
+                     </button>
+                 </div>
+
                  {restoreStatus && <p className="mt-2 text-brand-gold font-mono text-xs text-right animate-pulse">{restoreStatus}</p>}
             </div>
 
@@ -239,13 +304,13 @@ const AdminDashboard: React.FC = () => {
                         href={PROJECT_LINKS.live} 
                         target="_blank" 
                         rel="noreferrer"
-                        className="block p-4 bg-slate-950 border border-slate-800 hover:border-brand-accent rounded-lg group transition-all"
+                        className={`block p-4 border rounded-lg group transition-all ${isOnWrongDomain ? 'bg-red-900/10 border-red-500/50' : 'bg-slate-950 border-brand-accent/30'}`}
                     >
                         <div className="flex justify-between items-start mb-2">
-                            <span className="text-white font-bold">Live Website</span>
-                            <span className="text-[10px] bg-brand-accent/20 text-brand-accent px-2 py-1 rounded border border-brand-accent/50">ACTIVE</span>
+                            <span className={`font-bold ${isOnWrongDomain ? 'text-red-400' : 'text-brand-accent'}`}>Official Live</span>
+                            <span className="text-[10px] bg-brand-accent/20 text-brand-accent px-2 py-1 rounded border border-brand-accent/50">PRIMARY</span>
                         </div>
-                        <p className="text-xs text-slate-500 group-hover:text-slate-300">View current application.</p>
+                        <p className="text-xs text-slate-500 group-hover:text-slate-300 truncate">{PROJECT_LINKS.live}</p>
                     </a>
 
                     <a 
@@ -278,12 +343,10 @@ const AdminDashboard: React.FC = () => {
                 <div className="mt-6 pt-4 border-t border-slate-800">
                     <h3 className="text-brand-accent font-bold text-sm uppercase mb-2">Carrd Integration Guide</h3>
                     <p className="text-slate-400 text-xs leading-relaxed">
-                        1. 您的網站目前運行於：<br/>
-                        <code className="bg-black px-2 py-1 rounded text-green-400 mt-1 block w-fit truncate max-w-full">{PROJECT_LINKS.live}</code>
+                        1. 您的主要官方網站 (Official Endpoint) 為：<br/>
+                        <code className="bg-black px-2 py-1 rounded text-green-400 mt-1 block w-fit truncate max-w-full font-bold select-all">{PROJECT_LINKS.live}</code>
                         <br/>
-                        2. 在 Carrd 上建立一個按鈕，命名為 <strong>"Enter Database"</strong>。
-                        <br/>
-                        3. 將上述網址貼上。這樣 Carrd 就是您的「門面」，而這裡是您的「工作室」。
+                        2. <strong>請務必使用此網址。</strong> 如果 Google Cloud 產生了其他網址，請忽略它們，因為資料庫不互通。
                     </p>
                 </div>
             </div>
