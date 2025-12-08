@@ -69,9 +69,6 @@ const Interactive: React.FC = () => {
   useEffect(() => {
       if (isAdmin) {
           setIsSystemLocked(false); // Unlock system for admin
-          if (viewMode === 'vote') {
-             // Optional: Stay on vote or switch? Let's stay on vote as default but unlocked
-          }
       }
   }, [isAdmin]);
 
@@ -693,20 +690,24 @@ const Interactive: React.FC = () => {
           >
               <span>🏆</span> {t('vote_tab')}
           </button>
-          <div className="w-px bg-slate-800 mx-1"></div>
-          <button 
-            onClick={() => setViewMode('audience')}
-            className={`px-4 py-2 rounded text-xs font-bold uppercase tracking-wider transition-all flex items-center gap-2 ${viewMode === 'audience' ? 'bg-slate-700 text-white shadow' : 'text-slate-500 hover:text-white'}`}
-          >
-              <span>🎤</span> Studio
-          </button>
+          
+          {/* HIDE STUDIO & DIRECTOR FROM PUBLIC - ONLY SHOW IF ADMIN */}
           {isAdmin && (
-            <button 
-                onClick={() => setViewMode('director')}
-                className={`px-4 py-2 rounded text-xs font-bold uppercase tracking-wider transition-all flex items-center gap-2 ${viewMode === 'director' ? 'bg-indigo-600 text-white shadow' : 'text-slate-500 hover:text-white'}`}
-            >
-                <span>🎬</span> Director
-            </button>
+            <>
+                <div className="w-px bg-slate-800 mx-1"></div>
+                <button 
+                    onClick={() => setViewMode('audience')}
+                    className={`px-4 py-2 rounded text-xs font-bold uppercase tracking-wider transition-all flex items-center gap-2 ${viewMode === 'audience' ? 'bg-slate-700 text-white shadow' : 'text-slate-500 hover:text-white'}`}
+                >
+                    <span>🎤</span> Studio
+                </button>
+                <button 
+                    onClick={() => setViewMode('director')}
+                    className={`px-4 py-2 rounded text-xs font-bold uppercase tracking-wider transition-all flex items-center gap-2 ${viewMode === 'director' ? 'bg-indigo-600 text-white shadow' : 'text-slate-500 hover:text-white'}`}
+                >
+                    <span>🎬</span> Director
+                </button>
+            </>
           )}
       </div>
   );

@@ -729,12 +729,16 @@ const SongDetail: React.FC = () => {
                         >
                             {t('detail_tab_story')}
                         </button>
-                         <button 
-                            onClick={() => setStoryMode('maker')}
-                            className={`pb-3 text-lg font-bold transition-colors border-b-2 ${storyMode === 'maker' ? 'border-brand-accent text-brand-accent' : 'border-transparent text-slate-400 hover:text-white'}`}
-                        >
-                            🎬 {t('detail_tab_maker')}
-                        </button>
+                        
+                        {/* ONLY SHOW LYRIC MAKER TAB IF ADMIN */}
+                        {isAdmin && (
+                            <button 
+                                onClick={() => setStoryMode('maker')}
+                                className={`pb-3 text-lg font-bold transition-colors border-b-2 ${storyMode === 'maker' ? 'border-brand-accent text-brand-accent' : 'border-transparent text-slate-400 hover:text-white'}`}
+                            >
+                                🎬 {t('detail_tab_maker')}
+                            </button>
+                        )}
                     </div>
 
                     {storyMode === 'desc' ? (
@@ -750,7 +754,7 @@ const SongDetail: React.FC = () => {
                             </p>
                         )
                     ) : (
-                        <LyricVideoMaker song={song} />
+                        isAdmin && <LyricVideoMaker song={song} />
                     )}
                 </div>
 
