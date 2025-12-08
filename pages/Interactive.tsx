@@ -380,6 +380,8 @@ const Interactive: React.FC = () => {
       
       // Candidate Detail Modal
       const [previewSong, setPreviewSong] = useState<Song | null>(null);
+      // New: Tab for Lyric/Credits in Modal
+      const [previewTab, setPreviewTab] = useState<'lyrics' | 'credits'>('lyrics');
 
       // Generate 40 Candidates (Mix of real songs + mocked duplicates for demo)
       const candidates = React.useMemo(() => {
@@ -558,63 +560,118 @@ const Interactive: React.FC = () => {
               {/* Preview Modal */}
               {previewSong && (
                   <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/90 backdrop-blur-sm" onClick={() => setPreviewSong(null)}>
-                      <div className="bg-slate-900 border border-slate-700 rounded-xl w-full max-w-2xl overflow-hidden shadow-2xl relative" onClick={e => e.stopPropagation()}>
+                      <div className="bg-slate-900 border border-slate-700 rounded-xl w-full max-w-5xl overflow-hidden shadow-2xl relative flex flex-col md:flex-row h-[80vh] md:h-auto" onClick={e => e.stopPropagation()}>
                           {/* Close */}
-                          <button onClick={() => setPreviewSong(null)} className="absolute top-4 right-4 z-10 w-8 h-8 bg-black/50 rounded-full text-white flex items-center justify-center hover:bg-red-500 transition-colors">✕</button>
+                          <button onClick={() => setPreviewSong(null)} className="absolute top-4 right-4 z-20 w-8 h-8 bg-black/50 rounded-full text-white flex items-center justify-center hover:bg-red-500 transition-colors">✕</button>
                           
-                          {/* Player Container */}
-                          <div className="w-full bg-black relative flex flex-col items-center justify-center bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')] overflow-hidden">
+                          {/* Left: Player Container (Big visual) */}
+                          <div className="w-full md:w-5/12 bg-black relative flex flex-col items-center justify-center bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')] overflow-hidden p-8">
                               {/* Visualizer Background */}
                               <div className="absolute inset-0 opacity-30 bg-gradient-to-t from-brand-gold/20 to-transparent"></div>
                               
                               {/* Large Cover Art (Album Cover) */}
-                              <div className="relative z-10 mt-8 mb-4 w-48 h-48 md:w-64 md:h-64 shadow-[0_0_30px_rgba(0,0,0,0.8)] border border-white/10 rounded-md overflow-hidden">
+                              <div className="relative z-10 w-full aspect-square shadow-[0_0_30px_rgba(0,0,0,0.8)] border border-white/10 rounded-md overflow-hidden mb-8">
                                   <img src={previewSong.coverUrl} className="w-full h-full object-cover" alt="Album Cover" />
                               </div>
 
-                              <div className="z-10 w-full px-8 pb-8 text-center max-w-lg">
-                                  <div className="text-white font-bold text-xl mb-1">{previewSong.title}</div>
+                              <div className="z-10 w-full text-center">
+                                  <div className="text-white font-bold text-xl mb-1 truncate">{previewSong.title}</div>
                                   <div className="text-brand-gold text-xs font-bold uppercase tracking-[0.2em] mb-6">Instrumental Master Tape</div>
 
                                   {previewSong.audioUrl ? (
                                       <>
-                                          {/* Custom Styled Audio Player with NO DOWNLOAD controls */}
+                                          {/* Custom Styled Audio Player */}
                                           <audio 
                                               controls 
                                               controlsList="nodownload" 
-                                              onContextMenu={(e) => e.preventDefault()}
-                                              className="w-full mix-blend-screen invert hue-rotate-180 contrast-125" 
+                                              className="w-full mix-blend-screen invert hue-rotate-180 contrast-125 mb-4" 
                                               style={{height: '40px'}}
                                           >
                                               <source src={previewSong.audioUrl} type="audio/mpeg" />
                                               <source src={previewSong.audioUrl} type="audio/wav" />
                                               Your browser does not support audio playback.
                                           </audio>
-                                          <div className="mt-4 text-[10px] text-slate-500 uppercase tracking-widest">
-                                              Private Listening Session • Do Not Distribute
+                                          <div className="text-[10px] text-slate-500 uppercase tracking-widest">
+                                              Private Session • Do Not Distribute
                                           </div>
                                       </>
-                                  ) : previewSong.youtubeUrl || previewSong.spotifyLink ? (
-                                      <div className="p-4 bg-red-900/20 border border-red-800/50 rounded text-red-300 text-xs">
-                                          Master Tape not available. Use local upload in Admin Panel.
-                                      </div>
                                   ) : (
-                                      <div className="flex flex-col items-center justify-center h-full text-slate-500 gap-2">
+                                      <div className="flex flex-col items-center justify-center py-4 text-slate-500 gap-2 border border-slate-800 rounded">
                                           <span>💽</span>
-                                          <span className="uppercase text-xs tracking-widest">Master Tape Not Uploaded</span>
+                                          <span className="uppercase text-xs tracking-widest">No Master Tape</span>
                                       </div>
                                   )}
                               </div>
                           </div>
 
-                          {/* Info */}
-                          <div className="p-6 max-h-[40vh] overflow-y-auto bg-slate-900">
-                              <div className="flex justify-between items-center mb-4">
-                                  <h3 className="text-sm font-bold text-slate-400 uppercase tracking-widest">Description</h3>
-                                  <span className="text-xs text-brand-gold border border-brand-gold/30 px-2 py-0.5 rounded uppercase">Release: Q2 2025</span>
+                          {/* Right: Info & Lyrics Tabs */}
+                          <div className="w-full md:w-7/12 bg-slate-900 flex flex-col h-full min-h-[400px]">
+                              {/* Tabs */}
+                              <div className="flex border-b border-slate-700">
+                                  <button 
+                                    onClick={() => setPreviewTab('lyrics')}
+                                    className={`flex-1 py-4 text-xs font-bold uppercase tracking-widest transition-colors ${previewTab === 'lyrics' ? 'bg-slate-800 text-brand-gold border-b-2 border-brand-gold' : 'text-slate-500 hover:text-white'}`}
+                                  >
+                                      Lyrics
+                                  </button>
+                                  <button 
+                                    onClick={() => setPreviewTab('credits')}
+                                    className={`flex-1 py-4 text-xs font-bold uppercase tracking-widest transition-colors ${previewTab === 'credits' ? 'bg-slate-800 text-brand-gold border-b-2 border-brand-gold' : 'text-slate-500 hover:text-white'}`}
+                                  >
+                                      Credits & Info
+                                  </button>
                               </div>
-                              <div className="text-sm text-slate-300 whitespace-pre-line font-light leading-relaxed">
-                                  {previewSong.lyrics || "No lyrics provided for this track."}
+
+                              {/* Content */}
+                              <div className="p-8 overflow-y-auto flex-grow custom-scrollbar">
+                                  {previewTab === 'lyrics' ? (
+                                      <div className="text-sm text-slate-300 whitespace-pre-line font-light leading-8 text-center md:text-left">
+                                          {previewSong.lyrics || (
+                                              <div className="text-slate-500 italic py-10 text-center">
+                                                  No lyrics available for this track.
+                                              </div>
+                                          )}
+                                      </div>
+                                  ) : (
+                                      <div className="space-y-6">
+                                          <div>
+                                              <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Description</h4>
+                                              <p className="text-sm text-slate-300 leading-relaxed">
+                                                  {previewSong.description || "No description provided."}
+                                              </p>
+                                          </div>
+                                          <div>
+                                              <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Credits</h4>
+                                              <div className="text-sm text-slate-300 whitespace-pre-line leading-relaxed bg-slate-950/50 p-4 rounded border border-slate-800">
+                                                  {previewSong.credits || "No credits provided."}
+                                              </div>
+                                          </div>
+                                          <div className="grid grid-cols-2 gap-4">
+                                              <div className="bg-slate-950 p-3 rounded border border-slate-800">
+                                                  <div className="text-[10px] text-slate-500 uppercase">Release Date</div>
+                                                  <div className="text-white font-mono text-sm">{previewSong.releaseDate}</div>
+                                              </div>
+                                              <div className="bg-slate-950 p-3 rounded border border-slate-800">
+                                                  <div className="text-[10px] text-slate-500 uppercase">Label</div>
+                                                  <div className="text-white font-mono text-sm">{previewSong.releaseCompany || '-'}</div>
+                                              </div>
+                                          </div>
+                                      </div>
+                                  )}
+                              </div>
+                              
+                              {/* Action Bar */}
+                              <div className="p-4 border-t border-slate-800 bg-slate-950 flex justify-between items-center">
+                                  <div className="text-xs text-slate-500">
+                                      {previewSong.isrc && <span className="font-mono mr-4">ISRC: {previewSong.isrc}</span>}
+                                  </div>
+                                  <button 
+                                      onClick={() => { toggleVote(previewSong.id); setPreviewSong(null); }}
+                                      disabled={!selectedVotes.has(previewSong.id) && selectedVotes.size >= 10}
+                                      className={`px-6 py-2 rounded text-xs font-bold uppercase tracking-widest transition-colors ${selectedVotes.has(previewSong.id) ? 'bg-brand-gold text-slate-900' : 'bg-slate-800 text-white hover:bg-slate-700'}`}
+                                  >
+                                      {selectedVotes.has(previewSong.id) ? 'Selected' : 'Vote for this track'}
+                                  </button>
                               </div>
                           </div>
                       </div>

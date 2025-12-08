@@ -20,6 +20,20 @@ const cleanGoogleRedirect = (url: string) => {
     }
 };
 
+// Helper to convert Google Drive Sharing Link to Direct Audio Source
+const convertDriveLink = (url: string) => {
+    try {
+        if (url.includes('drive.google.com') && url.includes('/file/d/')) {
+            // Extract ID
+            const id = url.split('/file/d/')[1].split('/')[0];
+            return `https://docs.google.com/uc?export=download&id=${id}`;
+        }
+        return url;
+    } catch (e) {
+        return url;
+    }
+};
+
 const AddSong: React.FC = () => {
   const navigate = useNavigate();
   const { addSong } = useData();
@@ -67,9 +81,24 @@ const AddSong: React.FC = () => {
       setFormData(prev => ({ ...prev, [name]: checked }));
     } else {
       let finalValue = value;
+      
+      // Auto-clean Google Image Redirects
       if (name === 'coverUrl') {
         finalValue = cleanGoogleRedirect(value);
       }
+      
+      // Auto-convert Google Drive Audio Links
+      if (name === 'audioUrl') {
+         // We do this conversion on blur usually, but here simple replacement on paste works too if structure matches immediately
+         // But better to keep raw input until processed. Let's just store value.
+         // We will process it in a dedicated handler or just let the helper runs on render/submit.
+         // For UX, let's process it when the user finishes typing (onBlur logic handled by user action or manual helper)
+         // Actually, let's just do it here:
+         if (value.includes('drive.google.com')) {
+             finalValue = convertDriveLink(value);
+         }
+      }
+
       setFormData(prev => ({ ...prev, [name]: finalValue }));
     }
   };
@@ -522,9 +551,11 @@ const AddSong: React.FC = () => {
                 <h3 className="text-xl font-semibold text-brand-accent mb-4 border-b border-slate-700 pb-2">{t('form_section_links')}</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
                     <div>
-                        <label className="block text-sm font-medium text-slate-300 mb-1">Audio File URL (Master Tape)</label>
-                        <input name="audioUrl" value={formData.audioUrl || ''} onChange={handleChange} className="w-full bg-slate-900 border border-slate-600 rounded p-2 text-white font-mono text-sm" placeholder="https://drive.google.com/.../file.mp3" />
-                         <p className="text-[10px] text-brand-gold mt-1">Direct Link (MP3/WAV) for "Beloved" voting event.</p>
+                        <label className="block text-sm font-bold text-white mb-1">Master Audio URL (Google Drive / MP3)</label>
+                        <input name="audioUrl" value={formData.audioUrl || ''} onChange={handleChange} className="w-full bg-slate-900 border border-brand-gold/50 rounded p-2 text-white font-mono text-sm" placeholder="Paste Google Drive Link here..." />
+                         <p className="text-xs text-slate-400 mt-1">
+                            <strong>How to use Drive:</strong> Right-click your MP3 file in Google Drive &rarr; Share &rarr; Copy Link. Paste it here, we will convert it automatically.
+                         </p>
                     </div>
                     <div>
                         <label className="block text-sm font-medium text-slate-300 mb-1">{t('form_label_youtube')}</label>
@@ -539,17 +570,17 @@ const AddSong: React.FC = () => {
                         <input name="appleMusicLink" value={formData.appleMusicLink || ''} onChange={handleChange} className="w-full bg-slate-900 border border-slate-600 rounded p-2 text-white" />
                     </div>
                 </div>
-                 <div>
-                    <label className="block text-sm font-medium text-slate-300 mb-1">{t('form_label_lyrics')}</label>
-                    <textarea name="lyrics" rows={4} value={formData.lyrics || ''} onChange={handleChange} className="w-full bg-slate-900 border border-slate-600 rounded p-2 text-white" />
+                 <div className="bg-slate-900/50 p-4 rounded border border-slate-700">
+                    <label className="block text-sm font-bold text-brand-accent mb-2">{t('form_label_lyrics')} (Database & Interactive Mode)</label>
+                    <textarea name="lyrics" rows={6} value={formData.lyrics || ''} onChange={handleChange} className="w-full bg-slate-950 border border-slate-600 rounded p-3 text-white font-mono text-sm leading-relaxed" placeholder="Paste lyrics here. Line by line." />
                 </div>
                 <div className="mt-4">
                     <label className="block text-sm font-medium text-slate-300 mb-1">{t('form_label_desc')}</label>
                     <textarea name="description" rows={3} value={formData.description || ''} onChange={handleChange} className="w-full bg-slate-900 border border-slate-600 rounded p-2 text-white" />
                 </div>
-                <div className="mt-4">
-                    <label className="block text-sm font-medium text-slate-300 mb-1">{t('form_label_credits')}</label>
-                    <textarea name="credits" rows={3} value={formData.credits || ''} onChange={handleChange} className="w-full bg-slate-900 border border-slate-600 rounded p-2 text-white" placeholder="Producer: ... Arranger: ... " />
+                <div className="mt-4 bg-slate-900/50 p-4 rounded border border-slate-700">
+                    <label className="block text-sm font-bold text-brand-accent mb-2">{t('form_label_credits')} (Acknowledgments)</label>
+                    <textarea name="credits" rows={4} value={formData.credits || ''} onChange={handleChange} className="w-full bg-slate-950 border border-slate-600 rounded p-3 text-white text-sm" placeholder="Producer: ... Arranger: ... " />
                 </div>
             </section>
 

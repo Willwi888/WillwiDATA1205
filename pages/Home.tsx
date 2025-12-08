@@ -36,14 +36,22 @@ const Home: React.FC = () => {
     <div className="flex flex-col h-full justify-center relative">
       
       {/* --- FIXED BELOVED EVENT WIDGET (Left Side) --- */}
+      {/* Adjusted: Larger, vertical-rl text mode (standard vertical), moved slightly inward visually via padding/shadow */}
       <Link 
         to="/interactive"
-        className="fixed left-0 top-1/2 transform -translate-y-1/2 z-40 bg-slate-900/90 backdrop-blur border-r border-y border-brand-gold/50 py-6 px-2 rounded-r-xl shadow-[0_0_20px_rgba(251,191,36,0.2)] hover:pl-4 transition-all duration-300 group hidden md:block"
+        className="fixed left-0 top-1/2 transform -translate-y-1/2 z-50 bg-slate-900/95 backdrop-blur-md border border-l-0 border-brand-gold py-10 pl-2 pr-4 rounded-r-2xl shadow-[0_0_25px_rgba(251,191,36,0.3)] hover:pl-4 hover:pr-6 transition-all duration-300 group hidden md:block"
       >
-          <div className="writing-vertical-lr flex items-center gap-4">
-              <span className="w-1 h-12 bg-brand-gold rounded-full animate-pulse"></span>
-              <span className="text-brand-gold font-bold uppercase tracking-[0.3em] text-xs rotate-180">Beloved Event</span>
-              <span className="text-white text-[10px] uppercase tracking-widest rotate-180 opacity-70 group-hover:opacity-100 transition-opacity">Vote Ends Feb 28</span>
+          <div className="flex flex-col items-center justify-center gap-4 h-full">
+               <div className="w-1.5 h-16 bg-gradient-to-b from-brand-gold to-yellow-600 rounded-full animate-pulse shadow-[0_0_10px_#fbbf24]"></div>
+               <div className="[writing-mode:vertical-rl] flex items-center gap-4 tracking-[0.2em]">
+                   <span className="text-white text-[10px] uppercase font-medium opacity-80 group-hover:text-brand-gold transition-colors">
+                       Vote Ends Feb 28
+                   </span>
+                   <span className="text-brand-gold font-black uppercase text-sm md:text-base whitespace-nowrap drop-shadow-md">
+                       Beloved Event
+                   </span>
+               </div>
+               <div className="w-1.5 h-16 bg-gradient-to-t from-brand-gold to-yellow-600 rounded-full animate-pulse shadow-[0_0_10px_#fbbf24]"></div>
           </div>
       </Link>
 
@@ -54,27 +62,27 @@ const Home: React.FC = () => {
         <div className="relative z-10 w-full lg:w-2/3 max-w-4xl flex flex-col pt-12 lg:pt-0">
             
             {/* Decorative Line & Label */}
-            <div className="flex items-center gap-4 mb-6 animate-fade-in-up opacity-0" style={{animationDelay: '0.1s', animationFillMode: 'forwards'}}>
+            <div className="flex items-center gap-4 mb-6 animate-fade-in-up">
                  <div className="h-px w-12 bg-brand-accent"></div>
                  <span className="text-brand-accent font-bold text-xs tracking-[0.3em] uppercase">The Official Archive</span>
             </div>
 
-            <h1 className="text-7xl md:text-9xl font-black text-white tracking-tighter uppercase mb-6 leading-[0.9] drop-shadow-2xl animate-fade-in-up opacity-0" style={{animationDelay: '0.2s', animationFillMode: 'forwards'}}>
+            <h1 className="text-7xl md:text-9xl font-black text-white tracking-tighter uppercase mb-6 leading-[0.9] drop-shadow-2xl animate-fade-in-up" style={{animationDelay: '0.1s'}}>
               Willwi
             </h1>
             
-            <h2 className="text-xl md:text-2xl font-light tracking-[0.2em] text-slate-200 mb-8 uppercase animate-fade-in-up opacity-0" style={{animationDelay: '0.3s', animationFillMode: 'forwards'}}>
+            <h2 className="text-xl md:text-2xl font-light tracking-[0.2em] text-slate-200 mb-8 uppercase animate-fade-in-up" style={{animationDelay: '0.2s'}}>
               {t('hero_title')}
             </h2>
             
-            <p className="text-slate-300 text-sm md:text-base leading-relaxed mb-12 font-light max-w-lg border-l border-brand-accent/50 pl-6 animate-fade-in-up opacity-0" style={{animationDelay: '0.4s', animationFillMode: 'forwards'}}>
+            <p className="text-slate-300 text-sm md:text-base leading-relaxed mb-12 font-light max-w-lg border-l border-brand-accent/50 pl-6 animate-fade-in-up" style={{animationDelay: '0.3s'}}>
                Reborn on Feb 25th.<br/>
                Simply to leave a record of existence.<br/>
                <span className="text-slate-500 text-xs mt-2 block">Est. 1995 • Taipei / Sydney</span>
             </p>
 
             {/* Premium Buttons */}
-            <div className="flex flex-col sm:flex-row gap-5 mb-16 animate-fade-in-up opacity-0" style={{animationDelay: '0.5s', animationFillMode: 'forwards'}}>
+            <div className="flex flex-col sm:flex-row gap-5 mb-16 animate-fade-in-up" style={{animationDelay: '0.4s'}}>
               <Link 
                   to="/database" 
                   className="group relative px-8 py-4 overflow-hidden border border-white/20 hover:border-brand-accent transition-colors duration-300"
@@ -95,41 +103,41 @@ const Home: React.FC = () => {
               </Link>
             </div>
 
-            {/* Classy Mini Audio Player */}
+            {/* Classy Mini Audio Player - Removed opacity-0 to guarantee visibility */}
             {featured && (
-              <div className="animate-fade-in-up opacity-0 relative" style={{animationDelay: '0.6s', animationFillMode: 'forwards'}}>
-                <div className="bg-slate-900/60 backdrop-blur-xl border border-white/10 rounded-2xl p-4 flex items-center gap-6 max-w-md shadow-2xl">
+              <div className="relative animate-fade-in-up" style={{animationDelay: '0.5s'}}>
+                <div className="bg-slate-900/80 backdrop-blur-xl border border-white/10 rounded-2xl p-6 flex items-center gap-6 max-w-md shadow-2xl hover:border-brand-accent/30 transition-colors group">
                     
                     {/* Vinyl Cover Art */}
-                    <div className={`relative w-16 h-16 rounded-full overflow-hidden border-2 border-white/10 shadow-lg flex-shrink-0 ${isPlaying ? 'animate-spin-slow' : ''}`}>
+                    <div className={`relative w-20 h-20 rounded-full overflow-hidden border-4 border-slate-950 shadow-xl flex-shrink-0 ${isPlaying ? 'animate-spin-slow' : ''}`}>
                         <img src={featured.coverUrl} className="w-full h-full object-cover" alt="Cover" />
                         <div className="absolute inset-0 bg-black/10 rounded-full"></div>
-                        <div className="absolute top-1/2 left-1/2 w-4 h-4 bg-slate-900 rounded-full transform -translate-x-1/2 -translate-y-1/2 border border-white/20"></div>
+                        <div className="absolute top-1/2 left-1/2 w-6 h-6 bg-slate-900 rounded-full transform -translate-x-1/2 -translate-y-1/2 border border-white/20"></div>
                     </div>
 
                     {/* Controls & Info */}
                     <div className="flex-grow min-w-0">
-                        <div className="flex justify-between items-start mb-1">
-                            <div>
-                                <div className="text-[10px] text-brand-accent uppercase tracking-widest font-bold">Featured Track</div>
-                                <h3 className="text-white font-bold truncate">{featured.title}</h3>
+                        <div className="flex justify-between items-start mb-2">
+                            <div className="overflow-hidden">
+                                <div className="text-[10px] text-brand-accent uppercase tracking-widest font-bold mb-1">Featured Track</div>
+                                <h3 className="text-white font-bold text-lg truncate pr-2 group-hover:text-brand-accent transition-colors">{featured.title}</h3>
                             </div>
                             
                             {/* Play Button Logic */}
                             {featured.audioUrl ? (
                                 <button 
                                     onClick={togglePlay}
-                                    className="w-10 h-10 bg-white text-black rounded-full flex items-center justify-center hover:scale-110 transition-transform shadow-lg"
+                                    className={`w-12 h-12 rounded-full flex items-center justify-center hover:scale-110 transition-all shadow-lg flex-shrink-0 ${isPlaying ? 'bg-brand-accent text-slate-900' : 'bg-white text-black'}`}
                                 >
                                     {isPlaying ? (
-                                        <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
+                                        <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
                                     ) : (
-                                        <svg className="w-4 h-4 ml-0.5" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+                                        <svg className="w-5 h-5 ml-1" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
                                     )}
                                 </button>
                             ) : (
-                                <Link to={`/song/${featured.id}`} className="text-xs text-slate-400 hover:text-white border border-slate-600 px-3 py-1 rounded-full">
-                                    Details
+                                <Link to={`/song/${featured.id}`} className="text-xs text-slate-400 hover:text-white border border-slate-600 px-3 py-1 rounded-full whitespace-nowrap">
+                                    View Details
                                 </Link>
                             )}
                         </div>
@@ -145,14 +153,14 @@ const Home: React.FC = () => {
                         )}
 
                         {/* Fake Progress Bar / Visualizer */}
-                        <div className="flex items-center gap-1 mt-2 h-1">
-                            {[...Array(12)].map((_, i) => (
+                        <div className="flex items-center gap-1 mt-3 h-2 w-full">
+                            {[...Array(16)].map((_, i) => (
                                 <div 
                                     key={i} 
                                     className={`w-1 bg-brand-accent/50 rounded-full transition-all duration-300 ${isPlaying ? 'animate-pulse' : ''}`}
                                     style={{ 
-                                        height: isPlaying ? `${Math.random() * 100}%` : '20%', 
-                                        animationDelay: `${i * 0.1}s` 
+                                        height: isPlaying ? `${Math.max(20, Math.random() * 100)}%` : '20%', 
+                                        animationDelay: `${i * 0.05}s` 
                                     }}
                                 ></div>
                             ))}

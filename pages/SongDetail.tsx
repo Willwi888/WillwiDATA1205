@@ -21,6 +21,20 @@ const cleanGoogleRedirect = (url: string) => {
     }
 };
 
+// Helper to convert Google Drive Sharing Link to Direct Audio Source
+const convertDriveLink = (url: string) => {
+    try {
+        if (url.includes('drive.google.com') && url.includes('/file/d/')) {
+            // Extract ID
+            const id = url.split('/file/d/')[1].split('/')[0];
+            return `https://docs.google.com/uc?export=download&id=${id}`;
+        }
+        return url;
+    } catch (e) {
+        return url;
+    }
+};
+
 const SongDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -509,6 +523,48 @@ const SongDetail: React.FC = () => {
                 <div className="bg-slate-800 rounded-2xl p-6 border border-slate-700">
                     <h3 className="text-xl font-bold text-white mb-4">{t('detail_player_header')}</h3>
                     
+                    {/* Master Audio Player (Google Drive) */}
+                    {(displayData.audioUrl || isEditing) && (
+                        <div className="mb-6 p-4 bg-slate-900/50 rounded-lg border border-white/5">
+                             <h4 className="text-xs text-brand-gold font-bold uppercase tracking-widest mb-3">
+                                 Instrumental Master Tape
+                             </h4>
+                             {displayData.audioUrl ? (
+                                <audio 
+                                    controls 
+                                    controlsList="nodownload" 
+                                    className="w-full mix-blend-screen invert hue-rotate-180 contrast-125" 
+                                    style={{height: '32px'}}
+                                >
+                                    <source src={displayData.audioUrl} type="audio/mpeg" />
+                                    <source src={displayData.audioUrl} type="audio/wav" />
+                                </audio>
+                             ) : (
+                                <div className="text-xs text-slate-500 italic">No audio file linked.</div>
+                             )}
+
+                             {isEditing && (
+                                <div className="mt-4 border-t border-slate-700 pt-3">
+                                    <label className="block text-xs text-slate-400 mb-1">Update Master Link (Drive/MP3)</label>
+                                    <input 
+                                        className="w-full bg-slate-950 border border-slate-600 rounded p-2 text-xs text-white font-mono"
+                                        placeholder="https://drive.google.com/file/d/..."
+                                        value={editForm.audioUrl || ''}
+                                        onChange={(e) => {
+                                            const val = e.target.value;
+                                            // Auto-convert on paste/type
+                                            if (val.includes('drive.google.com')) {
+                                                setEditForm({...editForm, audioUrl: convertDriveLink(val)});
+                                            } else {
+                                                setEditForm({...editForm, audioUrl: val});
+                                            }
+                                        }}
+                                    />
+                                </div>
+                             )}
+                        </div>
+                    )}
+                    
                     {/* Spotify Player */}
                     {(spotifyEmbedId || isEditing) && (
                         <div className="mb-6">
@@ -565,7 +621,7 @@ const SongDetail: React.FC = () => {
                             </iframe>
                         </div>
                     ) : (
-                        !isEditing && !spotifyEmbedId && <div className="p-4 bg-slate-900/50 rounded text-center text-slate-500 text-sm">No Video or Audio</div>
+                        !isEditing && !spotifyEmbedId && !displayData.audioUrl && <div className="p-4 bg-slate-900/50 rounded text-center text-slate-500 text-sm">No Video or Audio</div>
                     )}
 
                     {isEditing && (
