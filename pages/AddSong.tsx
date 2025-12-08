@@ -57,6 +57,7 @@ const AddSong: React.FC = () => {
     credits: '',
     spotifyLink: '', 
     musicBrainzId: '',
+    audioUrl: '', // New Field
   });
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
@@ -232,6 +233,7 @@ const AddSong: React.FC = () => {
       youtubeMusicUrl: formData.youtubeMusicUrl,
       spotifyLink: formData.spotifyLink,
       appleMusicLink: formData.appleMusicLink,
+      audioUrl: formData.audioUrl, // SAVE AUDIO URL
       lyrics: formData.lyrics,
       description: formData.description,
       credits: formData.credits
@@ -519,6 +521,11 @@ const AddSong: React.FC = () => {
             <section>
                 <h3 className="text-xl font-semibold text-brand-accent mb-4 border-b border-slate-700 pb-2">{t('form_section_links')}</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                    <div>
+                        <label className="block text-sm font-medium text-slate-300 mb-1">Audio File URL (Master Tape)</label>
+                        <input name="audioUrl" value={formData.audioUrl || ''} onChange={handleChange} className="w-full bg-slate-900 border border-slate-600 rounded p-2 text-white font-mono text-sm" placeholder="https://drive.google.com/.../file.mp3" />
+                         <p className="text-[10px] text-brand-gold mt-1">Direct Link (MP3/WAV) for "Beloved" voting event.</p>
+                    </div>
                     <div>
                         <label className="block text-sm font-medium text-slate-300 mb-1">{t('form_label_youtube')}</label>
                         <input name="youtubeUrl" value={formData.youtubeUrl || ''} onChange={handleChange} className="w-full bg-slate-900 border border-slate-600 rounded p-2 text-white" />

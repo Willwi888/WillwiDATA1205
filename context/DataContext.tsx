@@ -25,6 +25,8 @@ export const INITIAL_DATA: Song[] = [
     spotifyId: '5g5X2x1T9bZqQ1v8K3k9J2',
     spotifyLink: 'https://open.spotify.com/track/5g5X2x1T9bZqQ1v8K3k9J2',
     appleMusicLink: 'https://music.apple.com/tw/album/love-again/1666666666?i=1666666666',
+    // Example of a direct audio link (using a demo MP3 link for visualization)
+    audioUrl: '', 
     musicBrainzId: '',
     description: 'A heartfelt ballad exploring the courage to love again after heartbreak. \n\n這是一首關於在心碎後重新尋找愛與勇氣的抒情歌曲。'
   },

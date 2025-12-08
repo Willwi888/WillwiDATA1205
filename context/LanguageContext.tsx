@@ -95,6 +95,18 @@ const TRANSLATIONS = {
     detail_links_header: "External Platforms",
     detail_player_header: "Preview & Video",
     
+    // Vote Event
+    vote_tab: "Event: Beloved",
+    vote_title: "Project: Beloved",
+    vote_subtitle: "Vote for the Top 20 Greatest Hits",
+    vote_desc: "This is a major event for Q2 next year. We have selected 40 popular tracks. Please listen to the 'Studio Instrumental Master Tapes' (different from live versions). Voting ends on Feb 28.",
+    vote_login_title: "Join the Event",
+    vote_login_desc: "Please enter your name and email to start voting.",
+    vote_limit_msg: "Please select exactly 10 songs.",
+    vote_submit: "Submit Vote",
+    vote_gift_title: "Thank You",
+    vote_gift_desc: "Your votes have been recorded. Here is a special voice message for you.",
+
     // Common
     btn_edit: "Edit",
     btn_delete: "Delete",
@@ -193,6 +205,18 @@ const TRANSLATIONS = {
     detail_lyrics_header: "完整歌詞",
     detail_links_header: "外部平台連結",
     detail_player_header: "試聽與觀看",
+
+    // Vote Event
+    vote_tab: "活動：摯愛票選",
+    vote_title: "年度精選企劃：摯愛",
+    vote_subtitle: "純音樂母帶版・試聽票選",
+    vote_desc: "這是明年第2季的大活動，目前的封面即為專輯封面。這裡提供的是「錄音室純音樂母帶版」，與 Youtube 直播版本不同。請選出您心中的 10 首摯愛。投票截止日：2月28日。",
+    vote_login_title: "參與票選活動",
+    vote_login_desc: "請留下您的姓名與電子信箱以進入投票專區。",
+    vote_limit_msg: "請選滿 10 首歌曲才能送出喔！",
+    vote_submit: "送出選票",
+    vote_gift_title: "感謝您的參與",
+    vote_gift_desc: "您的選票已記錄。這是 Willwi 錄製的一段心裡話，送給每一個摯愛音樂的你。",
 
     // Common
     btn_edit: "編輯",

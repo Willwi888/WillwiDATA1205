@@ -207,7 +207,7 @@ const SongDetail: React.FC = () => {
   };
 
   // Robust Spotify ID Extractor
-  const getSpotifyEmbedId = (s: Song) => {
+  const getSpotifyEmbedId = (s: Partial<Song>) => {
       const candidates = [s.spotifyId, s.spotifyLink];
       for (const c of candidates) {
           if (!c) continue;
@@ -226,8 +226,10 @@ const SongDetail: React.FC = () => {
       return null;
   };
 
-  const embedUrl = getYoutubeEmbedUrl(song.youtubeUrl);
-  const spotifyEmbedId = getSpotifyEmbedId(song);
+  // Determine what data to display (Live Preview logic)
+  const displayData = isEditing ? { ...song, ...editForm } : song;
+  const embedUrl = getYoutubeEmbedUrl(displayData.youtubeUrl);
+  const spotifyEmbedId = getSpotifyEmbedId(displayData);
 
   return (
     <div className="animate-fade-in pb-32">
@@ -506,18 +508,47 @@ const SongDetail: React.FC = () => {
                 {/* 1. Player Section */}
                 <div className="bg-slate-800 rounded-2xl p-6 border border-slate-700">
                     <h3 className="text-xl font-bold text-white mb-4">{t('detail_player_header')}</h3>
-                    {spotifyEmbedId && (
-                        <div className="mb-4">
-                            <iframe 
-                                style={{borderRadius: '12px'}} 
-                                src={`https://open.spotify.com/embed/track/${spotifyEmbedId}?utm_source=generator&theme=0`} 
-                                width="100%" 
-                                height="152" 
-                                frameBorder="0" 
-                                allowFullScreen 
-                                allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture" 
-                                loading="lazy">
-                            </iframe>
+                    
+                    {/* Spotify Player */}
+                    {(spotifyEmbedId || isEditing) && (
+                        <div className="mb-6">
+                             {spotifyEmbedId ? (
+                                <iframe 
+                                    style={{borderRadius: '12px'}} 
+                                    src={`https://open.spotify.com/embed/track/${spotifyEmbedId}?utm_source=generator&theme=0`} 
+                                    width="100%" 
+                                    height="152" 
+                                    frameBorder="0" 
+                                    allowFullScreen 
+                                    allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture" 
+                                    loading="lazy">
+                                </iframe>
+                             ) : (
+                                <div className="h-[152px] bg-slate-900/50 rounded-xl flex items-center justify-center text-slate-500 text-sm border border-slate-700 border-dashed">
+                                    Spotify Player Preview
+                                </div>
+                             )}
+
+                            {isEditing && (
+                                <div className="mt-2">
+                                    <label className="block text-xs text-brand-accent mb-1">Spotify Link / ID</label>
+                                    <input 
+                                        className="w-full bg-slate-900 border border-slate-600 rounded p-2 text-sm text-white font-mono" 
+                                        placeholder="https://open.spotify.com/track/..."
+                                        value={editForm.spotifyLink || editForm.spotifyId || ''}
+                                        onChange={(e) => {
+                                            // Smart handler: prefer link
+                                            const val = e.target.value;
+                                            if (val.includes('http')) {
+                                                 setEditForm({...editForm, spotifyLink: val});
+                                            } else {
+                                                 setEditForm({...editForm, spotifyId: val});
+                                            }
+                                        }}
+                                    />
+                                    <p className="text-[10px] text-slate-500 mt-1">Paste full link or URI to generate player.</p>
+                                </div>
+                            )}
                         </div>
                     )}
                     
@@ -534,7 +565,7 @@ const SongDetail: React.FC = () => {
                             </iframe>
                         </div>
                     ) : (
-                        !isEditing && <div className="p-4 bg-slate-900/50 rounded text-center text-slate-500 text-sm">No Video</div>
+                        !isEditing && !spotifyEmbedId && <div className="p-4 bg-slate-900/50 rounded text-center text-slate-500 text-sm">No Video or Audio</div>
                     )}
 
                     {isEditing && (
@@ -555,7 +586,7 @@ const SongDetail: React.FC = () => {
                      <h3 className="text-xl font-bold text-white mb-4">{t('detail_links_header')}</h3>
                      {isEditing ? (
                         <div className="space-y-3">
-                            <label className="text-xs text-slate-400 block mt-2">Spotify Link</label>
+                            <label className="text-xs text-slate-400 block mt-2">Spotify Link (for buttons)</label>
                             <input 
                                 className="w-full bg-slate-900 border border-slate-600 rounded p-2 text-xs text-white" 
                                 value={editForm.spotifyLink || ''}

@@ -47,6 +47,9 @@ export interface Song {
   spotifyLink?: string; // Direct link
   appleMusicLink?: string;
   
+  // Audio Source (For Master Tapes / Demos)
+  audioUrl?: string; // NEW: Direct link to MP3/WAV file
+  
   // Content
   lyrics?: string;
   description?: string;
