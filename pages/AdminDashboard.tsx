@@ -4,6 +4,19 @@ import { useUser } from '../context/UserContext';
 import { dbService } from '../services/db';
 import { Song } from '../types';
 
+// Helper to convert Google Drive Sharing Link
+const convertDriveLink = (url: string) => {
+    try {
+        if (url.includes('drive.google.com') && url.includes('/file/d/')) {
+            const id = url.split('/file/d/')[1].split('/')[0];
+            return `https://docs.google.com/uc?export=download&id=${id}`;
+        }
+        return url;
+    } catch (e) {
+        return url;
+    }
+};
+
 const AdminDashboard: React.FC = () => {
   const { songs } = useData();
   const { isAdmin, enableAdmin } = useUser();
@@ -17,6 +30,28 @@ const AdminDashboard: React.FC = () => {
 
   // Domain Check State
   const [isOnWrongDomain, setIsOnWrongDomain] = useState(false);
+
+  // Homepage Player Config State
+  const [homeConfig, setHomeConfig] = useState({
+      title: '',
+      subtitle: '',
+      coverUrl: '',
+      audioUrl: '',
+      youtubeUrl: '' // NEW: YouTube Support
+  });
+
+  // Load Home Config on Mount
+  useEffect(() => {
+      const savedConfig = localStorage.getItem('willwi_home_player_config');
+      if (savedConfig) {
+          setHomeConfig(JSON.parse(savedConfig));
+      }
+  }, []);
+
+  const saveHomeConfig = () => {
+      localStorage.setItem('willwi_home_player_config', JSON.stringify(homeConfig));
+      alert("首頁播放器設定已儲存！");
+  };
 
   // Project Links provided by user
   const PROJECT_LINKS = {
@@ -213,9 +248,76 @@ const AdminDashboard: React.FC = () => {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         
-        {/* COL 1: Legacy Archive & Carrd Guide */}
+        {/* COL 1: Main Management */}
         <div className="lg:col-span-2 space-y-8">
             
+            {/* NEW: HOMEPAGE PLAYER MANAGER */}
+            <div className="bg-slate-900 border border-brand-accent/50 rounded-xl p-8 shadow-2xl relative overflow-hidden">
+                <h2 className="text-xl font-bold text-brand-accent mb-6 flex items-center gap-2">
+                    🏠 首頁播放器管理 (Home Player)
+                </h2>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="space-y-4">
+                        <div>
+                            <label className="block text-xs text-slate-400 mb-1">主標題 / 歌名</label>
+                            <input 
+                                className="w-full bg-black border border-slate-700 rounded p-2 text-white"
+                                value={homeConfig.title}
+                                onChange={(e) => setHomeConfig({...homeConfig, title: e.target.value})}
+                                placeholder="e.g. Love Again"
+                            />
+                        </div>
+                        <div>
+                            <label className="block text-xs text-slate-400 mb-1">副標題 / 文字呈現</label>
+                            <textarea 
+                                className="w-full bg-black border border-slate-700 rounded p-2 text-white h-20"
+                                value={homeConfig.subtitle}
+                                onChange={(e) => setHomeConfig({...homeConfig, subtitle: e.target.value})}
+                                placeholder="簡短介紹或歌詞..."
+                            />
+                        </div>
+                    </div>
+                    <div className="space-y-4">
+                         {/* YouTube Field (New) */}
+                         <div>
+                            <label className="block text-xs text-red-400 font-bold mb-1">YouTube 影片連結 (優先顯示)</label>
+                            <input 
+                                className="w-full bg-black border border-red-900/50 rounded p-2 text-white text-xs"
+                                value={homeConfig.youtubeUrl || ''}
+                                onChange={(e) => setHomeConfig({...homeConfig, youtubeUrl: e.target.value})}
+                                placeholder="https://www.youtube.com/watch?v=..."
+                            />
+                        </div>
+                        
+                        <div className="pt-2 border-t border-slate-800">
+                            <label className="block text-xs text-brand-gold font-bold mb-1">Google Drive 音檔連結 (無影片時顯示)</label>
+                            <input 
+                                className="w-full bg-black border border-brand-gold/50 rounded p-2 text-white text-xs font-mono"
+                                value={homeConfig.audioUrl}
+                                onChange={(e) => {
+                                    const val = e.target.value;
+                                    if (val.includes('drive.google.com')) {
+                                        setHomeConfig({...homeConfig, audioUrl: convertDriveLink(val)});
+                                    } else {
+                                        setHomeConfig({...homeConfig, audioUrl: val});
+                                    }
+                                }}
+                                placeholder="Paste Drive Link Here..."
+                            />
+                            <p className="text-[10px] text-slate-500 mt-1">系統會自動轉換權限為直連播放。</p>
+                        </div>
+                    </div>
+                </div>
+                <div className="mt-6 flex justify-end">
+                    <button 
+                        onClick={saveHomeConfig}
+                        className="px-6 py-2 bg-brand-accent text-slate-900 font-bold rounded hover:bg-white transition-colors"
+                    >
+                        儲存首頁設定
+                    </button>
+                </div>
+            </div>
+
             {/* 1. CLOUD SYNC CENTER (Moved to TOP for visibility) */}
             <div className="bg-gradient-to-br from-slate-800 to-slate-900 border border-slate-600 rounded-xl p-8 shadow-2xl relative overflow-hidden group">
                  <div className="absolute top-0 right-0 bg-brand-gold text-slate-900 text-[10px] font-bold px-3 py-1 rounded-bl shadow-lg uppercase tracking-wider">CRITICAL</div>
@@ -338,16 +440,6 @@ const AdminDashboard: React.FC = () => {
                         </div>
                         <p className="text-xs text-slate-500 group-hover:text-slate-300">Manage database.</p>
                     </a>
-                </div>
-                
-                <div className="mt-6 pt-4 border-t border-slate-800">
-                    <h3 className="text-brand-accent font-bold text-sm uppercase mb-2">Carrd Integration Guide</h3>
-                    <p className="text-slate-400 text-xs leading-relaxed">
-                        1. 您的主要官方網站 (Official Endpoint) 為：<br/>
-                        <code className="bg-black px-2 py-1 rounded text-green-400 mt-1 block w-fit truncate max-w-full font-bold select-all">{PROJECT_LINKS.live}</code>
-                        <br/>
-                        2. <strong>請務必使用此網址。</strong> 如果 Google Cloud 產生了其他網址，請忽略它們，因為資料庫不互通。
-                    </p>
                 </div>
             </div>
 

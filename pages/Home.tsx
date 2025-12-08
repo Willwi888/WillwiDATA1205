@@ -1,60 +1,54 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useData } from '../context/DataContext';
-import { getLanguageColor } from '../types';
 import { useTranslation } from '../context/LanguageContext';
+
+// Helper to extract YouTube ID
+const getYoutubeEmbedUrl = (url?: string) => {
+    if (!url) return null;
+    try {
+        let videoId = '';
+        if (url.includes('youtu.be/')) {
+            videoId = url.split('youtu.be/')[1].split('?')[0];
+        } else if (url.includes('youtube.com/watch')) {
+            const urlParams = new URLSearchParams(new URL(url).search);
+            videoId = urlParams.get('v') || '';
+        } else if (url.includes('youtube.com/embed/')) {
+             videoId = url.split('embed/')[1];
+        }
+        return videoId ? `https://www.youtube.com/embed/${videoId}?rel=0` : null;
+    } catch(e) { return null; }
+};
 
 const Home: React.FC = () => {
   const { songs } = useData();
   const { t } = useTranslation();
-  // Find Editor's pick or fallback to first song
-  const featured = songs.find(s => s.isEditorPick) || songs[0];
+  
+  // 1. Load Homepage Configuration (from Admin) or Fallback
+  const [homeConfig, setHomeConfig] = useState<any>(null);
 
-  // Audio Player State
-  const [isPlaying, setIsPlaying] = useState(false);
-  const audioRef = useRef<HTMLAudioElement | null>(null);
-
-  const togglePlay = (e: React.MouseEvent) => {
-      e.preventDefault(); // Prevent link navigation if inside a link
-      e.stopPropagation();
-      
-      if (!audioRef.current) return;
-
-      if (isPlaying) {
-          audioRef.current.pause();
-      } else {
-          audioRef.current.play();
+  useEffect(() => {
+      const savedConfig = localStorage.getItem('willwi_home_player_config');
+      if (savedConfig) {
+          setHomeConfig(JSON.parse(savedConfig));
       }
-      setIsPlaying(!isPlaying);
-  };
+  }, []);
 
-  const handleAudioEnded = () => {
-      setIsPlaying(false);
-  };
+  // Determine what to display
+  // Priority: Admin Config -> Editor's Pick -> First Song
+  const featuredTitle = homeConfig?.title || (songs.find(s => s.isEditorPick)?.title) || songs[0]?.title;
+  const featuredCover = homeConfig?.coverUrl || (songs.find(s => s.isEditorPick)?.coverUrl) || songs[0]?.coverUrl;
+  const featuredSubtitle = homeConfig?.subtitle || "Featured Track";
+  
+  // Audio & Video Logic
+  const featuredAudio = homeConfig?.audioUrl || ""; 
+  const featuredYoutube = homeConfig?.youtubeUrl || (songs.find(s => s.isEditorPick)?.youtubeUrl) || "";
+  
+  const youtubeEmbed = getYoutubeEmbedUrl(featuredYoutube);
 
   return (
     <div className="flex flex-col h-full justify-center relative">
       
-      {/* --- FIXED BELOVED EVENT WIDGET (Left Side) --- */}
-      {/* Adjusted: Larger, vertical-rl text mode (standard vertical), moved slightly inward visually via padding/shadow */}
-      <Link 
-        to="/interactive"
-        className="fixed left-0 top-1/2 transform -translate-y-1/2 z-50 bg-slate-900/95 backdrop-blur-md border border-l-0 border-brand-gold py-10 pl-2 pr-4 rounded-r-2xl shadow-[0_0_25px_rgba(251,191,36,0.3)] hover:pl-4 hover:pr-6 transition-all duration-300 group hidden md:block"
-      >
-          <div className="flex flex-col items-center justify-center gap-4 h-full">
-               <div className="w-1.5 h-16 bg-gradient-to-b from-brand-gold to-yellow-600 rounded-full animate-pulse shadow-[0_0_10px_#fbbf24]"></div>
-               <div className="[writing-mode:vertical-rl] flex items-center gap-4 tracking-[0.2em]">
-                   <span className="text-white text-[10px] uppercase font-medium opacity-80 group-hover:text-brand-gold transition-colors">
-                       Vote Ends Feb 28
-                   </span>
-                   <span className="text-brand-gold font-black uppercase text-sm md:text-base whitespace-nowrap drop-shadow-md">
-                       Beloved Event
-                   </span>
-               </div>
-               <div className="w-1.5 h-16 bg-gradient-to-t from-brand-gold to-yellow-600 rounded-full animate-pulse shadow-[0_0_10px_#fbbf24]"></div>
-          </div>
-      </Link>
-
       {/* 1. Hero Section - Editorial Style */}
       <div className="relative flex flex-col lg:flex-row items-center justify-center lg:justify-start min-h-[85vh] px-6 md:px-12 lg:px-20">
         
@@ -103,69 +97,72 @@ const Home: React.FC = () => {
               </Link>
             </div>
 
-            {/* Classy Mini Audio Player - Removed opacity-0 to guarantee visibility */}
-            {featured && (
-              <div className="relative animate-fade-in-up" style={{animationDelay: '0.5s'}}>
-                <div className="bg-slate-900/80 backdrop-blur-xl border border-white/10 rounded-2xl p-6 flex items-center gap-6 max-w-md shadow-2xl hover:border-brand-accent/30 transition-colors group">
+            {/* REAL PLAYER SECTION */}
+            {featuredTitle && (
+              <div className="relative animate-fade-in-up max-w-xl w-full" style={{animationDelay: '0.5s'}}>
+                <div className="bg-slate-900/90 backdrop-blur-xl border border-slate-700 rounded-2xl p-4 md:p-6 shadow-2xl transition-all hover:border-slate-500">
                     
-                    {/* Vinyl Cover Art */}
-                    <div className={`relative w-20 h-20 rounded-full overflow-hidden border-4 border-slate-950 shadow-xl flex-shrink-0 ${isPlaying ? 'animate-spin-slow' : ''}`}>
-                        <img src={featured.coverUrl} className="w-full h-full object-cover" alt="Cover" />
-                        <div className="absolute inset-0 bg-black/10 rounded-full"></div>
-                        <div className="absolute top-1/2 left-1/2 w-6 h-6 bg-slate-900 rounded-full transform -translate-x-1/2 -translate-y-1/2 border border-white/20"></div>
-                    </div>
-
-                    {/* Controls & Info */}
-                    <div className="flex-grow min-w-0">
-                        <div className="flex justify-between items-start mb-2">
-                            <div className="overflow-hidden">
-                                <div className="text-[10px] text-brand-accent uppercase tracking-widest font-bold mb-1">Featured Track</div>
-                                <h3 className="text-white font-bold text-lg truncate pr-2 group-hover:text-brand-accent transition-colors">{featured.title}</h3>
+                    {/* OPTION A: YOUTUBE PLAYER (Priority) */}
+                    {youtubeEmbed ? (
+                        <div className="flex flex-col gap-4">
+                             <div className="relative w-full aspect-video rounded-lg overflow-hidden shadow-black/50 shadow-lg border border-white/5 bg-black">
+                                 <iframe 
+                                    className="absolute inset-0 w-full h-full"
+                                    src={youtubeEmbed} 
+                                    title="YouTube video player" 
+                                    frameBorder="0" 
+                                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
+                                    allowFullScreen
+                                 ></iframe>
+                             </div>
+                             <div className="flex items-center justify-between">
+                                 <div>
+                                    <h3 className="text-white font-bold text-lg leading-tight">{featuredTitle}</h3>
+                                    <p className="text-brand-accent text-xs tracking-wider uppercase mt-1">Official Video / Audio</p>
+                                 </div>
+                                 <div className="hidden sm:block text-slate-500 text-[10px] border border-slate-700 rounded px-2 py-1">
+                                    YOUTUBE
+                                 </div>
+                             </div>
+                        </div>
+                    ) : (
+                        /* OPTION B: AUDIO PLAYER (Fallback) */
+                        <div className="flex flex-col sm:flex-row items-center gap-6">
+                            {/* Cover */}
+                            <div className="relative w-24 h-24 sm:w-32 sm:h-32 rounded-lg overflow-hidden shadow-lg flex-shrink-0 group">
+                                <img src={featuredCover} className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity" alt="Cover" />
+                                <div className="absolute inset-0 flex items-center justify-center bg-black/20">
+                                     <div className="w-8 h-8 rounded-full bg-white/20 backdrop-blur flex items-center justify-center">
+                                         <span className="w-2 h-2 bg-brand-accent rounded-full animate-pulse"></span>
+                                     </div>
+                                </div>
                             </div>
-                            
-                            {/* Play Button Logic */}
-                            {featured.audioUrl ? (
-                                <button 
-                                    onClick={togglePlay}
-                                    className={`w-12 h-12 rounded-full flex items-center justify-center hover:scale-110 transition-all shadow-lg flex-shrink-0 ${isPlaying ? 'bg-brand-accent text-slate-900' : 'bg-white text-black'}`}
-                                >
-                                    {isPlaying ? (
-                                        <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
-                                    ) : (
-                                        <svg className="w-5 h-5 ml-1" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
-                                    )}
-                                </button>
-                            ) : (
-                                <Link to={`/song/${featured.id}`} className="text-xs text-slate-400 hover:text-white border border-slate-600 px-3 py-1 rounded-full whitespace-nowrap">
-                                    View Details
-                                </Link>
-                            )}
-                        </div>
-                        
-                        {/* Audio Element */}
-                        {featured.audioUrl && (
-                            <audio 
-                                ref={audioRef} 
-                                src={featured.audioUrl} 
-                                onEnded={handleAudioEnded}
-                                controlsList="nodownload"
-                            />
-                        )}
 
-                        {/* Fake Progress Bar / Visualizer */}
-                        <div className="flex items-center gap-1 mt-3 h-2 w-full">
-                            {[...Array(16)].map((_, i) => (
-                                <div 
-                                    key={i} 
-                                    className={`w-1 bg-brand-accent/50 rounded-full transition-all duration-300 ${isPlaying ? 'animate-pulse' : ''}`}
-                                    style={{ 
-                                        height: isPlaying ? `${Math.max(20, Math.random() * 100)}%` : '20%', 
-                                        animationDelay: `${i * 0.05}s` 
-                                    }}
-                                ></div>
-                            ))}
+                            {/* Info & Native Audio */}
+                            <div className="flex-grow w-full text-center sm:text-left">
+                                <div className="mb-3">
+                                    <h3 className="text-white font-bold text-xl leading-tight mb-1">{featuredTitle}</h3>
+                                    <p className="text-slate-400 text-xs line-clamp-2">{featuredSubtitle}</p>
+                                </div>
+                                
+                                {featuredAudio ? (
+                                    <audio 
+                                        controls 
+                                        controlsList="nodownload" 
+                                        className="w-full mix-blend-screen invert hue-rotate-180 contrast-125 h-8 opacity-80 hover:opacity-100 transition-opacity" 
+                                    >
+                                        <source src={featuredAudio} type="audio/mpeg" />
+                                        <source src={featuredAudio} type="audio/wav" />
+                                        Your browser does not support the audio element.
+                                    </audio>
+                                ) : (
+                                    <div className="text-xs text-slate-500 italic bg-slate-950/50 py-2 px-3 rounded border border-white/5">
+                                        Audio setup required in Admin.
+                                    </div>
+                                )}
+                            </div>
                         </div>
-                    </div>
+                    )}
                 </div>
               </div>
             )}
