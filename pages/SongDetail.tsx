@@ -97,15 +97,26 @@ const SongDetail: React.FC = () => {
       
       // Status & Language
       params.append('status', 'official');
-      // Map internal languages to ISO 639-3 roughly
+      
+      // ISO 639-3 Code Mapping
       const langMap: Record<string, string> = {
-          '華語': 'cmn', 'Mandarin': 'cmn',
-          '英語': 'eng', 'English': 'eng',
-          '日語': 'jpn', 'Japanese': 'jpn',
-          '韓語': 'kor', 'Korean': 'kor'
+          [Language.Mandarin]: 'cmn',
+          [Language.Taiwanese]: 'nan',
+          [Language.English]: 'eng',
+          [Language.Japanese]: 'jpn',
+          [Language.Korean]: 'kor',
+          [Language.Thai]: 'tha',
+          [Language.Italian]: 'ita',
+          [Language.French]: 'fra',
+          [Language.Instrumental]: 'zxx',
+          // Fallbacks for English labels
+          'Mandarin': 'cmn', 
+          'English': 'eng',
+          'Japanese': 'jpn',
+          'Korean': 'kor'
       };
       params.append('language', langMap[song.language] || 'zho');
-      params.append('script', 'Hant'); // Traditional Chinese script default
+      params.append('script', 'Hant'); // Traditional Chinese script default for Willwi
 
       // Date Parsing
       if (song.releaseDate) {
@@ -441,6 +452,7 @@ const SongDetail: React.FC = () => {
                                             )}
                                         </div>
                                     ))}
+                                    
                                     {/* MusicBrainz Display & Submit */}
                                     <div>
                                         <div className="text-xs text-slate-500 uppercase font-bold tracking-wider mb-1">MusicBrainz</div>
@@ -449,6 +461,7 @@ const SongDetail: React.FC = () => {
                                                 className="w-full bg-slate-800 border border-slate-600 rounded p-1 text-sm text-white font-mono"
                                                 value={editForm.musicBrainzId || ''}
                                                 onChange={(e) => setEditForm({...editForm, musicBrainzId: e.target.value})}
+                                                placeholder="Release Group ID"
                                             />
                                         ) : (
                                             song.musicBrainzId ? (
@@ -474,7 +487,6 @@ const SongDetail: React.FC = () => {
                                             ) : (
                                                 <div className="flex items-center gap-2">
                                                     <span className="text-sm text-slate-600">-</span>
-                                                    {/* ADMIN ONLY: SUBMIT BUTTON */}
                                                     {isAdmin && (
                                                         <button 
                                                             onClick={handleMusicBrainzSubmit}
