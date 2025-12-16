@@ -1,10 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useData } from '../context/DataContext';
 import { Language, ProjectType, ReleaseCategory, Song } from '../types';
 import { searchSpotifyTracks, searchSpotifyAlbums, getSpotifyAlbumTracks, SpotifyTrack, SpotifyAlbum } from '../services/spotifyService';
 import { getWillwiReleases, getCoverArtUrl, MBReleaseGroup } from '../services/musicbrainzService';
 import { useTranslation } from '../context/LanguageContext';
+import { useUser } from '../context/UserContext';
 
 // Helper to clean Google Redirect URLs
 const cleanGoogleRedirect = (url: string) => {
@@ -38,6 +39,11 @@ const AddSong: React.FC = () => {
   const navigate = useNavigate();
   const { addSong } = useData();
   const { t } = useTranslation();
+  const { isAdmin, enableAdmin } = useUser();
+
+  // --- PASSWORD PROTECTION STATE ---
+  const [passwordInput, setPasswordInput] = useState('');
+  const [loginError, setLoginError] = useState('');
 
   // Mode: 'single', 'album', 'mb'
   const [importMode, setImportMode] = useState<'single' | 'album' | 'mb'>('single');
@@ -74,6 +80,44 @@ const AddSong: React.FC = () => {
     audioUrl: '', // New Field
   });
 
+  const handleAdminLogin = (e: React.FormEvent) => {
+      e.preventDefault();
+      if (passwordInput === '8888') {
+          enableAdmin();
+          setLoginError('');
+      } else {
+          setLoginError('Invalid Access Code');
+      }
+  };
+
+  // 1. RENDER PASSWORD GATE IF NOT ADMIN
+  if (!isAdmin) {
+      return (
+          <div className="min-h-[70vh] flex items-center justify-center px-4 animate-fade-in">
+               <div className="bg-slate-900 border border-slate-800 rounded-xl p-8 max-w-md w-full shadow-2xl text-center">
+                   <div className="w-16 h-16 bg-slate-800 rounded-full mx-auto flex items-center justify-center mb-6">
+                       <svg className="w-8 h-8 text-brand-gold" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v3m0 0v3m0-3h3m-3 0H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                   </div>
+                   <h2 className="text-2xl font-bold text-white mb-2">{t('form_title_add')}</h2>
+                   <p className="text-slate-400 text-sm mb-6">請輸入存取密碼以新增作品。<br/><span className="text-xs text-slate-500">(Private Action. Please enter access code.)</span></p>
+                   <form onSubmit={handleAdminLogin} className="space-y-4">
+                       <input 
+                          type="password" 
+                          placeholder="Code"
+                          className="w-full bg-black border border-slate-700 rounded-lg px-4 py-3 text-white text-center tracking-[0.5em] font-mono outline-none focus:border-brand-accent transition-colors"
+                          value={passwordInput}
+                          onChange={(e) => setPasswordInput(e.target.value)}
+                       />
+                       {loginError && <p className="text-red-500 text-xs">{loginError}</p>}
+                       <button className="w-full py-3 bg-brand-accent text-slate-900 font-bold rounded-lg hover:bg-white transition-colors uppercase tracking-widest">
+                           Unlock
+                       </button>
+                   </form>
+               </div>
+          </div>
+      );
+  }
+
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value, type } = e.target;
     if (type === 'checkbox') {
@@ -89,11 +133,6 @@ const AddSong: React.FC = () => {
       
       // Auto-convert Google Drive Audio Links
       if (name === 'audioUrl') {
-         // We do this conversion on blur usually, but here simple replacement on paste works too if structure matches immediately
-         // But better to keep raw input until processed. Let's just store value.
-         // We will process it in a dedicated handler or just let the helper runs on render/submit.
-         // For UX, let's process it when the user finishes typing (onBlur logic handled by user action or manual helper)
-         // Actually, let's just do it here:
          if (value.includes('drive.google.com')) {
              finalValue = convertDriveLink(value);
          }

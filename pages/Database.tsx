@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useData } from '../context/DataContext';
 import { Language, ProjectType, getLanguageColor, Song } from '../types';
@@ -8,15 +8,59 @@ import { useUser } from '../context/UserContext';
 const Database: React.FC = () => {
   const { songs } = useData();
   const { t } = useTranslation();
-  const { isAdmin } = useUser();
+  const { isAdmin, enableAdmin } = useUser();
   const navigate = useNavigate();
   
+  // --- PASSWORD PROTECTION STATE ---
+  const [passwordInput, setPasswordInput] = useState('');
+  const [loginError, setLoginError] = useState('');
+
   const [searchTerm, setSearchTerm] = useState('');
   const [filterLang, setFilterLang] = useState<string>('All');
   const [filterProject, setFilterProject] = useState<string>('All');
   const [showEditorPick, setShowEditorPick] = useState(false);
   const [viewMode, setViewMode] = useState<'grid' | 'table'>('table'); 
 
+  const handleAdminLogin = (e: React.FormEvent) => {
+      e.preventDefault();
+      // Simple hardcoded check for demo/MVP
+      if (passwordInput === '8888') {
+          enableAdmin();
+          setLoginError('');
+      } else {
+          setLoginError('Invalid Access Code');
+      }
+  };
+
+  // 1. RENDER PASSWORD GATE IF NOT ADMIN
+  if (!isAdmin) {
+      return (
+          <div className="min-h-[70vh] flex items-center justify-center px-4 animate-fade-in">
+               <div className="bg-slate-900 border border-slate-800 rounded-xl p-8 max-w-md w-full shadow-2xl text-center">
+                   <div className="w-16 h-16 bg-slate-800 rounded-full mx-auto flex items-center justify-center mb-6">
+                       <svg className="w-8 h-8 text-brand-gold" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
+                   </div>
+                   <h2 className="text-2xl font-bold text-white mb-2">{t('db_title')}</h2>
+                   <p className="text-slate-400 text-sm mb-6">此頁面為內部資料庫。請輸入存取密碼。<br/><span className="text-xs text-slate-500">(Private Catalog. Please enter access code.)</span></p>
+                   <form onSubmit={handleAdminLogin} className="space-y-4">
+                       <input 
+                          type="password" 
+                          placeholder="Code"
+                          className="w-full bg-black border border-slate-700 rounded-lg px-4 py-3 text-white text-center tracking-[0.5em] font-mono outline-none focus:border-brand-accent transition-colors"
+                          value={passwordInput}
+                          onChange={(e) => setPasswordInput(e.target.value)}
+                       />
+                       {loginError && <p className="text-red-500 text-xs">{loginError}</p>}
+                       <button className="w-full py-3 bg-brand-accent text-slate-900 font-bold rounded-lg hover:bg-white transition-colors uppercase tracking-widest">
+                           Unlock
+                       </button>
+                   </form>
+               </div>
+          </div>
+      );
+  }
+
+  // 2. MAIN CONTENT (Only rendered if isAdmin is true)
   const filteredSongs = useMemo(() => {
     return songs.filter(song => {
       const matchesSearch = 
@@ -79,7 +123,7 @@ const Database: React.FC = () => {
                 <span>UPDATED: {new Date().toISOString().split('T')[0]}</span>
                 {isAdmin && (
                    <span className="ml-2 text-[10px] bg-red-900/20 text-red-500 px-2 py-0.5 rounded border border-red-900/50 font-bold animate-pulse">
-                       ADMIN ACTIVE
+                       UNLOCKED
                    </span>
                )}
            </div>
@@ -231,10 +275,8 @@ const Database: React.FC = () => {
                         <th scope="col" className="px-6 py-4 text-left text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em]">{t('db_col_info')}</th>
                         <th scope="col" className="px-6 py-4 text-left text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em] hidden md:table-cell">ISRC / UPC</th>
                         <th scope="col" className="px-6 py-4 text-left text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em] hidden sm:table-cell">{t('db_col_release')}</th>
-                        {/* ONLY SHOW STATUS TO ADMINS */}
-                        {isAdmin && (
-                            <th scope="col" className="px-6 py-4 text-left text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em]">{t('db_col_status')}</th>
-                        )}
+                        {/* Always show Status since they are admin now */}
+                        <th scope="col" className="px-6 py-4 text-left text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em]">{t('db_col_status')}</th>
                         <th scope="col" className="px-6 py-4"></th> 
                     </tr>
                 </thead>
@@ -266,18 +308,15 @@ const Database: React.FC = () => {
                                 <td className="px-6 py-4 whitespace-nowrap text-[10px] text-slate-500 font-mono hidden sm:table-cell tracking-wider">
                                     {song.releaseDate}
                                 </td>
-                                {/* ONLY SHOW STATUS TO ADMINS */}
-                                {isAdmin && (
-                                    <td className="px-6 py-4 whitespace-nowrap">
-                                        {missing.length > 0 ? (
-                                            <div className="flex items-center gap-2">
-                                                <span className="w-2 h-2 rounded-full bg-red-500/50 inline-block"></span>
-                                            </div>
-                                        ) : (
-                                            <span className="w-2 h-2 rounded-full bg-green-500/50 inline-block"></span>
-                                        )}
-                                    </td>
-                                )}
+                                <td className="px-6 py-4 whitespace-nowrap">
+                                    {missing.length > 0 ? (
+                                        <div className="flex items-center gap-2">
+                                            <span className="w-2 h-2 rounded-full bg-red-500/50 inline-block"></span>
+                                        </div>
+                                    ) : (
+                                        <span className="w-2 h-2 rounded-full bg-green-500/50 inline-block"></span>
+                                    )}
+                                </td>
                                 <td className="px-6 py-4 whitespace-nowrap text-right">
                                     <span className="text-slate-700 group-hover:text-white transition-colors">
                                         <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M9 5l7 7-7 7" /></svg>

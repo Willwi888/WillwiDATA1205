@@ -38,10 +38,14 @@ const convertDriveLink = (url: string) => {
 const SongDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { getSong, updateSong, deleteSong, songs } = useData(); // Added 'songs' to context destructuring
+  const { getSong, updateSong, deleteSong, songs } = useData(); 
   const { t } = useTranslation();
-  const { isAdmin } = useUser(); // Access global admin state
+  const { isAdmin, enableAdmin } = useUser(); 
   
+  // --- PASSWORD PROTECTION STATE ---
+  const [passwordInput, setPasswordInput] = useState('');
+  const [loginError, setLoginError] = useState('');
+
   const [song, setSong] = useState<Song | undefined>(undefined);
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -58,9 +62,6 @@ const SongDetail: React.FC = () => {
   // AI State
   const [aiReview, setAiReview] = useState<string>('');
   const [loadingAi, setLoadingAi] = useState(false);
-
-  // View Mode: Story or Lyric Game
-  const [storyMode, setStoryMode] = useState<'desc' | 'maker'>('desc');
 
   // Image Upload Ref
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -106,6 +107,45 @@ const SongDetail: React.FC = () => {
 
   }, [song, songs]);
 
+  const handleAdminLogin = (e: React.FormEvent) => {
+      e.preventDefault();
+      if (passwordInput === '8888') {
+          enableAdmin();
+          setLoginError('');
+      } else {
+          setLoginError('Invalid Access Code');
+      }
+  };
+
+  // 1. RENDER PASSWORD GATE IF NOT ADMIN
+  if (!isAdmin) {
+      return (
+          <div className="min-h-[70vh] flex items-center justify-center px-4 animate-fade-in">
+               <div className="bg-slate-900 border border-slate-800 rounded-xl p-8 max-w-md w-full shadow-2xl text-center">
+                   <div className="w-16 h-16 bg-slate-800 rounded-full mx-auto flex items-center justify-center mb-6">
+                       <svg className="w-8 h-8 text-brand-gold" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
+                   </div>
+                   <h2 className="text-2xl font-bold text-white mb-2">Private Track</h2>
+                   <p className="text-slate-400 text-sm mb-6">Please enter access code to view details.</p>
+                   <form onSubmit={handleAdminLogin} className="space-y-4">
+                       <input 
+                          type="password" 
+                          placeholder="Code"
+                          className="w-full bg-black border border-slate-700 rounded-lg px-4 py-3 text-white text-center tracking-[0.5em] font-mono outline-none focus:border-brand-accent transition-colors"
+                          value={passwordInput}
+                          onChange={(e) => setPasswordInput(e.target.value)}
+                       />
+                       {loginError && <p className="text-red-500 text-xs">{loginError}</p>}
+                       <button className="w-full py-3 bg-brand-accent text-slate-900 font-bold rounded-lg hover:bg-white transition-colors uppercase tracking-widest">
+                           Unlock
+                       </button>
+                   </form>
+               </div>
+          </div>
+      );
+  }
+
+  // Prevent render if loading
   if (!song) return <div className="text-white text-center mt-20">Loading...</div>;
 
   // --- MusicBrainz Seeding Logic ---
@@ -155,7 +195,7 @@ const SongDetail: React.FC = () => {
       
       const langCode = langMap[song.language] || langMap[Language.Mandarin] || 'zho';
       params.append('language', langCode);
-      params.append('script', 'Hant'); // Traditional Chinese script default for Willwi
+      params.append('script', 'Hant'); 
 
       // Date Parsing
       if (song.releaseDate) {
@@ -165,7 +205,7 @@ const SongDetail: React.FC = () => {
               params.append('events.0.date.month', parts[1]);
               params.append('events.0.date.day', parts[2]);
           }
-          params.append('events.0.country', 'TW'); // Default Taiwan release
+          params.append('events.0.country', 'TW'); 
       }
 
       // Type Guessing
@@ -195,7 +235,6 @@ const SongDetail: React.FC = () => {
       if (success) {
         setSong({ ...song, ...editForm } as Song);
         setIsEditing(false);
-        // alert(t('msg_save_success'));
       } else {
         alert(t('msg_save_error'));
       }
@@ -247,7 +286,7 @@ const SongDetail: React.FC = () => {
           isrc: track.external_ids.isrc || prev.isrc,
           upc: track.album.external_ids?.upc || track.album.external_ids?.ean || prev.upc,
           spotifyId: track.id,
-          spotifyLink: track.external_urls.spotify, // CRITICAL: Populate link
+          spotifyLink: track.external_urls.spotify,
           versionLabel: track.name.includes('(') ? track.name.split('(')[1].replace(')', '') : prev.versionLabel,
       }));
       setShowSpotifySearch(false);
@@ -342,222 +381,166 @@ const SongDetail: React.FC = () => {
                                             <div className="flex justify-between items-center">
                                                 <span className="text-sm text-green-400 font-bold flex items-center gap-2">
                                                     <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.66 0 12 0zm5.521 17.34c-.24.359-.66.48-1.021.24-2.82-1.74-6.36-2.101-10.561-1.141-.418.122-.779-.179-.899-.539-.12-.421.18-.78.54-.9 4.56-1.021 8.52-.6 11.64 1.32.42.18.479.659.301 1.02zm1.44-3.3c-.301.42-.841.6-1.262.3-3.239-1.98-8.159-2.58-11.939-1.38-.479.12-1.02-.12-1.14-.6-.12-.48.12-1.021.6-1.141C9.6 9.9 15 10.561 18.72 12.84c.361.181.54.78.241 1.2zm.12-3.36C15.24 8.4 8.82 8.16 5.16 9.301c-.6.179-1.2-.181-1.38-.721-.18-.601.18-1.2.72-1.381 4.26-1.26 11.28-1.02 15.721 1.621.539.3.719 1.02.419 1.56-.299.421-1.02.599-1.559.3z"/></svg>
-                                                    Sync from Spotify
+                                                    Update from Spotify
                                                 </span>
-                                                <button onClick={() => { setShowSpotifySearch(!showSpotifySearch); setSpotifyQuery(song.title); }} className="text-xs bg-green-700 hover:bg-green-600 text-white px-3 py-1 rounded transition">
-                                                    {showSpotifySearch ? 'Close' : 'Search'}
+                                                <button onClick={() => setShowSpotifySearch(!showSpotifySearch)} className="text-xs text-green-300 underline">
+                                                    {showSpotifySearch ? 'Cancel' : 'Search'}
                                                 </button>
                                             </div>
-                                            
                                             {showSpotifySearch && (
-                                                <div className="mt-3">
-                                                    <div className="flex gap-2 mb-2">
+                                                <div className="mt-2">
+                                                    <div className="flex gap-2">
                                                         <input 
-                                                            className="flex-grow bg-slate-900 border border-slate-700 rounded px-2 py-1 text-sm text-white"
+                                                            className="flex-grow bg-black border border-green-800 rounded p-1 text-xs text-white"
+                                                            placeholder="Song Title..."
                                                             value={spotifyQuery}
                                                             onChange={(e) => setSpotifyQuery(e.target.value)}
-                                                            placeholder="Song Title..."
+                                                            onKeyDown={(e) => e.key === 'Enter' && handleSpotifySearch()}
                                                         />
-                                                        <button onClick={handleSpotifySearch} className="bg-slate-700 hover:bg-slate-600 text-white px-3 py-1 rounded text-sm">
-                                                            {searchingSpotify ? '...' : 'Go'}
+                                                        <button 
+                                                            onClick={handleSpotifySearch}
+                                                            disabled={searchingSpotify}
+                                                            className="bg-green-700 text-white px-3 py-1 rounded text-xs"
+                                                        >
+                                                            Go
                                                         </button>
                                                     </div>
-                                                    <div className="max-h-40 overflow-y-auto space-y-2">
-                                                        {spotifyResults.map(r => (
-                                                            <div key={r.id} className="flex items-center gap-2 p-2 bg-slate-900 hover:bg-slate-800 rounded cursor-pointer" onClick={() => applySpotifyData(r)}>
-                                                                <img src={r.album.images[2]?.url} className="w-8 h-8 rounded" alt="cover"/>
-                                                                <div className="text-xs text-white">
-                                                                    <div className="font-bold">{r.name}</div>
-                                                                    <div className="text-slate-500">{r.album.name}</div>
+                                                    {spotifyResults.length > 0 && (
+                                                        <div className="mt-2 max-h-40 overflow-y-auto bg-black rounded border border-green-900 p-1">
+                                                            {spotifyResults.map(r => (
+                                                                <div key={r.id} onClick={() => applySpotifyData(r)} className="flex items-center gap-2 p-2 hover:bg-green-900 cursor-pointer text-xs border-b border-green-900/50 last:border-0">
+                                                                    <img src={r.album.images[2]?.url} className="w-8 h-8 rounded" alt="s"/>
+                                                                    <div>
+                                                                        <div className="font-bold text-green-200">{r.name}</div>
+                                                                        <div className="text-green-500">{r.album.name} • {r.album.release_date}</div>
+                                                                    </div>
                                                                 </div>
-                                                                <span className="ml-auto text-xs text-green-400 border border-green-800 px-1 rounded">Select</span>
-                                                            </div>
-                                                        ))}
-                                                    </div>
+                                                            ))}
+                                                        </div>
+                                                    )}
                                                 </div>
                                             )}
                                         </div>
 
-                                        {/* Title & Version Inputs */}
-                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        <input 
+                                            className="text-4xl font-black text-white bg-slate-900/50 border border-slate-600 rounded px-2 w-full uppercase tracking-tighter"
+                                            value={editForm.title}
+                                            onChange={(e) => setEditForm({...editForm, title: e.target.value})}
+                                        />
+                                        <div className="flex gap-4">
+                                            <select 
+                                                className="bg-slate-900 border border-slate-600 rounded p-2 text-white text-sm"
+                                                value={editForm.language}
+                                                onChange={(e) => setEditForm({...editForm, language: e.target.value as Language})}
+                                            >
+                                                {Object.values(Language).map(l => <option key={l} value={l}>{l}</option>)}
+                                            </select>
                                             <input 
-                                                className="w-full text-xl font-bold bg-slate-900 border border-slate-500 rounded p-2 text-white"
-                                                value={editForm.title}
-                                                onChange={(e) => setEditForm({...editForm, title: e.target.value})}
-                                                placeholder="Title"
-                                            />
-                                            <input 
-                                                className="w-full text-lg bg-slate-900 border border-slate-500 rounded p-2 text-slate-300"
-                                                value={editForm.versionLabel}
+                                                className="bg-slate-900 border border-slate-600 rounded p-2 text-white text-sm"
+                                                value={editForm.versionLabel || ''}
                                                 onChange={(e) => setEditForm({...editForm, versionLabel: e.target.value})}
-                                                placeholder="Version (e.g. Acoustic Ver.)"
+                                                placeholder="Version Label"
                                             />
-                                        </div>
-
-                                        {/* Language, Project, Category Selectors (NEW) */}
-                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                            <div>
-                                                 <label className="text-xs text-slate-500 block mb-1">Language</label>
-                                                 <select
-                                                     className="w-full bg-slate-900 border border-slate-600 rounded p-2 text-white text-sm"
-                                                     value={editForm.language}
-                                                     onChange={(e) => setEditForm({...editForm, language: e.target.value as Language})}
-                                                 >
-                                                     {Object.values(Language).map(l => <option key={l} value={l}>{l}</option>)}
-                                                 </select>
-                                            </div>
-                                            <div>
-                                                 <label className="text-xs text-slate-500 block mb-1">Project Type</label>
-                                                 <select
-                                                     className="w-full bg-slate-900 border border-slate-600 rounded p-2 text-white text-sm"
-                                                     value={editForm.projectType}
-                                                     onChange={(e) => setEditForm({...editForm, projectType: e.target.value as ProjectType})}
-                                                 >
-                                                     {Object.values(ProjectType).map(p => <option key={p} value={p}>{p}</option>)}
-                                                 </select>
-                                            </div>
-                                            <div>
-                                                 <label className="text-xs text-slate-500 block mb-1">Format</label>
-                                                 <select
-                                                     className="w-full bg-slate-900 border border-slate-600 rounded p-2 text-white text-sm"
-                                                     value={editForm.releaseCategory}
-                                                     onChange={(e) => setEditForm({...editForm, releaseCategory: e.target.value as ReleaseCategory})}
-                                                 >
-                                                     {Object.values(ReleaseCategory).map(c => <option key={c} value={c}>{c}</option>)}
-                                                 </select>
-                                            </div>
-                                            <div>
-                                                 <label className="text-xs text-slate-500 block mb-1">Label</label>
-                                                 <input 
-                                                    className="w-full bg-slate-900 border border-slate-600 rounded p-2 text-white text-sm"
-                                                    value={editForm.releaseCompany || ''}
-                                                    onChange={(e) => setEditForm({...editForm, releaseCompany: e.target.value})}
-                                                    placeholder="Willwi Music"
-                                                 />
-                                            </div>
                                         </div>
                                     </div>
                                 ) : (
                                     <>
-                                        <h1 className="text-3xl md:text-5xl font-bold text-white mb-2 flex items-center gap-3">
-                                            {song.title}
-                                            {song.versionLabel && <span className="text-lg md:text-2xl text-slate-400 font-normal border border-slate-600 rounded px-2">{song.versionLabel}</span>}
-                                            
-                                            {/* ADMIN ONLY EDIT BUTTON */}
-                                            {isAdmin && (
-                                                <button onClick={() => setIsEditing(true)} className="text-slate-500 hover:text-white transition-colors text-xl" title="Edit">
-                                                    ✏️
-                                                </button>
-                                            )}
-                                        </h1>
-                                        <div className="flex flex-wrap items-center gap-2 mb-4">
-                                            {song.isEditorPick && <span className="px-3 py-1 bg-brand-gold text-slate-900 rounded-full text-xs font-bold">EDITOR'S PICK</span>}
-                                            
-                                            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-slate-700/80 border border-slate-600 text-slate-200">
-                                                <span className={`w-1.5 h-1.5 rounded-full ${getLanguageColor(song.language)}`}></span>
-                                                {song.language}
-                                            </span>
-
-                                            <span className="px-3 py-1 bg-slate-700 text-slate-200 rounded-full text-xs">{song.projectType}</span>
-                                            
-                                            {/* Release Category Badge (NEW) */}
-                                            {song.releaseCategory && (
-                                                <span className="px-3 py-1 bg-indigo-900/50 text-indigo-200 border border-indigo-700 rounded-full text-xs font-bold uppercase tracking-wider">
-                                                    {song.releaseCategory.split(' ')[0]} {/* Takes 'Single' from 'Single (單曲)' */}
+                                        <h1 className="text-4xl md:text-5xl font-black text-white uppercase tracking-tighter mb-2 leading-[0.9]">{song.title}</h1>
+                                        <div className="flex flex-wrap items-center gap-3 mb-6">
+                                            {song.versionLabel && (
+                                                <span className="px-2 py-1 border border-white/20 rounded text-xs font-bold uppercase tracking-wider text-slate-300">
+                                                    {song.versionLabel}
                                                 </span>
                                             )}
-                                            
-                                            <span className="px-3 py-1 bg-slate-700 text-slate-200 rounded-full text-xs flex items-center gap-2">
-                                                {song.releaseDate}
-                                                {/* Release Company Badge (NEW) */}
-                                                {song.releaseCompany && <span className="text-slate-400 border-l border-slate-500 pl-2">© {song.releaseCompany}</span>}
+                                            <span className={`px-2 py-1 rounded text-xs font-bold uppercase tracking-wider text-white ${getLanguageColor(song.language)}`}>
+                                                {song.language}
                                             </span>
+                                            <span className="text-slate-500 text-sm font-bold tracking-wider uppercase">
+                                                {song.releaseDate} • {song.projectType}
+                                            </span>
+                                            {/* Link to related versions */}
+                                            {relatedSongs.length > 0 && (
+                                                <div className="flex items-center gap-2 ml-2 pl-4 border-l border-white/10">
+                                                    <span className="text-[10px] text-slate-500 uppercase">Also available in:</span>
+                                                    {relatedSongs.map(r => (
+                                                        <button 
+                                                            key={r.id} 
+                                                            onClick={() => navigate(`/song/${r.id}`)}
+                                                            className={`w-5 h-5 rounded-full ${getLanguageColor(r.language)} hover:scale-110 transition-transform`}
+                                                            title={`${r.language} Ver: ${r.title}`}
+                                                        ></button>
+                                                    ))}
+                                                </div>
+                                            )}
                                         </div>
                                     </>
                                 )}
+                            </div>
 
-                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mt-6 bg-slate-900/50 p-4 rounded-xl border border-white/10">
-                                    {['isrc', 'upc', 'spotifyId'].map(field => (
-                                        <div key={field}>
-                                            <div className="text-xs text-slate-500 uppercase font-bold tracking-wider mb-1">{field}</div>
-                                            {isEditing ? (
-                                                 <input 
-                                                    className="w-full bg-slate-800 border border-slate-600 rounded p-1 text-sm text-white font-mono"
-                                                    value={(editForm as any)[field] || ''}
-                                                    onChange={(e) => setEditForm({...editForm, [field]: e.target.value})}
-                                                />
-                                            ) : (
-                                                <div className="font-mono text-sm text-brand-accent select-all">{(song as any)[field] || '-'}</div>
-                                            )}
-                                        </div>
-                                    ))}
-                                    
-                                    {/* MusicBrainz Display & Submit */}
-                                    <div>
-                                        <div className="text-xs text-slate-500 uppercase font-bold tracking-wider mb-1">MusicBrainz</div>
-                                        {isEditing ? (
-                                            <input 
-                                                className="w-full bg-slate-800 border border-slate-600 rounded p-1 text-sm text-white font-mono"
-                                                value={editForm.musicBrainzId || ''}
-                                                onChange={(e) => setEditForm({...editForm, musicBrainzId: e.target.value})}
-                                                placeholder="Release Group ID"
-                                            />
-                                        ) : (
-                                            song.musicBrainzId ? (
-                                                <div className="flex items-center gap-2">
-                                                    <a 
-                                                        href={`https://musicbrainz.org/release-group/${song.musicBrainzId}`} 
-                                                        target="_blank" 
-                                                        rel="noreferrer"
-                                                        className="font-mono text-sm text-[#eb743b] hover:underline"
-                                                    >
-                                                        {song.musicBrainzId.substring(0,8)}...
-                                                    </a>
-                                                    {isAdmin && (
-                                                        <button 
-                                                            onClick={handleMusicBrainzSubmit}
-                                                            className="text-[10px] bg-slate-800 border border-slate-600 hover:bg-[#eb743b] hover:text-white text-slate-400 px-2 py-0.5 rounded transition-colors"
-                                                            title="Add new version to this release group"
-                                                        >
-                                                            Seed
-                                                        </button>
-                                                    )}
-                                                </div>
-                                            ) : (
-                                                <div className="flex items-center gap-2">
-                                                    <span className="text-sm text-slate-600">-</span>
-                                                    {isAdmin && (
-                                                        <button 
-                                                            onClick={handleMusicBrainzSubmit}
-                                                            className="text-[10px] bg-[#eb743b] hover:bg-orange-500 text-white px-2 py-0.5 rounded font-bold transition-colors"
-                                                            title="Auto-fill submission form on MusicBrainz"
-                                                        >
-                                                            🚀 Submit
-                                                        </button>
-                                                    )}
-                                                </div>
-                                            )
-                                        )}
+                            {/* Action Buttons */}
+                            <div className="flex gap-2">
+                                {isEditing ? (
+                                    <>
+                                        <button onClick={() => setIsEditing(false)} className="px-4 py-2 rounded-lg bg-slate-700 text-white font-bold text-xs hover:bg-slate-600">Cancel</button>
+                                        <button onClick={handleSave} disabled={isSaving} className="px-4 py-2 rounded-lg bg-green-600 text-white font-bold text-xs hover:bg-green-500 shadow-lg shadow-green-900/50">
+                                            {isSaving ? 'Saving...' : 'Save Changes'}
+                                        </button>
+                                    </>
+                                ) : (
+                                    <div className="flex flex-col gap-2">
+                                        <button onClick={() => setIsEditing(true)} className="px-4 py-2 rounded-lg border border-slate-600 text-slate-300 font-bold text-xs hover:text-white hover:border-white transition-all flex items-center justify-center gap-2">
+                                            <span>✎</span> {t('btn_edit')}
+                                        </button>
+                                        <button onClick={handleDelete} className="px-4 py-2 rounded-lg border border-red-900/50 text-red-500 font-bold text-xs hover:bg-red-900/20 transition-all flex items-center justify-center gap-2">
+                                            <span>🗑</span> {t('btn_delete')}
+                                        </button>
+                                        
+                                        {/* MusicBrainz Sync Button */}
+                                        <button 
+                                            onClick={handleMusicBrainzSubmit}
+                                            className="px-4 py-2 rounded-lg bg-[#eb743b] text-white font-bold text-xs hover:bg-[#d6632b] shadow-lg shadow-[#eb743b]/20 flex items-center justify-center gap-2 mt-2"
+                                            title="Submit to MusicBrainz Database"
+                                        >
+                                            <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm.56 18.067c-3.76 1.76-7.56.96-7.56-3.187 0-3.08 2.067-4.28 4.613-4.28.613 0 1.133.053 1.547.12V8.467c0-2.427 1.6-3.213 2.827-3.213.627 0 1.253.187 1.547.333l-.533 2.227c-.2-.08-.507-.187-.84-.187-.667 0-.96.32-.96 1.147v2.24c.947.16 1.947.533 1.947 1.64 0 1.253-.987 2.147-2.587 2.147v3.266zM12.96 13.6c.56 0 .867-.28.867-.68 0-.413-.373-.613-1.013-.72v1.36c.053.027.093.04.147.04zm-3.08-2.12c-.933 0-1.427.533-1.427 1.773 0 1.653 1.24 1.8 2.507 1.187V11.52c-.373-.027-.733-.04-1.08-.04z"/></svg>
+                                            Submit to MB
+                                        </button>
                                     </div>
+                                )}
+                            </div>
+                        </div>
 
-                                    {isEditing && (
-                                         <div className="flex items-center">
-                                            <input 
-                                                type="checkbox" 
-                                                checked={editForm.isEditorPick} 
-                                                onChange={(e) => setEditForm({...editForm, isEditorPick: e.target.checked})}
-                                                className="mr-2"
-                                            />
-                                            <label className="text-sm text-white">{t('form_label_pick')}</label>
-                                        </div>
-                                    )}
-                                </div>
-                                
-                                {isEditing && (
-                                    <div className="mt-4 p-4 bg-slate-900/80 rounded-lg border border-red-900/50">
-                                        <h4 className="text-red-400 text-sm font-bold mb-2">Danger Zone</h4>
-                                        <button onClick={handleDelete} className="text-red-500 hover:text-red-400 text-sm underline">{t('btn_delete')}</button>
-                                    </div>
+                        {/* Metadata Grid */}
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-8 pt-6 border-t border-white/10">
+                            <div>
+                                <span className="text-[10px] text-slate-500 uppercase tracking-widest block mb-1">ISRC</span>
+                                {isEditing ? (
+                                    <input className="bg-slate-900 border border-slate-700 rounded p-1 text-white text-xs w-full font-mono" value={editForm.isrc || ''} onChange={e => setEditForm({...editForm, isrc: e.target.value})} />
+                                ) : (
+                                    <span className="font-mono text-sm text-slate-300 select-all">{song.isrc || '-'}</span>
+                                )}
+                            </div>
+                            <div>
+                                <span className="text-[10px] text-slate-500 uppercase tracking-widest block mb-1">UPC</span>
+                                {isEditing ? (
+                                    <input className="bg-slate-900 border border-slate-700 rounded p-1 text-white text-xs w-full font-mono" value={editForm.upc || ''} onChange={e => setEditForm({...editForm, upc: e.target.value})} />
+                                ) : (
+                                    <span className="font-mono text-sm text-slate-300 select-all">{song.upc || '-'}</span>
+                                )}
+                            </div>
+                            <div>
+                                <span className="text-[10px] text-slate-500 uppercase tracking-widest block mb-1">Spotify ID</span>
+                                {isEditing ? (
+                                    <input className="bg-slate-900 border border-slate-700 rounded p-1 text-white text-xs w-full font-mono" value={editForm.spotifyId || ''} onChange={e => setEditForm({...editForm, spotifyId: e.target.value})} />
+                                ) : (
+                                    <span className="font-mono text-sm text-slate-300 select-all">{song.spotifyId || '-'}</span>
+                                )}
+                            </div>
+                            <div>
+                                <span className="text-[10px] text-slate-500 uppercase tracking-widest block mb-1">Label</span>
+                                {isEditing ? (
+                                    <input className="bg-slate-900 border border-slate-700 rounded p-1 text-white text-xs w-full" value={editForm.releaseCompany || ''} onChange={e => setEditForm({...editForm, releaseCompany: e.target.value})} />
+                                ) : (
+                                    <span className="text-sm text-slate-300">{song.releaseCompany || '-'}</span>
                                 )}
                             </div>
                         </div>
@@ -566,350 +549,175 @@ const SongDetail: React.FC = () => {
             </div>
         </div>
 
-        {/* Content Grid */}
+        {/* Content Section */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mt-8">
-            {/* Left Col: Media & Links */}
+            
+            {/* LEFT: Lyrics & Story */}
+            <div className="lg:col-span-2 space-y-8">
+                
+                {/* 1. Description & AI Critique */}
+                <div className="bg-slate-900/50 rounded-xl p-8 border border-white/5">
+                    <div className="flex items-center justify-between mb-4">
+                        <h3 className="text-xl font-bold text-white">{t('detail_tab_story')}</h3>
+                        <button 
+                            onClick={handleAiGenerate}
+                            disabled={loadingAi}
+                            className="text-xs bg-brand-accent/10 text-brand-accent border border-brand-accent/50 px-3 py-1 rounded-full hover:bg-brand-accent hover:text-slate-900 transition-colors"
+                        >
+                            {loadingAi ? t('detail_ai_loading') : `✨ ${t('detail_ai_btn')}`}
+                        </button>
+                    </div>
+                    
+                    {isEditing ? (
+                        <textarea 
+                            className="w-full h-32 bg-slate-950 border border-slate-700 rounded p-4 text-white text-sm"
+                            value={editForm.description || ''}
+                            onChange={(e) => setEditForm({...editForm, description: e.target.value})}
+                        />
+                    ) : (
+                        <div className="prose prose-invert max-w-none text-slate-300 font-light leading-relaxed whitespace-pre-line">
+                            {song.description || "No description available."}
+                        </div>
+                    )}
+
+                    {/* AI Review Result */}
+                    {aiReview && (
+                        <div className="mt-6 bg-slate-800 p-6 rounded-lg border-l-4 border-purple-500 animate-fade-in">
+                            <h4 className="text-xs font-bold text-purple-400 uppercase tracking-widest mb-2">AI Review</h4>
+                            <p className="text-sm text-slate-300 leading-relaxed">{aiReview}</p>
+                        </div>
+                    )}
+                </div>
+
+                {/* 2. Lyrics */}
+                <div className="bg-slate-900/50 rounded-xl p-8 border border-white/5 relative">
+                    <h3 className="text-xl font-bold text-white mb-6">{t('detail_lyrics_header')}</h3>
+                    {isEditing ? (
+                        <textarea 
+                            className="w-full h-96 bg-slate-950 border border-slate-700 rounded p-4 text-white font-mono text-sm leading-relaxed"
+                            value={editForm.lyrics || ''}
+                            onChange={(e) => setEditForm({...editForm, lyrics: e.target.value})}
+                        />
+                    ) : (
+                        <div className="font-mono text-sm text-slate-400 whitespace-pre-line leading-relaxed tracking-wide border-l-2 border-slate-800 pl-6">
+                            {song.lyrics || "Lyrics not available."}
+                        </div>
+                    )}
+                </div>
+            </div>
+
+            {/* RIGHT: Media & Links */}
             <div className="space-y-8">
-                {/* 1. Player Section */}
-                <div className="bg-slate-800 rounded-2xl p-6 border border-slate-700">
-                    <h3 className="text-xl font-bold text-white mb-4">{t('detail_player_header')}</h3>
+                
+                {/* 1. Media Player (YouTube or Spotify) */}
+                <div className="bg-slate-900 rounded-xl p-6 border border-white/5 shadow-xl">
+                    <h3 className="text-sm font-bold text-white uppercase tracking-widest mb-4">{t('detail_player_header')}</h3>
                     
-                    {/* Master Audio Player (Google Drive) */}
-                    {(displayData.audioUrl || isEditing) && (
-                        <div className="mb-6 p-4 bg-slate-900/50 rounded-lg border border-white/5">
-                             <h4 className="text-xs text-brand-gold font-bold uppercase tracking-widest mb-3">
-                                 Instrumental Master Tape
-                             </h4>
-                             {displayData.audioUrl ? (
-                                <audio 
-                                    controls 
-                                    controlsList="nodownload" 
-                                    className="w-full mix-blend-screen invert hue-rotate-180 contrast-125" 
-                                    style={{height: '32px'}}
-                                >
-                                    <source src={displayData.audioUrl} type="audio/mpeg" />
-                                    <source src={displayData.audioUrl} type="audio/wav" />
-                                </audio>
-                             ) : (
-                                <div className="text-xs text-slate-500 italic">No audio file linked.</div>
-                             )}
-
-                             {isEditing && (
-                                <div className="mt-4 border-t border-slate-700 pt-3">
-                                    <label className="block text-xs text-slate-400 mb-1">Update Master Link (Drive/MP3)</label>
-                                    <input 
-                                        className="w-full bg-slate-950 border border-slate-600 rounded p-2 text-xs text-white font-mono"
-                                        placeholder="https://drive.google.com/file/d/..."
-                                        value={editForm.audioUrl || ''}
-                                        onChange={(e) => {
-                                            const val = e.target.value;
-                                            // Auto-convert on paste/type
-                                            if (val.includes('drive.google.com')) {
-                                                setEditForm({...editForm, audioUrl: convertDriveLink(val)});
-                                            } else {
-                                                setEditForm({...editForm, audioUrl: val});
-                                            }
-                                        }}
-                                    />
-                                </div>
-                             )}
-                        </div>
-                    )}
-                    
-                    {/* Spotify Player */}
-                    {(spotifyEmbedId || isEditing) && (
-                        <div className="mb-6">
-                             {spotifyEmbedId ? (
-                                <iframe 
-                                    style={{borderRadius: '12px'}} 
-                                    src={`https://open.spotify.com/embed/track/${spotifyEmbedId}?utm_source=generator&theme=0`} 
-                                    width="100%" 
-                                    height="152" 
-                                    frameBorder="0" 
-                                    allowFullScreen 
-                                    allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture" 
-                                    loading="lazy">
-                                </iframe>
-                             ) : (
-                                <div className="h-[152px] bg-slate-900/50 rounded-xl flex items-center justify-center text-slate-500 text-sm border border-slate-700 border-dashed">
-                                    Spotify Player Preview
-                                </div>
-                             )}
-
-                            {isEditing && (
-                                <div className="mt-2">
-                                    <label className="block text-xs text-brand-accent mb-1">Spotify Link / ID</label>
-                                    <input 
-                                        className="w-full bg-slate-900 border border-slate-600 rounded p-2 text-sm text-white font-mono" 
-                                        placeholder="https://open.spotify.com/track/..."
-                                        value={editForm.spotifyLink || editForm.spotifyId || ''}
-                                        onChange={(e) => {
-                                            // Smart handler: prefer link
-                                            const val = e.target.value;
-                                            if (val.includes('http')) {
-                                                 setEditForm({...editForm, spotifyLink: val});
-                                            } else {
-                                                 setEditForm({...editForm, spotifyId: val});
-                                            }
-                                        }}
-                                    />
-                                    <p className="text-[10px] text-slate-500 mt-1">Paste full link or URI to generate player.</p>
-                                </div>
-                            )}
-                        </div>
-                    )}
-                    
-                    {/* YouTube Embed */}
+                    {/* Primary: YouTube */}
                     {embedUrl ? (
-                         <div className="aspect-video w-full rounded-xl overflow-hidden shadow-lg border border-slate-700 mb-4">
-                            <iframe 
-                                className="w-full h-full" 
+                        <div className="aspect-video w-full bg-black rounded-lg overflow-hidden mb-4 shadow-lg border border-slate-800">
+                             <iframe 
+                                className="w-full h-full"
                                 src={embedUrl} 
                                 title="YouTube video player" 
                                 frameBorder="0" 
                                 allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
-                                allowFullScreen>
-                            </iframe>
+                                allowFullScreen
+                             ></iframe>
                         </div>
                     ) : (
-                        !isEditing && !spotifyEmbedId && !displayData.audioUrl && <div className="p-4 bg-slate-900/50 rounded text-center text-slate-500 text-sm">No Video or Audio</div>
+                        /* Secondary: Spotify Embed (if no YouTube) */
+                        spotifyEmbedId && (
+                             <div className="mb-4">
+                                <iframe style={{borderRadius: '12px'}} src={`https://open.spotify.com/embed/track/${spotifyEmbedId}?utm_source=generator&theme=0`} width="100%" height="152" frameBorder="0" allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture" loading="lazy"></iframe>
+                            </div>
+                        )
+                    )}
+
+                    {/* Audio File (if uploaded) */}
+                    {song.audioUrl && (
+                        <div className="mt-4 p-3 bg-slate-950 rounded border border-slate-800">
+                             <div className="text-[10px] text-brand-gold uppercase tracking-widest font-bold mb-2">Master / Demo Audio</div>
+                             <audio controls className="w-full h-8" src={song.audioUrl}></audio>
+                        </div>
                     )}
 
                     {isEditing && (
-                        <div className="mt-4 pt-4 border-t border-slate-700">
-                            <label className="block text-xs text-brand-accent mb-1">{t('form_label_youtube')}</label>
-                            <input 
-                                className="w-full bg-slate-900 border border-slate-600 rounded p-2 text-sm text-white" 
-                                placeholder="https://www.youtube.com/watch?v=..."
+                        <div className="mt-4 space-y-2">
+                             <input 
+                                className="w-full bg-slate-950 border border-slate-700 rounded p-2 text-xs text-white"
+                                placeholder="YouTube URL"
                                 value={editForm.youtubeUrl || ''}
                                 onChange={(e) => setEditForm({...editForm, youtubeUrl: e.target.value})}
-                            />
+                             />
+                             <input 
+                                className="w-full bg-slate-950 border border-slate-700 rounded p-2 text-xs text-white font-mono"
+                                placeholder="Audio URL (Drive/MP3)"
+                                value={editForm.audioUrl || ''}
+                                onChange={(e) => {
+                                    const val = e.target.value;
+                                    if(val.includes('drive.google.com')) {
+                                        setEditForm({...editForm, audioUrl: convertDriveLink(val)});
+                                    } else {
+                                        setEditForm({...editForm, audioUrl: val});
+                                    }
+                                }}
+                             />
                         </div>
                     )}
                 </div>
-                
-                {/* 1.5 Related Versions (NEW: Multilingual Linking) */}
-                {!isEditing && relatedSongs.length > 0 && (
-                    <div className="bg-slate-800 rounded-2xl p-6 border border-slate-700">
-                        <h3 className="text-xl font-bold text-white mb-4">
-                            🌍 {t('db_filter_lang')} / Versions
-                        </h3>
-                        <div className="space-y-3">
-                            {relatedSongs.map(rs => (
-                                <button 
-                                    key={rs.id}
-                                    onClick={() => navigate(`/song/${rs.id}`)}
-                                    className="w-full flex items-center gap-3 p-3 bg-slate-700/50 hover:bg-slate-600 rounded-lg transition-colors text-left group"
-                                >
-                                    <img src={rs.coverUrl} className="w-10 h-10 rounded shadow object-cover" alt="cover"/>
-                                    <div>
-                                        <div className="text-sm font-bold text-white group-hover:text-brand-accent transition-colors">{rs.title}</div>
-                                        <div className="flex items-center gap-2">
-                                            <span className={`w-1.5 h-1.5 rounded-full ${getLanguageColor(rs.language)}`}></span>
-                                            <span className="text-[10px] text-slate-400">{rs.language} • {rs.versionLabel || 'Original'}</span>
-                                        </div>
-                                    </div>
-                                </button>
-                            ))}
-                        </div>
-                    </div>
-                )}
 
-                {/* 2. External Links */}
-                <div className="bg-slate-800 rounded-2xl p-6 border border-slate-700">
-                     <h3 className="text-xl font-bold text-white mb-4">{t('detail_links_header')}</h3>
-                     {isEditing ? (
-                        <div className="space-y-3">
-                            <label className="text-xs text-slate-400 block mt-2">Spotify Link (for buttons)</label>
-                            <input 
-                                className="w-full bg-slate-900 border border-slate-600 rounded p-2 text-xs text-white" 
-                                value={editForm.spotifyLink || ''}
-                                onChange={(e) => setEditForm({...editForm, spotifyLink: e.target.value})}
-                            />
-                            <label className="text-xs text-slate-400 block mt-2">Apple Music Link</label>
-                            <input 
-                                className="w-full bg-slate-900 border border-slate-600 rounded p-2 text-xs text-white" 
-                                value={editForm.appleMusicLink || ''}
-                                onChange={(e) => setEditForm({...editForm, appleMusicLink: e.target.value})}
-                            />
-                            <label className="text-xs text-slate-400 block mt-2">Musixmatch URL</label>
-                             <input 
-                                className="w-full bg-slate-900 border border-slate-600 rounded p-2 text-xs text-white" 
-                                value={editForm.musixmatchUrl || ''}
-                                onChange={(e) => setEditForm({...editForm, musixmatchUrl: e.target.value})}
-                            />
-                            <label className="text-xs text-slate-400 block mt-2">YouTube Music URL</label>
-                             <input 
-                                className="w-full bg-slate-900 border border-slate-600 rounded p-2 text-xs text-white" 
-                                value={editForm.youtubeMusicUrl || ''}
-                                onChange={(e) => setEditForm({...editForm, youtubeMusicUrl: e.target.value})}
-                            />
-                        </div>
-                     ) : (
-                        <div className="flex flex-col gap-3">
-                            <a href={song.musixmatchUrl || "https://www.musixmatch.com/artist/Willwi"} target="_blank" rel="noreferrer" className="flex items-center justify-between p-3 bg-slate-700/50 hover:bg-brand-accent hover:text-slate-900 rounded-lg transition-all group">
-                                <span className="font-bold">Musixmatch</span>
-                                <span className="text-xs opacity-50 group-hover:opacity-100">↗</span>
+                {/* 2. Platform Links */}
+                <div className="bg-slate-900 rounded-xl p-6 border border-white/5">
+                    <h3 className="text-sm font-bold text-white uppercase tracking-widest mb-4">{t('detail_links_header')}</h3>
+                    <div className="space-y-3">
+                        {song.spotifyLink && (
+                            <a href={song.spotifyLink} target="_blank" rel="noreferrer" className="flex items-center justify-between p-3 bg-slate-950 hover:bg-green-900/20 border border-slate-800 hover:border-green-800 rounded-lg transition-all group">
+                                <span className="text-sm font-bold text-slate-300 group-hover:text-green-400">Spotify</span>
+                                <span className="text-xs text-slate-500">Listen ↗</span>
                             </a>
-                            <a href={song.youtubeMusicUrl || "https://music.youtube.com/channel/WillwiID"} target="_blank" rel="noreferrer" className="flex items-center justify-between p-3 bg-slate-700/50 hover:bg-brand-accent hover:text-slate-900 rounded-lg transition-all group">
-                                <span className="font-bold">YouTube Music</span>
-                                <span className="text-xs opacity-50 group-hover:opacity-100">↗</span>
+                        )}
+                        {song.appleMusicLink && (
+                            <a href={song.appleMusicLink} target="_blank" rel="noreferrer" className="flex items-center justify-between p-3 bg-slate-950 hover:bg-pink-900/20 border border-slate-800 hover:border-pink-800 rounded-lg transition-all group">
+                                <span className="text-sm font-bold text-slate-300 group-hover:text-pink-400">Apple Music</span>
+                                <span className="text-xs text-slate-500">Listen ↗</span>
                             </a>
-                             <a href={song.spotifyLink || "https://open.spotify.com/artist/3ascZ8Rb2KDw4QyCy29Om4"} target="_blank" rel="noreferrer" className="flex items-center justify-between p-3 bg-slate-700/50 hover:bg-brand-accent hover:text-slate-900 rounded-lg transition-all group">
-                                <span className="font-bold">Spotify</span>
-                                <span className="text-xs opacity-50 group-hover:opacity-100">↗</span>
+                        )}
+                        {song.youtubeUrl && (
+                            <a href={song.youtubeUrl} target="_blank" rel="noreferrer" className="flex items-center justify-between p-3 bg-slate-950 hover:bg-red-900/20 border border-slate-800 hover:border-red-800 rounded-lg transition-all group">
+                                <span className="text-sm font-bold text-slate-300 group-hover:text-red-400">YouTube</span>
+                                <span className="text-xs text-slate-500">Watch ↗</span>
                             </a>
-                             <a href={song.appleMusicLink || "https://music.apple.com/us/artist/willwi/1798471457"} target="_blank" rel="noreferrer" className="flex items-center justify-between p-3 bg-slate-700/50 hover:bg-brand-accent hover:text-slate-900 rounded-lg transition-all group">
-                                <span className="font-bold">Apple Music</span>
-                                <span className="text-xs opacity-50 group-hover:opacity-100">↗</span>
+                        )}
+                        {/* MusicBrainz Link */}
+                        {song.musicBrainzId && (
+                             <a href={`https://musicbrainz.org/release-group/${song.musicBrainzId}`} target="_blank" rel="noreferrer" className="flex items-center justify-between p-3 bg-slate-950 hover:bg-[#eb743b]/20 border border-slate-800 hover:border-[#eb743b]/50 rounded-lg transition-all group">
+                                <span className="text-sm font-bold text-slate-300 group-hover:text-[#eb743b]">MusicBrainz</span>
+                                <span className="text-xs text-slate-500">View Data ↗</span>
                             </a>
-                            {/* MusicBrainz Link */}
-                             {song.musicBrainzId && (
-                                <a href={`https://musicbrainz.org/release-group/${song.musicBrainzId}`} target="_blank" rel="noreferrer" className="flex items-center justify-between p-3 bg-slate-700/50 hover:bg-[#eb743b] hover:text-white rounded-lg transition-all group">
-                                    <span className="font-bold">MusicBrainz</span>
-                                    <span className="text-xs opacity-50 group-hover:opacity-100">↗</span>
-                                </a>
-                             )}
-                        </div>
-                     )}
-                </div>
-            </div>
-
-            {/* Right Col: Lyrics & AI & Story/Game */}
-            <div className="lg:col-span-2 space-y-8">
-                 {/* AI Review */}
-                 <div className="bg-gradient-to-br from-indigo-900 to-slate-900 rounded-2xl p-6 border border-indigo-500/30 relative overflow-hidden">
-                    <div className="relative z-10">
-                        <div className="flex justify-between items-center mb-4">
-                            <h3 className="text-xl font-bold text-white flex items-center gap-2">
-                                ✨ Willwi AI Critique
-                            </h3>
-                            <button 
-                                onClick={handleAiGenerate}
-                                disabled={loadingAi}
-                                className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-sm font-medium transition disabled:opacity-50"
-                            >
-                                {loadingAi ? t('detail_ai_loading') : t('detail_ai_btn')}
-                            </button>
-                        </div>
-                        <div className="bg-slate-950/50 rounded-xl p-4 min-h-[100px] text-slate-300 leading-relaxed whitespace-pre-line border border-white/5">
-                            {aiReview ? aiReview : "Generate professional music critique using AI based on metadata."}
-                        </div>
-                    </div>
-                </div>
-
-                {/* Description OR Lyric Video Maker Switcher */}
-                <div className="bg-slate-800 rounded-2xl p-6 border border-slate-700">
-                    <div className="flex gap-6 mb-6 border-b border-slate-700">
-                        <button 
-                            onClick={() => setStoryMode('desc')}
-                            className={`pb-3 text-lg font-bold transition-colors border-b-2 ${storyMode === 'desc' ? 'border-brand-accent text-brand-accent' : 'border-transparent text-slate-400 hover:text-white'}`}
-                        >
-                            {t('detail_tab_story')}
-                        </button>
-                        
-                        {/* ONLY SHOW LYRIC MAKER TAB IF ADMIN */}
-                        {isAdmin && (
-                            <button 
-                                onClick={() => setStoryMode('maker')}
-                                className={`pb-3 text-lg font-bold transition-colors border-b-2 ${storyMode === 'maker' ? 'border-brand-accent text-brand-accent' : 'border-transparent text-slate-400 hover:text-white'}`}
-                            >
-                                🎬 {t('detail_tab_maker')}
-                            </button>
                         )}
                     </div>
-
-                    {storyMode === 'desc' ? (
-                         isEditing ? (
-                            <textarea 
-                                 className="w-full bg-slate-900 border border-slate-600 rounded p-2 text-base text-white h-32"
-                                 value={editForm.description || ''}
-                                 onChange={(e) => setEditForm({...editForm, description: e.target.value})}
-                            />
-                        ) : (
-                            <p className="text-slate-300 leading-relaxed whitespace-pre-line">
-                                {song.description || "No description provided."}
-                            </p>
-                        )
-                    ) : (
-                        isAdmin && <LyricVideoMaker song={song} />
-                    )}
                 </div>
 
-                {/* Lyrics Display (Static) */}
-                <div className="bg-slate-800 rounded-2xl p-6 border border-slate-700">
-                    <h3 className="text-xl font-bold text-white mb-4 border-b border-slate-700 pb-2">{t('detail_lyrics_header')}</h3>
-                     {isEditing ? (
-                        <textarea 
-                             className="w-full bg-slate-900 border border-slate-600 rounded p-2 text-base text-white h-96 font-sans"
-                             value={editForm.lyrics || ''}
-                             onChange={(e) => setEditForm({...editForm, lyrics: e.target.value})}
-                        />
+                {/* 3. Credits */}
+                <div className="bg-slate-900 rounded-xl p-6 border border-white/5">
+                    <h3 className="text-sm font-bold text-white uppercase tracking-widest mb-4">Credits</h3>
+                    {isEditing ? (
+                         <textarea 
+                            className="w-full h-32 bg-slate-950 border border-slate-700 rounded p-4 text-white text-xs"
+                            value={editForm.credits || ''}
+                            onChange={(e) => setEditForm({...editForm, credits: e.target.value})}
+                         />
                     ) : (
-                        <div className="text-slate-300 leading-8 whitespace-pre-wrap font-sans text-lg">
-                            {song.lyrics || <span className="text-slate-500 italic">No lyrics available...</span>}
+                        <div className="text-xs text-slate-400 font-mono whitespace-pre-line leading-relaxed">
+                            {song.credits || "No credits available."}
                         </div>
                     )}
                 </div>
-
-                 {/* Credits (Moved Here) */}
-                 <div className="bg-slate-800 rounded-2xl p-6 border border-slate-700">
-                    <h3 className="text-lg font-bold text-white mb-2">{t('form_label_credits')}</h3>
-                    {isEditing ? (
-                        <textarea 
-                             className="w-full bg-slate-900 border border-slate-600 rounded p-2 text-sm text-white h-24"
-                             value={editForm.credits || ''}
-                             onChange={(e) => setEditForm({...editForm, credits: e.target.value})}
-                             placeholder="Producer: ... Arranger: ... "
-                        />
-                    ) : (
-                        <p className="text-slate-400 text-sm whitespace-pre-line">
-                            {song.credits || 'No credits available.'}
-                        </p>
-                    )}
-                 </div>
             </div>
         </div>
-
-        {/* Sticky Bottom Save Bar for Edit Mode */}
-        {isEditing && (
-            <div className="fixed bottom-0 left-0 right-0 bg-slate-900/95 backdrop-blur-md border-t border-brand-accent/30 p-4 z-50 flex justify-between items-center px-6 md:px-10 animate-slide-up shadow-[0_-5px_20px_rgba(0,0,0,0.5)]">
-                <span className="text-slate-400 text-sm hidden md:inline font-mono">You are in Edit Mode. Unsaved changes.</span>
-                <div className="flex gap-4 ml-auto w-full md:w-auto justify-end">
-                    <button 
-                        onClick={() => setIsEditing(false)} 
-                        className="px-6 py-3 rounded-full border border-slate-600 text-slate-300 hover:bg-slate-800 transition-colors font-bold text-sm"
-                    >
-                        {t('form_btn_cancel')}
-                    </button>
-                    <button 
-                        onClick={handleSave} 
-                        disabled={isSaving} 
-                        className="px-8 py-3 rounded-full bg-brand-accent hover:bg-sky-400 text-slate-900 font-bold shadow-[0_0_15px_rgba(56,189,248,0.4)] transition-all transform hover:scale-105 disabled:opacity-50 disabled:scale-100 text-sm"
-                    >
-                        {isSaving ? t('form_btn_saving') : t('form_btn_save')}
-                    </button>
-                </div>
-            </div>
-        )}
     </div>
   );
-};
-
-// Sub-component for the Lyric Video Maker
-const LyricVideoMaker: React.FC<{ song: Song }> = ({ song }) => {
-    // Replaced logic for simple lyric video maker
-    return (
-       <div className="text-center p-8 bg-slate-900 rounded-lg border border-slate-700">
-           <p className="text-slate-300 mb-4">Access the full Interactive Studio to create synced lyrics.</p>
-           <button 
-               onClick={() => window.location.hash = '/interactive'}
-               className="px-6 py-2 bg-brand-accent text-slate-900 font-bold rounded hover:bg-white transition-colors"
-           >
-               Go to Interactive Studio
-           </button>
-       </div>
-    );
 };
 
 export default SongDetail;

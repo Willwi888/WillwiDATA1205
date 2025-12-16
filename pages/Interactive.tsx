@@ -32,7 +32,7 @@ const getYoutubeEmbedUrl = (url?: string) => {
 };
 
 const Interactive: React.FC = () => {
-  const { user, login, deductCredit } = useUser();
+  const { user, login, deductCredit, isAdmin } = useUser();
   const { songs } = useData();
   const { t } = useTranslation();
   
@@ -260,7 +260,7 @@ const Interactive: React.FC = () => {
                      <div className="w-16 h-16 bg-slate-800 rounded-full mx-auto flex items-center justify-center mb-6 text-3xl">✨</div>
                      <h2 className="text-2xl font-bold text-white mb-2">Interactive Studio</h2>
                      <p className="text-slate-400 mb-8 text-sm leading-relaxed">
-                        登入以使用手工歌詞製作、票選活動與 AI 影像功能。<br/>
+                        登入以使用手工歌詞製作功能。<br/>
                         <span className="text-brand-gold">新用戶即可獲得 1 次免費製作額度。</span>
                      </p>
                      <form onSubmit={handleLogin} className="space-y-4">
@@ -310,32 +310,35 @@ const Interactive: React.FC = () => {
 
              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                  
-                 {/* CARD 1: BELOVED VOTING */}
-                 <button 
-                    onClick={() => setMode('voting')}
-                    className="group relative bg-slate-900 border border-slate-800 hover:border-pink-500 rounded-2xl p-8 text-left transition-all hover:shadow-[0_0_30px_rgba(236,72,153,0.2)] overflow-hidden"
-                 >
-                     <div className="relative z-10">
-                         <span className="inline-block px-3 py-1 rounded-full bg-pink-500/20 text-pink-500 text-xs font-bold mb-4 animate-pulse">EVENT ACTIVE</span>
-                         <h3 className="text-2xl font-bold text-white mb-2 group-hover:text-pink-400 transition-colors">Beloved 2026</h3>
-                         <p className="text-slate-400 text-sm leading-relaxed mb-6">
-                            摯愛票選活動。<br/>
-                            參與投票即可獲得專屬「有聲音樂卡片」。
-                         </p>
-                         <div className="flex items-center gap-2 text-sm text-white font-bold group-hover:translate-x-2 transition-transform">
-                             Join Event <span>→</span>
-                         </div>
-                     </div>
-                 </button>
+                 {/* CARD 1: BELOVED VOTING (ADMIN ONLY) */}
+                 {isAdmin && (
+                    <button 
+                        onClick={() => setMode('voting')}
+                        className="group relative bg-slate-900 border border-slate-800 hover:border-pink-500 rounded-2xl p-8 text-left transition-all hover:shadow-[0_0_30px_rgba(236,72,153,0.2)] overflow-hidden"
+                    >
+                        <div className="relative z-10">
+                            <span className="inline-block px-3 py-1 rounded-full bg-pink-500/20 text-pink-500 text-xs font-bold mb-4 animate-pulse">ADMIN ONLY</span>
+                            <h3 className="text-2xl font-bold text-white mb-2 group-hover:text-pink-400 transition-colors">Beloved 2026</h3>
+                            <p className="text-slate-400 text-sm leading-relaxed mb-6">
+                                摯愛票選活動。<br/>
+                                (目前僅供管理員測試)
+                            </p>
+                            <div className="flex items-center gap-2 text-sm text-white font-bold group-hover:translate-x-2 transition-transform">
+                                Join Event <span>→</span>
+                            </div>
+                        </div>
+                    </button>
+                 )}
 
-                 {/* CARD 2: LYRIC MAKER */}
+                 {/* CARD 2: LYRIC MAKER (PUBLIC) */}
+                 {/* Centered or Full Width if it's the only one */}
                  <button 
                     onClick={() => setMode('lyric-maker')}
-                    className="group relative bg-slate-900 border border-slate-800 hover:border-brand-accent rounded-2xl p-8 text-left transition-all hover:shadow-[0_0_30px_rgba(56,189,248,0.1)] overflow-hidden"
+                    className={`group relative bg-slate-900 border border-slate-800 hover:border-brand-accent rounded-2xl p-8 text-left transition-all hover:shadow-[0_0_30px_rgba(56,189,248,0.1)] overflow-hidden ${!isAdmin ? 'md:col-span-2 lg:col-span-3' : ''}`}
                  >
                      <div className="relative z-10">
                          <span className="inline-block px-3 py-1 rounded-full bg-brand-accent/20 text-brand-accent text-xs font-bold mb-4">AVAILABLE</span>
-                         <h3 className="text-2xl font-bold text-white mb-2 group-hover:text-brand-accent transition-colors">手工動態歌詞</h3>
+                         <h3 className="text-2xl font-bold text-white mb-2 group-hover:text-brand-accent transition-colors">手工動態歌詞 (Lyric Video Maker)</h3>
                          <p className="text-slate-400 text-sm leading-relaxed mb-6">
                             親手敲擊節奏，賦予歌詞靈魂。<br/>
                             1st Free, then NT$80/song.
@@ -346,29 +349,28 @@ const Interactive: React.FC = () => {
                      </div>
                  </button>
 
-                 {/* CARD 3: AI VIDEO (LOCKED) */}
-                 <div className="relative bg-slate-950 border border-slate-800 rounded-2xl p-8 text-left overflow-hidden opacity-80 cursor-not-allowed">
-                     <div className="absolute inset-0 bg-black/60 backdrop-blur-[2px] z-20 flex flex-col items-center justify-center text-center p-6">
-                         <div className="w-12 h-12 bg-slate-800 rounded-full flex items-center justify-center mb-4 border border-slate-700">
-                             <svg className="w-6 h-6 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
-                         </div>
-                         <h3 className="text-xl font-bold text-white mb-1">AI Video Lab</h3>
-                         <p className="text-slate-400 text-xs mb-4">Powered by Google Veo</p>
-                         <span className="px-3 py-1 rounded border border-white/20 text-white text-xs tracking-wider uppercase">Coming Soon</span>
-                     </div>
-                     <div className="relative z-10 filter blur-sm">
-                         <span className="inline-block px-3 py-1 rounded-full bg-purple-500/20 text-purple-400 text-xs font-bold mb-4">PREMIUM</span>
-                         <h3 className="text-2xl font-bold text-white mb-2">Text-to-Video</h3>
-                         <p className="text-slate-400 text-sm leading-relaxed mb-6">Create cinematic videos from your lyrics using AI.</p>
-                     </div>
-                 </div>
+                 {/* CARD 3: AI VIDEO (ADMIN ONLY) */}
+                 {isAdmin && (
+                    <div className="relative bg-slate-950 border border-slate-800 rounded-2xl p-8 text-left overflow-hidden opacity-80 cursor-not-allowed">
+                        <div className="absolute inset-0 bg-black/60 backdrop-blur-[2px] z-20 flex flex-col items-center justify-center text-center p-6">
+                            <h3 className="text-xl font-bold text-white mb-1">AI Video Lab</h3>
+                            <p className="text-slate-400 text-xs mb-4">Powered by Google Veo</p>
+                            <span className="px-3 py-1 rounded border border-white/20 text-white text-xs tracking-wider uppercase">Coming Soon</span>
+                        </div>
+                        <div className="relative z-10 filter blur-sm">
+                            <span className="inline-block px-3 py-1 rounded-full bg-purple-500/20 text-purple-400 text-xs font-bold mb-4">PREMIUM</span>
+                            <h3 className="text-2xl font-bold text-white mb-2">Text-to-Video</h3>
+                        </div>
+                    </div>
+                 )}
              </div>
         </div>
       );
   }
 
-  // 3. BELOVED VOTING VIEW (Keep existing logic)
+  // 3. BELOVED VOTING VIEW (ADMIN ONLY GUARD)
   if (mode === 'voting') {
+      if (!isAdmin) { setMode('menu'); return null; } // Guard
       return (
         <div className="max-w-6xl mx-auto pt-8 px-4 pb-20 animate-fade-in relative">
              <button 

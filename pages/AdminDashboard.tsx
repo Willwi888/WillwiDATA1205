@@ -41,17 +41,38 @@ const AdminDashboard: React.FC = () => {
       youtubeUrl: '' 
   });
 
-  // Load Home Config on Mount
+  // Global Background Config
+  const [globalBg, setGlobalBg] = useState('');
+
+  // Load Configs on Mount
   useEffect(() => {
+      // Player
       const savedConfig = localStorage.getItem('willwi_home_player_config');
       if (savedConfig) {
           setHomeConfig(JSON.parse(savedConfig));
       }
+      // Global BG
+      const savedBg = localStorage.getItem('willwi_global_bg');
+      if (savedBg) setGlobalBg(savedBg);
   }, []);
 
   const saveHomeConfig = () => {
       localStorage.setItem('willwi_home_player_config', JSON.stringify(homeConfig));
       alert("首頁播放器設定已儲存！");
+  };
+
+  const saveGlobalBg = () => {
+      localStorage.setItem('willwi_global_bg', globalBg);
+      if (window.confirm("全域背景已儲存！\n是否立即重新整理頁面以預覽效果？")) {
+          window.location.reload();
+      }
+  };
+
+  const resetGlobalBg = () => {
+      localStorage.removeItem('willwi_global_bg');
+      setGlobalBg('');
+      alert("已重置為預設背景。");
+      window.location.reload();
   };
 
   // Project Links provided by user
@@ -312,11 +333,45 @@ const AdminDashboard: React.FC = () => {
         {/* COL 1: Main Management */}
         <div className="lg:col-span-2 space-y-8">
             
-            {/* NEW: HOMEPAGE PLAYER MANAGER */}
+            {/* NEW: VISUAL & PLAYER MANAGER */}
             <div className="bg-slate-900 border border-brand-accent/50 rounded-xl p-8 shadow-2xl relative overflow-hidden">
                 <h2 className="text-xl font-bold text-brand-accent mb-6 flex items-center gap-2">
-                    🏠 首頁播放器管理 (Home Player)
+                    🎨 網站視覺與首頁設定 (Visuals)
                 </h2>
+                
+                {/* 1. Global Background */}
+                <div className="mb-8 pb-8 border-b border-slate-800">
+                     <h3 className="text-sm font-bold text-white mb-3">全域背景底圖 (Global Background)</h3>
+                     <div className="flex gap-4">
+                         <div className="flex-grow">
+                             <input 
+                                className="w-full bg-black border border-slate-700 rounded p-2 text-white text-xs font-mono"
+                                value={globalBg}
+                                onChange={(e) => {
+                                    const val = cleanGoogleRedirect(e.target.value);
+                                    if (val.includes('drive.google.com')) {
+                                        setGlobalBg(convertDriveLink(val));
+                                    } else {
+                                        setGlobalBg(val);
+                                    }
+                                }}
+                                placeholder="https://... (Paste your image link here)"
+                             />
+                             <p className="text-[10px] text-slate-500 mt-1">支援 Google Drive 分享連結或直接圖片連結。建議尺寸 2560px 寬。</p>
+                         </div>
+                         <div className="flex flex-col gap-2">
+                            <button onClick={saveGlobalBg} className="px-4 py-2 bg-slate-700 hover:bg-brand-accent hover:text-slate-900 text-white rounded text-xs font-bold transition-colors">
+                                Apply
+                            </button>
+                            <button onClick={resetGlobalBg} className="px-4 py-1 border border-slate-700 text-slate-500 hover:text-white rounded text-[10px] transition-colors">
+                                Reset
+                            </button>
+                         </div>
+                     </div>
+                </div>
+
+                {/* 2. Home Player */}
+                <h3 className="text-sm font-bold text-white mb-3">首頁播放器 (Home Player)</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div className="space-y-4">
                         <div>
@@ -584,6 +639,20 @@ const AdminDashboard: React.FC = () => {
       </div>
     </div>
   );
+};
+
+// Helper mainly for handling Google Drive link cleaning (reused)
+const cleanGoogleRedirect = (url: string) => {
+    try {
+        if (url.includes('google.com/url')) {
+            const urlObj = new URL(url);
+            const q = urlObj.searchParams.get('q');
+            if (q) return decodeURIComponent(q);
+        }
+        return url;
+    } catch (e) {
+        return url;
+    }
 };
 
 export default AdminDashboard;

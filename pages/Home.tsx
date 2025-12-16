@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useData } from '../context/DataContext';
 import { useTranslation } from '../context/LanguageContext';
+import { useUser } from '../context/UserContext';
 
 // Helper to extract YouTube ID
 const getYoutubeEmbedUrl = (url?: string) => {
@@ -23,6 +24,7 @@ const getYoutubeEmbedUrl = (url?: string) => {
 const Home: React.FC = () => {
   const { songs } = useData();
   const { t } = useTranslation();
+  const { isAdmin } = useUser();
   
   // 1. Load Homepage Configuration (from Admin) or Fallback
   const [homeConfig, setHomeConfig] = useState<any>(null);
@@ -77,23 +79,28 @@ const Home: React.FC = () => {
 
             {/* Premium Buttons */}
             <div className="flex flex-col sm:flex-row gap-5 mb-16 animate-fade-in-up" style={{animationDelay: '0.4s'}}>
-              <Link 
-                  to="/database" 
-                  className="group relative px-8 py-4 overflow-hidden border border-white/20 hover:border-brand-accent transition-colors duration-300"
-              >
-                 <div className="absolute inset-0 w-0 bg-brand-accent transition-all duration-[250ms] ease-out group-hover:w-full opacity-10"></div>
-                 <div className="relative flex items-center gap-3">
-                    <span className="text-white font-bold uppercase tracking-[0.2em] text-sm group-hover:text-brand-accent transition-colors">{t('hero_btn_db')}</span>
-                    <svg className="w-4 h-4 text-slate-400 group-hover:translate-x-1 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M17 8l4 4m0 0l-4 4m4-4H3"/></svg>
-                 </div>
-              </Link>
+              {/* Only Show Database button for Admins now */}
+              {isAdmin && (
+                  <Link 
+                      to="/database" 
+                      className="group relative px-8 py-4 overflow-hidden border border-white/20 hover:border-brand-accent transition-colors duration-300"
+                  >
+                     <div className="absolute inset-0 w-0 bg-brand-accent transition-all duration-[250ms] ease-out group-hover:w-full opacity-10"></div>
+                     <div className="relative flex items-center gap-3">
+                        <span className="text-white font-bold uppercase tracking-[0.2em] text-sm group-hover:text-brand-accent transition-colors">{t('hero_btn_db')}</span>
+                        <svg className="w-4 h-4 text-slate-400 group-hover:translate-x-1 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M17 8l4 4m0 0l-4 4m4-4H3"/></svg>
+                     </div>
+                  </Link>
+              )}
               
               <Link 
                   to="/interactive" 
-                  className="group relative px-8 py-4 overflow-hidden border border-white/20 hover:border-white transition-colors duration-300 backdrop-blur-sm"
+                  className="group relative px-8 py-4 overflow-hidden bg-brand-accent/10 border border-brand-accent/50 hover:bg-brand-accent/20 transition-colors duration-300 backdrop-blur-sm"
               >
-                  <div className="absolute inset-0 w-0 bg-white transition-all duration-[250ms] ease-out group-hover:w-full opacity-10"></div>
-                  <span className="relative text-slate-300 font-medium uppercase tracking-[0.2em] text-sm group-hover:text-white transition-colors">{t('hero_btn_interactive')}</span>
+                  <div className="absolute inset-0 w-0 bg-white transition-all duration-[250ms] ease-out group-hover:w-full opacity-5"></div>
+                  <span className="relative text-white font-bold uppercase tracking-[0.2em] text-sm flex items-center gap-2">
+                      {t('hero_btn_interactive')} <span>→</span>
+                  </span>
               </Link>
             </div>
 
