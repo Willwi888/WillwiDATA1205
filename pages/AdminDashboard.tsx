@@ -23,7 +23,7 @@ const AdminDashboard: React.FC = () => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [restoreStatus, setRestoreStatus] = useState('');
-  const [importMode, setImportMode] = useState<'overwrite' | 'merge'>('overwrite'); // NEW: Import Mode
+  const [importMode, setImportMode] = useState<'overwrite' | 'merge'>('overwrite'); 
   
   // Admin Login State
   const [passwordInput, setPasswordInput] = useState('');
@@ -38,7 +38,7 @@ const AdminDashboard: React.FC = () => {
       subtitle: '',
       coverUrl: '',
       audioUrl: '',
-      youtubeUrl: '' // NEW: YouTube Support
+      youtubeUrl: '' 
   });
 
   // Load Home Config on Mount
@@ -59,19 +59,8 @@ const AdminDashboard: React.FC = () => {
       drive: 'https://drive.google.com/drive/folders/1PmP_GB7etr45T_DwcZcLt45Om2RDqTNI?usp=drive_link',
       supabase: 'https://supabase.com/dashboard/project/rzxqseimxhbokrhcdjbi',
       vercel: 'https://vercel.com/willwi',
-      live: 'https://willwi-music-467949320732.us-west1.run.app/' // Explicitly the correct one
+      live: 'https://willwi-music-467949320732.us-west1.run.app/' 
   };
-
-  const CORRECT_DOMAIN_ID = '467949320732';
-
-  useEffect(() => {
-      // Check if current URL matches the expected ID
-      const currentUrl = window.location.href;
-      // We check if we are NOT on localhost (dev) AND NOT on the correct ID
-      if (!currentUrl.includes('localhost') && !currentUrl.includes(CORRECT_DOMAIN_ID)) {
-          setIsOnWrongDomain(true);
-      }
-  }, []);
 
   // 1. Calculate Catalog Health
   const totalSongs = songs.length;
@@ -81,17 +70,21 @@ const AdminDashboard: React.FC = () => {
 
   // 2. Mock Data for "Business Intelligence"
   const mockRevenue = {
-    dailyRevenueUSD: 500, // Approx $500 USD/day
+    dailyRevenueUSD: 500, 
     dailyRevenueNTD: 16000, 
-    hearts: 4500, // The 4500 hearts milestone
+    hearts: 4500, 
     downloads: 128
   };
 
-  // 3. CARRD Embed Generator Logic
+  // 3. CARRD Embed Generator Logic (Dynamic)
   const generateEmbedCode = () => {
-      // Using the current live URL
-      const appUrl = PROJECT_LINKS.live;
-      return `<iframe src="${appUrl}?embed=true" style="width:100%; height:100vh; border:none; background:transparent;" allow="microphone; clipboard-read; clipboard-write; encrypted-media;"></iframe>`;
+      // Use the current URL (wherever the app is hosted)
+      const currentOrigin = window.location.origin;
+      // If we are in WebContainer or Localhost, warn user
+      const isDev = currentOrigin.includes('localhost') || currentOrigin.includes('webcontainer');
+      const baseUrl = isDev ? "YOUR_VERCEL_APP_URL" : currentOrigin;
+
+      return `<iframe src="${baseUrl}?embed=true" style="width:100%; height:100vh; min-height:800px; border:none; background:transparent;" allow="microphone; clipboard-read; clipboard-write; encrypted-media; autoplay"></iframe>`;
   };
 
   const copyEmbedCode = () => {
@@ -163,7 +156,6 @@ const AdminDashboard: React.FC = () => {
                   throw new Error("Invalid Data Format: Not an array");
               }
               
-              // Simple validation
               const validSongs = parsedSongs.filter(s => s.id && s.title);
               if (validSongs.length === 0) {
                   throw new Error("No valid songs found in file");
@@ -172,14 +164,11 @@ const AdminDashboard: React.FC = () => {
               setRestoreStatus(`Validating ${validSongs.length} songs...`);
 
               if (importMode === 'overwrite') {
-                  // 1. Clear existing DB
                   await dbService.clearAllSongs();
-                  // 2. Add new songs
                   await dbService.bulkAdd(validSongs);
                   setRestoreStatus('Overwrite Complete! Reloading...');
               } else {
-                  // Merge Logic
-                  await dbService.bulkAdd(validSongs); // bulkAdd implementation typically puts (overwrites on ID collision)
+                  await dbService.bulkAdd(validSongs); 
                   setRestoreStatus('Merge Complete! Reloading...');
               }
               
@@ -193,14 +182,12 @@ const AdminDashboard: React.FC = () => {
               alert(`匯入失敗：${(err as Error).message}`);
               setIsProcessing(false);
           } finally {
-              // Reset input so same file can be selected again if needed
               if (fileInputRef.current) fileInputRef.current.value = '';
           }
       };
       reader.readAsText(file);
   };
 
-  // --- Factory Reset Function ---
   const handleFactoryReset = async () => {
       if (window.confirm("🚨 緊急重置\n\n這將會清除所有現有資料，並重新載入「預設」的 Willwi 歌曲目錄。\n\n當您發現資料庫意外清空時，請使用此功能恢復基本資料。\n確定執行？")) {
           setIsProcessing(true);
@@ -252,27 +239,6 @@ const AdminDashboard: React.FC = () => {
   return (
     <div className="max-w-7xl mx-auto px-4 py-12 animate-fade-in">
       
-      {/* WARNING BANNER FOR WRONG DOMAIN */}
-      {isOnWrongDomain && (
-          <div className="bg-red-900/80 border border-red-600 p-6 rounded-xl mb-8 flex flex-col md:flex-row items-center justify-between gap-4 animate-pulse shadow-[0_0_20px_rgba(220,38,38,0.5)]">
-              <div className="flex items-center gap-4">
-                  <span className="text-3xl">⚠️</span>
-                  <div>
-                      <h3 className="text-xl font-bold text-white">您可能位在錯誤的網址 (Wrong Domain)</h3>
-                      <p className="text-red-200 text-sm">
-                          這可能是造成資料遺失的原因。瀏覽器認為這是不一樣的網站。
-                      </p>
-                  </div>
-              </div>
-              <a 
-                  href={PROJECT_LINKS.live}
-                  className="px-6 py-3 bg-white text-red-900 font-bold rounded shadow-lg hover:bg-slate-200 transition-colors uppercase tracking-widest text-sm whitespace-nowrap"
-              >
-                  前往正確網址
-              </a>
-          </div>
-      )}
-
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-10 gap-4">
           <div>
             <h1 className="text-3xl font-black text-white uppercase tracking-tighter">Manager Dashboard</h1>
@@ -286,20 +252,21 @@ const AdminDashboard: React.FC = () => {
 
       {/* CARRD INTEGRATION PANEL (NEW) */}
       <div className="bg-slate-900 border border-blue-500/50 rounded-xl p-8 mb-8 shadow-2xl relative overflow-hidden">
-          <div className="absolute top-0 right-0 bg-blue-600 text-white text-[10px] font-bold px-3 py-1 rounded-bl shadow-lg uppercase tracking-wider">NEW FEATURE</div>
+          <div className="absolute top-0 right-0 bg-blue-600 text-white text-[10px] font-bold px-3 py-1 rounded-bl shadow-lg uppercase tracking-wider">CARRD PRO TOOLKIT</div>
           <h2 className="text-2xl font-bold text-white mb-4 flex items-center gap-3">
-             <span className="text-3xl">🔗</span> Carrd Integration Toolkit
+             <span className="text-3xl">🔗</span> 整合中心 (Integration Hub)
           </h2>
           <p className="text-slate-300 text-sm mb-6 max-w-2xl leading-relaxed">
-             利用您的 Carrd Pro 帳戶功能來強化此資料庫。您可以將此應用程式嵌入至 Carrd 頁面中，並利用 Carrd 的大容量空間託管圖片與影片。
+             將此 React 應用程式「寄生」在您的 Carrd 網站中。
+             利用 Carrd 的流量與空間，利用 React 的運算能力。
           </p>
           
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
               {/* Tool 1: Embed Generator */}
               <div className="bg-slate-950 p-6 rounded-lg border border-slate-800">
-                  <h3 className="text-lg font-bold text-white mb-2">1. 嵌入至 Carrd (Embed)</h3>
+                  <h3 className="text-lg font-bold text-white mb-2">1. 取得嵌入代碼 (Embed Code)</h3>
                   <p className="text-xs text-slate-400 mb-4">
-                      將此程式碼貼入 Carrd 的 <strong>「Embed」</strong> 元件。這將開啟「透明背景模式」，讓 Carrd 的設計直接透視進來。
+                      請先將此 App 部署 (Deploy) 至 Vercel。在正式網址開啟此頁面後，下方的代碼會自動更新。
                   </p>
                   <div className="relative">
                       <textarea 
@@ -311,26 +278,29 @@ const AdminDashboard: React.FC = () => {
                         onClick={copyEmbedCode}
                         className="absolute bottom-4 right-4 bg-blue-600 hover:bg-blue-500 text-white text-xs px-3 py-1 rounded font-bold"
                       >
-                          Copy Code
+                          複製代碼 (Copy)
                       </button>
+                  </div>
+                  <div className="mt-2 text-[10px] text-slate-500">
+                      貼到 Carrd -> Add Element -> <strong>Embed</strong> -> Type: Code.
                   </div>
               </div>
 
               {/* Tool 2: Asset Hosting Guide */}
               <div className="bg-slate-950 p-6 rounded-lg border border-slate-800">
-                  <h3 className="text-lg font-bold text-white mb-2">2. 使用 Carrd 託管素材</h3>
+                  <h3 className="text-lg font-bold text-white mb-2">2. 使用 Carrd 託管大型檔案</h3>
                   <p className="text-xs text-slate-400 mb-4">
-                      Carrd 允許上傳最大 64MB 的影片與圖片。
+                      Carrd Pro 允許單檔 64MB。請善用此空間存放 MV 或高品質圖片。
                   </p>
                   <ol className="list-decimal list-inside text-xs text-slate-300 space-y-2">
-                      <li>在 Carrd 編輯器中，新增一個 <strong>Image</strong> 或 <strong>Video</strong> 元件。</li>
-                      <li>上傳您的高畫質檔案。</li>
-                      <li>發布網站 (Publish)。</li>
-                      <li>在瀏覽器打開您的 Carrd 網站，對該圖片/影片點擊右鍵 -> <strong>複製連結網址 (Copy Link Address)</strong>。</li>
-                      <li>回到這裡的「Add Song」頁面，貼上該網址。</li>
+                      <li>在 Carrd 建立一個「隱藏」的 Section (或是放在頁尾)。</li>
+                      <li>上傳 <strong>Video</strong> 或 <strong>Image</strong>。</li>
+                      <li>發布 (Publish) Carrd 網站。</li>
+                      <li>對該影片/圖片點右鍵 -> <strong>複製連結網址</strong>。</li>
+                      <li>回到這裡的「Add Song」，貼上該網址即可直接串流。</li>
                   </ol>
                   <div className="mt-4 p-2 bg-blue-900/20 text-blue-300 text-[10px] rounded border border-blue-900/50">
-                      💡 Tip: 這樣可以節省此 App 的流量，並利用 Carrd 的 CDN 加速。
+                      💡 這樣可以利用 Carrd 的 CDN，讓 React App 讀取速度飛快。
                   </div>
               </div>
           </div>
