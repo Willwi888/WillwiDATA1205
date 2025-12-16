@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
 
 interface User {
   email: string;
@@ -20,50 +20,79 @@ interface UserContextType {
 
 const UserContext = createContext<UserContextType | undefined>(undefined);
 
+const USER_SESSION_KEY = 'willwi_user_session';
+const USERS_DB_KEY = 'willwi_users_db';
+const ADMIN_SESSION_KEY = 'willwi_admin_unlocked';
+
 export const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
   // Load user from local storage on mount
-  useEffect(() => {
-    const storedUser = localStorage.getItem('willwi_user_session');
-    if (storedUser) {
-      setUser(JSON.parse(storedUser));
+  const loadUser = useCallback(() => {
+    try {
+        const storedUser = localStorage.getItem(USER_SESSION_KEY);
+        if (storedUser) {
+           setUser(JSON.parse(storedUser));
+        } else {
+           setUser(null);
+        }
+        
+        // Check for admin session
+        const adminSession = localStorage.getItem(ADMIN_SESSION_KEY);
+        if (adminSession === 'true') {
+            setIsAdmin(true);
+        }
+    } catch(e) {
+        console.error("Failed to load user session", e);
     }
-    
-    // Check for admin session
-    const adminSession = localStorage.getItem('willwi_admin_unlocked');
-    if (adminSession === 'true') {
-        setIsAdmin(true);
-    }
-
     setIsLoading(false);
   }, []);
+
+  useEffect(() => {
+      loadUser();
+  }, [loadUser]);
+
+  // Sync across tabs
+  useEffect(() => {
+      const handleStorageChange = (e: StorageEvent) => {
+          if (e.key === USER_SESSION_KEY || e.key === ADMIN_SESSION_KEY) {
+              loadUser();
+          }
+      };
+      window.addEventListener('storage', handleStorageChange);
+      return () => window.removeEventListener('storage', handleStorageChange);
+  }, [loadUser]);
 
   // Update local storage whenever user changes
   useEffect(() => {
     if (user) {
-      localStorage.setItem('willwi_user_session', JSON.stringify(user));
+      localStorage.setItem(USER_SESSION_KEY, JSON.stringify(user));
       
       // PERSISTENCE LOGIC:
       // We update the "database" of users to ensure credits are saved for this email
-      const userDb = JSON.parse(localStorage.getItem('willwi_users_db') || '{}');
+      const userDb = JSON.parse(localStorage.getItem(USERS_DB_KEY) || '{}');
       userDb[user.email] = {
           ...userDb[user.email], // Keep existing data if any
           name: user.name,
           email: user.email,
           credits: user.credits // Save current credits
       };
-      localStorage.setItem('willwi_users_db', JSON.stringify(userDb));
-    } else {
-      localStorage.removeItem('willwi_user_session');
+      localStorage.setItem(USERS_DB_KEY, JSON.stringify(userDb));
+    } else if (!isLoading) {
+       // Only clear if not loading (to avoid clearing on init before load)
+       // But wait, if user is null, we should clear session key, but NOT the DB.
+       const currentStored = localStorage.getItem(USER_SESSION_KEY);
+       if (currentStored) {
+           localStorage.removeItem(USER_SESSION_KEY);
+       }
     }
-  }, [user]);
+  }, [user, isLoading]);
 
   const login = (name: string, email: string) => {
     // 1. Check if user exists in our "DB"
-    const userDb = JSON.parse(localStorage.getItem('willwi_users_db') || '{}');
+    const userDb = JSON.parse(localStorage.getItem(USERS_DB_KEY) || '{}');
     let existingUser = userDb[email];
 
     if (!existingUser) {
@@ -86,6 +115,7 @@ export const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   const logout = () => {
     setUser(null);
+    localStorage.removeItem(USER_SESSION_KEY);
   };
 
   const addCredits = (amount: number) => {
@@ -105,7 +135,7 @@ export const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   const enableAdmin = () => {
       setIsAdmin(true);
-      localStorage.setItem('willwi_admin_unlocked', 'true');
+      localStorage.setItem(ADMIN_SESSION_KEY, 'true');
   };
 
   return (
