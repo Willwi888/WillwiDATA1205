@@ -52,10 +52,17 @@ const Database: React.FC = () => {
   }, [filteredSongs]);
 
   // Helper to check completeness
-  const getMissingFields = (song: any) => {
+  const getMissingFields = (song: Song) => {
     const missing = [];
     if (!song.isrc) missing.push('ISRC');
-    if (!song.lyrics) missing.push('Lyrics');
+    
+    // Logic Update: Skip lyrics check if the song is Instrumental
+    if (song.language !== Language.Instrumental) {
+        if (!song.lyrics || song.lyrics.trim().length === 0) {
+            missing.push('Lyrics');
+        }
+    }
+    
     if (!song.spotifyLink && !song.spotifyId) missing.push('Spotify');
     return missing;
   };
@@ -263,7 +270,9 @@ const Database: React.FC = () => {
                                 {isAdmin && (
                                     <td className="px-6 py-4 whitespace-nowrap">
                                         {missing.length > 0 ? (
-                                            <span className="w-2 h-2 rounded-full bg-red-500/50 inline-block"></span>
+                                            <div className="flex items-center gap-2">
+                                                <span className="w-2 h-2 rounded-full bg-red-500/50 inline-block"></span>
+                                            </div>
                                         ) : (
                                             <span className="w-2 h-2 rounded-full bg-green-500/50 inline-block"></span>
                                         )}

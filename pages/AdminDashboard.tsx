@@ -2,7 +2,7 @@ import React, { useRef, useState, useEffect } from 'react';
 import { useData, INITIAL_DATA } from '../context/DataContext';
 import { useUser } from '../context/UserContext';
 import { dbService } from '../services/db';
-import { Song } from '../types';
+import { Song, Language } from '../types';
 
 // Helper to convert Google Drive Sharing Link
 const convertDriveLink = (url: string) => {
@@ -65,7 +65,8 @@ const AdminDashboard: React.FC = () => {
   // 1. Calculate Catalog Health
   const totalSongs = songs.length;
   const missingISRC = songs.filter(s => !s.isrc).length;
-  const missingLyrics = songs.filter(s => !s.lyrics || s.lyrics.length < 10).length;
+  // Ignore instrumental tracks for lyric check
+  const missingLyrics = songs.filter(s => s.language !== Language.Instrumental && (!s.lyrics || s.lyrics.length < 10)).length;
   const hasMusicBrainz = songs.filter(s => s.musicBrainzId).length;
 
   // 2. Mock Data for "Business Intelligence"
