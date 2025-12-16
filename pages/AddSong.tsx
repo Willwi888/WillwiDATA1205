@@ -596,7 +596,7 @@ const AddSong: React.FC = () => {
                         <label className="block text-sm font-bold text-white mb-1">Master Audio URL (Google Drive / MP3)</label>
                         <input name="audioUrl" value={formData.audioUrl || ''} onChange={handleChange} className="w-full bg-slate-900 border border-brand-gold/50 rounded p-2 text-white font-mono text-sm" placeholder="Paste Google Drive Link here..." />
                          <p className="text-xs text-slate-400 mt-1">
-                            <strong>How to use Drive:</strong> Right-click your MP3 file in Google Drive &rarr; Share &rarr; Copy Link. Paste it here, we will convert it automatically.
+                            <strong>使用說明：</strong> 上傳 MP3 到 Google Drive -> 右鍵「共用」 -> 選擇「知道連結的任何人」 -> 複製連結並貼上。
                          </p>
                     </div>
                     <div>

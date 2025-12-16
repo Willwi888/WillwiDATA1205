@@ -626,38 +626,48 @@ const SongDetail: React.FC = () => {
                     ) : (
                         !embedUrl && !spotifyEmbedId && (
                             <div className="text-center p-6 bg-slate-950 border border-slate-800 rounded-lg border-dashed">
-                                <p className="text-xs text-slate-500">
+                                <p className="text-xs text-slate-500 mb-2">
                                     No Audio Source Available.<br/>
-                                    <span className="text-[10px] opacity-70">(Please upload audio or add YouTube link in Edit mode)</span>
+                                </p>
+                                <p className="text-[10px] text-slate-400">
+                                    請點擊 "Edit" 並填入 YouTube 連結，<br/>
+                                    或上傳 MP3 到 Google Drive 並貼上連結。
                                 </p>
                             </div>
                         )
                     )}
 
                     {isEditing && (
-                        <div className="mt-4 space-y-2">
-                             <input 
-                                className="w-full bg-slate-950 border border-slate-700 rounded p-2 text-xs text-white"
-                                placeholder="YouTube URL"
-                                value={editForm.youtubeUrl || ''}
-                                onChange={(e) => setEditForm({...editForm, youtubeUrl: e.target.value})}
-                             />
-                             <input 
-                                className="w-full bg-slate-950 border border-slate-700 rounded p-2 text-xs text-white font-mono"
-                                placeholder="Audio URL (Drive/MP3)"
-                                value={editForm.audioUrl || ''}
-                                onChange={(e) => {
-                                    const val = e.target.value;
-                                    if(val.includes('drive.google.com')) {
-                                        setEditForm({...editForm, audioUrl: convertDriveLink(val)});
-                                    } else {
-                                        setEditForm({...editForm, audioUrl: val});
-                                    }
-                                }}
-                             />
-                             <p className="text-[10px] text-slate-500">
-                                 Note: For Google Drive, ensure file is "Anyone with link" -> "Viewer".
-                             </p>
+                        <div className="mt-4 space-y-3 bg-slate-950/50 p-3 rounded border border-white/5">
+                             <div className="space-y-1">
+                                <label className="text-[10px] text-red-400 font-bold uppercase">YouTube Link (Recommended)</label>
+                                <input 
+                                    className="w-full bg-slate-900 border border-slate-700 rounded p-2 text-xs text-white"
+                                    placeholder="https://youtu.be/..."
+                                    value={editForm.youtubeUrl || ''}
+                                    onChange={(e) => setEditForm({...editForm, youtubeUrl: e.target.value})}
+                                />
+                             </div>
+                             
+                             <div className="space-y-1">
+                                <label className="text-[10px] text-brand-gold font-bold uppercase">Master / Demo Audio (Google Drive)</label>
+                                <input 
+                                    className="w-full bg-slate-900 border border-slate-700 rounded p-2 text-xs text-white font-mono"
+                                    placeholder="Paste Google Drive Link here..."
+                                    value={editForm.audioUrl || ''}
+                                    onChange={(e) => {
+                                        const val = e.target.value;
+                                        if(val.includes('drive.google.com')) {
+                                            setEditForm({...editForm, audioUrl: convertDriveLink(val)});
+                                        } else {
+                                            setEditForm({...editForm, audioUrl: val});
+                                        }
+                                    }}
+                                />
+                                <p className="text-[10px] text-slate-500">
+                                    使用方式：將 MP3 上傳至 Drive -> 右鍵「共用」-> 權限改為「知道連結的任何人」-> 複製連結貼上。
+                                </p>
+                             </div>
                         </div>
                     )}
                 </div>
