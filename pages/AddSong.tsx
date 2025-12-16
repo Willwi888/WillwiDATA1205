@@ -82,7 +82,8 @@ const AddSong: React.FC = () => {
 
   const handleAdminLogin = (e: React.FormEvent) => {
       e.preventDefault();
-      if (passwordInput === '8888') {
+      // UPDATED: Accept both legacy code and new master key
+      if (passwordInput === '8888' || passwordInput === 'eloveg2026') {
           enableAdmin();
           setLoginError('');
       } else {

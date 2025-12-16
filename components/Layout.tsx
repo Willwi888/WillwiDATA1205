@@ -183,6 +183,11 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
             </div>
             <div className="flex space-x-6 text-slate-500">
                 <span className="text-[10px] font-mono">Build v2.5.0</span>
+                {/* ADMIN LINK RESTORED HERE */}
+                <Link to="/admin" className="text-[10px] font-mono hover:text-brand-accent transition-colors flex items-center gap-1 opacity-50 hover:opacity-100">
+                    <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
+                    Manager
+                </Link>
             </div>
             </div>
         </footer>

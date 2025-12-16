@@ -23,8 +23,8 @@ const Database: React.FC = () => {
 
   const handleAdminLogin = (e: React.FormEvent) => {
       e.preventDefault();
-      // Simple hardcoded check for demo/MVP
-      if (passwordInput === '8888') {
+      // UPDATED: Accept both legacy code and new master key
+      if (passwordInput === '8888' || passwordInput === 'eloveg2026') {
           enableAdmin();
           setLoginError('');
       } else {

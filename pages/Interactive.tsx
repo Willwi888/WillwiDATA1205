@@ -39,6 +39,7 @@ const Interactive: React.FC = () => {
   // UI State
   const [mode, setMode] = useState<InteractionMode>('menu');
   const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [showLoginModal, setShowLoginModal] = useState(false); // New: Login is now a modal/overlay
   
   // Login Inputs
   const [loginEmail, setLoginEmail] = useState('');
@@ -68,7 +69,17 @@ const Interactive: React.FC = () => {
       e.preventDefault();
       if(loginEmail.trim() && loginName.trim()) {
           login(loginName, loginEmail);
+          setShowLoginModal(false);
       }
+  };
+
+  const handleToolClick = (targetMode: InteractionMode) => {
+      // Check permission before entering tool
+      if (!user) {
+          setShowLoginModal(true);
+          return;
+      }
+      setMode(targetMode);
   };
 
   // --- VOTING LOGIC ---
@@ -85,13 +96,6 @@ const Interactive: React.FC = () => {
           }
           setVotes(prev => [...prev, songId]);
       }
-  };
-
-  const handleReasonChange = (songId: string, text: string) => {
-      setVoteReasons(prev => ({
-          ...prev,
-          [songId]: text
-      }));
   };
 
   const submitVotes = () => {
@@ -117,13 +121,6 @@ const Interactive: React.FC = () => {
         alert("這首歌暫時沒有歌詞資料，請先至資料庫新增歌詞。");
         return;
     }
-    
-    // Check credits before starting (optional, but good UX to warn)
-    // Actually we deduct on Download, so they can play for free, but only download if they pay?
-    // The prompt implies: "Entrance fee logic" -> 1st free, then pay.
-    // But usually in these apps, you pay to *get the result*. Let's stick to pay-to-download for better UX,
-    // allowing them to try the tool first. 
-    // HOWEVER, the prompt says "Entrance to selection page -> Music & Lyrics appear".
     
     setSelectedSong(song);
     setGameState('ready');
@@ -192,7 +189,10 @@ const Interactive: React.FC = () => {
   // --- DOWNLOAD & PAYMENT ---
 
   const handleDownloadClick = () => {
-      if (!user) return;
+      if (!user) {
+          setShowLoginModal(true);
+          return;
+      }
       
       // 1. Check Credits
       if (deductCredit()) {
@@ -248,19 +248,19 @@ const Interactive: React.FC = () => {
   }, [gameState, lineIndex, elapsedTime, mode]);
 
 
-  // --- RENDER ---
+  // --- RENDER HELPERS ---
 
-  // 1. LOGIN SCREEN
-  if (!user) {
-      return (
-        <div className="min-h-screen pt-20 px-4 flex flex-col items-center justify-center animate-fade-in">
-             <div className="max-w-md w-full bg-slate-900 border border-slate-800 rounded-2xl p-8 shadow-2xl relative overflow-hidden">
+  const LoginModal = () => (
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/90 backdrop-blur-sm" onClick={() => setShowLoginModal(false)}></div>
+          <div className="relative z-10 max-w-md w-full bg-slate-900 border border-slate-800 rounded-2xl p-8 shadow-2xl overflow-hidden animate-fade-in-up">
+                 <button onClick={() => setShowLoginModal(false)} className="absolute top-4 right-4 text-slate-500 hover:text-white">✕</button>
                  <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-brand-accent to-purple-600"></div>
                  <div className="text-center">
                      <div className="w-16 h-16 bg-slate-800 rounded-full mx-auto flex items-center justify-center mb-6 text-3xl">✨</div>
                      <h2 className="text-2xl font-bold text-white mb-2">Interactive Studio</h2>
                      <p className="text-slate-400 mb-8 text-sm leading-relaxed">
-                        登入以使用手工歌詞製作功能。<br/>
+                        登入以使用工作室功能。<br/>
                         <span className="text-brand-gold">新用戶即可獲得 1 次免費製作額度。</span>
                      </p>
                      <form onSubmit={handleLogin} className="space-y-4">
@@ -289,22 +289,51 @@ const Interactive: React.FC = () => {
                      </form>
                  </div>
              </div>
-        </div>
-      );
-  }
+      </div>
+  );
 
-  // 2. MAIN MENU
+  // --- MAIN RENDER ---
+
+  // 1. MAIN MENU (Accessible to Guests now)
   if (mode === 'menu') {
       return (
-        <div className="max-w-6xl mx-auto pt-16 px-6 animate-fade-in">
-             <div className="flex justify-between items-center mb-12">
+        <div className="max-w-6xl mx-auto pt-16 px-6 animate-fade-in pb-20">
+             {showPaymentModal && <PaymentModal isOpen={true} onClose={() => setShowPaymentModal(false)} />}
+             {showLoginModal && <LoginModal />}
+             
+             <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-12 gap-6">
                  <div>
                     <h1 className="text-3xl font-black text-white uppercase tracking-tighter">Interactive Studio</h1>
-                    <p className="text-slate-400 text-sm mt-1">Hello, {user.name}. Select a creative tool to begin.</p>
+                    <p className="text-slate-400 text-sm mt-1">
+                        {user ? `Hello, ${user.name}. Select a creative tool to begin.` : 'Welcome Guest. Please select a tool.'}
+                    </p>
                  </div>
-                 <div className="text-right">
-                     <div className="text-xs text-slate-500 uppercase tracking-widest mb-1">Your Credits</div>
-                     <div className="text-2xl font-bold text-brand-gold">{user.credits} <span className="text-sm text-slate-500 font-normal">pts</span></div>
+                 
+                 <div className="flex items-center gap-4">
+                     {/* SUPPORT / DONATION BUTTON (Always Visible) */}
+                     <button 
+                        onClick={() => setShowPaymentModal(true)}
+                        className="flex items-center gap-2 px-5 py-2 rounded-full bg-yellow-500/20 text-yellow-500 border border-yellow-500/50 hover:bg-yellow-500 hover:text-slate-900 font-bold text-sm transition-all shadow-lg hover:shadow-yellow-500/20"
+                     >
+                         <span>❤️</span>
+                         <span>支持 Willwi (Support)</span>
+                     </button>
+
+                     <div className="text-right">
+                        {user ? (
+                            <>
+                                <div className="text-xs text-slate-500 uppercase tracking-widest mb-1">Your Credits</div>
+                                <div className="text-2xl font-bold text-brand-gold">{user.credits} <span className="text-sm text-slate-500 font-normal">pts</span></div>
+                            </>
+                        ) : (
+                            <button 
+                                onClick={() => setShowLoginModal(true)}
+                                className="text-xs border border-white/30 hover:border-white text-white px-3 py-1 rounded-full transition-colors uppercase tracking-widest"
+                            >
+                                Login / Register
+                            </button>
+                        )}
+                     </div>
                  </div>
              </div>
 
@@ -313,7 +342,7 @@ const Interactive: React.FC = () => {
                  {/* CARD 1: BELOVED VOTING (ADMIN ONLY) */}
                  {isAdmin && (
                     <button 
-                        onClick={() => setMode('voting')}
+                        onClick={() => handleToolClick('voting')}
                         className="group relative bg-slate-900 border border-slate-800 hover:border-pink-500 rounded-2xl p-8 text-left transition-all hover:shadow-[0_0_30px_rgba(236,72,153,0.2)] overflow-hidden"
                     >
                         <div className="relative z-10">
@@ -333,7 +362,7 @@ const Interactive: React.FC = () => {
                  {/* CARD 2: LYRIC MAKER (PUBLIC) */}
                  {/* Centered or Full Width if it's the only one */}
                  <button 
-                    onClick={() => setMode('lyric-maker')}
+                    onClick={() => handleToolClick('lyric-maker')}
                     className={`group relative bg-slate-900 border border-slate-800 hover:border-brand-accent rounded-2xl p-8 text-left transition-all hover:shadow-[0_0_30px_rgba(56,189,248,0.1)] overflow-hidden ${!isAdmin ? 'md:col-span-2 lg:col-span-3' : ''}`}
                  >
                      <div className="relative z-10">
