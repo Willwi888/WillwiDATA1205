@@ -5,6 +5,21 @@ import { Song } from '../types';
 import PaymentModal from '../components/PaymentModal';
 import { useTranslation } from '../context/LanguageContext';
 
+// --- HELPERS ---
+const cleanGoogleRedirect = (url: string) => {
+    if (!url) return '';
+    try {
+        if (url.includes('google.com/url')) {
+            const urlObj = new URL(url);
+            const q = urlObj.searchParams.get('q');
+            if (q) return decodeURIComponent(q);
+        }
+        return url;
+    } catch (e) {
+        return url;
+    }
+};
+
 // --- TYPES ---
 type InteractionMode = 'menu' | 'lyric-maker' | 'ai-video' | 'voting';
 type GameState = 'select' | 'ready' | 'standby' | 'playing' | 'processing' | 'finished';
@@ -58,15 +73,28 @@ const Interactive: React.FC = () => {
 
   // --- LYRIC VIDEO ENGINE ---
 
-  // Preload Image
+  // Preload Image with Robust Handling
   useEffect(() => {
+      // Reset previous image
+      coverImageRef.current = null;
+
       if (selectedSong && selectedSong.coverUrl) {
           const img = new Image();
-          img.crossOrigin = "anonymous"; 
-          img.src = selectedSong.coverUrl;
+          img.crossOrigin = "anonymous"; // Essential for canvas export
+          
+          // Clean URL to handle redirects that might block CORS
+          const safeUrl = cleanGoogleRedirect(selectedSong.coverUrl);
+          img.src = safeUrl;
+          
           img.onload = () => {
               coverImageRef.current = img;
-              drawFrame(); // Draw preview
+              drawFrame(); // Draw preview immediately upon load
+          };
+
+          img.onerror = (e) => {
+              console.warn("Cover image failed to load (CORS or Invalid URL)", e);
+              // We can still draw the frame without the image (just background)
+              drawFrame();
           };
       }
   }, [selectedSong]);
@@ -120,15 +148,21 @@ const Interactive: React.FC = () => {
                // Cast to any to access experimental methods like captureStream/mozCaptureStream
                const audioEl = audioRef.current as any;
                let audioStream;
-               if (audioEl.captureStream) audioStream = audioEl.captureStream();
-               else if (audioEl.mozCaptureStream) audioStream = audioEl.mozCaptureStream();
+               
+               // Try standard, then vendor prefixed
+               if (audioEl.captureStream) {
+                   audioStream = audioEl.captureStream();
+               } else if (audioEl.mozCaptureStream) {
+                   audioStream = audioEl.mozCaptureStream();
+               }
                
                if (audioStream) {
                    finalStream = new MediaStream([...canvasStream.getVideoTracks(), ...audioStream.getAudioTracks()]);
                }
           }
       } catch (e) {
-          console.warn("Audio capture CORS issue", e);
+          console.warn("Audio capture CORS issue (Expected for external audio sources)", e);
+          // Fallback: Record Video Only (User can add audio later)
       }
 
       // Init Recorder
@@ -148,7 +182,8 @@ const Interactive: React.FC = () => {
         recorder.start();
         mediaRecorderRef.current = recorder;
       } catch (e) {
-          alert("Recorder Error: Browser not supported.");
+          console.error("Recorder Error:", e);
+          alert("此瀏覽器不支援錄影功能，請嘗試使用 Chrome 或 Edge (Desktop).");
           return;
       }
 
@@ -184,12 +219,16 @@ const Interactive: React.FC = () => {
       ctx.fillRect(0, 0, w, h);
 
       if (coverImageRef.current) {
-          ctx.save();
-          // Draw scaled up background with blur
-          ctx.filter = 'blur(50px) brightness(0.4)';
-          // Scale to cover
-          ctx.drawImage(coverImageRef.current, -200, -200, w + 400, h + 400);
-          ctx.restore();
+          try {
+              ctx.save();
+              // Draw scaled up background with blur
+              ctx.filter = 'blur(50px) brightness(0.4)';
+              // Scale to cover completely
+              ctx.drawImage(coverImageRef.current, -200, -200, w + 400, h + 400);
+              ctx.restore();
+          } catch (e) {
+              // Ignore drawing errors (e.g. if image is broken)
+          }
       }
 
       // --- 2. LAYOUT CONSTANTS ---
@@ -211,18 +250,33 @@ const Interactive: React.FC = () => {
 
       // --- 3. DRAW ALBUM ART (Top Center) ---
       if (coverImageRef.current) {
+          try {
+              ctx.save();
+              ctx.shadowColor = "rgba(0, 0, 0, 0.6)";
+              ctx.shadowBlur = 50;
+              ctx.shadowOffsetY = 30;
+              
+              const x = (w - coverSize) / 2;
+              ctx.drawImage(coverImageRef.current, x, coverY, coverSize, coverSize);
+              
+              // Border
+              ctx.strokeStyle = "rgba(255, 255, 255, 0.15)";
+              ctx.lineWidth = 3;
+              ctx.strokeRect(x, coverY, coverSize, coverSize);
+              ctx.restore();
+          } catch(e) {}
+      } else {
+          // Placeholder if no image
           ctx.save();
-          ctx.shadowColor = "rgba(0, 0, 0, 0.6)";
-          ctx.shadowBlur = 50;
-          ctx.shadowOffsetY = 30;
-          
+          ctx.fillStyle = '#1e293b';
           const x = (w - coverSize) / 2;
-          ctx.drawImage(coverImageRef.current, x, coverY, coverSize, coverSize);
-          
-          // Border
-          ctx.strokeStyle = "rgba(255, 255, 255, 0.15)";
-          ctx.lineWidth = 3;
+          ctx.fillRect(x, coverY, coverSize, coverSize);
+          ctx.strokeStyle = "rgba(255, 255, 255, 0.1)";
           ctx.strokeRect(x, coverY, coverSize, coverSize);
+          
+          ctx.fillStyle = '#64748b';
+          ctx.font = 'bold 40px Montserrat';
+          ctx.fillText("NO COVER", centerX, coverY + coverSize/2);
           ctx.restore();
       }
 
@@ -248,7 +302,10 @@ const Interactive: React.FC = () => {
           // Standby Message
           ctx.font = '700 48px Montserrat';
           ctx.fillStyle = '#fbbf24'; // Gold
+          ctx.shadowColor = "rgba(251, 191, 36, 0.5)";
+          ctx.shadowBlur = 20;
           ctx.fillText("PRESS SPACE TO START", centerX, lyricCurrentY);
+          ctx.shadowBlur = 0;
           return;
       }
 
