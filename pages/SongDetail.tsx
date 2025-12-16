@@ -100,22 +100,30 @@ const SongDetail: React.FC = () => {
       
       // ISO 639-3 Code Mapping
       const langMap: Record<string, string> = {
-          [Language.Mandarin]: 'cmn',
-          [Language.Taiwanese]: 'nan',
-          [Language.English]: 'eng',
-          [Language.Japanese]: 'jpn',
-          [Language.Korean]: 'kor',
-          [Language.Thai]: 'tha',
-          [Language.Italian]: 'ita',
-          [Language.French]: 'fra',
-          [Language.Instrumental]: 'zxx',
-          // Fallbacks for English labels
+          // Enum Values (Chinese)
+          '華語': 'cmn',
+          '台語': 'nan',
+          '英語': 'eng',
+          '日語': 'jpn',
+          '韓語': 'kor',
+          '泰語': 'tha',
+          '義大利語': 'ita',
+          '法語': 'fra',
+          '純音樂': 'zxx',
+          // English Fallbacks
           'Mandarin': 'cmn', 
+          'Taiwanese': 'nan',
           'English': 'eng',
           'Japanese': 'jpn',
-          'Korean': 'kor'
+          'Korean': 'kor',
+          'Thai': 'tha',
+          'Italian': 'ita',
+          'French': 'fra',
+          'Instrumental': 'zxx'
       };
-      params.append('language', langMap[song.language] || 'zho');
+      
+      const langCode = langMap[song.language] || langMap[Language.Mandarin] || 'zho';
+      params.append('language', langCode);
       params.append('script', 'Hant'); // Traditional Chinese script default for Willwi
 
       // Date Parsing
