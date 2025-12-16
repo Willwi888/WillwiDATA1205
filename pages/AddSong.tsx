@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useData } from '../context/DataContext';
 import { Language, ProjectType, ReleaseCategory, Song } from '../types';
 import { searchSpotifyTracks, searchSpotifyAlbums, getSpotifyAlbumTracks, SpotifyTrack, SpotifyAlbum } from '../services/spotifyService';
-import { getWillwiReleases, getCoverArtUrl, MBReleaseGroup } from '../services/musicbrainzService';
+import { getWillwiReleases, getCoverArtUrl, getReleaseGroupTracks, MBReleaseGroup, MBTrack } from '../services/musicbrainzService';
 import { useTranslation } from '../context/LanguageContext';
 import { useUser } from '../context/UserContext';
 
@@ -51,12 +51,18 @@ const AddSong: React.FC = () => {
   // Search State
   const [searchQuery, setSearchQuery] = useState('');
   const [isSearching, setIsSearching] = useState(false);
+  
+  // Spotify Results
   const [trackResults, setTrackResults] = useState<SpotifyTrack[]>([]);
   const [albumResults, setAlbumResults] = useState<SpotifyAlbum[]>([]);
-  const [mbResults, setMbResults] = useState<MBReleaseGroup[]>([]); // New MusicBrainz State
-  
   const [selectedAlbum, setSelectedAlbum] = useState<SpotifyAlbum | null>(null);
   const [albumTracks, setAlbumTracks] = useState<SpotifyTrack[]>([]);
+  
+  // MusicBrainz Results
+  const [mbResults, setMbResults] = useState<MBReleaseGroup[]>([]);
+  const [selectedMBRelease, setSelectedMBRelease] = useState<(MBReleaseGroup & { coverUrl?: string }) | null>(null);
+  const [mbTracks, setMbTracks] = useState<MBTrack[]>([]);
+
   const [searchError, setSearchError] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [importStatus, setImportStatus] = useState<string>('');
@@ -149,6 +155,8 @@ const AddSong: React.FC = () => {
         setIsSearching(true);
         setSearchError('');
         setMbResults([]);
+        setSelectedMBRelease(null);
+        setMbTracks([]);
         
         const results = await getWillwiReleases();
         if (results.length === 0) {
@@ -209,12 +217,25 @@ const AddSong: React.FC = () => {
 
   const selectMBReleaseForForm = async (release: MBReleaseGroup) => {
       setIsSearching(true);
-      // Try to fetch cover art
       const cover = await getCoverArtUrl(release.id);
       
       let category = ReleaseCategory.Single;
-      if (release['primary-type'] === 'Album') category = ReleaseCategory.Album;
-      if (release['primary-type'] === 'EP') category = ReleaseCategory.EP;
+      const type = release['primary-type'] || '';
+      
+      if (type === 'Album') category = ReleaseCategory.Album;
+      else if (type === 'EP') category = ReleaseCategory.EP;
+      
+      // Fallback logic: If it's an Album/EP, try to fetch tracks to allow Bulk Import
+      if (category === ReleaseCategory.Album || category === ReleaseCategory.EP) {
+          const tracks = await getReleaseGroupTracks(release.id);
+          if (tracks.length > 0) {
+              setSelectedMBRelease({ ...release, coverUrl: cover || '' });
+              setMbTracks(tracks);
+              setIsSearching(false);
+              setMbResults([]);
+              return; // Stop here, render Bulk Import UI
+          }
+      }
 
       setFormData(prev => ({
           ...prev,
@@ -223,7 +244,8 @@ const AddSong: React.FC = () => {
           coverUrl: cover || '',
           musicBrainzId: release.id,
           releaseCategory: category,
-          description: `Imported from MusicBrainz. Type: ${release['primary-type']}`
+          description: `Imported from MusicBrainz. Type: ${type}`,
+          releaseCompany: 'Willwi Music'
       }));
       setIsSearching(false);
       setMbResults([]);
@@ -237,7 +259,7 @@ const AddSong: React.FC = () => {
     setIsSearching(false);
   };
 
-  const bulkImport = async () => {
+  const bulkImportSpotify = async () => {
     if (!selectedAlbum || albumTracks.length === 0) return;
     setIsSaving(true);
     setImportStatus('Importing...');
@@ -272,6 +294,45 @@ const AddSong: React.FC = () => {
     setTimeout(() => {
         navigate('/database');
     }, 1500);
+  };
+
+  const bulkImportMB = async () => {
+      if (!selectedMBRelease || mbTracks.length === 0) return;
+      setIsSaving(true);
+      setImportStatus('Importing from MusicBrainz...');
+
+      let count = 0;
+      const { title, coverUrl, id: mbId } = selectedMBRelease;
+      let category = ReleaseCategory.Single;
+      if (selectedMBRelease['primary-type'] === 'Album') category = ReleaseCategory.Album;
+      else if (selectedMBRelease['primary-type'] === 'EP') category = ReleaseCategory.EP;
+
+      for (const track of mbTracks) {
+          const newSong: Song = {
+              id: Date.now().toString() + Math.random().toString().slice(2, 5),
+              title: track.title,
+              versionLabel: '',
+              coverUrl: coverUrl || '',
+              language: Language.Mandarin,
+              projectType: ProjectType.Indie,
+              releaseCategory: category,
+              releaseCompany: 'Willwi Music',
+              releaseDate: selectedMBRelease['first-release-date'] || new Date().toISOString().split('T')[0],
+              isEditorPick: false,
+              musicBrainzId: mbId,
+              description: `Imported from MusicBrainz Release: ${title} (Track ${track.position})`,
+              credits: ''
+          };
+          await addSong(newSong);
+          count++;
+          setImportStatus(`Imported ${count} / ${mbTracks.length}...`);
+      }
+
+      setIsSaving(false);
+      setImportStatus(`Success! Imported ${count} songs.`);
+      setTimeout(() => {
+          navigate('/database');
+      }, 1500);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -331,21 +392,21 @@ const AddSong: React.FC = () => {
           {/* Mode Switcher */}
           <div className="bg-slate-800 p-1 rounded-lg flex border border-slate-700 shadow-sm">
               <button 
-                onClick={() => { setImportMode('single'); setAlbumResults([]); setMbResults([]); setSelectedAlbum(null); }}
+                onClick={() => { setImportMode('single'); setAlbumResults([]); setMbResults([]); setSelectedAlbum(null); setSelectedMBRelease(null); }}
                 className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-bold transition-all ${importMode === 'single' ? 'bg-brand-accent text-slate-900 shadow' : 'text-slate-400 hover:text-white'}`}
               >
                   <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3" /></svg>
                   {t('form_mode_single')}
               </button>
               <button 
-                onClick={() => { setImportMode('album'); setTrackResults([]); setMbResults([]); setFormData({}); }}
+                onClick={() => { setImportMode('album'); setTrackResults([]); setMbResults([]); setFormData({}); setSelectedMBRelease(null); }}
                 className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-bold transition-all ${importMode === 'album' ? 'bg-brand-accent text-slate-900 shadow' : 'text-slate-400 hover:text-white'}`}
               >
                   <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" /></svg>
                   {t('form_mode_album')}
               </button>
                <button 
-                onClick={() => { setImportMode('mb'); setTrackResults([]); setAlbumResults([]); setFormData({}); }}
+                onClick={() => { setImportMode('mb'); setTrackResults([]); setAlbumResults([]); setFormData({}); setSelectedAlbum(null); }}
                 className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-bold transition-all ${importMode === 'mb' ? 'bg-[#eb743b] text-white shadow' : 'text-slate-400 hover:text-white'}`}
               >
                   <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9" /></svg>
@@ -413,7 +474,7 @@ const AddSong: React.FC = () => {
         )}
 
         {/* --- MUSICBRAINZ RESULTS --- */}
-        {importMode === 'mb' && mbResults.length > 0 && (
+        {importMode === 'mb' && !selectedMBRelease && mbResults.length > 0 && (
             <div className="mt-4 grid gap-3 max-h-80 overflow-y-auto pr-2 custom-scrollbar">
                 {mbResults.map(release => (
                     <div key={release.id} className="flex items-center gap-4 p-3 bg-slate-800 hover:bg-slate-700 rounded-lg border border-slate-700 cursor-pointer transition-colors" onClick={() => selectMBReleaseForForm(release)}>
@@ -455,7 +516,7 @@ const AddSong: React.FC = () => {
             </div>
         )}
 
-        {/* --- ALBUM TRACKS REVIEW --- */}
+        {/* --- SPOTIFY ALBUM TRACKS REVIEW --- */}
         {importMode === 'album' && selectedAlbum && (
             <div className="mt-6 bg-slate-950 p-4 rounded-xl border border-slate-700 animate-fade-in">
                 <div className="flex items-start gap-6 border-b border-slate-800 pb-4 mb-4">
@@ -472,7 +533,7 @@ const AddSong: React.FC = () => {
                     </div>
                     <div className="ml-auto">
                         <button 
-                            onClick={bulkImport}
+                            onClick={bulkImportSpotify}
                             disabled={isSaving || albumTracks.length === 0}
                             className="px-6 py-3 bg-green-600 hover:bg-green-500 text-white font-bold rounded-lg shadow-lg disabled:opacity-50"
                         >
@@ -499,10 +560,59 @@ const AddSong: React.FC = () => {
                 </div>
             </div>
         )}
+
+        {/* --- MUSICBRAINZ ALBUM REVIEW --- */}
+        {importMode === 'mb' && selectedMBRelease && (
+            <div className="mt-6 bg-slate-950 p-4 rounded-xl border border-slate-700 animate-fade-in">
+                <div className="flex items-start gap-6 border-b border-slate-800 pb-4 mb-4">
+                    {selectedMBRelease.coverUrl ? (
+                        <img src={selectedMBRelease.coverUrl} className="w-24 h-24 rounded shadow-lg" alt="cover" />
+                    ) : (
+                        <div className="w-24 h-24 bg-slate-800 rounded flex items-center justify-center text-slate-600">No Cover</div>
+                    )}
+                    <div>
+                        <h4 className="text-2xl font-bold text-white">{selectedMBRelease.title}</h4>
+                        <p className="text-slate-400">{selectedMBRelease['primary-type']} • {selectedMBRelease['first-release-date']}</p>
+                        <button 
+                            onClick={() => { setSelectedMBRelease(null); setMbTracks([]); }}
+                            className="text-xs text-slate-500 hover:text-white mt-2 underline"
+                        >
+                            ← Back
+                        </button>
+                    </div>
+                    <div className="ml-auto">
+                        <button 
+                            onClick={bulkImportMB}
+                            disabled={isSaving || mbTracks.length === 0}
+                            className="px-6 py-3 bg-[#eb743b] hover:bg-[#d6632b] text-white font-bold rounded-lg shadow-lg disabled:opacity-50"
+                        >
+                            {isSaving ? t('form_btn_saving') : `Import All (${mbTracks.length})`}
+                        </button>
+                    </div>
+                </div>
+
+                {importStatus && (
+                    <div className="mb-4 p-3 bg-blue-900/30 text-blue-200 border border-blue-800 rounded text-center font-bold">
+                        {importStatus}
+                    </div>
+                )}
+
+                <div className="space-y-2 max-h-[300px] overflow-y-auto pr-2 custom-scrollbar">
+                    {mbTracks.map((track, idx) => (
+                        <div key={track.id} className="flex items-center gap-4 p-2 bg-slate-900 rounded border border-slate-800 opacity-75">
+                            <span className="text-slate-500 w-6 text-center">{idx + 1}</span>
+                            <div className="font-medium text-slate-300 flex-grow">{track.title}</div>
+                        </div>
+                    ))}
+                    {mbTracks.length === 0 && <div className="text-slate-500 text-center py-4">No tracks found for this release.</div>}
+                </div>
+            </div>
+        )}
+
       </div>
 
-      {/* Manual Form (Only shown in Single Mode or MB Mode) */}
-      {(importMode === 'single' || importMode === 'mb') && (
+      {/* Manual Form (Only shown when NOT in a specific bulk import review state) */}
+      {((importMode === 'single') || (importMode === 'mb' && !selectedMBRelease)) && (
         <form onSubmit={handleSubmit} className="space-y-8 bg-slate-800 p-8 rounded-xl border border-slate-700 animate-fade-in">
              {/* Basic Info */}
             <section>
