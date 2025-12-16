@@ -87,6 +87,18 @@ const AdminDashboard: React.FC = () => {
     downloads: 128
   };
 
+  // 3. CARRD Embed Generator Logic
+  const generateEmbedCode = () => {
+      // Using the current live URL
+      const appUrl = PROJECT_LINKS.live;
+      return `<iframe src="${appUrl}?embed=true" style="width:100%; height:100vh; border:none; background:transparent;" allow="microphone; clipboard-read; clipboard-write; encrypted-media;"></iframe>`;
+  };
+
+  const copyEmbedCode = () => {
+      navigator.clipboard.writeText(generateEmbedCode());
+      alert("Embed code copied! Paste this into a Carrd 'Embed' Element.");
+  };
+
   const handleAdminLogin = (e: React.FormEvent) => {
       e.preventDefault();
       if (passwordInput === '8888') {
@@ -269,6 +281,58 @@ const AdminDashboard: React.FC = () => {
           <div className="flex items-center gap-2">
              <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse shadow-[0_0_10px_#22c55e]"></span>
              <span className="text-xs text-green-500 font-mono uppercase font-bold">Admin Unlocked</span>
+          </div>
+      </div>
+
+      {/* CARRD INTEGRATION PANEL (NEW) */}
+      <div className="bg-slate-900 border border-blue-500/50 rounded-xl p-8 mb-8 shadow-2xl relative overflow-hidden">
+          <div className="absolute top-0 right-0 bg-blue-600 text-white text-[10px] font-bold px-3 py-1 rounded-bl shadow-lg uppercase tracking-wider">NEW FEATURE</div>
+          <h2 className="text-2xl font-bold text-white mb-4 flex items-center gap-3">
+             <span className="text-3xl">🔗</span> Carrd Integration Toolkit
+          </h2>
+          <p className="text-slate-300 text-sm mb-6 max-w-2xl leading-relaxed">
+             利用您的 Carrd Pro 帳戶功能來強化此資料庫。您可以將此應用程式嵌入至 Carrd 頁面中，並利用 Carrd 的大容量空間託管圖片與影片。
+          </p>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+              {/* Tool 1: Embed Generator */}
+              <div className="bg-slate-950 p-6 rounded-lg border border-slate-800">
+                  <h3 className="text-lg font-bold text-white mb-2">1. 嵌入至 Carrd (Embed)</h3>
+                  <p className="text-xs text-slate-400 mb-4">
+                      將此程式碼貼入 Carrd 的 <strong>「Embed」</strong> 元件。這將開啟「透明背景模式」，讓 Carrd 的設計直接透視進來。
+                  </p>
+                  <div className="relative">
+                      <textarea 
+                          readOnly
+                          className="w-full h-24 bg-black border border-slate-700 rounded p-3 text-green-400 font-mono text-xs mb-2 focus:outline-none"
+                          value={generateEmbedCode()}
+                      />
+                      <button 
+                        onClick={copyEmbedCode}
+                        className="absolute bottom-4 right-4 bg-blue-600 hover:bg-blue-500 text-white text-xs px-3 py-1 rounded font-bold"
+                      >
+                          Copy Code
+                      </button>
+                  </div>
+              </div>
+
+              {/* Tool 2: Asset Hosting Guide */}
+              <div className="bg-slate-950 p-6 rounded-lg border border-slate-800">
+                  <h3 className="text-lg font-bold text-white mb-2">2. 使用 Carrd 託管素材</h3>
+                  <p className="text-xs text-slate-400 mb-4">
+                      Carrd 允許上傳最大 64MB 的影片與圖片。
+                  </p>
+                  <ol className="list-decimal list-inside text-xs text-slate-300 space-y-2">
+                      <li>在 Carrd 編輯器中，新增一個 <strong>Image</strong> 或 <strong>Video</strong> 元件。</li>
+                      <li>上傳您的高畫質檔案。</li>
+                      <li>發布網站 (Publish)。</li>
+                      <li>在瀏覽器打開您的 Carrd 網站，對該圖片/影片點擊右鍵 -> <strong>複製連結網址 (Copy Link Address)</strong>。</li>
+                      <li>回到這裡的「Add Song」頁面，貼上該網址。</li>
+                  </ol>
+                  <div className="mt-4 p-2 bg-blue-900/20 text-blue-300 text-[10px] rounded border border-blue-900/50">
+                      💡 Tip: 這樣可以節省此 App 的流量，並利用 Carrd 的 CDN 加速。
+                  </div>
+              </div>
           </div>
       </div>
 

@@ -514,7 +514,9 @@ const AddSong: React.FC = () => {
                         </div>
                     )}
                 </div>
-                <p className="text-xs text-slate-500 mt-1">Direct link or Google Image redirect</p>
+                <p className="text-xs text-slate-500 mt-1">
+                    <span className="text-blue-400 font-bold">Carrd Pro Tip:</span> Upload image to Carrd, publish, and copy link here for max quality.
+                </p>
                 </div>
                 <div className="flex items-center">
                 <input type="checkbox" id="isEditorPick" name="isEditorPick" checked={formData.isEditorPick} onChange={handleChange} className="h-5 w-5 text-brand-accent bg-slate-900 border-slate-600 rounded" />
@@ -580,7 +582,7 @@ const AddSong: React.FC = () => {
                 </div>
                 <div className="mt-4 bg-slate-900/50 p-4 rounded border border-slate-700">
                     <label className="block text-sm font-bold text-brand-accent mb-2">{t('form_label_credits')} (Acknowledgments)</label>
-                    <textarea name="credits" rows={4} value={formData.credits || ''} onChange={handleChange} className="w-full bg-slate-950 border border-slate-600 rounded p-3 text-white text-sm" placeholder="Producer: ... Arranger: ... " />
+                    <textarea name="credits" rows={4} value={formData.credits || ''} onChange={handleChange} className="w-full bg-slate-900 border border-slate-600 rounded p-3 text-white text-sm" placeholder="Producer: ... Arranger: ... " />
                 </div>
             </section>
 
