@@ -24,10 +24,19 @@ const cleanGoogleRedirect = (url: string) => {
 // Helper to convert Google Drive Sharing Link to Direct Audio Source
 const convertDriveLink = (url: string) => {
     try {
-        if (url.includes('drive.google.com') && url.includes('/file/d/')) {
-            // Extract ID
-            const id = url.split('/file/d/')[1].split('/')[0];
-            return `https://docs.google.com/uc?export=download&id=${id}`;
+        if (url.includes('drive.google.com')) {
+            let id = '';
+            if (url.includes('/file/d/')) {
+                id = url.split('/file/d/')[1].split('/')[0];
+            } else if (url.includes('id=')) {
+                id = new URL(url).searchParams.get('id') || '';
+            } else if (url.includes('/open?')) {
+                 id = new URL(url).searchParams.get('id') || '';
+            }
+            
+            if (id) {
+                return `https://docs.google.com/uc?export=download&id=${id}`;
+            }
         }
         return url;
     } catch (e) {
@@ -566,65 +575,11 @@ const SongDetail: React.FC = () => {
             </div>
         </div>
 
-        {/* Content Section */}
+        {/* Content Section - UPDATED LAYOUT */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mt-8">
             
-            {/* LEFT: Lyrics & Story */}
-            <div className="lg:col-span-2 space-y-8">
-                
-                {/* 1. Description & AI Critique */}
-                <div className="bg-slate-900/50 rounded-xl p-8 border border-white/5">
-                    <div className="flex items-center justify-between mb-4">
-                        <h3 className="text-xl font-bold text-white">{t('detail_tab_story')}</h3>
-                        <button 
-                            onClick={handleAiGenerate}
-                            disabled={loadingAi}
-                            className="text-xs bg-brand-accent/10 text-brand-accent border border-brand-accent/50 px-3 py-1 rounded-full hover:bg-brand-accent hover:text-slate-900 transition-colors"
-                        >
-                            {loadingAi ? t('detail_ai_loading') : `✨ ${t('detail_ai_btn')}`}
-                        </button>
-                    </div>
-                    
-                    {isEditing ? (
-                        <textarea 
-                            className="w-full h-32 bg-slate-950 border border-slate-700 rounded p-4 text-white text-sm"
-                            value={editForm.description || ''}
-                            onChange={(e) => setEditForm({...editForm, description: e.target.value})}
-                        />
-                    ) : (
-                        <div className="prose prose-invert max-w-none text-slate-300 font-light leading-relaxed whitespace-pre-line">
-                            {song.description || "No description available."}
-                        </div>
-                    )}
-
-                    {/* AI Review Result */}
-                    {aiReview && (
-                        <div className="mt-6 bg-slate-800 p-6 rounded-lg border-l-4 border-purple-500 animate-fade-in">
-                            <h4 className="text-xs font-bold text-purple-400 uppercase tracking-widest mb-2">AI Review</h4>
-                            <p className="text-sm text-slate-300 leading-relaxed">{aiReview}</p>
-                        </div>
-                    )}
-                </div>
-
-                {/* 2. Lyrics */}
-                <div className="bg-slate-900/50 rounded-xl p-8 border border-white/5 relative">
-                    <h3 className="text-xl font-bold text-white mb-6">{t('detail_lyrics_header')}</h3>
-                    {isEditing ? (
-                        <textarea 
-                            className="w-full h-96 bg-slate-950 border border-slate-700 rounded p-4 text-white font-mono text-sm leading-relaxed"
-                            value={editForm.lyrics || ''}
-                            onChange={(e) => setEditForm({...editForm, lyrics: e.target.value})}
-                        />
-                    ) : (
-                        <div className="font-mono text-sm text-slate-400 whitespace-pre-line leading-relaxed tracking-wide border-l-2 border-slate-800 pl-6">
-                            {song.lyrics || "Lyrics not available."}
-                        </div>
-                    )}
-                </div>
-            </div>
-
-            {/* RIGHT: Media & Links */}
-            <div className="space-y-8">
+            {/* RIGHT: Media & Links (Moved FIRST in DOM for Mobile, Second visually on Desktop) */}
+            <div className="space-y-8 lg:order-2">
                 
                 {/* 1. Media Player (YouTube or Spotify) */}
                 <div className="bg-slate-900 rounded-xl p-6 border border-white/5 shadow-xl">
@@ -652,11 +607,31 @@ const SongDetail: React.FC = () => {
                     )}
 
                     {/* Audio File (if uploaded) */}
-                    {song.audioUrl && (
+                    {song.audioUrl ? (
                         <div className="mt-4 p-3 bg-slate-950 rounded border border-slate-800">
                              <div className="text-[10px] text-brand-gold uppercase tracking-widest font-bold mb-2">Master / Demo Audio</div>
                              <audio controls className="w-full h-8" src={song.audioUrl}></audio>
+                             {/* Debug/Fallback Link */}
+                             <div className="text-right mt-1">
+                                 <a 
+                                    href={song.audioUrl} 
+                                    target="_blank" 
+                                    rel="noreferrer"
+                                    className="text-[10px] text-slate-500 hover:text-white underline"
+                                 >
+                                     ⬇️ 下載 / 開啟音檔 (Direct Link)
+                                 </a>
+                             </div>
                         </div>
+                    ) : (
+                        !embedUrl && !spotifyEmbedId && (
+                            <div className="text-center p-6 bg-slate-950 border border-slate-800 rounded-lg border-dashed">
+                                <p className="text-xs text-slate-500">
+                                    No Audio Source Available.<br/>
+                                    <span className="text-[10px] opacity-70">(Please upload audio or add YouTube link in Edit mode)</span>
+                                </p>
+                            </div>
+                        )
                     )}
 
                     {isEditing && (
@@ -680,6 +655,9 @@ const SongDetail: React.FC = () => {
                                     }
                                 }}
                              />
+                             <p className="text-[10px] text-slate-500">
+                                 Note: For Google Drive, ensure file is "Anyone with link" -> "Viewer".
+                             </p>
                         </div>
                     )}
                 </div>
@@ -732,6 +710,61 @@ const SongDetail: React.FC = () => {
                     )}
                 </div>
             </div>
+
+            {/* LEFT: Lyrics & Story (Moved SECOND in DOM, First visually on Desktop) */}
+            <div className="lg:col-span-2 space-y-8 lg:order-1">
+                
+                {/* 1. Description & AI Critique */}
+                <div className="bg-slate-900/50 rounded-xl p-8 border border-white/5">
+                    <div className="flex items-center justify-between mb-4">
+                        <h3 className="text-xl font-bold text-white">{t('detail_tab_story')}</h3>
+                        <button 
+                            onClick={handleAiGenerate}
+                            disabled={loadingAi}
+                            className="text-xs bg-brand-accent/10 text-brand-accent border border-brand-accent/50 px-3 py-1 rounded-full hover:bg-brand-accent hover:text-slate-900 transition-colors"
+                        >
+                            {loadingAi ? t('detail_ai_loading') : `✨ ${t('detail_ai_btn')}`}
+                        </button>
+                    </div>
+                    
+                    {isEditing ? (
+                        <textarea 
+                            className="w-full h-32 bg-slate-950 border border-slate-700 rounded p-4 text-white text-sm"
+                            value={editForm.description || ''}
+                            onChange={(e) => setEditForm({...editForm, description: e.target.value})}
+                        />
+                    ) : (
+                        <div className="prose prose-invert max-w-none text-slate-300 font-light leading-relaxed whitespace-pre-line">
+                            {song.description || "No description available."}
+                        </div>
+                    )}
+
+                    {/* AI Review Result */}
+                    {aiReview && (
+                        <div className="mt-6 bg-slate-800 p-6 rounded-lg border-l-4 border-purple-500 animate-fade-in">
+                            <h4 className="text-xs font-bold text-purple-400 uppercase tracking-widest mb-2">AI Review</h4>
+                            <p className="text-sm text-slate-300 leading-relaxed">{aiReview}</p>
+                        </div>
+                    )}
+                </div>
+
+                {/* 2. Lyrics */}
+                <div className="bg-slate-900/50 rounded-xl p-8 border border-white/5 relative">
+                    <h3 className="text-xl font-bold text-white mb-6">{t('detail_lyrics_header')}</h3>
+                    {isEditing ? (
+                        <textarea 
+                            className="w-full h-96 bg-slate-950 border border-slate-700 rounded p-4 text-white font-mono text-sm leading-relaxed"
+                            value={editForm.lyrics || ''}
+                            onChange={(e) => setEditForm({...editForm, lyrics: e.target.value})}
+                        />
+                    ) : (
+                        <div className="font-mono text-sm text-slate-400 whitespace-pre-line leading-relaxed tracking-wide border-l-2 border-slate-800 pl-6">
+                            {song.lyrics || "Lyrics not available."}
+                        </div>
+                    )}
+                </div>
+            </div>
+
         </div>
     </div>
   );
