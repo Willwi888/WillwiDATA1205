@@ -23,6 +23,7 @@ const AdminDashboard: React.FC = () => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [restoreStatus, setRestoreStatus] = useState('');
+  const [importMode, setImportMode] = useState<'overwrite' | 'merge'>('overwrite'); // NEW: Import Mode
   
   // Admin Login State
   const [passwordInput, setPasswordInput] = useState('');
@@ -116,8 +117,13 @@ const AdminDashboard: React.FC = () => {
     }
   };
 
-  const handleImportClick = () => {
-      if (window.confirm("⚠️ 警告：匯入備份將會「覆蓋」目前所有的資料庫內容。\n\n請確認您選擇的備份檔案是最新的。\n確定要繼續嗎？")) {
+  const handleImportClick = (mode: 'overwrite' | 'merge') => {
+      setImportMode(mode);
+      const msg = mode === 'overwrite' 
+        ? "⚠️ 警告：【覆蓋模式】將會清除目前所有的資料，並完全替換為備份檔內容。\n\n確定要繼續嗎？"
+        : "ℹ️ 提示：【合併模式】將保留現有資料，並將備份檔中的新歌加入。若有 ID 衝突，將以備份檔為主。";
+      
+      if (window.confirm(msg)) {
           fileInputRef.current?.click();
       }
   };
@@ -133,30 +139,50 @@ const AdminDashboard: React.FC = () => {
       reader.onload = async (event) => {
           try {
               const json = event.target?.result as string;
-              const parsedSongs = JSON.parse(json) as Song[];
+              let parsedSongs: Song[] = [];
+              
+              try {
+                  parsedSongs = JSON.parse(json);
+              } catch (e) {
+                  throw new Error("JSON Parse Failed");
+              }
               
               if (!Array.isArray(parsedSongs)) {
-                  throw new Error("Invalid format");
+                  throw new Error("Invalid Data Format: Not an array");
+              }
+              
+              // Simple validation
+              const validSongs = parsedSongs.filter(s => s.id && s.title);
+              if (validSongs.length === 0) {
+                  throw new Error("No valid songs found in file");
               }
 
-              setRestoreStatus(`Found ${parsedSongs.length} songs. Restoring...`);
-              
-              // 1. Clear existing DB
-              await dbService.clearAllSongs();
-              
-              // 2. Add new songs
-              await dbService.bulkAdd(parsedSongs);
+              setRestoreStatus(`Validating ${validSongs.length} songs...`);
 
-              setRestoreStatus('Success! Reloading...');
+              if (importMode === 'overwrite') {
+                  // 1. Clear existing DB
+                  await dbService.clearAllSongs();
+                  // 2. Add new songs
+                  await dbService.bulkAdd(validSongs);
+                  setRestoreStatus('Overwrite Complete! Reloading...');
+              } else {
+                  // Merge Logic
+                  await dbService.bulkAdd(validSongs); // bulkAdd implementation typically puts (overwrites on ID collision)
+                  setRestoreStatus('Merge Complete! Reloading...');
+              }
+              
               setTimeout(() => {
                   window.location.reload();
-              }, 1000);
+              }, 1500);
 
           } catch (err) {
               console.error(err);
-              setRestoreStatus('Error: Invalid Backup File');
-              alert("匯入失敗：檔案格式錯誤。");
+              setRestoreStatus(`Error: ${(err as Error).message}`);
+              alert(`匯入失敗：${(err as Error).message}`);
               setIsProcessing(false);
+          } finally {
+              // Reset input so same file can be selected again if needed
+              if (fileInputRef.current) fileInputRef.current.value = '';
           }
       };
       reader.readAsText(file);
@@ -360,18 +386,28 @@ const AdminDashboard: React.FC = () => {
                  </div>
 
                  {/* Restore Section */}
-                 <div className="mt-8 pt-6 border-t border-slate-700/50 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-slate-950/30 p-4 rounded-lg">
-                     <div className="text-xs text-slate-400">
-                         <strong>資料還原：</strong> 換了新電腦或瀏覽器？請在此匯入之前的 JSON 檔案。
-                     </div>
-                     <div className="relative">
-                        <button 
-                            onClick={handleImportClick}
-                            disabled={isProcessing}
-                            className="text-xs bg-slate-700 hover:bg-white hover:text-slate-900 text-white font-bold px-4 py-2 rounded transition-colors"
-                        >
-                            🔄 從檔案還原資料庫
-                        </button>
+                 <div className="mt-8 pt-6 border-t border-slate-700/50 flex flex-col items-start gap-4 bg-slate-950/30 p-4 rounded-lg">
+                     <div className="w-full">
+                         <strong className="text-white text-sm block mb-1">資料還原 (Restore)</strong>
+                         <p className="text-xs text-slate-400 mb-3">
+                             換了新電腦或瀏覽器？請在此匯入之前的 JSON 檔案。
+                         </p>
+                         <div className="flex gap-4">
+                             <button 
+                                onClick={() => handleImportClick('overwrite')}
+                                disabled={isProcessing}
+                                className="flex-1 text-xs bg-red-900/50 hover:bg-red-800 text-red-200 border border-red-800 font-bold px-4 py-2 rounded transition-colors"
+                            >
+                                ⚠️ 覆蓋 (Overwrite)
+                            </button>
+                            <button 
+                                onClick={() => handleImportClick('merge')}
+                                disabled={isProcessing}
+                                className="flex-1 text-xs bg-blue-900/50 hover:bg-blue-800 text-blue-200 border border-blue-800 font-bold px-4 py-2 rounded transition-colors"
+                            >
+                                ➕ 合併 (Merge)
+                            </button>
+                         </div>
                         <input 
                             type="file" 
                             ref={fileInputRef} 

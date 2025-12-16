@@ -9,13 +9,13 @@ interface User {
 
 interface UserContextType {
   user: User | null;
-  login: (email: string) => void;
+  login: (name: string, email: string) => void;
   logout: () => void;
   addCredits: (amount: number) => void;
   deductCredit: () => boolean; // Returns true if successful
   isLoading: boolean;
-  isAdmin: boolean; // NEW: Global Admin State
-  enableAdmin: () => void; // NEW: Function to unlock admin
+  isAdmin: boolean; // Global Admin State
+  enableAdmin: () => void; // Function to unlock admin
 }
 
 const UserContext = createContext<UserContextType | undefined>(undefined);
@@ -45,27 +45,40 @@ export const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   useEffect(() => {
     if (user) {
       localStorage.setItem('willwi_user_session', JSON.stringify(user));
-      // Also update the "database" of users to persist credits across logins
+      
+      // PERSISTENCE LOGIC:
+      // We update the "database" of users to ensure credits are saved for this email
       const userDb = JSON.parse(localStorage.getItem('willwi_users_db') || '{}');
-      userDb[user.email] = user;
+      userDb[user.email] = {
+          ...userDb[user.email], // Keep existing data if any
+          name: user.name,
+          email: user.email,
+          credits: user.credits // Save current credits
+      };
       localStorage.setItem('willwi_users_db', JSON.stringify(userDb));
     } else {
       localStorage.removeItem('willwi_user_session');
     }
   }, [user]);
 
-  const login = (email: string) => {
+  const login = (name: string, email: string) => {
+    // 1. Check if user exists in our "DB"
     const userDb = JSON.parse(localStorage.getItem('willwi_users_db') || '{}');
     let existingUser = userDb[email];
 
     if (!existingUser) {
-      // New User: Grant 1 Free Credit
+      // New User: Grant 1 Free Credit (First Time Experience)
       existingUser = {
         email,
-        name: email.split('@')[0],
-        credits: 1,
+        name: name,
+        credits: 1, 
         isMember: false
       };
+    } else {
+        // Returning User: Update name, but KEEP existing credits
+        existingUser.name = name;
+        // Ensure credits field exists (for migration)
+        if (existingUser.credits === undefined) existingUser.credits = 0;
     }
 
     setUser(existingUser);

@@ -148,7 +148,6 @@ const Database: React.FC = () => {
                                 <div className="relative h-48 overflow-hidden rounded-t">
                                      <img src={coverSong.coverUrl} className="w-full h-full object-cover opacity-40 group-hover:opacity-30 group-hover:scale-105 transition-all duration-700 blur-sm" alt="bg" />
                                      <div className="absolute inset-0 flex items-center p-6 gap-6 bg-gradient-to-t from-slate-900 via-slate-900/80 to-transparent">
-                                         {/* Removed grayscale here */}
                                          <img src={coverSong.coverUrl} className="w-24 h-24 shadow-2xl object-cover z-10 border border-white/10" alt="cover" />
                                          <div className="z-10 overflow-hidden">
                                              <div className="text-[10px] font-bold text-brand-accent tracking-[0.2em] uppercase mb-1">Album</div>
@@ -170,7 +169,7 @@ const Database: React.FC = () => {
                                             <div className="flex-1 min-w-0">
                                                 <div className="text-sm font-bold text-slate-300 group-hover/track:text-white truncate transition-colors">{song.title}</div>
                                             </div>
-                                            <span className="text-[10px] text-slate-600 group-hover/track:text-white uppercase tracking-wider">{formatDuration(song)}</span>
+                                            <div className="text-[10px] text-slate-600 font-mono hidden sm:block">ISRC: {song.isrc || '-'}</div>
                                         </Link>
                                     ))}
                                 </div>
@@ -194,7 +193,6 @@ const Database: React.FC = () => {
                     {groupedContent.singles.map(song => (
                     <Link key={song.id} to={`/song/${song.id}`} className="group relative">
                         <div className="aspect-square overflow-hidden bg-slate-900 border border-white/5 relative mb-3">
-                            {/* Removed grayscale, increased opacity to 100 */}
                             <img src={song.coverUrl} alt={song.title} className="w-full h-full object-cover group-hover:scale-105 transition-all duration-700" />
                             {song.isEditorPick && (
                                 <div className="absolute top-0 right-0 bg-brand-gold text-slate-900 text-[10px] font-bold px-2 py-1 uppercase tracking-widest">
@@ -209,6 +207,7 @@ const Database: React.FC = () => {
                                 <span className={`w-1.5 h-1.5 rounded-full ${getLanguageColor(song.language)}`}></span>
                                 <span className="text-[10px] text-slate-500 uppercase tracking-wider">{song.versionLabel || song.language}</span>
                             </div>
+                            <div className="text-[10px] text-slate-600 font-mono mt-1">UPC: {song.upc || '-'}</div>
                         </div>
                     </Link>
                     ))}
@@ -223,9 +222,12 @@ const Database: React.FC = () => {
                     <tr>
                         <th scope="col" className="px-6 py-4 text-left text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em]">{t('db_col_cover')}</th>
                         <th scope="col" className="px-6 py-4 text-left text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em]">{t('db_col_info')}</th>
-                        <th scope="col" className="px-6 py-4 text-left text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em] hidden md:table-cell">ID (ISRC)</th>
+                        <th scope="col" className="px-6 py-4 text-left text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em] hidden md:table-cell">ISRC / UPC</th>
                         <th scope="col" className="px-6 py-4 text-left text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em] hidden sm:table-cell">{t('db_col_release')}</th>
-                        <th scope="col" className="px-6 py-4 text-left text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em]">{t('db_col_status')}</th>
+                        {/* ONLY SHOW STATUS TO ADMINS */}
+                        {isAdmin && (
+                            <th scope="col" className="px-6 py-4 text-left text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em]">{t('db_col_status')}</th>
+                        )}
                         <th scope="col" className="px-6 py-4"></th> 
                     </tr>
                 </thead>
@@ -240,7 +242,6 @@ const Database: React.FC = () => {
                             >
                                 <td className="px-6 py-4 whitespace-nowrap">
                                     <div className="h-10 w-10 bg-black relative overflow-hidden border border-white/10">
-                                        {/* Removed grayscale, increased opacity to 100 */}
                                         <img className="h-full w-full object-cover" src={song.coverUrl} alt="" />
                                     </div>
                                 </td>
@@ -252,18 +253,22 @@ const Database: React.FC = () => {
                                     </div>
                                 </td>
                                 <td className="px-6 py-4 whitespace-nowrap text-[10px] text-slate-500 font-mono hidden md:table-cell">
-                                    {song.isrc || '-'}
+                                    <div>ISRC: {song.isrc || '-'}</div>
+                                    <div>UPC: {song.upc || '-'}</div>
                                 </td>
                                 <td className="px-6 py-4 whitespace-nowrap text-[10px] text-slate-500 font-mono hidden sm:table-cell tracking-wider">
                                     {song.releaseDate}
                                 </td>
-                                <td className="px-6 py-4 whitespace-nowrap">
-                                    {missing.length > 0 ? (
-                                        <span className="w-2 h-2 rounded-full bg-red-500/50 inline-block"></span>
-                                    ) : (
-                                        <span className="w-2 h-2 rounded-full bg-green-500/50 inline-block"></span>
-                                    )}
-                                </td>
+                                {/* ONLY SHOW STATUS TO ADMINS */}
+                                {isAdmin && (
+                                    <td className="px-6 py-4 whitespace-nowrap">
+                                        {missing.length > 0 ? (
+                                            <span className="w-2 h-2 rounded-full bg-red-500/50 inline-block"></span>
+                                        ) : (
+                                            <span className="w-2 h-2 rounded-full bg-green-500/50 inline-block"></span>
+                                        )}
+                                    </td>
+                                )}
                                 <td className="px-6 py-4 whitespace-nowrap text-right">
                                     <span className="text-slate-700 group-hover:text-white transition-colors">
                                         <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M9 5l7 7-7 7" /></svg>

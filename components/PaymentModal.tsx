@@ -17,7 +17,6 @@ const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose }) => {
     
     // In a real app, we would wait for a webhook. 
     // Here we simulate success after a delay/confirmation for the demo.
-    // We add a small delay to simulate the user going to pay.
     if (window.confirm("模擬環境提示：\n您是否已完成付款？\n(點擊「確定」將模擬系統收到款項並發放額度)")) {
         addCredits(simulatedCredits);
         onClose();
@@ -26,47 +25,93 @@ const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose }) => {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={onClose}></div>
+      <div className="absolute inset-0 bg-black/90 backdrop-blur-md" onClick={onClose}></div>
       
-      <div className="relative z-10 bg-slate-900 border border-slate-700 rounded-2xl max-w-lg w-full overflow-hidden shadow-2xl animate-fade-in">
-        <div className="p-6 border-b border-slate-800 flex justify-between items-center bg-slate-950">
-            <h3 className="text-2xl font-bold text-white flex items-center gap-2">
-                💎 儲值額度
-            </h3>
-            <button onClick={onClose} className="text-slate-400 hover:text-white text-xl">✕</button>
-        </div>
+      <div className="relative z-10 bg-slate-900 border border-slate-700 rounded-3xl max-w-4xl w-full overflow-hidden shadow-2xl animate-fade-in flex flex-col md:flex-row">
         
-        <div className="p-8">
-            <div className="text-center mb-8">
-                <p className="text-slate-300 mb-2">您的目前額度：<span className="text-brand-accent font-bold text-xl">{user?.credits || 0}</span> 首</p>
-                <p className="text-sm text-slate-500">製作並下載一支歌詞影片需消耗 1 點額度。</p>
+        {/* OPTION 1: DONATION (Instant Noodles) - LEFT SIDE */}
+        <div className="w-full md:w-1/2 p-8 border-b md:border-b-0 md:border-r border-slate-700 flex flex-col">
+            <h3 className="text-2xl font-bold text-white mb-4">方案一：愛心熱泡麵</h3>
+            <span className="inline-block px-3 py-1 rounded-full bg-yellow-500/20 text-yellow-500 text-xs font-bold mb-6 w-fit">創作支持（樂捐）</span>
+            
+            <p className="text-slate-300 text-sm leading-relaxed mb-6 whitespace-pre-line">
+                如果你想單純支持我的創作，
+                可以請我一碗愛心熱泡麵。
+
+                此為<span className="text-white font-bold">非商品、非交易之支持行為</span>，金額不對應任何服務或成果。
+
+                感謝你願意用一點溫度，陪我繼續創作。
+            </p>
+
+            <div className="mt-auto flex flex-col items-center justify-center p-6 bg-white rounded-xl shadow-inner">
+                {/* QR CODE DISPLAY */}
+                <div className="w-48 h-48 bg-slate-100 flex items-center justify-center mb-4 relative overflow-hidden group">
+                    <img 
+                        src="https://raw.githubusercontent.com/willwi-music/assets/main/linepay-qr.jpg" 
+                        onError={(e) => {
+                            // Fallback if image fails
+                            e.currentTarget.style.display = 'none';
+                            e.currentTarget.parentElement!.innerHTML = '<span class="text-slate-400 text-xs text-center p-2">QR Code<br/>(Image not found)</span>';
+                        }}
+                        className="w-full h-full object-contain mix-blend-multiply" 
+                        alt="Line Pay QR Code"
+                    />
+                </div>
+                <p className="text-slate-900 font-bold text-sm">LINE Pay 轉帳</p>
+                <p className="text-slate-500 text-xs mt-1">（創作支持／非商品）</p>
+            </div>
+        </div>
+
+        {/* OPTION 2: SERVICE (Lyric Video) - RIGHT SIDE */}
+        <div className="w-full md:w-1/2 p-8 bg-slate-950 flex flex-col">
+            <div className="flex justify-between items-start mb-4">
+                <h3 className="text-2xl font-bold text-white">方案二：手工動態歌詞</h3>
+                <button onClick={onClose} className="text-slate-400 hover:text-white text-xl">✕</button>
+            </div>
+            <span className="inline-block px-3 py-1 rounded-full bg-brand-accent/20 text-brand-accent text-xs font-bold mb-6 w-fit">系統參與費</span>
+
+            <div className="text-slate-300 text-sm leading-relaxed mb-8">
+                <ul className="space-y-3 mb-6">
+                    <li className="flex items-center gap-2">
+                        <span className="text-brand-accent">▸</span> 第一次體驗：<span className="text-white font-bold">免費</span>
+                    </li>
+                    <li className="flex items-center gap-2">
+                        <span className="text-brand-accent">▸</span> 第二次起：每首 <span className="text-white font-bold">NT$ 80</span>
+                    </li>
+                </ul>
+                <p className="text-xs text-slate-500 border-t border-slate-800 pt-4 whitespace-pre-line">
+                    此費用為「參與系統與創作支持」，
+                    非商品販售、非代工服務。
+                    您將獲得親手製作的動態歌詞影片下載權限。
+                </p>
+                <div className="bg-slate-900 p-3 rounded border border-slate-800 mt-4">
+                    <p className="text-xs text-brand-gold font-bold text-center">
+                        ⚠️ 請自行輸入金額 NT$ 80
+                    </p>
+                    <p className="text-[10px] text-slate-500 text-center mt-1">
+                        (如想多給支持，金額不限)
+                    </p>
+                </div>
             </div>
 
-            {/* Plan A: Single Purchase Only */}
-            <div className="border border-slate-700 rounded-xl p-6 bg-slate-800 hover:border-brand-accent transition-colors relative overflow-hidden group max-w-sm mx-auto">
-                <div className="absolute top-0 right-0 bg-slate-700 text-xs px-2 py-1 rounded-bl text-slate-300">彈性選擇</div>
-                <h4 className="text-xl font-bold text-white mb-2">單次加購</h4>
-                <div className="text-3xl font-black text-brand-gold mb-4">NT$ 80 <span className="text-sm text-slate-400 font-normal">/ 首</span></div>
-                <ul className="text-sm text-slate-400 space-y-2 mb-6">
-                    <li className="flex gap-2">✓ 增加 1 首製作額度</li>
-                    <li className="flex gap-2">✓ 永久有效，隨用隨扣</li>
-                    <li className="flex gap-2">✓ 支持原創音樂人</li>
-                </ul>
+            <div className="mt-auto">
+                <div className="text-center mb-4">
+                    <p className="text-slate-400 text-xs mb-1">您的目前額度</p>
+                    <p className="text-3xl font-black text-white">{user?.credits || 0} <span className="text-sm font-normal text-slate-500">首</span></p>
+                </div>
+                
                 <button 
                     onClick={() => handlePaymentClick('https://www.paypal.com/ncp/payment/JRSNPRY9FFYZE', 1)}
-                    className="w-full py-3 rounded-lg bg-slate-700 hover:bg-slate-600 text-white font-bold transition-all border border-slate-600 group-hover:bg-brand-accent group-hover:text-brand-darker group-hover:border-brand-accent"
+                    className="w-full py-4 rounded-xl bg-brand-accent hover:bg-white text-slate-900 font-bold transition-all shadow-lg hover:shadow-brand-accent/20 flex items-center justify-center gap-2"
                 >
-                    立即購買
+                    <span>前往付款 (金額請填 80)</span>
                 </button>
-            </div>
-            
-            <div className="mt-8 text-center">
-                 <p className="text-xs text-slate-500">
-                    點擊購買將開啟 PayPal 付款頁面。付款完成後系統將自動為您儲值。
-                    <br/>如有問題請聯繫客服。
-                 </p>
+                <p className="text-[10px] text-slate-600 text-center mt-3">
+                    透過 PayPal 安全支付
+                </p>
             </div>
         </div>
+
       </div>
     </div>
   );

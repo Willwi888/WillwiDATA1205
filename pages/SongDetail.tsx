@@ -38,7 +38,7 @@ const convertDriveLink = (url: string) => {
 const SongDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { getSong, updateSong, deleteSong } = useData();
+  const { getSong, updateSong, deleteSong, songs } = useData(); // Added 'songs' to context destructuring
   const { t } = useTranslation();
   const { isAdmin } = useUser(); // Access global admin state
   
@@ -65,6 +65,9 @@ const SongDetail: React.FC = () => {
   // Image Upload Ref
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Related Songs (Multilingual)
+  const [relatedSongs, setRelatedSongs] = useState<Song[]>([]);
+
   useEffect(() => {
     if (id) {
       const found = getSong(id);
@@ -74,6 +77,34 @@ const SongDetail: React.FC = () => {
       }
     }
   }, [id, getSong, navigate]);
+
+  // Logic to find related songs (versions in other languages)
+  useEffect(() => {
+      if (!song || !songs) return;
+      
+      const normalizeTitle = (title: string) => {
+          // Remove contents in brackets e.g. "Love Again (Chinese Ver.)" -> "love again"
+          return title.split('(')[0].trim().toLowerCase();
+      };
+
+      const currentTitleBase = normalizeTitle(song.title);
+
+      const related = songs.filter(s => {
+          if (s.id === song.id) return false; // Exclude self
+          
+          // 1. Strong Match: Shared MusicBrainz Release Group ID
+          if (song.musicBrainzId && s.musicBrainzId && song.musicBrainzId === s.musicBrainzId) {
+              return true;
+          }
+
+          // 2. Fuzzy Match: Same Base Title
+          const otherTitleBase = normalizeTitle(s.title);
+          return currentTitleBase === otherTitleBase;
+      });
+
+      setRelatedSongs(related);
+
+  }, [song, songs]);
 
   if (!song) return <div className="text-white text-center mt-20">Loading...</div>;
 
@@ -656,6 +687,33 @@ const SongDetail: React.FC = () => {
                         </div>
                     )}
                 </div>
+                
+                {/* 1.5 Related Versions (NEW: Multilingual Linking) */}
+                {!isEditing && relatedSongs.length > 0 && (
+                    <div className="bg-slate-800 rounded-2xl p-6 border border-slate-700">
+                        <h3 className="text-xl font-bold text-white mb-4">
+                            🌍 {t('db_filter_lang')} / Versions
+                        </h3>
+                        <div className="space-y-3">
+                            {relatedSongs.map(rs => (
+                                <button 
+                                    key={rs.id}
+                                    onClick={() => navigate(`/song/${rs.id}`)}
+                                    className="w-full flex items-center gap-3 p-3 bg-slate-700/50 hover:bg-slate-600 rounded-lg transition-colors text-left group"
+                                >
+                                    <img src={rs.coverUrl} className="w-10 h-10 rounded shadow object-cover" alt="cover"/>
+                                    <div>
+                                        <div className="text-sm font-bold text-white group-hover:text-brand-accent transition-colors">{rs.title}</div>
+                                        <div className="flex items-center gap-2">
+                                            <span className={`w-1.5 h-1.5 rounded-full ${getLanguageColor(rs.language)}`}></span>
+                                            <span className="text-[10px] text-slate-400">{rs.language} • {rs.versionLabel || 'Original'}</span>
+                                        </div>
+                                    </div>
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+                )}
 
                 {/* 2. External Links */}
                 <div className="bg-slate-800 rounded-2xl p-6 border border-slate-700">
