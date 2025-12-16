@@ -58,7 +58,7 @@ const AdminDashboard: React.FC = () => {
   const PROJECT_LINKS = {
       drive: 'https://drive.google.com/drive/folders/1PmP_GB7etr45T_DwcZcLt45Om2RDqTNI?usp=drive_link',
       supabase: 'https://supabase.com/dashboard/project/rzxqseimxhbokrhcdjbi',
-      vercel: 'https://vercel.com/willwi',
+      googleCloud: 'https://console.cloud.google.com/run', // Updated to Google Cloud
       live: 'https://willwi-music-467949320732.us-west1.run.app/' 
   };
 
@@ -83,7 +83,7 @@ const AdminDashboard: React.FC = () => {
       const currentOrigin = window.location.origin;
       // If we are in WebContainer or Localhost, warn user
       const isDev = currentOrigin.includes('localhost') || currentOrigin.includes('webcontainer');
-      const baseUrl = isDev ? "YOUR_VERCEL_APP_URL" : currentOrigin;
+      const baseUrl = isDev ? "YOUR_GOOGLE_CLOUD_URL" : currentOrigin;
 
       return `<iframe src="${baseUrl}?embed=true" style="width:100%; height:100vh; min-height:800px; border:none; background:transparent;" allow="microphone; clipboard-read; clipboard-write; encrypted-media; autoplay"></iframe>`;
   };
@@ -267,7 +267,7 @@ const AdminDashboard: React.FC = () => {
               <div className="bg-slate-950 p-6 rounded-lg border border-slate-800">
                   <h3 className="text-lg font-bold text-white mb-2">1. 取得嵌入代碼 (Embed Code)</h3>
                   <p className="text-xs text-slate-400 mb-4">
-                      請先將此 App 部署 (Deploy) 至 Vercel。在正式網址開啟此頁面後，下方的代碼會自動更新。
+                      請先將此 App 部署 (Deploy) 至 <strong>Google Cloud</strong>。在正式網址開啟此頁面後，下方的代碼會自動更新。
                   </p>
                   <div className="relative">
                       <textarea 
@@ -487,16 +487,16 @@ const AdminDashboard: React.FC = () => {
                     </a>
 
                     <a 
-                        href={PROJECT_LINKS.vercel} 
+                        href={PROJECT_LINKS.googleCloud} 
                         target="_blank" 
                         rel="noreferrer"
-                        className="block p-4 bg-slate-950 border border-slate-800 hover:border-white rounded-lg group transition-all"
+                        className="block p-4 bg-slate-950 border border-slate-800 hover:border-blue-500 rounded-lg group transition-all"
                     >
                         <div className="flex justify-between items-start mb-2">
-                            <span className="text-white font-bold">Vercel Dashboard</span>
-                            <span className="text-[10px] bg-slate-800 text-slate-400 px-2 py-1 rounded border border-slate-700">HOSTING</span>
+                            <span className="text-white font-bold">Google Cloud</span>
+                            <span className="text-[10px] bg-blue-900/20 text-blue-400 px-2 py-1 rounded border border-blue-900/50">HOSTING</span>
                         </div>
-                        <p className="text-xs text-slate-500 group-hover:text-slate-300">Manage deployments.</p>
+                        <p className="text-xs text-slate-500 group-hover:text-slate-300">Manage Cloud Run.</p>
                     </a>
 
                     <a 
