@@ -16,21 +16,28 @@ export const generateMusicCritique = async (song: Song): Promise<string> => {
   if (!client) return "請先設定 Google Gemini API Key 才能使用 AI 樂評功能。";
 
   const prompt = `
-    你是一位專業的繁體中文資深樂評人。請為音樂人 Willwi 的這首作品撰寫一段約 150-200 字的短評與介紹。
+    你是一位專業的繁體中文資深樂評人。請為音樂人 Willwi 的這首作品撰寫一段約 200-250 字的深度短評與介紹。
     
-    歌曲資訊：
+    【歌曲詳細資訊】
     - 歌名：${song.title} ${song.versionLabel ? `(${song.versionLabel})` : ''}
     - 語言：${song.language}
     - 發行日期：${song.releaseDate}
-    - 專案背景：${song.projectType}
-    ${song.lyrics ? `- 歌詞片段參考：${song.lyrics.substring(0, 100)}...` : ''}
-    ${song.description ? `- 創作背景：${song.description}` : ''}
+    - 專案背景：${song.projectType} (${song.releaseCategory || 'Single'})
     
-    評論風格要求：
-    1. 專業且溫暖，鼓勵獨立音樂創作。
-    2. 強調多語創作的特色。
-    3. 如果是「泡麵聲學院」作品，請提到其實驗性或趣味性；如果是獨立發行，強調其個人情感。
-    4. 輸出格式為純文字，不要用 markdown 標題。
+    【製作與背景資料】
+    ${song.credits ? `- 製作團隊與樂器編制 (Instrumentation Cues)：\n${song.credits}` : '- 製作名單：未提供'}
+    ${song.description ? `- 創作背景描述：\n${song.description}` : '- 描述：未提供'}
+    
+    【歌詞文本】
+    ${song.lyrics ? song.lyrics : '(純音樂或無歌詞)'}
+    
+    【評論撰寫指南】
+    請綜合以上資訊，撰寫一篇包含以下面向的評論：
+    1. **曲風與配器 (Genre & Instrumentation)**：從 Credits 或描述中尋找線索（如吉他、鋼琴、合成器等），分析歌曲的流派風格（如 Acoustic, Pop, Ballad, Electronic 等）與聽感氛圍。
+    2. **歌詞主題 (Lyrical Themes)**：若是人聲歌曲，請分析歌詞傳達的核心情感（如失戀、自我探索、社會觀察等）；若是純音樂，請描繪旋律帶來的畫面感。
+    3. **藝人特色**：強調 Willwi 在${song.language}作品中的演繹特色或專案背景（${song.projectType}）的實驗性。
+    4. **語氣**：專業、溫暖且具啟發性，像是在推薦一張好唱片。
+    5. **格式**：請直接輸出一段流暢的純文字評論，不要使用 Markdown 標題或列點。
   `;
 
   try {

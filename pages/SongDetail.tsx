@@ -217,8 +217,9 @@ const SongDetail: React.FC = () => {
               params.append('events.0.date.month', parts[1]);
               params.append('events.0.date.day', parts[2]);
           }
-          params.append('events.0.country', 'TW'); 
       }
+      // Ensure Country is always TW (Taiwan)
+      params.append('events.0.country', 'TW');
 
       // Type Guessing
       let primaryType = 'single';
