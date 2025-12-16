@@ -7,24 +7,7 @@ import { useTranslation } from '../context/LanguageContext';
 
 // --- TYPES ---
 type InteractionMode = 'menu' | 'lyric-maker' | 'ai-video' | 'voting';
-type GameState = 'select' | 'ready' | 'playing' | 'processing' | 'finished';
-
-// Helper to extract YouTube ID
-const getYoutubeEmbedUrl = (url?: string) => {
-    if (!url) return null;
-    try {
-        let videoId = '';
-        if (url.includes('youtu.be/')) {
-            videoId = url.split('youtu.be/')[1].split('?')[0];
-        } else if (url.includes('youtube.com/watch')) {
-            const urlParams = new URLSearchParams(new URL(url).search);
-            videoId = urlParams.get('v') || '';
-        } else if (url.includes('youtube.com/embed/')) {
-             videoId = url.split('embed/')[1];
-        }
-        return videoId ? `https://www.youtube.com/embed/${videoId}?rel=0&autoplay=1` : null;
-    } catch(e) { return null; }
-};
+type GameState = 'select' | 'ready' | 'standby' | 'playing' | 'processing' | 'finished';
 
 const Interactive: React.FC = () => {
   const { user, login, deductCredit, isAdmin } = useUser();
@@ -40,15 +23,10 @@ const Interactive: React.FC = () => {
   const [loginEmail, setLoginEmail] = useState('');
   const [loginName, setLoginName] = useState('');
 
-  // --- VOTING EVENT STATE ---
-  const [votes, setVotes] = useState<string[]>([]);
-  const [previewSong, setPreviewSong] = useState<Song | null>(null); 
-  const MAX_VOTES = 10;
-
   // --- LYRIC MAKER STATE (VIDEO ENGINE) ---
   const [gameState, setGameState] = useState<GameState>('select');
   const [selectedSong, setSelectedSong] = useState<Song | null>(null);
-  const [lineIndex, setLineIndex] = useState(0); // Index of the line currently "Active" (Center)
+  const [lineIndex, setLineIndex] = useState(0); 
   const [searchTerm, setSearchTerm] = useState('');
   
   // Refs for Engine
@@ -80,16 +58,15 @@ const Interactive: React.FC = () => {
 
   // --- LYRIC VIDEO ENGINE ---
 
-  // Preload Image to avoid flickering
+  // Preload Image
   useEffect(() => {
       if (selectedSong && selectedSong.coverUrl) {
           const img = new Image();
-          img.crossOrigin = "anonymous"; // Vital for canvas export
+          img.crossOrigin = "anonymous"; 
           img.src = selectedSong.coverUrl;
           img.onload = () => {
               coverImageRef.current = img;
-              // Initial Draw
-              drawFrame(); 
+              drawFrame(); // Draw preview
           };
       }
   }, [selectedSong]);
@@ -102,52 +79,60 @@ const Interactive: React.FC = () => {
     
     // Parse Lyrics
     const rawLines = song.lyrics.split('\n').map(l => l.trim()).filter(l => l !== '');
-    // Add buffer lines for visual scrolling
-    lyricsArrayRef.current = ["", ...rawLines, "END"]; 
+    // Buffer for Intro
+    lyricsArrayRef.current = ["(Intro)", ...rawLines, "END"]; 
     
     setSelectedSong(song);
     setGameState('ready');
-    setLineIndex(0); // Start at 0 (which is empty buffer), first press moves to 1 (first line)
+    setLineIndex(0); 
   };
 
-  const startGame = () => {
-    if (!selectedSong || !canvasRef.current) return;
+  // Step 1: Check Credits & Enter Standby
+  const enterStandby = () => {
+      if (!selectedSong) return;
 
-    // 1. Check Credits
-    if (!deductCredit()) {
-        setShowPaymentModal(true);
-        return;
-    }
+      // Admin Bypass: If admin, skip credit check
+      if (!isAdmin) {
+          if (!deductCredit()) {
+              setShowPaymentModal(true);
+              return;
+          }
+      }
 
-    setGameState('playing');
-    setLineIndex(0); // Reset
-    recordedChunksRef.current = [];
+      setGameState('standby');
+      setLineIndex(0);
+      recordedChunksRef.current = [];
+      
+      // Initial Draw for Standby Screen
+      setTimeout(() => drawFrame(), 100);
+  };
 
-    // 2. Setup Recording Stream
-    const canvasStream = canvasRef.current.captureStream(30); // 30 FPS
-    
-    // Attempt to capture audio (Might fail if CORS, but visuals will work)
-    let finalStream = canvasStream;
-    try {
-        if (audioRef.current) {
-            // Note: captureStream on audio elements is experimental and has CORS restrictions.
-            // If the audio source is cross-origin (like Google Drive without correct headers), this might be silent.
-            // We proceed anyway; user can dub audio in post if needed, but visuals are key.
-            const audioEl = audioRef.current as any;
-            if (audioEl.captureStream) {
-                 const audioStream = audioEl.captureStream();
-                 finalStream = new MediaStream([...canvasStream.getVideoTracks(), ...audioStream.getAudioTracks()]);
-            } else if (audioEl.mozCaptureStream) { // Firefox
-                 const audioStream = audioEl.mozCaptureStream();
-                 finalStream = new MediaStream([...canvasStream.getVideoTracks(), ...audioStream.getAudioTracks()]);
-            }
-        }
-    } catch (e) {
-        console.warn("Audio capture failed (likely CORS), recording video only.", e);
-    }
+  // Step 2: Actually Start Recording & Music (Triggered by Tap/Space)
+  const startRecordingAndMusic = () => {
+      if (!canvasRef.current) return;
 
-    // 3. Initialize Recorder
-    try {
+      // Setup Stream
+      const canvasStream = canvasRef.current.captureStream(30); // 30 FPS
+      let finalStream = canvasStream;
+      
+      try {
+          if (audioRef.current) {
+               // Cast to any to access experimental methods like captureStream/mozCaptureStream
+               const audioEl = audioRef.current as any;
+               let audioStream;
+               if (audioEl.captureStream) audioStream = audioEl.captureStream();
+               else if (audioEl.mozCaptureStream) audioStream = audioEl.mozCaptureStream();
+               
+               if (audioStream) {
+                   finalStream = new MediaStream([...canvasStream.getVideoTracks(), ...audioStream.getAudioTracks()]);
+               }
+          }
+      } catch (e) {
+          console.warn("Audio capture CORS issue", e);
+      }
+
+      // Init Recorder
+      try {
         const recorder = new MediaRecorder(finalStream, {
             mimeType: MediaRecorder.isTypeSupported('video/webm;codecs=h264') 
                 ? 'video/webm;codecs=h264' 
@@ -162,28 +147,27 @@ const Interactive: React.FC = () => {
 
         recorder.start();
         mediaRecorderRef.current = recorder;
-    } catch (e) {
-        console.error("Recorder init failed", e);
-        alert("瀏覽器不支援錄影功能，請嘗試使用 Chrome 或 Edge。");
-        return;
-    }
-
-    // 4. Start Audio & Loop
-    if (audioRef.current) {
-        audioRef.current.currentTime = 0;
-        audioRef.current.play().catch(e => console.error("Play error", e));
-    }
-    
-    // Advance to first real line immediately? No, wait for user or start at buffer.
-    // Let's Start at index 0 (Buffer). User presses space -> Index 1 (First Line).
-    
-    const loop = () => {
-      drawFrame();
-      if (gameState === 'playing' || gameState === 'processing') {
-          animationFrameRef.current = requestAnimationFrame(loop);
+      } catch (e) {
+          alert("Recorder Error: Browser not supported.");
+          return;
       }
-    };
-    loop();
+
+      // Play Audio
+      if (audioRef.current) {
+          audioRef.current.currentTime = 0;
+          audioRef.current.play().catch(e => console.error("Play error", e));
+      }
+
+      setGameState('playing');
+
+      // Start Loop
+      const loop = () => {
+        drawFrame();
+        if (gameState === 'playing' || gameState === 'standby' || gameState === 'processing') {
+            animationFrameRef.current = requestAnimationFrame(loop);
+        }
+      };
+      loop();
   };
 
   const drawFrame = () => {
@@ -195,115 +179,129 @@ const Interactive: React.FC = () => {
       const h = canvas.height;
       const lines = lyricsArrayRef.current;
 
-      // --- 1. BACKGROUND ---
-      // Clear
-      ctx.fillStyle = '#020617'; // Slate 950
+      // --- 1. BACKGROUND (Blurred) ---
+      ctx.fillStyle = '#020617';
       ctx.fillRect(0, 0, w, h);
 
       if (coverImageRef.current) {
           ctx.save();
-          // Draw scaled up background
-          ctx.filter = 'blur(40px) brightness(0.4)';
-          ctx.drawImage(coverImageRef.current, -100, -100, w + 200, h + 200);
+          // Draw scaled up background with blur
+          ctx.filter = 'blur(50px) brightness(0.4)';
+          // Scale to cover
+          ctx.drawImage(coverImageRef.current, -200, -200, w + 400, h + 400);
           ctx.restore();
       }
 
-      // --- 2. LAYOUT CALCULATIONS ---
-      // We assume 1920x1080 canvas
-      
-      // Cover Art Position (Left Side or Center? Request said "Front is 1:1 cover... Lyrics below")
-      // Let's create a nice composed layout.
-      // Cover Size: 600x600
-      const coverSize = 600;
+      // --- 2. LAYOUT CONSTANTS ---
+      // Vertical Layout
       const centerX = w / 2;
-      const coverY = 150; // Top margin
+      
+      // Cover Art
+      const coverSize = 500;
+      const coverY = 80;
 
-      // --- 3. DRAW ALBUM ART ---
+      // Text Info
+      const titleY = coverY + coverSize + 80;
+      const artistY = titleY + 50;
+
+      // Lyric Area (Bottom Third)
+      const lyricCurrentY = 900;
+      const lyricPrevY = 820;
+      const lyricNextY = 980;
+
+      // --- 3. DRAW ALBUM ART (Top Center) ---
       if (coverImageRef.current) {
           ctx.save();
-          // Shadow
-          ctx.shadowColor = "rgba(0, 0, 0, 0.5)";
-          ctx.shadowBlur = 40;
-          ctx.shadowOffsetY = 20;
+          ctx.shadowColor = "rgba(0, 0, 0, 0.6)";
+          ctx.shadowBlur = 50;
+          ctx.shadowOffsetY = 30;
           
-          // Draw Cover Centered
           const x = (w - coverSize) / 2;
           ctx.drawImage(coverImageRef.current, x, coverY, coverSize, coverSize);
           
           // Border
-          ctx.strokeStyle = "rgba(255, 255, 255, 0.1)";
-          ctx.lineWidth = 2;
+          ctx.strokeStyle = "rgba(255, 255, 255, 0.15)";
+          ctx.lineWidth = 3;
           ctx.strokeRect(x, coverY, coverSize, coverSize);
           ctx.restore();
       }
 
-      // --- 4. DRAW METADATA (Below Cover) ---
+      // --- 4. DRAW INFO ---
       ctx.textAlign = 'center';
       
       // Song Title
-      ctx.font = '900 48px Montserrat, sans-serif'; // Bold Title
+      ctx.font = '900 60px Montserrat, sans-serif';
       ctx.fillStyle = '#ffffff';
-      ctx.fillText(selectedSong.title, centerX, coverY + coverSize + 80);
+      ctx.shadowColor = "rgba(0,0,0,0.5)";
+      ctx.shadowBlur = 10;
+      ctx.fillText(selectedSong.title, centerX, titleY);
+      ctx.shadowBlur = 0;
 
       // Artist Name
-      ctx.font = '500 24px Montserrat, sans-serif';
+      ctx.font = '500 36px Montserrat, sans-serif';
       ctx.fillStyle = '#38bdf8'; // Brand Accent
-      ctx.fillText("Willwi", centerX, coverY + coverSize + 130);
+      ctx.fillText("Willwi", centerX, artistY);
 
-
-      // --- 5. DRAW LYRICS (Rolling 3 Lines) ---
-      // Defined area below text
-      const lyricBaseY = coverY + coverSize + 220;
-      const lineHeight = 60;
-
-      // Index Logic:
-      // lineIndex is the "Current" line.
-      // We need to show lineIndex-1 (Prev), lineIndex (Current), lineIndex+1 (Next)
+      // --- 5. DRAW LYRICS (3 Lines Rolling) ---
       
-      // Line 1: Previous (Top)
+      if (gameState === 'standby') {
+          // Standby Message
+          ctx.font = '700 48px Montserrat';
+          ctx.fillStyle = '#fbbf24'; // Gold
+          ctx.fillText("PRESS SPACE TO START", centerX, lyricCurrentY);
+          return;
+      }
+
+      // Previous Line (Top, Faded)
       if (lines[lineIndex - 1] !== undefined) {
-          ctx.font = '300 24px Montserrat, sans-serif';
-          ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
-          ctx.fillText(lines[lineIndex - 1], centerX, lyricBaseY - lineHeight);
+          ctx.font = '500 32px Montserrat, sans-serif';
+          ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
+          ctx.fillText(lines[lineIndex - 1], centerX, lyricPrevY);
       }
 
-      // Line 2: Current (Center) - The Focus
+      // Current Line (Center, Highlighted)
       if (lines[lineIndex] !== undefined) {
-          ctx.font = '700 36px Montserrat, sans-serif';
+          ctx.font = '900 52px Montserrat, sans-serif';
           ctx.fillStyle = '#ffffff';
-          // Glow effect for current line
-          ctx.shadowColor = "rgba(56, 189, 248, 0.8)";
-          ctx.shadowBlur = 15;
-          ctx.fillText(lines[lineIndex], centerX, lyricBaseY);
-          ctx.shadowBlur = 0; // Reset
+          // Glow
+          ctx.shadowColor = "rgba(56, 189, 248, 0.9)";
+          ctx.shadowBlur = 20;
+          ctx.fillText(lines[lineIndex], centerX, lyricCurrentY);
+          ctx.shadowBlur = 0;
       }
 
-      // Line 3: Next (Bottom)
+      // Next Line (Bottom, Faded)
       if (lines[lineIndex + 1] !== undefined) {
-          ctx.font = '300 24px Montserrat, sans-serif';
-          ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
-          ctx.fillText(lines[lineIndex + 1], centerX, lyricBaseY + lineHeight);
+          ctx.font = '500 32px Montserrat, sans-serif';
+          ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
+          ctx.fillText(lines[lineIndex + 1], centerX, lyricNextY);
       }
       
-      // Draw "END" marker specific logic
+      // END Marker
       if (lines[lineIndex] === "END") {
-          ctx.fillStyle = '#fbbf24';
-          ctx.font = 'bold 20px Montserrat';
-          ctx.fillText("--- FINISHED ---", centerX, lyricBaseY + 50);
+           ctx.fillStyle = '#fbbf24';
+           ctx.font = 'bold 30px Montserrat';
+           ctx.fillText("--- FINISHED ---", centerX, lyricCurrentY + 80);
+      }
+  };
+
+  // Main Interaction Handler (Tap / Space)
+  const handleInteraction = () => {
+      if (gameState === 'standby') {
+          // First Tap: Start
+          startRecordingAndMusic();
+      } else if (gameState === 'playing') {
+          // Subsequent Taps: Next Line
+          handleNextLine();
       }
   };
 
   const handleNextLine = () => {
-      if (gameState !== 'playing') return;
-      
       const lines = lyricsArrayRef.current;
-      
       if (lineIndex < lines.length - 1) {
           setLineIndex(prev => prev + 1);
-          
-          // Check if we hit END
+          // Check Auto-Finish
           if (lines[lineIndex + 1] === "END") {
-             // We just moved TO the end. Give it a moment then finish.
              setTimeout(finishGame, 2000);
           }
       } else {
@@ -313,15 +311,11 @@ const Interactive: React.FC = () => {
 
   const finishGame = () => {
     setGameState('processing');
-    
-    // Stop Audio
     if (audioRef.current) audioRef.current.pause();
 
-    // Stop Recorder
     if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
         mediaRecorderRef.current.stop();
-        // Wait a bit for onstop/dataavailable
-        setTimeout(saveVideo, 500);
+        setTimeout(saveVideo, 600);
     } else {
         saveVideo();
     }
@@ -334,9 +328,8 @@ const Interactive: React.FC = () => {
       document.body.appendChild(a);
       a.style.display = 'none';
       a.href = url;
-      // Although it's likely WebM, we can name it mp4. 
-      // Most players (VLC, etc) handle container mismatches, or user can convert.
-      a.download = `Willwi_${selectedSong?.title}_LyricVideo.webm`; 
+      // Use .mp4 extension for better compatibility perception
+      a.download = `Willwi_${selectedSong?.title}_LyricVideo.mp4`; 
       a.click();
       window.URL.revokeObjectURL(url);
       
@@ -358,9 +351,11 @@ const Interactive: React.FC = () => {
   // Keyboard Listener
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if ((e.code === 'Space' || e.code === 'Enter') && gameState === 'playing' && mode === 'lyric-maker') {
-        e.preventDefault();
-        handleNextLine();
+      if ((e.code === 'Space' || e.code === 'Enter') && mode === 'lyric-maker') {
+        if (gameState === 'standby' || gameState === 'playing') {
+            e.preventDefault();
+            handleInteraction();
+        }
       }
     };
     window.addEventListener('keydown', handleKeyDown);
@@ -481,7 +476,7 @@ const Interactive: React.FC = () => {
         <div className="max-w-7xl mx-auto pt-8 px-4 pb-20 animate-fade-in">
             <PaymentModal isOpen={showPaymentModal} onClose={() => setShowPaymentModal(false)} />
             
-            {/* HIDDEN AUDIO ELEMENT FOR PLAYBACK */}
+            {/* HIDDEN AUDIO ELEMENT */}
             {selectedSong?.audioUrl && (
                 <audio 
                     ref={audioRef}
@@ -539,7 +534,7 @@ const Interactive: React.FC = () => {
             )}
 
             {/* STEP 2: STUDIO (CANVAS) */}
-            {(gameState === 'ready' || gameState === 'playing' || gameState === 'processing' || gameState === 'finished') && selectedSong && (
+            {(gameState === 'ready' || gameState === 'standby' || gameState === 'playing' || gameState === 'processing' || gameState === 'finished') && selectedSong && (
                 <div className="flex flex-col items-center">
                     
                     {/* INSTRUCTIONS */}
@@ -548,20 +543,27 @@ const Interactive: React.FC = () => {
                             <div className="animate-fade-in-up">
                                 <h3 className="text-xl font-bold text-white mb-2">準備錄製</h3>
                                 <p className="text-slate-400 text-sm mb-4">
-                                    按下 <span className="text-brand-accent font-bold">START</span> 後音樂將開始播放並自動錄影。<br/>
-                                    請跟著節奏，每唱一句按一下 <span className="border border-white/20 px-1 rounded text-xs">SPACE</span> 空白鍵。
+                                    1. 按下 <span className="text-red-500 font-bold">● REC</span> 進入待機狀態。<br/>
+                                    2. 準備好後，按下 <span className="border border-white/20 px-1 rounded text-xs">空白鍵</span> 開始播放並同步錄影。<br/>
+                                    3. 跟著節奏，每唱一句按一下空白鍵。
                                 </p>
                                 <button 
-                                    onClick={startGame}
-                                    className="px-8 py-3 bg-red-600 text-white font-bold rounded-full hover:bg-red-500 shadow-[0_0_20px_rgba(220,38,38,0.5)] animate-pulse"
+                                    onClick={enterStandby}
+                                    className="px-8 py-3 bg-red-600 text-white font-bold rounded-full hover:bg-red-500 shadow-[0_0_20px_rgba(220,38,38,0.5)]"
                                 >
-                                    ● START RECORDING
+                                    ● ENTER STUDIO
                                 </button>
+                                {isAdmin && <p className="text-[10px] text-green-500 mt-2 font-mono">Admin Mode: Unlimited Access Enabled</p>}
+                            </div>
+                        )}
+                        {gameState === 'standby' && (
+                            <div className="text-brand-gold font-bold text-lg animate-pulse">
+                                WAITING... Press [SPACE] to Start Music
                             </div>
                         )}
                         {gameState === 'playing' && (
                             <div className="text-brand-accent font-mono text-sm animate-pulse">
-                                ● REC | Press SPACE for next line...
+                                ● RECORDING | Press SPACE for next line...
                             </div>
                         )}
                         {gameState === 'processing' && (
@@ -577,7 +579,7 @@ const Interactive: React.FC = () => {
                     </div>
 
                     {/* CANVAS VIEWPORT */}
-                    <div className="relative border-[4px] border-slate-800 rounded-lg shadow-2xl bg-black overflow-hidden">
+                    <div className="relative border-[4px] border-slate-800 rounded-lg shadow-2xl bg-black overflow-hidden group">
                         {/* 1920x1080 scaled down via CSS */}
                         <canvas 
                             ref={canvasRef}
@@ -587,20 +589,19 @@ const Interactive: React.FC = () => {
                             style={{ aspectRatio: '16/9' }}
                         />
                         
-                        {/* Overlay Controls for Mobile (if needed, simplified) */}
-                        {gameState === 'playing' && (
+                        {/* Full Screen Click Layer for Interaction */}
+                        {(gameState === 'standby' || gameState === 'playing') && (
                             <div 
-                                className="absolute inset-0 z-10 cursor-pointer" 
-                                onClick={(e) => { e.preventDefault(); handleNextLine(); }}
-                                onTouchStart={(e) => { e.preventDefault(); handleNextLine(); }}
+                                className="absolute inset-0 z-20 cursor-pointer"
+                                onClick={(e) => { e.preventDefault(); handleInteraction(); }}
+                                onTouchStart={(e) => { e.preventDefault(); handleInteraction(); }}
                             >
-                                {/* Invisible touch layer for mobile sync */}
                             </div>
                         )}
                     </div>
                     
                     <div className="mt-4 text-xs text-slate-500">
-                        Canvas Rendering Resolution: 1920x1080 (HD)
+                        HD 1080p | 30fps | Auto-Export .mp4
                     </div>
                 </div>
             )}
