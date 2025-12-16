@@ -451,6 +451,12 @@ const SongDetail: React.FC = () => {
                                                 onChange={(e) => setEditForm({...editForm, versionLabel: e.target.value})}
                                                 placeholder="Version Label"
                                             />
+                                            <input 
+                                                type="date"
+                                                className="bg-slate-900 border border-slate-600 rounded p-2 text-white text-sm"
+                                                value={editForm.releaseDate || ''}
+                                                onChange={(e) => setEditForm({...editForm, releaseDate: e.target.value})}
+                                            />
                                         </div>
                                     </div>
                                 ) : (
@@ -536,7 +542,7 @@ const SongDetail: React.FC = () => {
                         </div>
 
                         {/* Metadata Grid */}
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-8 pt-6 border-t border-white/10">
+                        <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mt-8 pt-6 border-t border-white/10">
                             <div>
                                 <span className="text-[10px] text-slate-500 uppercase tracking-widest block mb-1">ISRC</span>
                                 {isEditing ? (
@@ -551,6 +557,14 @@ const SongDetail: React.FC = () => {
                                     <input className="bg-slate-900 border border-slate-700 rounded p-1 text-white text-xs w-full font-mono" value={editForm.upc || ''} onChange={e => setEditForm({...editForm, upc: e.target.value})} />
                                 ) : (
                                     <span className="font-mono text-sm text-slate-300 select-all">{song.upc || '-'}</span>
+                                )}
+                            </div>
+                            <div>
+                                <span className="text-[10px] text-slate-500 uppercase tracking-widest block mb-1">Release Date</span>
+                                {isEditing ? (
+                                    <input className="bg-slate-900 border border-slate-700 rounded p-1 text-white text-xs w-full font-mono" type="date" value={editForm.releaseDate || ''} onChange={e => setEditForm({...editForm, releaseDate: e.target.value})} />
+                                ) : (
+                                    <span className="font-mono text-sm text-slate-300 select-all">{song.releaseDate || '-'}</span>
                                 )}
                             </div>
                             <div>

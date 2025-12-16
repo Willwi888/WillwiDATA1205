@@ -6,23 +6,24 @@ interface PaymentModalProps {
   onClose: () => void;
 }
 
+// 設定單價 (可在這裡修改)
+const UNIT_PRICE = 80;
+
 const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose }) => {
   const { addCredits, user } = useUser();
   const [amount, setAmount] = useState<number>(80);
 
   if (!isOpen) return null;
 
+  // 計算可獲得的額度
+  const estimatedCredits = Math.floor(amount / UNIT_PRICE);
+
   const handlePaymentClick = (url: string) => {
     // Open PayPal in new tab
     window.open(url, '_blank');
     
-    // In a real app, we would wait for a webhook. 
-    // Here we simulate success after a delay/confirmation for the demo.
-    // Logic: 1 Credit per 80 NTD approx (simplified)
-    const creditsToAdd = Math.floor(amount / 80) || 1;
-
-    if (window.confirm("模擬環境提示：\n您是否已完成付款？\n(點擊「確定」將模擬系統收到款項並發放額度)")) {
-        addCredits(creditsToAdd);
+    if (window.confirm(`模擬環境提示：\n您是否已完成付款 NT$ ${amount}？\n系統將發放 ${estimatedCredits} 點額度。`)) {
+        addCredits(estimatedCredits > 0 ? estimatedCredits : 1);
         onClose();
     }
   };
@@ -69,55 +70,75 @@ const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose }) => {
             </div>
             <span className="inline-block px-3 py-1 rounded-full bg-brand-accent/20 text-brand-accent text-xs font-bold mb-6 w-fit">系統參與費</span>
 
-            <div className="text-slate-300 text-sm leading-relaxed mb-6">
-                <ul className="space-y-3 mb-6">
-                    <li className="flex items-center gap-2">
-                        <span className="text-brand-accent">▸</span> 第一次體驗：<span className="text-white font-bold">免費</span>
-                    </li>
-                    <li className="flex items-center gap-2">
-                        <span className="text-brand-accent">▸</span> 第二次起：每首 <span className="text-white font-bold">NT$ 80</span>
-                    </li>
+            <div className="text-slate-300 text-sm leading-relaxed mb-4">
+                <p className="mb-2">此費用為系統維護支持，非商品販售。</p>
+                <ul className="space-y-1 text-xs text-slate-400 border-l-2 border-slate-700 pl-3">
+                    <li>▸ 單價設定：每首 <span className="text-white font-bold">NT$ {UNIT_PRICE}</span></li>
+                    <li>▸ 第一次體驗：<span className="text-brand-accent font-bold">免費 (贈送 1 點)</span></li>
                 </ul>
-                <p className="text-xs text-slate-500 border-t border-slate-800 pt-4 whitespace-pre-line">
-                    此費用為「參與系統與創作支持」，
-                    非商品販售、非代工服務。
-                    您將獲得親手製作的動態歌詞影片下載權限。
-                </p>
+            </div>
+            
+            {/* PRICING CALCULATOR */}
+            <div className="bg-slate-900 p-5 rounded-xl border border-slate-800 mt-2">
+                <label className="text-xs text-brand-gold font-bold block mb-3 text-center uppercase tracking-widest">
+                    👇 選擇方案或輸入金額
+                </label>
                 
-                <div className="bg-slate-900 p-4 rounded border border-slate-800 mt-4">
-                    <label className="text-xs text-brand-gold font-bold block mb-2 text-center">
-                        ⚠️ 請自行輸入金額 (NT$)
-                    </label>
-                    <div className="relative max-w-[150px] mx-auto">
-                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-bold">$</span>
-                        <input 
-                            type="number" 
-                            min="80"
-                            value={amount}
-                            onChange={(e) => setAmount(Number(e.target.value))}
-                            className="w-full bg-slate-950 border border-brand-accent rounded-lg py-2 pl-8 pr-2 text-center text-white font-bold text-lg focus:outline-none focus:ring-2 focus:ring-brand-accent"
-                        />
+                {/* Presets */}
+                <div className="grid grid-cols-3 gap-2 mb-4">
+                    <button 
+                        onClick={() => setAmount(UNIT_PRICE * 1)}
+                        className={`py-2 rounded border text-xs font-bold transition-all ${amount === UNIT_PRICE ? 'bg-brand-accent text-slate-900 border-brand-accent' : 'border-slate-700 text-slate-400 hover:border-slate-500'}`}
+                    >
+                        1 首<br/>${UNIT_PRICE}
+                    </button>
+                    <button 
+                        onClick={() => setAmount(UNIT_PRICE * 2)}
+                        className={`py-2 rounded border text-xs font-bold transition-all ${amount === UNIT_PRICE * 2 ? 'bg-brand-accent text-slate-900 border-brand-accent' : 'border-slate-700 text-slate-400 hover:border-slate-500'}`}
+                    >
+                        2 首<br/>${UNIT_PRICE * 2}
+                    </button>
+                    <button 
+                        onClick={() => setAmount(UNIT_PRICE * 5)}
+                        className={`py-2 rounded border text-xs font-bold transition-all ${amount === UNIT_PRICE * 5 ? 'bg-brand-accent text-slate-900 border-brand-accent' : 'border-slate-700 text-slate-400 hover:border-slate-500'}`}
+                    >
+                        5 首<br/>${UNIT_PRICE * 5}
+                    </button>
+                </div>
+
+                {/* Input */}
+                <div className="relative max-w-[200px] mx-auto mb-2">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-bold">$</span>
+                    <input 
+                        type="number" 
+                        min={UNIT_PRICE}
+                        step={UNIT_PRICE}
+                        value={amount}
+                        onChange={(e) => setAmount(Number(e.target.value))}
+                        className="w-full bg-slate-950 border border-slate-700 focus:border-brand-accent rounded-lg py-2 pl-8 pr-16 text-center text-white font-bold text-lg outline-none"
+                    />
+                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 text-xs font-mono">NTD</span>
+                </div>
+                
+                {/* Result Display */}
+                <div className="text-center">
+                    <p className="text-[10px] text-slate-500 uppercase tracking-widest mb-1">Estimated Credits</p>
+                    <div className="text-green-400 font-bold text-sm bg-green-900/20 py-1 px-3 rounded-full inline-block border border-green-900/50">
+                        可製作 <span className="text-lg mx-1">{estimatedCredits}</span> 首歌
                     </div>
-                     <p className="text-[10px] text-slate-500 text-center mt-2">
-                        基本金額 80 元 (如要多給支持，金額不限)
-                    </p>
                 </div>
             </div>
 
-            <div className="mt-auto">
-                <div className="text-center mb-4">
-                    <p className="text-slate-400 text-xs mb-1">您的目前額度</p>
-                    <p className="text-3xl font-black text-white">{user?.credits || 0} <span className="text-sm font-normal text-slate-500">首</span></p>
-                </div>
-                
+            <div className="mt-auto pt-6">
                 <button 
                     onClick={() => handlePaymentClick('https://www.paypal.com/ncp/payment/JRSNPRY9FFYZE')}
-                    className="w-full py-4 rounded-xl bg-brand-accent hover:bg-white text-slate-900 font-bold transition-all shadow-lg hover:shadow-brand-accent/20 flex items-center justify-center gap-2"
+                    className="w-full py-4 rounded-xl bg-brand-accent hover:bg-white text-slate-900 font-bold transition-all shadow-lg hover:shadow-brand-accent/20 flex items-center justify-center gap-2 group"
                 >
-                    <span>前往付款 (金額請填 {amount})</span>
+                    <span>前往付款 (NT$ {amount})</span>
+                    <span className="group-hover:translate-x-1 transition-transform">→</span>
                 </button>
                 <p className="text-[10px] text-slate-600 text-center mt-3">
-                    透過 PayPal 安全支付
+                    透過 PayPal 安全支付 • 系統自動儲值
                 </p>
             </div>
         </div>
