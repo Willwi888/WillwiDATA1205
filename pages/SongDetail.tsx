@@ -162,17 +162,19 @@ const SongDetail: React.FC = () => {
   const handleMusicBrainzSubmit = () => {
       if (!song) return;
 
-      const WILLWI_MBID = '526cc0f8-da20-4d2d-86a5-4bf841a6ba3c';
+      // Note: We do NOT send a hardcoded Artist ID to avoid form breakage if the ID is incorrect.
+      // We send the Artist Name "Willwi" and let MusicBrainz match it or ask the user.
       const params = new URLSearchParams();
 
-      // Basic Release Info
+      // 1. Release Info
       params.append('name', song.title);
       params.append('artist_credit.names.0.artist.name', 'Willwi');
       params.append('artist_credit.names.0.name', 'Willwi');
-      params.append('artist_credit.names.0.mbid', WILLWI_MBID);
+      // If we had a known valid Artist MBID stored in song data, we would append it here:
+      // params.append('artist_credit.names.0.mbid', song.artistMbid); 
       
       // If we already have a Release Group ID (musicBrainzId), link this new release to it
-      if (song.musicBrainzId) {
+      if (song.musicBrainzId && song.musicBrainzId.trim() !== '') {
           params.append('release_group', song.musicBrainzId);
       }
       
@@ -203,9 +205,9 @@ const SongDetail: React.FC = () => {
           'Instrumental': 'zxx'
       };
       
-      const langCode = langMap[song.language] || langMap[Language.Mandarin] || 'zho';
+      const langCode = langMap[song.language] || 'cmn'; // Default to Mandarin if unknown
       params.append('language', langCode);
-      params.append('script', 'Hant'); 
+      params.append('script', 'Hant'); // Traditional Chinese Script
 
       // Date Parsing
       if (song.releaseDate) {
@@ -230,6 +232,7 @@ const SongDetail: React.FC = () => {
       if (song.upc) annotation += `UPC: ${song.upc}\n`;
       if (song.projectType) annotation += `Project: ${song.projectType}\n`;
       if (song.releaseCompany) annotation += `Label: ${song.releaseCompany}\n`;
+      if (song.audioUrl) annotation += `Audio: ${song.audioUrl}\n`;
       
       params.append('annotation', annotation);
       

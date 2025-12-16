@@ -1,9 +1,7 @@
 
 // MusicBrainz API Service for Willwi
-// Artist ID: 526cc0f8-da20-4d2d-86a5-4bf841a6ba3c
 
 const MB_API_BASE = 'https://musicbrainz.org/ws/2';
-const WILLWI_MBID = '526cc0f8-da20-4d2d-86a5-4bf841a6ba3c';
 const USER_AGENT = 'WillwiMusicManager/1.0 ( will@willwi.com )'; // Required by MB API
 
 export interface MBReleaseGroup {
@@ -23,10 +21,11 @@ export interface MBCoverArtResponse {
 
 export const getWillwiReleases = async (): Promise<MBReleaseGroup[]> => {
   try {
-    // Browse release-groups by artist
-    // Important: MusicBrainz requires `fmt=json` parameter for JSON response
-    // And a valid User-Agent
-    const url = `${MB_API_BASE}/release-group?artist=${WILLWI_MBID}&fmt=json&limit=100`;
+    // Instead of hardcoding an ID that might be invalid, we search by Artist Name "Willwi".
+    // This returns matching release-groups for any artist named Willwi.
+    // Lucene search syntax: artist:Willwi
+    const query = encodeURIComponent('artist:Willwi');
+    const url = `${MB_API_BASE}/release-group?query=${query}&fmt=json&limit=50`;
     
     const response = await fetch(url, {
       headers: {
