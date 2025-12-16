@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useUser } from '../context/UserContext';
 
 interface PaymentModalProps {
@@ -8,17 +8,21 @@ interface PaymentModalProps {
 
 const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose }) => {
   const { addCredits, user } = useUser();
+  const [amount, setAmount] = useState<number>(80);
 
   if (!isOpen) return null;
 
-  const handlePaymentClick = (url: string, simulatedCredits: number) => {
+  const handlePaymentClick = (url: string) => {
     // Open PayPal in new tab
     window.open(url, '_blank');
     
     // In a real app, we would wait for a webhook. 
     // Here we simulate success after a delay/confirmation for the demo.
+    // Logic: 1 Credit per 80 NTD approx (simplified)
+    const creditsToAdd = Math.floor(amount / 80) || 1;
+
     if (window.confirm("模擬環境提示：\n您是否已完成付款？\n(點擊「確定」將模擬系統收到款項並發放額度)")) {
-        addCredits(simulatedCredits);
+        addCredits(creditsToAdd);
         onClose();
     }
   };
@@ -45,15 +49,10 @@ const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose }) => {
 
             <div className="mt-auto flex flex-col items-center justify-center p-6 bg-white rounded-xl shadow-inner">
                 {/* QR CODE DISPLAY */}
-                <div className="w-48 h-48 bg-slate-100 flex items-center justify-center mb-4 relative overflow-hidden group">
+                <div className="w-48 h-48 bg-white flex items-center justify-center mb-4 relative overflow-hidden group rounded-lg shadow-sm border border-slate-200">
                     <img 
-                        src="https://raw.githubusercontent.com/willwi-music/assets/main/linepay-qr.jpg" 
-                        onError={(e) => {
-                            // Fallback if image fails
-                            e.currentTarget.style.display = 'none';
-                            e.currentTarget.parentElement!.innerHTML = '<span class="text-slate-400 text-xs text-center p-2">QR Code<br/>(Image not found)</span>';
-                        }}
-                        className="w-full h-full object-contain mix-blend-multiply" 
+                        src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=https://willwi-music-467949320732.us-west1.run.app/`}
+                        className="w-full h-full object-contain p-2" 
                         alt="Line Pay QR Code"
                     />
                 </div>
@@ -70,7 +69,7 @@ const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose }) => {
             </div>
             <span className="inline-block px-3 py-1 rounded-full bg-brand-accent/20 text-brand-accent text-xs font-bold mb-6 w-fit">系統參與費</span>
 
-            <div className="text-slate-300 text-sm leading-relaxed mb-8">
+            <div className="text-slate-300 text-sm leading-relaxed mb-6">
                 <ul className="space-y-3 mb-6">
                     <li className="flex items-center gap-2">
                         <span className="text-brand-accent">▸</span> 第一次體驗：<span className="text-white font-bold">免費</span>
@@ -84,12 +83,23 @@ const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose }) => {
                     非商品販售、非代工服務。
                     您將獲得親手製作的動態歌詞影片下載權限。
                 </p>
-                <div className="bg-slate-900 p-3 rounded border border-slate-800 mt-4">
-                    <p className="text-xs text-brand-gold font-bold text-center">
-                        ⚠️ 請自行輸入金額 NT$ 80
-                    </p>
-                    <p className="text-[10px] text-slate-500 text-center mt-1">
-                        (如想多給支持，金額不限)
+                
+                <div className="bg-slate-900 p-4 rounded border border-slate-800 mt-4">
+                    <label className="text-xs text-brand-gold font-bold block mb-2 text-center">
+                        ⚠️ 請自行輸入金額 (NT$)
+                    </label>
+                    <div className="relative max-w-[150px] mx-auto">
+                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-bold">$</span>
+                        <input 
+                            type="number" 
+                            min="80"
+                            value={amount}
+                            onChange={(e) => setAmount(Number(e.target.value))}
+                            className="w-full bg-slate-950 border border-brand-accent rounded-lg py-2 pl-8 pr-2 text-center text-white font-bold text-lg focus:outline-none focus:ring-2 focus:ring-brand-accent"
+                        />
+                    </div>
+                     <p className="text-[10px] text-slate-500 text-center mt-2">
+                        基本金額 80 元 (如要多給支持，金額不限)
                     </p>
                 </div>
             </div>
@@ -101,10 +111,10 @@ const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose }) => {
                 </div>
                 
                 <button 
-                    onClick={() => handlePaymentClick('https://www.paypal.com/ncp/payment/JRSNPRY9FFYZE', 1)}
+                    onClick={() => handlePaymentClick('https://www.paypal.com/ncp/payment/JRSNPRY9FFYZE')}
                     className="w-full py-4 rounded-xl bg-brand-accent hover:bg-white text-slate-900 font-bold transition-all shadow-lg hover:shadow-brand-accent/20 flex items-center justify-center gap-2"
                 >
-                    <span>前往付款 (金額請填 80)</span>
+                    <span>前往付款 (金額請填 {amount})</span>
                 </button>
                 <p className="text-[10px] text-slate-600 text-center mt-3">
                     透過 PayPal 安全支付

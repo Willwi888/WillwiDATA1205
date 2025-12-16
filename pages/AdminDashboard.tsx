@@ -59,7 +59,7 @@ const AdminDashboard: React.FC = () => {
       drive: 'https://drive.google.com/drive/folders/1PmP_GB7etr45T_DwcZcLt45Om2RDqTNI?usp=drive_link',
       supabase: 'https://supabase.com/dashboard/project/rzxqseimxhbokrhcdjbi',
       vercel: 'https://vercel.com/willwi',
-      live: 'https://willwi-music-manager-467949320732.us-west1.run.app/' // Explicitly the correct one
+      live: 'https://willwi-music-467949320732.us-west1.run.app/' // Explicitly the correct one
   };
 
   const CORRECT_DOMAIN_ID = '467949320732';

@@ -477,25 +477,38 @@ const Interactive: React.FC = () => {
                     
                     {/* DISCLAIMER BLOCK */}
                     <div className="bg-slate-800 border-l-4 border-brand-accent p-6 rounded-r-lg mb-8 shadow-lg">
-                        <h3 className="text-lg font-bold text-white mb-2">製作說明</h3>
-                        <p className="text-slate-300 text-sm leading-relaxed mb-4 whitespace-pre-line">
-                            你可以在這裡選擇一首歌曲。
-                            進入後，音樂與正式歌詞會同時出現。
-                            
-                            <span className="text-brand-accent">這不是試聽頁面</span>，若想單純聽歌，請至各大音樂平台。
-                        </p>
-                        <p className="text-slate-300 text-sm leading-relaxed mb-4 whitespace-pre-line">
-                            在這裡，你需要一邊播放音樂，一邊用鍵盤或螢幕操作，親手對齊每一句歌詞出現的時間。這是一個需要「聆聽、判斷」的參與過程。
-                            
-                            <span className="text-brand-gold block mt-2 font-bold">
-                                當整首歌完成對位後，系統會生成一段動態歌詞畫面，
-                                畫面以專輯封面為背景，歌詞會隨音樂同步播放。
-                                這是一段由你親手完成的歌詞時間軸。
-                            </span>
-                        </p>
+                        <h3 className="text-lg font-bold text-white mb-2">製作說明 / Disclaimer</h3>
+                        <div className="text-slate-300 text-sm leading-relaxed mb-4 whitespace-pre-line space-y-4">
+                            <p>
+                                我不提供完全免費的創作體驗。<br/><br/>
+                                不是因為我不願意分享，<br/>
+                                而是因為「免費」往往是對創作最不負責任的定義。<br/><br/>
+                                如果一件事永遠不需要被付出任何代價，<br/>
+                                那最後只會變成沒有人願意真正去做的事。<br/><br/>
+                                我希望鼓勵更多人參與創作，<br/>
+                                但前提是<br/>
+                                創作必須被認真對待，<br/>
+                                而做音樂，必須是一件在現實世界中行得通的事。
+                            </p>
+                            <div className="border-t border-slate-700 my-3"></div>
+                            <p className="text-xs text-slate-400">
+                                I do not offer fully free creative experiences.<br/><br/>
+                                Not because I refuse to share,<br/>
+                                but because “free” is often the most careless way<br/>
+                                to define creative work.<br/><br/>
+                                When creation carries no value,<br/>
+                                people eventually stop creating.<br/><br/>
+                                This project exists to encourage participation,<br/>
+                                but participation only matters<br/>
+                                when creative work is treated with respect.<br/><br/>
+                                Music should be something people can truly sustain,<br/>
+                                not something expected to disappear under the label of “free.”
+                            </p>
+                        </div>
+                        
                         <p className="text-slate-400 text-xs border-t border-slate-700 pt-3 mt-2">
-                            ▸ 第一次體驗：免費<br/>
-                            ▸ 第二次起：每首 NT$80<br/>
+                            ▸ 第一次體驗：免費 (First time free)<br/>
+                            ▸ 第二次起：每首 NT$80 (From 2nd time: NT$80)<br/>
                             此費用為參與系統與創作支持，非商品販售、非代工服務。
                         </p>
                     </div>
