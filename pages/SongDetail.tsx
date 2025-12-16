@@ -505,6 +505,22 @@ const SongDetail: React.FC = () => {
                                             <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm.56 18.067c-3.76 1.76-7.56.96-7.56-3.187 0-3.08 2.067-4.28 4.613-4.28.613 0 1.133.053 1.547.12V8.467c0-2.427 1.6-3.213 2.827-3.213.627 0 1.253.187 1.547.333l-.533 2.227c-.2-.08-.507-.187-.84-.187-.667 0-.96.32-.96 1.147v2.24c.947.16 1.947.533 1.947 1.64 0 1.253-.987 2.147-2.587 2.147v3.266zM12.96 13.6c.56 0 .867-.28.867-.68 0-.413-.373-.613-1.013-.72v1.36c.053.027.093.04.147.04zm-3.08-2.12c-.933 0-1.427.533-1.427 1.773 0 1.653 1.24 1.8 2.507 1.187V11.52c-.373-.027-.733-.04-1.08-.04z"/></svg>
                                             Submit to MB
                                         </button>
+
+                                        {/* Trading Buttons (Admin Only) */}
+                                        <div className="grid grid-cols-2 gap-2 mt-2">
+                                            <button 
+                                                onClick={() => alert('External Trading Platform Integration Coming Soon!')}
+                                                className="px-3 py-2 rounded-lg bg-green-500/20 text-green-400 border border-green-500/50 hover:bg-green-500 hover:text-slate-900 font-bold text-xs transition-all flex items-center justify-center"
+                                            >
+                                                Buy
+                                            </button>
+                                            <button 
+                                                onClick={() => alert('External Trading Platform Integration Coming Soon!')}
+                                                className="px-3 py-2 rounded-lg bg-red-500/20 text-red-400 border border-red-500/50 hover:bg-red-500 hover:text-slate-900 font-bold text-xs transition-all flex items-center justify-center"
+                                            >
+                                                Sell
+                                            </button>
+                                        </div>
                                     </div>
                                 )}
                             </div>
