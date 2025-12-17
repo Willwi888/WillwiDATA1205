@@ -4,6 +4,7 @@ import { useData } from '../context/DataContext';
 import { Song } from '../types';
 import PaymentModal from '../components/PaymentModal';
 import { useTranslation } from '../context/LanguageContext';
+import { generateAiVideo } from '../services/geminiService';
 
 // --- HELPERS ---
 const cleanGoogleRedirect = (url: string) => {
@@ -23,6 +24,7 @@ const cleanGoogleRedirect = (url: string) => {
 // --- TYPES ---
 type InteractionMode = 'menu' | 'lyric-maker' | 'ai-video' | 'voting';
 type GameState = 'select' | 'ready' | 'standby' | 'playing' | 'processing' | 'finished';
+type VideoState = 'select-song' | 'compose' | 'generating' | 'result';
 
 const Interactive: React.FC = () => {
   const { user, login, deductCredit, isAdmin } = useUser();
@@ -44,6 +46,14 @@ const Interactive: React.FC = () => {
   const [lineIndex, setLineIndex] = useState(0); 
   const [searchTerm, setSearchTerm] = useState('');
   
+  // --- AI VIDEO GENERATOR STATE ---
+  const [videoState, setVideoState] = useState<VideoState>('select-song');
+  const [videoPrompt, setVideoPrompt] = useState('');
+  const [videoAspectRatio, setVideoAspectRatio] = useState<'16:9' | '9:16'>('16:9');
+  const [videoRefImage, setVideoRefImage] = useState<string | null>(null); // base64 string
+  const [videoRefImagePreview, setVideoRefImagePreview] = useState<string | null>(null); // preview url
+  const [generatedVideoUrl, setGeneratedVideoUrl] = useState<string | null>(null);
+  
   // Refs for Engine
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const audioRef = useRef<HTMLAudioElement>(null);
@@ -52,6 +62,10 @@ const Interactive: React.FC = () => {
   const recordedChunksRef = useRef<Blob[]>([]);
   const coverImageRef = useRef<HTMLImageElement | null>(null);
   const lyricsArrayRef = useRef<string[]>([]);
+  const videoFileInputRef = useRef<HTMLInputElement>(null);
+  
+  // Visualizer Data
+  const visualizerBarsRef = useRef<number[]>(new Array(60).fill(0));
 
   // --- HANDLERS ---
 
@@ -71,6 +85,59 @@ const Interactive: React.FC = () => {
       setMode(targetMode);
   };
 
+  // --- AI VIDEO HANDLERS ---
+  const handleSelectSongForVideo = (song: Song) => {
+      setSelectedSong(song);
+      setVideoPrompt(`A cinematic music video for a song titled "${song.title}" by Willwi. Atmosphere: ${song.description ? song.description.slice(0, 50) : 'emotional and artistic'}. High quality, 4k, realistic.`);
+      setVideoState('compose');
+      setVideoRefImage(null);
+      setVideoRefImagePreview(null);
+      setGeneratedVideoUrl(null);
+  };
+
+  const handleVideoImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0];
+      if (file) {
+          const reader = new FileReader();
+          reader.onload = () => {
+              const result = reader.result as string;
+              setVideoRefImagePreview(result);
+              // Extract base64 part
+              setVideoRefImage(result.split(',')[1]);
+          };
+          reader.readAsDataURL(file);
+      }
+  };
+
+  const handleGenerateVideo = async () => {
+      if (!selectedSong) return;
+      if (!deductCredit() && !isAdmin) {
+          setShowPaymentModal(true);
+          return;
+      }
+
+      setVideoState('generating');
+      try {
+          const url = await generateAiVideo(
+              videoPrompt, 
+              videoRefImage || undefined,
+              'image/png', // Defaulting to png, could detect from file
+              videoAspectRatio
+          );
+          if (url) {
+              setGeneratedVideoUrl(url);
+              setVideoState('result');
+          } else {
+              alert('Generation failed. Please try again.');
+              setVideoState('compose');
+          }
+      } catch (e) {
+          console.error(e);
+          alert('Generation error: ' + (e as Error).message);
+          setVideoState('compose');
+      }
+  };
+
   // --- LYRIC VIDEO ENGINE ---
 
   // Preload Image with Robust Handling
@@ -78,7 +145,7 @@ const Interactive: React.FC = () => {
       // Reset previous image
       coverImageRef.current = null;
 
-      if (selectedSong && selectedSong.coverUrl) {
+      if (selectedSong && selectedSong.coverUrl && mode === 'lyric-maker') {
           const img = new Image();
           img.crossOrigin = "anonymous"; // Essential for canvas export
           
@@ -97,7 +164,7 @@ const Interactive: React.FC = () => {
               drawFrame();
           };
       }
-  }, [selectedSong]);
+  }, [selectedSong, mode]);
 
   const handleSelectSong = (song: Song) => {
     if (!song.lyrics) {
@@ -214,132 +281,204 @@ const Interactive: React.FC = () => {
       const h = canvas.height;
       const lines = lyricsArrayRef.current;
 
-      // --- 1. BACKGROUND (Blurred) ---
-      ctx.fillStyle = '#020617';
+      // --- 1. BACKGROUND ---
+      // Draw Blurred Cover or Black
+      ctx.fillStyle = '#0f172a'; // Slate 900 base
       ctx.fillRect(0, 0, w, h);
 
       if (coverImageRef.current) {
           try {
               ctx.save();
-              // Draw scaled up background with blur
-              ctx.filter = 'blur(50px) brightness(0.4)';
-              // Scale to cover completely
-              ctx.drawImage(coverImageRef.current, -200, -200, w + 400, h + 400);
+              // Create a heavy blur effect
+              ctx.filter = 'blur(80px) brightness(0.4) saturate(1.2)';
+              // Draw image scaled to cover entire screen
+              ctx.drawImage(coverImageRef.current, -100, -100, w + 200, h + 200);
+              
+              // Add a noise overlay or gradient to make it look premium
+              const gradient = ctx.createLinearGradient(0, 0, w, h);
+              gradient.addColorStop(0, 'rgba(0,0,0,0.2)');
+              gradient.addColorStop(1, 'rgba(0,0,0,0.6)');
+              ctx.fillStyle = gradient;
+              ctx.fillRect(0,0,w,h);
+              
               ctx.restore();
-          } catch (e) {
-              // Ignore drawing errors (e.g. if image is broken)
-          }
+          } catch (e) {}
       }
 
-      // --- 2. LAYOUT CONSTANTS ---
-      // Vertical Layout
-      const centerX = w / 2;
+      // --- 2. LAYOUT CALCULATION (Split View) ---
+      // Right Side: Album Art (35% width)
+      // Left Side: Lyrics (65% width)
       
-      // Cover Art
-      const coverSize = 500;
-      const coverY = 80;
+      const artAreaX = w * 0.62; // Start at 62% width
+      const artSize = 550;
+      const artY = (h - artSize) / 2 - 50;
+      
+      const lyricAreaX = 120; // Left Margin
+      const lyricCenterY = h / 2 - 40; // Slightly above center
 
-      // Text Info
-      const titleY = coverY + coverSize + 80;
-      const artistY = titleY + 50;
-
-      // Lyric Area (Bottom Third)
-      const lyricCurrentY = 900;
-      const lyricPrevY = 820;
-      const lyricNextY = 980;
-
-      // --- 3. DRAW ALBUM ART (Top Center) ---
+      // --- 3. DRAW RIGHT SIDE (ALBUM ART & INFO) ---
       if (coverImageRef.current) {
           try {
               ctx.save();
-              ctx.shadowColor = "rgba(0, 0, 0, 0.6)";
-              ctx.shadowBlur = 50;
+              
+              // Drop Shadow for Album Art
+              ctx.shadowColor = "rgba(0, 0, 0, 0.5)";
+              ctx.shadowBlur = 60;
               ctx.shadowOffsetY = 30;
+
+              // Rounded Rect Clip
+              const r = 24; // Radius
+              ctx.beginPath();
+              ctx.moveTo(artAreaX + r, artY);
+              ctx.lineTo(artAreaX + artSize - r, artY);
+              ctx.quadraticCurveTo(artAreaX + artSize, artY, artAreaX + artSize, artY + r);
+              ctx.lineTo(artAreaX + artSize, artY + artSize - r);
+              ctx.quadraticCurveTo(artAreaX + artSize, artY + artSize, artAreaX + artSize - r, artY + artSize);
+              ctx.lineTo(artAreaX + r, artY + artSize);
+              ctx.quadraticCurveTo(artAreaX, artY + artSize, artAreaX, artY + artSize - r);
+              ctx.lineTo(artAreaX, artY + r);
+              ctx.quadraticCurveTo(artAreaX, artY, artAreaX + r, artY);
+              ctx.closePath();
               
-              const x = (w - coverSize) / 2;
-              ctx.drawImage(coverImageRef.current, x, coverY, coverSize, coverSize);
-              
-              // Border
-              ctx.strokeStyle = "rgba(255, 255, 255, 0.15)";
-              ctx.lineWidth = 3;
-              ctx.strokeRect(x, coverY, coverSize, coverSize);
+              // Clip and Draw
+              ctx.save();
+              ctx.clip();
+              ctx.drawImage(coverImageRef.current, artAreaX, artY, artSize, artSize);
               ctx.restore();
+              
+              // Inner Border (subtle)
+              ctx.lineWidth = 2;
+              ctx.strokeStyle = "rgba(255,255,255,0.1)";
+              ctx.stroke();
+
+              ctx.restore(); // Restore shadow
           } catch(e) {}
-      } else {
-          // Placeholder if no image
-          ctx.save();
-          ctx.fillStyle = '#1e293b';
-          const x = (w - coverSize) / 2;
-          ctx.fillRect(x, coverY, coverSize, coverSize);
-          ctx.strokeStyle = "rgba(255, 255, 255, 0.1)";
-          ctx.strokeRect(x, coverY, coverSize, coverSize);
-          
-          ctx.fillStyle = '#64748b';
-          ctx.font = 'bold 40px Montserrat';
-          ctx.fillText("NO COVER", centerX, coverY + coverSize/2);
-          ctx.restore();
       }
 
-      // --- 4. DRAW INFO ---
-      ctx.textAlign = 'center';
-      
-      // Song Title
-      ctx.font = '900 60px Montserrat, sans-serif';
+      // Song Info (Below Art)
+      ctx.textAlign = 'left';
       ctx.fillStyle = '#ffffff';
-      ctx.shadowColor = "rgba(0,0,0,0.5)";
+      ctx.shadowColor = "rgba(0,0,0,0.8)";
       ctx.shadowBlur = 10;
-      ctx.fillText(selectedSong.title, centerX, titleY);
-      ctx.shadowBlur = 0;
+      
+      // Title
+      ctx.font = '900 48px Montserrat, sans-serif';
+      // Handle very long titles
+      let displayTitle = selectedSong.title;
+      if (displayTitle.length > 18) displayTitle = displayTitle.substring(0, 18) + '...';
+      ctx.fillText(displayTitle, artAreaX, artY + artSize + 80);
 
-      // Artist Name
-      ctx.font = '500 36px Montserrat, sans-serif';
-      ctx.fillStyle = '#38bdf8'; // Brand Accent
-      ctx.fillText("Willwi", centerX, artistY);
+      // Artist
+      ctx.font = '500 32px Montserrat, sans-serif';
+      ctx.fillStyle = '#94a3b8'; // Slate 400
+      ctx.fillText(`Willwi`, artAreaX, artY + artSize + 130);
+      
+      // Metadata (e.g., Year)
+      ctx.font = '400 24px Montserrat, sans-serif';
+      ctx.fillStyle = '#64748b'; // Slate 500
+      ctx.fillText(selectedSong.releaseDate.split('-')[0] + ' • ' + (selectedSong.versionLabel || 'Original'), artAreaX, artY + artSize + 170);
 
-      // --- 5. DRAW LYRICS (3 Lines Rolling) ---
+      // --- 4. DRAW LEFT SIDE (LYRICS) ---
+      // Design: Current line huge, previous/next faded
       
       if (gameState === 'standby') {
-          // Standby Message
-          ctx.font = '700 48px Montserrat';
+          ctx.textAlign = 'left';
+          ctx.font = '900 80px Montserrat';
           ctx.fillStyle = '#fbbf24'; // Gold
-          ctx.shadowColor = "rgba(251, 191, 36, 0.5)";
-          ctx.shadowBlur = 20;
-          ctx.fillText("PRESS SPACE TO START", centerX, lyricCurrentY);
-          ctx.shadowBlur = 0;
+          ctx.fillText("READY?", lyricAreaX, lyricCenterY);
+          
+          ctx.font = '500 40px Montserrat';
+          ctx.fillStyle = '#ffffff';
+          ctx.fillText("Press SPACE to Start", lyricAreaX, lyricCenterY + 80);
           return;
       }
 
-      // Previous Line (Top, Faded)
-      if (lines[lineIndex - 1] !== undefined) {
-          ctx.font = '500 32px Montserrat, sans-serif';
-          ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
-          ctx.fillText(lines[lineIndex - 1], centerX, lyricPrevY);
+      // Draw Context Lines (Previous)
+      ctx.textAlign = 'left';
+      const lineHeight = 100;
+      const contextLines = 2; // How many lines to show before/after
+
+      for (let i = 1; i <= contextLines; i++) {
+          const prevIdx = lineIndex - i;
+          if (lines[prevIdx] !== undefined) {
+               ctx.font = '600 40px Montserrat, sans-serif';
+               // Fade opacity based on distance
+               ctx.fillStyle = `rgba(255, 255, 255, ${0.4 - (i * 0.15)})`; 
+               ctx.fillText(lines[prevIdx], lyricAreaX, lyricCenterY - (i * lineHeight) + 20); // +20 for visual alignment
+          }
       }
 
-      // Current Line (Center, Highlighted)
+      // Draw Current Line
       if (lines[lineIndex] !== undefined) {
-          ctx.font = '900 52px Montserrat, sans-serif';
+          ctx.font = '900 72px Montserrat, sans-serif';
           ctx.fillStyle = '#ffffff';
-          // Glow
-          ctx.shadowColor = "rgba(56, 189, 248, 0.9)";
+          ctx.shadowColor = "rgba(0,0,0,0.5)";
           ctx.shadowBlur = 20;
-          ctx.fillText(lines[lineIndex], centerX, lyricCurrentY);
+          
+          // Word Wrap Logic for very long lines
+          const words = lines[lineIndex].split(''); // Split by char for Chinese, space for EN? Simple assumption for now
+          // Simple width check (approximate)
+          if (lines[lineIndex].length > 14) {
+               ctx.font = '800 56px Montserrat, sans-serif'; // Shrink font for long lines
+          }
+          ctx.fillText(lines[lineIndex], lyricAreaX, lyricCenterY + 30);
           ctx.shadowBlur = 0;
       }
 
-      // Next Line (Bottom, Faded)
-      if (lines[lineIndex + 1] !== undefined) {
-          ctx.font = '500 32px Montserrat, sans-serif';
-          ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
-          ctx.fillText(lines[lineIndex + 1], centerX, lyricNextY);
+      // Draw Context Lines (Next)
+      for (let i = 1; i <= 3; i++) { // Show more upcoming lines
+          const nextIdx = lineIndex + i;
+          if (lines[nextIdx] !== undefined) {
+               ctx.font = '600 40px Montserrat, sans-serif';
+               if (lines[nextIdx] === 'END') {
+                   ctx.fillStyle = 'rgba(251, 191, 36, 0.5)'; // Gold for END
+               } else {
+                   ctx.fillStyle = `rgba(255, 255, 255, ${0.4 - (i * 0.1)})`;
+               }
+               ctx.fillText(lines[nextIdx], lyricAreaX, lyricCenterY + (i * lineHeight) + 30);
+          }
+      }
+
+      // --- 5. VISUALIZER (BOTTOM) ---
+      // Simulate audio reactivity based on gamestate
+      if (gameState === 'playing') {
+          // Update simulated bars
+          visualizerBarsRef.current = visualizerBarsRef.current.map(prev => {
+              const target = Math.random() * 100; // Target height (0-100)
+              return prev + (target - prev) * 0.2; // Smooth lerp
+          });
+      } else {
+           // Decay to 0
+           visualizerBarsRef.current = visualizerBarsRef.current.map(prev => prev * 0.9);
+      }
+
+      const barWidth = 12;
+      const barGap = 8;
+      const numBars = 60;
+      const startX = 120; // Align with lyrics
+      const baselineY = h - 100;
+
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
+      for (let i = 0; i < numBars; i++) {
+          const height = visualizerBarsRef.current[i] || 0;
+          // Draw bar centered on height? No, emerging from bottom
+          const x = startX + i * (barWidth + barGap);
+          // Rounded cap bar
+          ctx.beginPath();
+          ctx.roundRect(x, baselineY - height, barWidth, height, 4);
+          ctx.fill();
       }
       
-      // END Marker
-      if (lines[lineIndex] === "END") {
-           ctx.fillStyle = '#fbbf24';
-           ctx.font = 'bold 30px Montserrat';
-           ctx.fillText("--- FINISHED ---", centerX, lyricCurrentY + 80);
-      }
+      // Progress Line
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.2)';
+      ctx.fillRect(startX, baselineY + 10, w - startX - 100, 2);
+      
+      // Current Progress Indicator (Approximation based on line count)
+      const progress = (lineIndex / (lines.length || 1));
+      const progressWidth = (w - startX - 100) * progress;
+      ctx.fillStyle = '#38bdf8'; // Brand Accent
+      ctx.fillRect(startX, baselineY + 10, progressWidth, 2);
+
   };
 
   // Main Interaction Handler (Tap / Space)
@@ -508,7 +647,7 @@ const Interactive: React.FC = () => {
                  {/* LYRIC MAKER CARD */}
                  <button 
                     onClick={() => handleToolClick('lyric-maker')}
-                    className="group relative bg-slate-900 border border-slate-800 hover:border-brand-accent rounded-2xl p-8 text-left transition-all hover:shadow-[0_0_30px_rgba(56,189,248,0.1)] overflow-hidden md:col-span-2 lg:col-span-3"
+                    className="group relative bg-slate-900 border border-slate-800 hover:border-brand-accent rounded-2xl p-8 text-left transition-all hover:shadow-[0_0_30px_rgba(56,189,248,0.1)] overflow-hidden md:col-span-2 lg:col-span-1"
                  >
                      <div className="relative z-10">
                          <span className="inline-block px-3 py-1 rounded-full bg-brand-accent/20 text-brand-accent text-xs font-bold mb-4">VIDEO MAKER</span>
@@ -522,8 +661,207 @@ const Interactive: React.FC = () => {
                          </div>
                      </div>
                  </button>
+
+                 {/* AI VIDEO CARD */}
+                 <button 
+                    onClick={() => handleToolClick('ai-video')}
+                    className="group relative bg-slate-900 border border-slate-800 hover:border-purple-500 rounded-2xl p-8 text-left transition-all hover:shadow-[0_0_30px_rgba(168,85,247,0.1)] overflow-hidden md:col-span-2 lg:col-span-2"
+                 >
+                     <div className="relative z-10">
+                         <span className="inline-block px-3 py-1 rounded-full bg-purple-500/20 text-purple-400 text-xs font-bold mb-4">VEO GENERATOR</span>
+                         <h3 className="text-2xl font-bold text-white mb-2 group-hover:text-purple-400 transition-colors">AI Music Video Director</h3>
+                         <p className="text-slate-400 text-sm leading-relaxed mb-6">
+                            上傳照片，讓 Veo 模型生成逼真的音樂錄影帶。<br/>
+                            (Powered by Google Veo)
+                         </p>
+                         <div className="flex items-center gap-2 text-sm text-white font-bold group-hover:translate-x-2 transition-transform">
+                             Start Generation <span>→</span>
+                         </div>
+                     </div>
+                 </button>
              </div>
         </div>
+      );
+  }
+
+  // --- AI VIDEO MAKER RENDER ---
+  if (mode === 'ai-video') {
+      return (
+          <div className="max-w-5xl mx-auto pt-8 px-4 pb-20 animate-fade-in">
+              <PaymentModal isOpen={showPaymentModal} onClose={() => setShowPaymentModal(false)} />
+              
+              <div className="flex justify-between items-center mb-6">
+                <button 
+                    onClick={() => { setMode('menu'); setVideoState('select-song'); }}
+                    className="text-slate-500 hover:text-white text-sm flex items-center gap-2 transition-colors"
+                >
+                    ← Back to Menu
+                </button>
+                {videoState !== 'select-song' && (
+                    <button onClick={() => setVideoState('select-song')} className="text-red-400 hover:text-red-300 text-sm border border-red-900/50 px-3 py-1 rounded">
+                        重選歌曲 (Reset)
+                    </button>
+                )}
+            </div>
+
+            {/* STEP 1: SELECT SONG */}
+            {videoState === 'select-song' && (
+                <div>
+                    <h2 className="text-2xl font-bold text-white mb-2">Select a Song for Context</h2>
+                    <p className="text-slate-400 text-sm mb-6">The song title and description will guide the AI generation style.</p>
+                    
+                    <div className="relative mb-6">
+                        <input 
+                            type="text" 
+                            placeholder="Search database..." 
+                            className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-3 text-white focus:border-purple-500 outline-none"
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                        />
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 max-h-[60vh] overflow-y-auto custom-scrollbar pr-2">
+                        {songs.filter(s => s.title.toLowerCase().includes(searchTerm.toLowerCase())).map(song => (
+                            <div 
+                                key={song.id}
+                                onClick={() => handleSelectSongForVideo(song)}
+                                className="flex items-center gap-4 p-4 bg-slate-900 border border-slate-800 hover:border-purple-500 rounded-xl cursor-pointer transition-all hover:bg-slate-800"
+                            >
+                                <img src={song.coverUrl} className="w-16 h-16 rounded object-cover" alt={song.title} />
+                                <div className="flex-1 min-w-0">
+                                    <h4 className="font-bold text-white truncate">{song.title}</h4>
+                                    <p className="text-xs text-slate-400">{song.language}</p>
+                                </div>
+                                <button className="px-4 py-2 bg-purple-500/10 text-purple-400 rounded text-xs font-bold uppercase">Select</button>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            )}
+
+            {/* STEP 2: COMPOSE & GENERATE */}
+            {(videoState === 'compose' || videoState === 'generating' || videoState === 'result') && selectedSong && (
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                    
+                    {/* LEFT: SETTINGS */}
+                    <div className="space-y-6">
+                        <div className="bg-slate-900 border border-slate-800 rounded-xl p-6">
+                             <div className="flex items-center gap-4 mb-4 pb-4 border-b border-slate-800">
+                                 <img src={selectedSong.coverUrl} className="w-12 h-12 rounded" alt="cover" />
+                                 <div>
+                                     <h3 className="text-white font-bold">{selectedSong.title}</h3>
+                                     <p className="text-xs text-slate-500">Selected Context</p>
+                                 </div>
+                             </div>
+
+                             {/* IMAGE UPLOAD */}
+                             <div className="mb-6">
+                                 <label className="block text-sm font-bold text-white mb-2">1. Reference Photo (Required)</label>
+                                 <div 
+                                    onClick={() => videoFileInputRef.current?.click()}
+                                    className="border-2 border-dashed border-slate-700 hover:border-purple-500 rounded-lg p-6 text-center cursor-pointer transition-colors relative overflow-hidden group"
+                                 >
+                                     {videoRefImagePreview ? (
+                                         <img src={videoRefImagePreview} className="h-48 w-full object-cover rounded-md opacity-80 group-hover:opacity-100 transition-opacity" alt="ref" />
+                                     ) : (
+                                         <div className="py-8">
+                                             <span className="text-4xl block mb-2">📷</span>
+                                             <span className="text-sm text-slate-400">Click to Upload Photo</span>
+                                         </div>
+                                     )}
+                                     <input 
+                                        type="file" 
+                                        ref={videoFileInputRef} 
+                                        accept="image/*" 
+                                        onChange={handleVideoImageUpload} 
+                                        className="hidden"
+                                     />
+                                 </div>
+                             </div>
+
+                             {/* PROMPT */}
+                             <div className="mb-6">
+                                 <label className="block text-sm font-bold text-white mb-2">2. Text Prompt</label>
+                                 <textarea 
+                                     className="w-full h-32 bg-slate-950 border border-slate-700 rounded p-3 text-white text-sm focus:border-purple-500 outline-none"
+                                     value={videoPrompt}
+                                     onChange={(e) => setVideoPrompt(e.target.value)}
+                                     placeholder="Describe the video scene..."
+                                 />
+                             </div>
+
+                             {/* RATIO */}
+                             <div className="mb-6">
+                                 <label className="block text-sm font-bold text-white mb-2">3. Aspect Ratio</label>
+                                 <div className="flex gap-4">
+                                     <button 
+                                        onClick={() => setVideoAspectRatio('16:9')}
+                                        className={`flex-1 py-3 rounded border text-sm font-bold transition-all ${videoAspectRatio === '16:9' ? 'bg-purple-600 border-purple-600 text-white' : 'border-slate-700 text-slate-400 hover:border-slate-500'}`}
+                                     >
+                                         Landscape (16:9)
+                                     </button>
+                                     <button 
+                                        onClick={() => setVideoAspectRatio('9:16')}
+                                        className={`flex-1 py-3 rounded border text-sm font-bold transition-all ${videoAspectRatio === '9:16' ? 'bg-purple-600 border-purple-600 text-white' : 'border-slate-700 text-slate-400 hover:border-slate-500'}`}
+                                     >
+                                         Portrait (9:16)
+                                     </button>
+                                 </div>
+                             </div>
+
+                             {/* GENERATE BTN */}
+                             <button 
+                                onClick={handleGenerateVideo}
+                                disabled={videoState === 'generating' || !videoRefImage}
+                                className="w-full py-4 bg-gradient-to-r from-purple-600 to-blue-600 text-white font-bold rounded-xl shadow-lg hover:shadow-purple-500/30 disabled:opacity-50 transition-all"
+                             >
+                                 {videoState === 'generating' ? 'Veo is thinking... (Take a nap)' : '✨ Generate Video'}
+                             </button>
+                        </div>
+                    </div>
+
+                    {/* RIGHT: PREVIEW / RESULT */}
+                    <div className="bg-black rounded-xl border border-slate-800 flex items-center justify-center relative overflow-hidden min-h-[400px]">
+                        {videoState === 'generating' && (
+                            <div className="text-center">
+                                <div className="w-16 h-16 border-4 border-purple-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+                                <h3 className="text-white font-bold text-xl animate-pulse">Generating...</h3>
+                                <p className="text-slate-500 text-sm mt-2">This may take 1-2 minutes.</p>
+                            </div>
+                        )}
+
+                        {videoState === 'result' && generatedVideoUrl && (
+                            <div className="w-full h-full flex flex-col">
+                                <video 
+                                    src={generatedVideoUrl} 
+                                    controls 
+                                    autoPlay 
+                                    loop 
+                                    className="w-full h-full object-contain max-h-[600px]"
+                                />
+                                <div className="p-4 bg-slate-900 border-t border-slate-800 flex justify-between items-center">
+                                    <span className="text-green-400 font-bold text-sm">✓ Generation Complete</span>
+                                    <a 
+                                        href={generatedVideoUrl} 
+                                        download={`Willwi_Veo_${Date.now()}.mp4`}
+                                        className="text-white bg-slate-700 hover:bg-slate-600 px-4 py-2 rounded text-xs font-bold"
+                                    >
+                                        Download MP4
+                                    </a>
+                                </div>
+                            </div>
+                        )}
+
+                        {videoState === 'compose' && (
+                             <div className="text-center opacity-30">
+                                 <span className="text-6xl block mb-4">🎬</span>
+                                 <p className="text-white font-bold">Preview Area</p>
+                             </div>
+                        )}
+                    </div>
+                </div>
+            )}
+
+          </div>
       );
   }
 

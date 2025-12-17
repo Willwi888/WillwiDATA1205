@@ -59,7 +59,8 @@ export const generateMusicCritique = async (song: Song): Promise<string> => {
 export const generateAiVideo = async (
   prompt: string, 
   imageBase64?: string, 
-  mimeType: string = 'image/png'
+  mimeType: string = 'image/png',
+  aspectRatio: '16:9' | '9:16' = '16:9'
 ): Promise<string | null> => {
   try {
     // 1. Check for API Key selection (Required for Veo)
@@ -93,7 +94,7 @@ export const generateAiVideo = async (
             config: {
                 numberOfVideos: 1,
                 resolution: '720p',
-                aspectRatio: '16:9' 
+                aspectRatio: aspectRatio 
             }
         });
     } else {
@@ -105,7 +106,7 @@ export const generateAiVideo = async (
             config: {
                 numberOfVideos: 1,
                 resolution: '720p',
-                aspectRatio: '16:9'
+                aspectRatio: aspectRatio
             }
         });
     }
