@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { useUser } from '../context/UserContext';
 
@@ -6,139 +7,99 @@ interface PaymentModalProps {
   onClose: () => void;
 }
 
-// 設定單價: 320 TWD (符合人工創作行情)
 const UNIT_PRICE = 320;
 
 const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose }) => {
-  const { addCredits, user } = useUser();
+  const { addCredits } = useUser();
   const [amount, setAmount] = useState<number>(320);
 
   if (!isOpen) return null;
 
-  // 計算可獲得的額度
   const estimatedCredits = Math.floor(amount / UNIT_PRICE);
 
-  const handlePaymentClick = (url: string) => {
-    // Open PayPal in new tab
-    window.open(url, '_blank');
-    
-    if (window.confirm(`模擬環境提示：\n您是否已完成付款 NT$ ${amount}？\n系統將發放 ${estimatedCredits} 點額度。`)) {
-        addCredits(estimatedCredits > 0 ? estimatedCredits : 1);
-        onClose();
-    }
+  const handleManualConfirm = () => {
+      if (window.confirm(`確認已完成 NT$ ${amount} 轉帳？\nCasper 會為您核發 ${estimatedCredits} 首製作點數。`)) {
+          addCredits(estimatedCredits);
+          onClose();
+      }
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-black/90 backdrop-blur-md" onClick={onClose}></div>
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-black/95 backdrop-blur-xl" onClick={onClose}></div>
       
-      <div className="relative z-10 bg-slate-900 border border-slate-700 rounded-3xl max-w-4xl w-full overflow-hidden shadow-2xl animate-fade-in flex flex-col md:flex-row">
+      <div className="relative z-10 bg-[#020617] border border-white/10 rounded-[40px] max-w-4xl w-full overflow-hidden shadow-2xl animate-fade-in flex flex-col md:flex-row">
         
-        {/* OPTION 1: DONATION (Instant Noodles) - LEFT SIDE */}
-        <div className="w-full md:w-1/2 p-8 border-b md:border-b-0 md:border-r border-slate-700 flex flex-col">
-            <h3 className="text-2xl font-bold text-white mb-4">方案一：愛心熱泡麵</h3>
-            <span className="inline-block px-3 py-1 rounded-full bg-yellow-500/20 text-yellow-500 text-xs font-bold mb-6 w-fit">創作支持（樂捐）</span>
+        {/* LINE PAY (PRIMARY) */}
+        <div className="w-full md:w-1/2 p-10 flex flex-col border-b md:border-b-0 md:border-r border-white/10">
+            <div className="flex items-center gap-3 mb-6">
+                <div className="bg-green-500 text-white px-3 py-1 rounded-md text-[10px] font-black uppercase tracking-widest">Recommended</div>
+                <h3 className="text-2xl font-bold text-white">LINE Pay / 銀行轉帳</h3>
+            </div>
             
-            <p className="text-slate-300 text-sm leading-relaxed mb-6 whitespace-pre-line">
-                如果你想單純支持我的創作，
-                可以請我一碗愛心熱泡麵。
-
-                此為<span className="text-white font-bold">非商品、非交易之支持行為</span>，金額不對應任何服務或成果。
-
-                感謝你願意用一點溫度，陪我繼續創作。
+            <p className="text-slate-400 text-sm leading-relaxed mb-8">
+                支持 Willwi 音樂創作。請手動輸入 <span className="text-white font-bold underline">NT$ ${amount}</span> 進行支持。<br/>
+                每一首手工動態歌詞影片的製作成本為 320 元。
             </p>
 
-            <div className="mt-auto flex flex-col items-center justify-center p-6 bg-white rounded-xl shadow-inner">
-                {/* QR CODE DISPLAY */}
-                <div className="w-48 h-48 bg-white flex items-center justify-center mb-4 relative overflow-hidden group rounded-lg shadow-sm border border-slate-200">
+            <div className="bg-white p-6 rounded-3xl shadow-inner mb-8 flex flex-col items-center">
+                <div className="w-48 h-48 bg-slate-100 rounded-2xl flex items-center justify-center overflow-hidden border border-slate-200 relative">
                     <img 
-                        src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=https://willwi-music-467949320732.us-west1.run.app/`}
-                        className="w-full h-full object-contain p-2" 
-                        alt="Line Pay QR Code"
+                        src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=https://line.me/R/nv/payment/`}
+                        className="w-full h-full object-contain p-4 grayscale opacity-20" 
+                        alt="QR"
                     />
+                    <div className="absolute inset-0 flex items-center justify-center p-4 text-center">
+                        <span className="text-slate-900 font-bold text-xs uppercase tracking-tighter">Scan to Pay (Manual)<br/>金額請輸入 ${amount}</span>
+                    </div>
                 </div>
-                <p className="text-slate-900 font-bold text-sm">LINE Pay 轉帳</p>
-                <p className="text-slate-500 text-xs mt-1">（創作支持／非商品）</p>
+                <p className="text-slate-900 font-black text-xs mt-4 tracking-widest uppercase">金額隨喜 / 320 NTD per song</p>
             </div>
+
+            <button 
+                onClick={handleManualConfirm}
+                className="mt-auto w-full py-4 bg-green-600 hover:bg-green-500 text-white font-black rounded-full shadow-lg transition-all uppercase tracking-widest text-sm"
+            >
+                我已完成轉帳 (Confirm)
+            </button>
         </div>
 
-        {/* OPTION 2: SERVICE (Lyric Video) - RIGHT SIDE */}
-        <div className="w-full md:w-1/2 p-8 bg-slate-950 flex flex-col">
-            <div className="flex justify-between items-start mb-4">
-                <h3 className="text-2xl font-bold text-white">方案二：手工動態歌詞</h3>
-                <button onClick={onClose} className="text-slate-400 hover:text-white text-xl">✕</button>
+        {/* PAYPAL (FALLBACK) */}
+        <div className="w-full md:w-1/2 p-10 bg-slate-950/50 flex flex-col">
+            <div className="flex justify-between items-start mb-6">
+                <h3 className="text-2xl font-bold text-white">PayPal / 信用卡</h3>
+                <button onClick={onClose} className="text-slate-500 hover:text-white">✕</button>
             </div>
-            <span className="inline-block px-3 py-1 rounded-full bg-brand-accent/20 text-brand-accent text-xs font-bold mb-4 w-fit">參與式創作 (Participatory Art)</span>
 
-            <div className="text-slate-300 text-xs leading-relaxed mb-4 space-y-3 max-h-[220px] overflow-y-auto custom-scrollbar pr-2 border-b border-slate-800 pb-4">
-                <div>
-                    <p className="font-bold text-white mb-1">手工對歌詞是一種參與式創作行為。</p>
-                    <p>你不是購買一首歌，而是參與一段創作的時間。</p>
-                    <p className="mt-2 opacity-80">此費用僅作為支持創作者投入人工對歌詞與引導的時間成本。不提供歌詞所有權、不涉及授權、不屬於數位商品交易。</p>
-                    <p className="mt-2 text-brand-accent">若你只是想聽歌，請至各大音樂平台。這裡留下的，是你與一首歌共同完成的痕跡。</p>
+            <div className="space-y-4 mb-8">
+                <div className="flex gap-2">
+                    {[1, 2, 5].map(count => (
+                        <button 
+                            key={count}
+                            onClick={() => setAmount(UNIT_PRICE * count)}
+                            className={`flex-1 py-3 rounded-2xl border font-bold text-xs transition-all ${amount === UNIT_PRICE * count ? 'bg-brand-accent text-slate-950 border-brand-accent' : 'border-white/10 text-slate-500 hover:border-white/30'}`}
+                        >
+                            {count} 首<br/>${UNIT_PRICE * count}
+                        </button>
+                    ))}
                 </div>
-                
-                <div className="pt-3 border-t border-slate-800 opacity-60 hover:opacity-100 transition-opacity">
-                    <p className="font-bold text-white mb-1">English</p>
-                    <p>This is a participation-based creative session.</p>
-                    <p>You are not purchasing a song or lyrics, but participating in a manual, artist-guided creative process.</p>
-                    <p className="mt-2">The support amount reflects time and creative involvement only. No lyrics ownership, licensing, or digital goods are provided.</p>
-                    <p className="mt-2">For music listening, please refer to official streaming platforms. What remains here is your participation within the creative process itself.</p>
+                <div className="p-4 bg-white/5 rounded-2xl border border-white/5 flex justify-between items-center">
+                    <span className="text-slate-500 text-xs">Total Credits:</span>
+                    <span className="text-brand-accent font-black text-xl">{estimatedCredits}</span>
                 </div>
             </div>
+
+            <button 
+                onClick={() => window.open('https://www.paypal.com/ncp/payment/UZU4M39WRFN5N', '_blank')}
+                className="w-full py-4 rounded-full bg-white hover:bg-slate-200 text-slate-950 font-black transition-all shadow-lg text-sm uppercase tracking-widest"
+            >
+                PayPal Checkout
+            </button>
             
-            {/* PRICING CALCULATOR */}
-            <div className="bg-slate-900 p-4 rounded-xl border border-slate-800 mt-2">
-                <label className="text-xs text-brand-gold font-bold block mb-2 text-center uppercase tracking-widest">
-                    👇 選擇方案 (Select Plan)
-                </label>
-                
-                {/* Presets */}
-                <div className="grid grid-cols-3 gap-2 mb-3">
-                    <button 
-                        onClick={() => setAmount(UNIT_PRICE * 1)}
-                        className={`py-2 rounded border text-xs font-bold transition-all ${amount === UNIT_PRICE ? 'bg-brand-accent text-slate-900 border-brand-accent' : 'border-slate-700 text-slate-400 hover:border-slate-500'}`}
-                    >
-                        1 首<br/>${UNIT_PRICE}
-                    </button>
-                    <button 
-                        onClick={() => setAmount(UNIT_PRICE * 2)}
-                        className={`py-2 rounded border text-xs font-bold transition-all ${amount === UNIT_PRICE * 2 ? 'bg-brand-accent text-slate-900 border-brand-accent' : 'border-slate-700 text-slate-400 hover:border-slate-500'}`}
-                    >
-                        2 首<br/>${UNIT_PRICE * 2}
-                    </button>
-                    <button 
-                        onClick={() => setAmount(UNIT_PRICE * 5)}
-                        className={`py-2 rounded border text-xs font-bold transition-all ${amount === UNIT_PRICE * 5 ? 'bg-brand-accent text-slate-900 border-brand-accent' : 'border-slate-700 text-slate-400 hover:border-slate-500'}`}
-                    >
-                        5 首<br/>${UNIT_PRICE * 5}
-                    </button>
-                </div>
-
-                {/* Result Display */}
-                <div className="text-center flex items-center justify-between px-2">
-                    <div className="text-left">
-                         <span className="text-xs text-slate-500">Total:</span>
-                         <div className="text-white font-bold text-lg">NT$ {amount}</div>
-                    </div>
-                    <div className="text-green-400 font-bold text-xs bg-green-900/20 py-1 px-3 rounded-full border border-green-900/50">
-                        {estimatedCredits} Credits
-                    </div>
-                </div>
-            </div>
-
-            <div className="mt-auto pt-4">
-                <button 
-                    onClick={() => handlePaymentClick('https://www.paypal.com/ncp/payment/UZU4M39WRFN5N')}
-                    className="w-full py-4 rounded-xl bg-brand-accent hover:bg-white text-slate-900 font-bold transition-all shadow-lg hover:shadow-brand-accent/20 flex items-center justify-center gap-2 group"
-                >
-                    <span>前往付款 (Proceed)</span>
-                    <span className="group-hover:translate-x-1 transition-transform">→</span>
-                </button>
-                <p className="text-[10px] text-slate-600 text-center mt-3">
-                    透過 PayPal 安全支付 • 系統自動儲值
-                </p>
-            </div>
+            <p className="text-[10px] text-slate-600 text-center mt-6 leading-relaxed">
+                * 注意：PayPal 手續費較高，國內使用者建議優先選用 LINE Pay。<br/>
+                金額請自行輸入。
+            </p>
         </div>
 
       </div>

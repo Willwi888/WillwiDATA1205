@@ -37,9 +37,9 @@
         from { opacity: 0; }
         to { opacity: 1; }
       }
-      @keyframes spinSlow {
-        from { transform: rotate(0deg); }
-        to { transform: rotate(360deg); }
+      @keyframes glowPulse {
+        0%, 100% { filter: drop-shadow(0 0 20px rgba(251, 191, 36, 0.4)); }
+        50% { filter: drop-shadow(0 0 40px rgba(251, 191, 36, 0.7)); }
       }
       .animate-fade-in-up {
         animation: fadeInUp 0.8s ease-out forwards;
@@ -47,8 +47,10 @@
       .animate-fade-in {
         animation: fadeIn 0.5s ease-out forwards;
       }
-      .animate-spin-slow {
-        animation: spinSlow 8s linear infinite;
+      .text-gold-glow {
+        color: white;
+        filter: drop-shadow(0 0 25px rgba(251, 191, 36, 0.6));
+        animation: glowPulse 4s ease-in-out infinite;
       }
       /* Custom Scrollbar */
       .custom-scrollbar::-webkit-scrollbar {
