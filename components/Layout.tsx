@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useTranslation } from '../context/LanguageContext';
 import { useUser } from '../context/UserContext';
+import ChatWidget from './ChatWidget';
 
 // Default Fallback Image (Can be overwritten in Admin)
 const DEFAULT_BG = "https://drive.google.com/thumbnail?id=18rpLhJQKHKK5EeonFqutlOoKAI2Eq_Hd&sz=w2560";
@@ -171,6 +172,9 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
       <main className="flex-grow pt-20 z-10 relative">
         {children}
       </main>
+      
+      {/* GLOBAL CHATBOT WIDGET */}
+      <ChatWidget />
 
       {/* --- FOOTER --- */}
       {!isEmbed && (

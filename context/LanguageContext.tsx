@@ -13,12 +13,22 @@ const TRANSLATIONS = {
     
     // Home
     hero_title: "WILLWI MUSIC CATALOG.",
-    hero_subtitle: "Because every note deserves a place to belong.",
-    hero_btn_db: "Database",
-    hero_btn_interactive: "Interactive",
+    hero_subtitle: "Introduction • Interaction • Explanation • Collection",
+    hero_btn_db: "Access Database",
+    hero_btn_interactive: "Start Interaction",
     hero_latest: "Latest Release / Featured",
     
-    // Home - Brand Section (New)
+    // Home - Core Pillars (NEW)
+    pillar_1_title: "Introduction",
+    pillar_1_desc: "Artist Profile & Vision",
+    pillar_2_title: "Interaction",
+    pillar_2_desc: "AI Guidance & Studio",
+    pillar_3_title: "Explanation",
+    pillar_3_desc: "Context & Storytelling",
+    pillar_4_title: "Collection",
+    pillar_4_desc: "Data Archive & Assets",
+
+    // Home - Brand Section
     home_verified_title: "Verified Presence & Global Recognition",
     home_verified_items: [
       "Spotify Verified Artist",
@@ -57,10 +67,10 @@ const TRANSLATIONS = {
     form_title_edit: "Edit Song",
     form_mode_single: "Single Track",
     form_mode_album: "Bulk Import (Album)",
-    form_mode_mb: "Sync MusicBrainz", // NEW
+    form_mode_mb: "Sync MusicBrainz", 
     form_search_single: "Search Single from Spotify",
     form_search_album: "Search Album from Spotify",
-    form_search_mb: "Willwi's Discography (MusicBrainz)", // NEW
+    form_search_mb: "Willwi's Discography (MusicBrainz)",
     form_search_btn: "Search",
     form_search_searching: "Searching...",
     form_import_btn: "Import Data",
@@ -69,8 +79,8 @@ const TRANSLATIONS = {
     form_label_version: "Version Label (e.g. Acoustic)",
     form_label_lang: "Language",
     form_label_project: "Project Type",
-    form_label_category: "Format", // NEW
-    form_label_company: "Record Label", // NEW
+    form_label_category: "Format",
+    form_label_company: "Record Label",
     form_label_date: "Release Date",
     form_label_cover: "Cover URL",
     form_label_pick: "Editor's Pick",
@@ -95,18 +105,6 @@ const TRANSLATIONS = {
     detail_links_header: "External Platforms",
     detail_player_header: "Preview & Video",
     
-    // Vote Event
-    vote_tab: "Event: Beloved",
-    vote_title: "Project: Beloved",
-    vote_subtitle: "Vote for the Top 20 Greatest Hits",
-    vote_desc: "This is a major event for Q2 next year. We have selected 40 popular tracks. Please listen to the 'Studio Instrumental Master Tapes' (different from live versions). Voting ends on Feb 28.",
-    vote_login_title: "Join the Event",
-    vote_login_desc: "Please enter your name and email to start voting.",
-    vote_limit_msg: "Please select exactly 10 songs.",
-    vote_submit: "Submit Vote",
-    vote_gift_title: "Thank You",
-    vote_gift_desc: "Your votes have been recorded. Here is a special voice message for you.",
-
     // Common
     btn_edit: "Edit",
     btn_delete: "Delete",
@@ -124,12 +122,22 @@ const TRANSLATIONS = {
 
     // Home
     hero_title: "WILLWI MUSIC CATALOG.",
-    hero_subtitle: "Because every note deserves a place to belong.", 
-    hero_btn_db: "資料庫",
-    hero_btn_interactive: "互動專區",
+    hero_subtitle: "介紹 • 互動引導 • 說明 • 資料收集", 
+    hero_btn_db: "進入資料庫",
+    hero_btn_interactive: "開始互動",
     hero_latest: "最新發行 / 精選",
 
-    // Home - Brand Section (New)
+    // Home - Core Pillars (NEW)
+    pillar_1_title: "介紹",
+    pillar_1_desc: "藝人檔案與願景",
+    pillar_2_title: "互動引導",
+    pillar_2_desc: "AI 導演與實驗室",
+    pillar_3_title: "說明",
+    pillar_3_desc: "創作脈絡解析",
+    pillar_4_title: "資料收集",
+    pillar_4_desc: "完整檔案歸檔",
+
+    // Home - Brand Section
     home_verified_title: "全球認證與影響力",
     home_verified_items: [
       "Spotify 官方認證藝人",
@@ -144,7 +152,7 @@ const TRANSLATIONS = {
     home_purpose_title: "以使命為核心的創作",
     home_quote_main: "音樂不只是旋律。",
     home_quote_sub: "它是靈魂的共鳴。",
-    home_purpose_text: "以故事的力量為引導，我們打造以個人真實經歷為核心的客製化詞曲創作與製作體驗。從初步訪談、歌詞探索到作曲與最終製作，生命中充滿意義的時刻都值得透過音樂被保存與紀念。",
+    home_purpose_text: "本站旨在建立一個完整的音樂生態系統，透過詳細的介紹讓聽眾認識作品，利用 AI 互動引導創造參與感，提供深度的創作說明，並完整收集所有相關數據與資料，為音樂資產留下永恆紀錄。",
     home_eco_text: "我們支持公平且永續的創作生態。我們的「首曲免費，後續 80 元」模式，確保數位工具能提升藝術表現，而非貶低音樂產業的價值。",
 
     // Database
@@ -168,10 +176,10 @@ const TRANSLATIONS = {
     form_title_edit: "編輯作品",
     form_mode_single: "單曲填寫",
     form_mode_album: "整張專輯匯入",
-    form_mode_mb: "MusicBrainz 同步", // NEW
+    form_mode_mb: "MusicBrainz 同步",
     form_search_single: "從 Spotify 搜尋單曲",
     form_search_album: "從 Spotify 搜尋專輯",
-    form_search_mb: "Willwi 的作品目錄 (MusicBrainz)", // NEW
+    form_search_mb: "Willwi 的作品目錄 (MusicBrainz)",
     form_search_btn: "搜尋",
     form_search_searching: "搜尋中...",
     form_import_btn: "帶入資料",
@@ -180,8 +188,8 @@ const TRANSLATIONS = {
     form_label_version: "版本標記 (如: Acoustic)",
     form_label_lang: "語言",
     form_label_project: "專案類型",
-    form_label_category: "發行形式", // NEW
-    form_label_company: "發行公司", // NEW
+    form_label_category: "發行形式",
+    form_label_company: "發行公司",
     form_label_date: "發行日期",
     form_label_cover: "封面圖片 URL",
     form_label_pick: "編輯精選",
@@ -205,18 +213,6 @@ const TRANSLATIONS = {
     detail_lyrics_header: "完整歌詞",
     detail_links_header: "外部平台連結",
     detail_player_header: "試聽與觀看",
-
-    // Vote Event
-    vote_tab: "活動：摯愛票選",
-    vote_title: "年度精選企劃：摯愛",
-    vote_subtitle: "純音樂母帶版・試聽票選",
-    vote_desc: "這是明年第2季的大活動，目前的封面即為專輯封面。這裡提供的是「錄音室純音樂母帶版」，與 Youtube 直播版本不同。請選出您心中的 10 首摯愛。投票截止日：2月28日。",
-    vote_login_title: "參與票選活動",
-    vote_login_desc: "請留下您的姓名與電子信箱以進入投票專區。",
-    vote_limit_msg: "請選滿 10 首歌曲才能送出喔！",
-    vote_submit: "送出選票",
-    vote_gift_title: "感謝您的參與",
-    vote_gift_desc: "您的選票已記錄。這是 Willwi 錄製的一段心裡話，送給每一個摯愛音樂的你。",
 
     // Common
     btn_edit: "編輯",

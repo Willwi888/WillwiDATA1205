@@ -11,6 +11,45 @@ const getClient = (customKey?: string) => {
   return new GoogleGenAI({ apiKey });
 };
 
+export const GRANDMA_SYSTEM_INSTRUCTION = `
+你現在扮演「泡麵聲學院」的校長兼吉祥物，名字叫做「泡麵阿嬤」。
+你的個性設定如下：
+1. 說話風格：使用繁體中文，帶有台灣長輩的親切感與幽默，偶爾會穿插一兩句台語口頭禪（如：這就對了、乖孫）。
+2. 關於 Willwi：你是 Willwi 的超級粉絲兼阿嬤，非常以他的多語音樂創作為榮。你會極力推薦大家去聽他的歌。
+3. 關於泡麵：你非常喜歡吃泡麵，認為泡麵是創作音樂的最佳良伴。如果有人說肚子餓，你會推薦他去吃泡麵。
+4. 互動方式：熱情、有點嘮叨但充滿愛。
+5. 任務：回答訪客關於 Willwi 音樂的問題，或者單純閒聊陪伴。
+請保持這個角色設定進行對話。
+`;
+
+// Singleton to hold the chat history in memory during the session
+let chatSession: any = null;
+
+export const getChatResponse = async (message: string): Promise<string> => {
+  const client = getClient();
+  if (!client) return "哎呀，阿嬤的網路線好像被老鼠咬斷了（API Key Missing）。";
+
+  try {
+    // Initialize chat session if it doesn't exist
+    if (!chatSession) {
+      chatSession = client.chats.create({
+        model: 'gemini-3-pro-preview',
+        config: {
+          systemInstruction: GRANDMA_SYSTEM_INSTRUCTION,
+        },
+      });
+    }
+
+    const result = await chatSession.sendMessage({ message });
+    return result.text;
+  } catch (error) {
+    console.error("Chat Error:", error);
+    // Reset session on error in case context is corrupted
+    chatSession = null;
+    return "阿嬤現在有點耳背，聽不清楚你在說什麼，可以再說一次嗎？(連線錯誤)";
+  }
+};
+
 export const generateMusicCritique = async (song: Song): Promise<string> => {
   const client = getClient();
   if (!client) return "請先設定 Google Gemini API Key 才能使用 AI 樂評功能。";
@@ -49,6 +88,50 @@ export const generateMusicCritique = async (song: Song): Promise<string> => {
   } catch (error) {
     console.error("Gemini API Error:", error);
     return "連線發生錯誤，無法生成評論。";
+  }
+};
+
+/**
+ * AI Director: Suggests video shots based on song context
+ * This saves money by planning prompts before generating video.
+ */
+export const generateShotSuggestions = async (song: Song): Promise<string[]> => {
+  const client = getClient();
+  if (!client) return ["Error: No API Key"];
+
+  const prompt = `
+    You are an expert Music Video Director. 
+    Based on the song info below, suggest 4 distinct, cinematic visual shot descriptions (Prompts) suitable for an AI Video Generator (like Google Veo).
+    
+    Song Title: ${song.title}
+    Vibe/Description: ${song.description || 'Emotional, artistic, cinematic'}
+    Lyrics snippet: ${song.lyrics ? song.lyrics.slice(0, 100) : 'Instrumental'}
+
+    Requirements:
+    1. Provide exactly 4 options.
+    2. Write in English (best for Veo).
+    3. Style: Cinematic, Photorealistic, 4k.
+    4. Format: Just the prompt text, one per line. No numbering like "1.".
+    
+    Options to generate:
+    - Option 1: A Close-up / Emotional shot (focus on face or detail).
+    - Option 2: A Wide / Atmospheric shot (focus on environment).
+    - Option 3: An Abstract / Artistic shot (focus on mood/lighting).
+    - Option 4: A Narrative shot (action or movement).
+  `;
+
+  try {
+    const response = await client.models.generateContent({
+      model: 'gemini-2.5-flash', // Use Flash for speed and low cost
+      contents: prompt,
+    });
+    
+    const text = response.text || "";
+    // Split by new line and filter empty
+    return text.split('\n').filter(line => line.trim().length > 10);
+  } catch (error) {
+    console.error("Gemini Shot Suggestion Error:", error);
+    return ["Cinematic close up of a singer in rain, 4k, moody lighting", "Wide shot of a lonely street at night, neon lights, cyberpunk style"];
   }
 };
 
@@ -137,14 +220,3 @@ export const generateAiVideo = async (
 };
 
 export const getGeminiClient = () => getClient();
-
-export const GRANDMA_SYSTEM_INSTRUCTION = `
-你現在扮演「泡麵聲學院」的校長兼吉祥物，名字叫做「泡麵阿嬤」。
-你的個性設定如下：
-1. 說話風格：使用繁體中文，帶有台灣長輩的親切感與幽默，偶爾會穿插一兩句台語口頭禪（如：這就對了、乖孫）。
-2. 關於 Willwi：你是 Willwi 的超級粉絲兼阿嬤，非常以他的多語音樂創作為榮。你會極力推薦大家去聽他的歌。
-3. 關於泡麵：你非常喜歡吃泡麵，認為泡麵是創作音樂的最佳良伴。如果有人說肚子餓，你會推薦他去吃泡麵。
-4. 互動方式：熱情、有點嘮叨但充滿愛。
-5. 任務：回答訪客關於 Willwi 音樂的問題，或者單純閒聊陪伴。
-請保持這個角色設定進行對話。
-`;

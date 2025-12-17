@@ -48,11 +48,14 @@ const Home: React.FC = () => {
   
   const youtubeEmbed = getYoutubeEmbedUrl(featuredYoutube);
 
+  // Cinematic Noise Texture (Data URI)
+  const noiseTexture = `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.08'/%3E%3C/svg%3E")`;
+
   return (
     <div className="flex flex-col h-full justify-center relative">
       
       {/* 1. Hero Section - Editorial Style */}
-      <div className="relative flex flex-col lg:flex-row items-center justify-center lg:justify-start min-h-[85vh] px-6 md:px-12 lg:px-20">
+      <div className="relative flex flex-col lg:flex-row items-center justify-center lg:justify-start min-h-[90vh] px-6 md:px-12 lg:px-20 pt-10 lg:pt-0">
         
         {/* Content (Text) */}
         <div className="relative z-10 w-full lg:w-2/3 max-w-4xl flex flex-col pt-12 lg:pt-0">
@@ -60,59 +63,66 @@ const Home: React.FC = () => {
             {/* Decorative Line & Label */}
             <div className="flex items-center gap-4 mb-6 animate-fade-in-up">
                  <div className="h-px w-12 bg-brand-accent"></div>
-                 <span className="text-brand-accent font-bold text-xs tracking-[0.3em] uppercase">The Official Archive</span>
+                 <span className="text-brand-accent font-bold text-xs tracking-[0.3em] uppercase">Official Archive</span>
             </div>
 
-            <h1 className="text-7xl md:text-9xl font-black text-white tracking-tighter uppercase mb-6 leading-[0.9] drop-shadow-2xl animate-fade-in-up" style={{animationDelay: '0.1s'}}>
+            <h1 className="text-6xl md:text-9xl font-black text-white tracking-tighter uppercase mb-6 leading-[0.9] drop-shadow-2xl animate-fade-in-up" style={{animationDelay: '0.1s'}}>
               Willwi
             </h1>
             
-            <h2 className="text-xl md:text-2xl font-light tracking-[0.2em] text-slate-200 mb-8 uppercase animate-fade-in-up" style={{animationDelay: '0.2s'}}>
-              {t('hero_title')}
+            <h2 className="text-lg md:text-xl font-mono tracking-[0.1em] text-slate-300 mb-8 uppercase animate-fade-in-up flex flex-wrap gap-x-4 gap-y-2" style={{animationDelay: '0.2s'}}>
+                {t('hero_subtitle')}
             </h2>
             
-            <p className="text-slate-300 text-sm md:text-base leading-relaxed mb-12 font-light max-w-lg border-l border-brand-accent/50 pl-6 animate-fade-in-up" style={{animationDelay: '0.3s'}}>
-               Reborn on Feb 25th.<br/>
-               Simply to leave a record of existence.<br/>
-               <span className="text-slate-500 text-xs mt-2 block">Est. 1995 • Taipei / Sydney</span>
-            </p>
-
-            {/* Premium Buttons */}
-            <div className="flex flex-col sm:flex-row gap-5 mb-16 animate-fade-in-up" style={{animationDelay: '0.4s'}}>
-              {/* Only Show Database button for Admins now */}
-              {isAdmin && (
-                  <Link 
-                      to="/database" 
-                      className="group relative px-8 py-4 overflow-hidden border border-white/20 hover:border-brand-accent transition-colors duration-300"
-                  >
-                     <div className="absolute inset-0 w-0 bg-brand-accent transition-all duration-[250ms] ease-out group-hover:w-full opacity-10"></div>
-                     <div className="relative flex items-center gap-3">
-                        <span className="text-white font-bold uppercase tracking-[0.2em] text-sm group-hover:text-brand-accent transition-colors">{t('hero_btn_db')}</span>
-                        <svg className="w-4 h-4 text-slate-400 group-hover:translate-x-1 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M17 8l4 4m0 0l-4 4m4-4H3"/></svg>
-                     </div>
-                  </Link>
-              )}
-              
-              <Link 
-                  to="/interactive" 
-                  className="group relative px-8 py-4 overflow-hidden bg-brand-accent/10 border border-brand-accent/50 hover:bg-brand-accent/20 transition-colors duration-300 backdrop-blur-sm"
-              >
-                  <div className="absolute inset-0 w-0 bg-white transition-all duration-[250ms] ease-out group-hover:w-full opacity-5"></div>
-                  <span className="relative text-white font-bold uppercase tracking-[0.2em] text-sm flex items-center gap-2">
-                      {t('hero_btn_interactive')} <span>→</span>
-                  </span>
-              </Link>
+            {/* CORE PILLARS - REDESIGNED: Minimal, Elliptical, Noise, No Icons */}
+            <div className="flex flex-wrap gap-4 mb-10 animate-fade-in-up" style={{animationDelay: '0.3s'}}>
+                {[
+                  { title: t('pillar_1_title'), link: null }, // Introduction (Static for now, or anchor)
+                  { title: t('pillar_2_title'), link: '/interactive' },
+                  { title: t('pillar_3_title'), link: null }, // Explanation
+                  { title: t('pillar_4_title'), link: '/database' }
+                ].map((item, idx) => (
+                    item.link ? (
+                        <Link 
+                            key={idx} 
+                            to={item.link}
+                            className="relative group overflow-hidden rounded-full border border-white/10 hover:border-white/30 transition-all duration-500"
+                        >
+                             <div className="absolute inset-0 bg-white/5 backdrop-blur-md transition-opacity group-hover:bg-white/10"></div>
+                             <div className="absolute inset-0 opacity-30 pointer-events-none mix-blend-overlay" style={{ backgroundImage: noiseTexture }}></div>
+                             <div className="relative px-8 py-3 flex items-center justify-center gap-2">
+                                 <span className="text-xs font-bold text-slate-300 uppercase tracking-widest group-hover:text-white transition-colors">
+                                     {item.title}
+                                 </span>
+                             </div>
+                        </Link>
+                    ) : (
+                        <div 
+                            key={idx} 
+                            className="relative overflow-hidden rounded-full border border-white/5 cursor-default"
+                        >
+                             <div className="absolute inset-0 bg-white/5 backdrop-blur-sm"></div>
+                             <div className="absolute inset-0 opacity-20 pointer-events-none mix-blend-overlay" style={{ backgroundImage: noiseTexture }}></div>
+                             <div className="relative px-8 py-3 flex items-center justify-center">
+                                 <span className="text-xs font-bold text-slate-500 uppercase tracking-widest">
+                                     {item.title}
+                                 </span>
+                             </div>
+                        </div>
+                    )
+                ))}
             </div>
 
             {/* REAL PLAYER SECTION */}
             {featuredTitle && (
               <div className="relative animate-fade-in-up max-w-xl w-full" style={{animationDelay: '0.5s'}}>
-                <div className="bg-slate-900/90 backdrop-blur-xl border border-slate-700 rounded-2xl p-4 md:p-6 shadow-2xl transition-all hover:border-slate-500">
+                <div className="bg-slate-900/40 backdrop-blur-xl border border-white/10 rounded-[30px] p-1 shadow-2xl transition-all hover:border-white/20">
+                     <div className="absolute inset-0 opacity-10 pointer-events-none rounded-[30px]" style={{ backgroundImage: noiseTexture }}></div>
                     
                     {/* OPTION A: YOUTUBE PLAYER (Priority) */}
                     {youtubeEmbed ? (
-                        <div className="flex flex-col gap-4">
-                             <div className="relative w-full aspect-video rounded-lg overflow-hidden shadow-black/50 shadow-lg border border-white/5 bg-black">
+                        <div className="flex flex-col">
+                             <div className="relative w-full aspect-video rounded-[26px] overflow-hidden shadow-black/50 shadow-lg bg-black">
                                  <iframe 
                                     className="absolute inset-0 w-full h-full"
                                     src={youtubeEmbed} 
@@ -122,31 +132,28 @@ const Home: React.FC = () => {
                                     allowFullScreen
                                  ></iframe>
                              </div>
-                             <div className="flex items-center justify-between">
+                             <div className="px-6 py-4 flex items-center justify-between">
                                  <div>
-                                    <h3 className="text-white font-bold text-lg leading-tight">{featuredTitle}</h3>
-                                    <p className="text-brand-accent text-xs tracking-wider uppercase mt-1">Official Video / Audio</p>
-                                 </div>
-                                 <div className="hidden sm:block text-slate-500 text-[10px] border border-slate-700 rounded px-2 py-1">
-                                    YOUTUBE
+                                    <h3 className="text-white font-bold text-lg leading-tight tracking-wide">{featuredTitle}</h3>
+                                    <p className="text-brand-accent/70 text-[10px] tracking-[0.2em] uppercase mt-1">Official Video</p>
                                  </div>
                              </div>
                         </div>
                     ) : (
                         /* OPTION B: AUDIO PLAYER (Fallback) */
-                        <div className="flex flex-col sm:flex-row items-center gap-6">
+                        <div className="flex flex-col sm:flex-row items-center gap-6 p-4">
                             {/* Cover */}
-                            <div className="relative w-24 h-24 sm:w-32 sm:h-32 rounded-lg overflow-hidden shadow-lg flex-shrink-0 group">
-                                <img src={featuredCover} className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity" alt="Cover" />
-                                <div className="absolute inset-0 flex items-center justify-center bg-black/20">
-                                     <div className="w-8 h-8 rounded-full bg-white/20 backdrop-blur flex items-center justify-center">
-                                         <span className="w-2 h-2 bg-brand-accent rounded-full animate-pulse"></span>
+                            <div className="relative w-24 h-24 sm:w-32 sm:h-32 rounded-full overflow-hidden shadow-2xl flex-shrink-0 group border border-white/10">
+                                <img src={featuredCover} className="w-full h-full object-cover opacity-90 group-hover:scale-105 transition-transform duration-700" alt="Cover" />
+                                <div className="absolute inset-0 flex items-center justify-center bg-black/10">
+                                     <div className="w-8 h-8 rounded-full bg-white/10 backdrop-blur flex items-center justify-center">
+                                         <span className="w-1.5 h-1.5 bg-white rounded-full animate-pulse"></span>
                                      </div>
                                 </div>
                             </div>
 
                             {/* Info & Native Audio */}
-                            <div className="flex-grow w-full text-center sm:text-left">
+                            <div className="flex-grow w-full text-center sm:text-left pr-4">
                                 <div className="mb-3">
                                     <h3 className="text-white font-bold text-xl leading-tight mb-1">{featuredTitle}</h3>
                                     <p className="text-slate-400 text-xs line-clamp-2">{featuredSubtitle}</p>
@@ -156,15 +163,15 @@ const Home: React.FC = () => {
                                     <audio 
                                         controls 
                                         controlsList="nodownload" 
-                                        className="w-full mix-blend-screen invert hue-rotate-180 contrast-125 h-8 opacity-80 hover:opacity-100 transition-opacity" 
+                                        className="w-full mix-blend-screen invert hue-rotate-180 contrast-125 h-8 opacity-60 hover:opacity-100 transition-opacity" 
                                     >
                                         <source src={featuredAudio} type="audio/mpeg" />
                                         <source src={featuredAudio} type="audio/wav" />
                                         Your browser does not support the audio element.
                                     </audio>
                                 ) : (
-                                    <div className="text-xs text-slate-500 italic bg-slate-950/50 py-2 px-3 rounded border border-white/5">
-                                        Audio setup required in Admin.
+                                    <div className="text-[10px] text-slate-600 italic">
+                                        Audio setup required.
                                     </div>
                                 )}
                             </div>
@@ -203,12 +210,13 @@ const Home: React.FC = () => {
             </div>
 
             {/* Right: Verification List */}
-            <div className="bg-slate-950/50 border border-white/5 p-8 md:p-12 relative">
-               <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-brand-accent to-transparent"></div>
-               <h3 className="text-xl font-bold text-white tracking-widest uppercase mb-8">
+            <div className="bg-slate-950/50 border border-white/5 p-8 md:p-12 relative rounded-[30px] overflow-hidden">
+               <div className="absolute inset-0 opacity-10 pointer-events-none" style={{ backgroundImage: noiseTexture }}></div>
+               <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-brand-accent/50 to-transparent"></div>
+               <h3 className="text-xl font-bold text-white tracking-widest uppercase mb-8 relative z-10">
                  Global Presence
                </h3>
-               <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-4 gap-x-8">
+               <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-4 gap-x-8 relative z-10">
                  {(t('home_verified_items') as string[]).map((item, idx) => (
                    <div key={idx} className="flex items-center gap-3 text-slate-400 group">
                       <span className="w-1.5 h-1.5 bg-brand-gold rounded-full opacity-50 group-hover:opacity-100 group-hover:shadow-[0_0_8px_rgba(251,191,36,0.8)] transition-all"></span>

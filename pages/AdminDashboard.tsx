@@ -4,6 +4,20 @@ import { useUser } from '../context/UserContext';
 import { dbService } from '../services/db';
 import { Song, Language } from '../types';
 
+// Helper to clean Google Redirect URLs
+const cleanGoogleRedirect = (url: string) => {
+    try {
+        if (url.includes('google.com/url')) {
+            const urlObj = new URL(url);
+            const q = urlObj.searchParams.get('q');
+            if (q) return decodeURIComponent(q);
+        }
+        return url;
+    } catch (e) {
+        return url;
+    }
+};
+
 // Helper to convert Google Drive Sharing Link
 const convertDriveLink = (url: string) => {
     try {
@@ -137,7 +151,8 @@ const AdminDashboard: React.FC = () => {
       const isDev = currentOrigin.includes('localhost') || currentOrigin.includes('webcontainer');
       const baseUrl = isDev ? "YOUR_GOOGLE_CLOUD_URL" : currentOrigin;
 
-      return `<iframe src="${baseUrl}?embed=true" style="width:100%; height:100vh; min-height:800px; border:none; background:transparent;" allow="microphone; clipboard-read; clipboard-write; encrypted-media; autoplay"></iframe>`;
+      // Updated Style for better mobile compatibility
+      return `<iframe src="${baseUrl}?embed=true" style="width:100%; height:100vh; min-height:800px; border:none; background:transparent; display:block;" allow="microphone; clipboard-read; clipboard-write; encrypted-media; autoplay"></iframe>`;
   };
 
   const copyEmbedCode = () => {
@@ -308,11 +323,12 @@ const AdminDashboard: React.FC = () => {
       <div className="bg-slate-900 border border-blue-500/50 rounded-xl p-8 mb-8 shadow-2xl relative overflow-hidden">
           <div className="absolute top-0 right-0 bg-blue-600 text-white text-[10px] font-bold px-3 py-1 rounded-bl shadow-lg uppercase tracking-wider">CARRD PRO TOOLKIT</div>
           <h2 className="text-2xl font-bold text-white mb-4 flex items-center gap-3">
-             <span className="text-3xl">🔗</span> 整合中心 (Integration Hub)
+             <span className="text-3xl">🔗</span> 官網整合中心 (Integration Hub)
           </h2>
           <p className="text-slate-300 text-sm mb-6 max-w-2xl leading-relaxed">
-             將此 React 應用程式「寄生」在您的 Carrd 網站中。
-             利用 Carrd 的流量與空間，利用 React 的運算能力。
+             <strong>是的，這完全可行！</strong> 這就是所謂的「微服務架構 (Micro-frontend)」。<br/>
+             您的官網 (Carrd) 負責「門面與流量」，而此 React 程式 (Google Cloud) 負責「AI 運算與資料庫」。
+             透過下方的嵌入代碼，AI 就可以跨平台在您的官網內完美執行。
           </p>
           
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
@@ -320,7 +336,8 @@ const AdminDashboard: React.FC = () => {
               <div className="bg-slate-950 p-6 rounded-lg border border-slate-800">
                   <h3 className="text-lg font-bold text-white mb-2">1. 取得嵌入代碼 (Embed Code)</h3>
                   <p className="text-xs text-slate-400 mb-4">
-                      請先將此 App 部署 (Deploy) 至 <strong>Google Cloud</strong>。在正式網址開啟此頁面後，下方的代碼會自動更新。
+                      請在 Carrd 新增一個 <strong>Embed (嵌入)</strong> 元件，並將下方代碼貼上。
+                      <span className="block mt-1 text-green-400">* 已自動優化：背景透明化 + AI 聊天室窗防遮擋。</span>
                   </p>
                   <div className="relative">
                       <textarea 
@@ -657,20 +674,6 @@ const AdminDashboard: React.FC = () => {
       </div>
     </div>
   );
-};
-
-// Helper mainly for handling Google Drive link cleaning (reused)
-const cleanGoogleRedirect = (url: string) => {
-    try {
-        if (url.includes('google.com/url')) {
-            const urlObj = new URL(url);
-            const q = urlObj.searchParams.get('q');
-            if (q) return decodeURIComponent(q);
-        }
-        return url;
-    } catch (e) {
-        return url;
-    }
 };
 
 export default AdminDashboard;

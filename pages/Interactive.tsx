@@ -4,7 +4,7 @@ import { useData } from '../context/DataContext';
 import { Song } from '../types';
 import PaymentModal from '../components/PaymentModal';
 import { useTranslation } from '../context/LanguageContext';
-import { generateAiVideo } from '../services/geminiService';
+import { generateAiVideo, generateShotSuggestions } from '../services/geminiService';
 
 // --- HELPERS ---
 const cleanGoogleRedirect = (url: string) => {
@@ -60,6 +60,10 @@ const Interactive: React.FC = () => {
   const [videoRefImagePreview, setVideoRefImagePreview] = useState<string | null>(null); // preview url
   const [generatedVideoUrl, setGeneratedVideoUrl] = useState<string | null>(null);
   
+  // AI Director State
+  const [shotSuggestions, setShotSuggestions] = useState<string[]>([]);
+  const [isLoadingShots, setIsLoadingShots] = useState(false);
+  
   // Refs for Engine
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const audioRef = useRef<HTMLAudioElement>(null);
@@ -113,11 +117,20 @@ const Interactive: React.FC = () => {
   // --- AI VIDEO HANDLERS ---
   const handleSelectSongForVideo = (song: Song) => {
       setSelectedSong(song);
-      setVideoPrompt(`A cinematic music video for a song titled "${song.title}" by Willwi. Atmosphere: ${song.description ? song.description.slice(0, 50) : 'emotional and artistic'}. High quality, 4k, realistic.`);
+      setVideoPrompt('');
+      setShotSuggestions([]); // Clear previous suggestions
       setVideoState('compose');
       setVideoRefImage(null);
       setVideoRefImagePreview(null);
       setGeneratedVideoUrl(null);
+  };
+
+  const handleGetShotSuggestions = async () => {
+      if (!selectedSong) return;
+      setIsLoadingShots(true);
+      const suggestions = await generateShotSuggestions(selectedSong);
+      setShotSuggestions(suggestions);
+      setIsLoadingShots(false);
   };
 
   const handleVideoImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -136,6 +149,10 @@ const Interactive: React.FC = () => {
 
   const handleGenerateVideo = async () => {
       if (!selectedSong) return;
+      if (!videoPrompt.trim()) {
+          alert("Please enter a prompt or select one from the AI Director.");
+          return;
+      }
       if (!deductCredit() && !isAdmin) {
           setShowPaymentModal(true);
           return;
@@ -826,6 +843,40 @@ const Interactive: React.FC = () => {
                                  </div>
                              </div>
 
+                             {/* AI DIRECTOR (NEW FEATURE) */}
+                             <div className="mb-6 bg-purple-900/10 border border-purple-500/30 p-4 rounded-lg">
+                                 <div className="flex justify-between items-center mb-3">
+                                     <h4 className="text-sm font-bold text-purple-400 flex items-center gap-2">
+                                         🤖 AI Director Suggestions
+                                     </h4>
+                                     <button 
+                                        onClick={handleGetShotSuggestions}
+                                        disabled={isLoadingShots}
+                                        className="text-xs bg-purple-600 hover:bg-purple-500 text-white px-3 py-1 rounded transition-colors disabled:opacity-50"
+                                     >
+                                        {isLoadingShots ? 'Thinking...' : 'Get Ideas (Free)'}
+                                     </button>
+                                 </div>
+                                 <p className="text-[10px] text-slate-400 mb-3">
+                                     Not sure what to generate? Ask Gemini to suggest 4 cinematic shot options based on the lyrics.
+                                 </p>
+                                 
+                                 {shotSuggestions.length > 0 && (
+                                     <div className="space-y-2">
+                                         {shotSuggestions.map((shot, idx) => (
+                                             <div 
+                                                key={idx}
+                                                onClick={() => setVideoPrompt(shot)}
+                                                className="p-2 bg-slate-950 hover:bg-purple-900/30 border border-slate-800 hover:border-purple-500 rounded cursor-pointer text-xs text-slate-300 transition-all"
+                                             >
+                                                 <span className="font-bold text-purple-500 mr-2">#{idx+1}</span>
+                                                 {shot}
+                                             </div>
+                                         ))}
+                                     </div>
+                                 )}
+                             </div>
+
                              {/* IMAGE UPLOAD */}
                              <div className="mb-6">
                                  <label className="block text-sm font-bold text-white mb-2">1. Reference Photo (Required)</label>
@@ -858,7 +909,7 @@ const Interactive: React.FC = () => {
                                      className="w-full h-32 bg-slate-950 border border-slate-700 rounded p-3 text-white text-sm focus:border-purple-500 outline-none"
                                      value={videoPrompt}
                                      onChange={(e) => setVideoPrompt(e.target.value)}
-                                     placeholder="Describe the video scene..."
+                                     placeholder="Describe the video scene... or click an AI suggestion above."
                                  />
                              </div>
 
