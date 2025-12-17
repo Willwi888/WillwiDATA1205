@@ -22,9 +22,114 @@ const cleanGoogleRedirect = (url: string) => {
 };
 
 // --- TYPES ---
-type InteractionMode = 'menu' | 'lyric-maker' | 'ai-video' | 'voting';
+type InteractionMode = 'menu' | 'lyric-maker' | 'ai-video';
 type GameState = 'select' | 'ready' | 'standby' | 'playing' | 'processing' | 'finished';
 type VideoState = 'select-song' | 'compose' | 'generating' | 'result';
+
+// --- SUB-COMPONENTS (Defined OUTSIDE to fix input lag) ---
+
+const LoginModal = ({ onClose, onLogin }: { onClose: () => void, onLogin: (name: string, email: string) => void }) => {
+    // Local state for inputs prevents parent re-renders and input lag
+    const [name, setName] = useState('');
+    const [email, setEmail] = useState('');
+
+    const handleSubmit = (e: React.FormEvent) => {
+        e.preventDefault();
+        if(name.trim() && email.trim()) {
+            onLogin(name, email);
+        }
+    };
+
+    return (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <div className="absolute inset-0 bg-black/90 backdrop-blur-sm" onClick={onClose}></div>
+            <div className="relative z-10 max-w-md w-full bg-slate-900 border border-slate-800 rounded-2xl p-8 shadow-2xl overflow-hidden animate-fade-in-up">
+                <button onClick={onClose} className="absolute top-4 right-4 text-slate-500 hover:text-white">✕</button>
+                <div className="text-center">
+                    <div className="w-16 h-16 bg-slate-800 rounded-full mx-auto flex items-center justify-center mb-6 text-3xl">✨</div>
+                    <h2 className="text-2xl font-bold text-white mb-2">Interactive Studio</h2>
+                    <p className="text-slate-400 mb-8 text-sm leading-relaxed">
+                        登入以使用工作室功能。<br/>
+                        <span className="text-brand-gold">新用戶即可獲得 1 次免費製作額度。</span>
+                    </p>
+                    <form onSubmit={handleSubmit} className="space-y-4">
+                        <input 
+                            type="text" 
+                            required 
+                            placeholder="您的姓名 / 暱稱" 
+                            className="w-full bg-black border border-slate-700 rounded-lg px-4 py-3 text-white text-center focus:border-brand-accent outline-none transition-colors" 
+                            value={name} 
+                            onChange={(e) => setName(e.target.value)} 
+                        />
+                        <input 
+                            type="email" 
+                            required 
+                            placeholder="您的電子信箱" 
+                            className="w-full bg-black border border-slate-700 rounded-lg px-4 py-3 text-white text-center focus:border-brand-accent outline-none transition-colors" 
+                            value={email} 
+                            onChange={(e) => setEmail(e.target.value)} 
+                        />
+                        <button 
+                            type="submit" 
+                            className="w-full py-3 bg-white hover:bg-slate-200 text-slate-900 font-bold rounded-lg uppercase tracking-widest text-sm transition-colors shadow-lg"
+                        >
+                            開始體驗
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    );
+};
+
+const AiUnlockModal = ({ onClose, onUnlock }: { onClose: () => void, onUnlock: () => void }) => {
+    const [code, setCode] = useState('');
+    const [error, setError] = useState('');
+
+    const handleSubmit = (e: React.FormEvent) => {
+        e.preventDefault();
+        // Password logic: Admin keys or specific event key
+        if (code === '8888' || code === 'eloveg2026' || code === '20261212') {
+            onUnlock();
+        } else {
+            setError('密碼錯誤 (Invalid Code)');
+        }
+    };
+
+    return (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <div className="absolute inset-0 bg-black/95 backdrop-blur-md" onClick={onClose}></div>
+            <div className="relative z-10 max-w-sm w-full bg-slate-900 border border-purple-500/50 rounded-2xl p-8 shadow-2xl overflow-hidden animate-fade-in-up">
+                <button onClick={onClose} className="absolute top-4 right-4 text-slate-500 hover:text-white">✕</button>
+                <div className="text-center">
+                    <div className="w-16 h-16 bg-purple-900/30 rounded-full mx-auto flex items-center justify-center mb-6 text-3xl">🍜</div>
+                    <h2 className="text-xl font-bold text-white mb-2">隱藏菜單</h2>
+                    <p className="text-slate-400 mb-6 text-sm leading-relaxed">
+                        水還沒開，暫不對外開放。<br/>
+                        (Private Beta Access)
+                    </p>
+                    <form onSubmit={handleSubmit} className="space-y-4">
+                        <input 
+                            type="password" 
+                            required 
+                            placeholder="Access Code" 
+                            className="w-full bg-black border border-slate-700 rounded-lg px-4 py-3 text-white text-center focus:border-purple-500 outline-none transition-colors tracking-widest font-mono" 
+                            value={code} 
+                            onChange={(e) => setCode(e.target.value)} 
+                        />
+                        {error && <p className="text-red-400 text-xs font-bold">{error}</p>}
+                        <button 
+                            type="submit" 
+                            className="w-full py-3 bg-purple-600 hover:bg-purple-500 text-white font-bold rounded-lg uppercase tracking-widest text-sm transition-colors shadow-lg"
+                        >
+                            Unlock
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    );
+};
 
 const Interactive: React.FC = () => {
   const { user, login, deductCredit, isAdmin } = useUser();
@@ -36,17 +141,11 @@ const Interactive: React.FC = () => {
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [showLoginModal, setShowLoginModal] = useState(false);
   
-  // Login Inputs
-  const [loginEmail, setLoginEmail] = useState('');
-  const [loginName, setLoginName] = useState('');
-
-  // AI Video Unlock State
+  // AI Unlock State
   const [showAiUnlockModal, setShowAiUnlockModal] = useState(false);
-  const [aiUnlockCode, setAiUnlockCode] = useState('');
   const [isAiUnlocked, setIsAiUnlocked] = useState(false);
-  const [aiError, setAiError] = useState('');
 
-  // --- LYRIC MAKER STATE (VIDEO ENGINE) ---
+  // --- LYRIC MAKER STATE ---
   const [gameState, setGameState] = useState<GameState>('select');
   const [selectedSong, setSelectedSong] = useState<Song | null>(null);
   const [lineIndex, setLineIndex] = useState(0); 
@@ -59,8 +158,6 @@ const Interactive: React.FC = () => {
   const [videoRefImage, setVideoRefImage] = useState<string | null>(null); // base64 string
   const [videoRefImagePreview, setVideoRefImagePreview] = useState<string | null>(null); // preview url
   const [generatedVideoUrl, setGeneratedVideoUrl] = useState<string | null>(null);
-  
-  // AI Director State
   const [shotSuggestions, setShotSuggestions] = useState<string[]>([]);
   const [isLoadingShots, setIsLoadingShots] = useState(false);
   
@@ -79,12 +176,9 @@ const Interactive: React.FC = () => {
 
   // --- HANDLERS ---
 
-  const handleLogin = (e: React.FormEvent) => {
-      e.preventDefault();
-      if(loginEmail.trim() && loginName.trim()) {
-          login(loginName, loginEmail);
-          setShowLoginModal(false);
-      }
+  const handleLoginSubmit = (name: string, email: string) => {
+      login(name, email);
+      setShowLoginModal(false);
   };
 
   const handleToolClick = (targetMode: InteractionMode) => {
@@ -93,25 +187,19 @@ const Interactive: React.FC = () => {
           return;
       }
       
-      // SPECIAL EVENT LOCK for AI Video
+      // AI Video Lock Logic
       if (targetMode === 'ai-video' && !isAiUnlocked && !isAdmin) {
           setShowAiUnlockModal(true);
           return;
       }
-
+      
       setMode(targetMode);
   };
 
-  const handleAiUnlockSubmit = (e: React.FormEvent) => {
-      e.preventDefault();
-      if (aiUnlockCode === '20261212') {
-          setIsAiUnlocked(true);
-          setShowAiUnlockModal(false);
-          setMode('ai-video');
-          setAiError('');
-      } else {
-          setAiError('Invalid Event Code (活動代碼錯誤)');
-      }
+  const handleAiUnlockSuccess = () => {
+      setIsAiUnlocked(true);
+      setShowAiUnlockModal(false);
+      setMode('ai-video');
   };
 
   // --- AI VIDEO HANDLERS ---
@@ -599,91 +687,14 @@ const Interactive: React.FC = () => {
   }, [gameState, lineIndex, mode]);
 
 
-  // --- SUB-COMPONENTS ---
-  const LoginModal = () => (
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/90 backdrop-blur-sm" onClick={() => setShowLoginModal(false)}></div>
-          <div className="relative z-10 max-w-md w-full bg-slate-900 border border-slate-800 rounded-2xl p-8 shadow-2xl overflow-hidden animate-fade-in-up">
-                 <button onClick={() => setShowLoginModal(false)} className="absolute top-4 right-4 text-slate-500 hover:text-white">✕</button>
-                 <div className="text-center">
-                     <div className="w-16 h-16 bg-slate-800 rounded-full mx-auto flex items-center justify-center mb-6 text-3xl">✨</div>
-                     <h2 className="text-2xl font-bold text-white mb-2">Interactive Studio</h2>
-                     <p className="text-slate-400 mb-8 text-sm leading-relaxed">
-                        登入以使用工作室功能。<br/>
-                        <span className="text-brand-gold">新用戶即可獲得 1 次免費製作額度。</span>
-                     </p>
-                     <form onSubmit={handleLogin} className="space-y-4">
-                         <input 
-                            type="text" 
-                            required 
-                            placeholder="您的姓名 / 暱稱" 
-                            className="w-full bg-black border border-slate-700 rounded-lg px-4 py-3 text-white text-center focus:border-brand-accent outline-none transition-colors" 
-                            value={loginName} 
-                            onChange={(e) => setLoginName(e.target.value)} 
-                         />
-                         <input 
-                            type="email" 
-                            required 
-                            placeholder="您的電子信箱" 
-                            className="w-full bg-black border border-slate-700 rounded-lg px-4 py-3 text-white text-center focus:border-brand-accent outline-none transition-colors" 
-                            value={loginEmail} 
-                            onChange={(e) => setLoginEmail(e.target.value)} 
-                         />
-                         <button 
-                            type="submit" 
-                            className="w-full py-3 bg-white hover:bg-slate-200 text-slate-900 font-bold rounded-lg uppercase tracking-widest text-sm transition-colors shadow-lg"
-                         >
-                            開始體驗
-                         </button>
-                     </form>
-                 </div>
-             </div>
-      </div>
-  );
-
-  // AI UNLOCK MODAL
-  const AiUnlockModal = () => (
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/95 backdrop-blur-md" onClick={() => setShowAiUnlockModal(false)}></div>
-          <div className="relative z-10 max-w-sm w-full bg-slate-900 border border-purple-500/50 rounded-2xl p-8 shadow-2xl overflow-hidden animate-fade-in-up">
-                 <button onClick={() => setShowAiUnlockModal(false)} className="absolute top-4 right-4 text-slate-500 hover:text-white">✕</button>
-                 <div className="text-center">
-                     <div className="w-16 h-16 bg-purple-900/30 rounded-full mx-auto flex items-center justify-center mb-6 text-3xl">🔒</div>
-                     <h2 className="text-xl font-bold text-white mb-2">Special Event Access</h2>
-                     <p className="text-slate-400 mb-6 text-sm leading-relaxed">
-                        此功能為特別活動專屬。<br/>
-                        請輸入活動代碼以解鎖 AI 導演。
-                     </p>
-                     <form onSubmit={handleAiUnlockSubmit} className="space-y-4">
-                         <input 
-                            type="password" 
-                            required 
-                            placeholder="Event Code" 
-                            className="w-full bg-black border border-slate-700 rounded-lg px-4 py-3 text-white text-center focus:border-purple-500 outline-none transition-colors tracking-widest font-mono" 
-                            value={aiUnlockCode} 
-                            onChange={(e) => setAiUnlockCode(e.target.value)} 
-                         />
-                         {aiError && <p className="text-red-400 text-xs font-bold">{aiError}</p>}
-                         <button 
-                            type="submit" 
-                            className="w-full py-3 bg-purple-600 hover:bg-purple-500 text-white font-bold rounded-lg uppercase tracking-widest text-sm transition-colors shadow-lg"
-                         >
-                            Unlock
-                         </button>
-                     </form>
-                 </div>
-             </div>
-      </div>
-  );
-
   // --- RENDER MAIN ---
 
   if (mode === 'menu') {
       return (
         <div className="max-w-6xl mx-auto pt-16 px-6 animate-fade-in pb-20">
              {showPaymentModal && <PaymentModal isOpen={true} onClose={() => setShowPaymentModal(false)} />}
-             {showLoginModal && <LoginModal />}
-             {showAiUnlockModal && <AiUnlockModal />}
+             {showLoginModal && <LoginModal onClose={() => setShowLoginModal(false)} onLogin={handleLoginSubmit} />}
+             {showAiUnlockModal && <AiUnlockModal onClose={() => setShowAiUnlockModal(false)} onUnlock={handleAiUnlockSuccess} />}
              
              <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-12 gap-6">
                  <div>
@@ -729,7 +740,6 @@ const Interactive: React.FC = () => {
                          <span className="inline-block px-3 py-1 rounded-full bg-brand-accent/20 text-brand-accent text-xs font-bold mb-4 w-fit">VIDEO MAKER</span>
                          <div>
                              <h3 className="text-3xl font-bold text-white mb-2 group-hover:text-brand-accent transition-colors">手工動態歌詞</h3>
-                             {/* REMOVED SUBTITLE */}
                          </div>
                          <div className="flex items-center gap-2 text-sm text-white font-bold group-hover:translate-x-2 transition-transform mt-auto">
                              進入工作室 (Enter) <span>→</span>
@@ -747,7 +757,7 @@ const Interactive: React.FC = () => {
                              <span className="inline-block px-3 py-1 rounded-full bg-purple-500/20 text-purple-400 text-xs font-bold">VEO GENERATOR</span>
                              {!isAiUnlocked && !isAdmin && (
                                  <span className="inline-block px-2 py-1 rounded border border-orange-500/50 text-orange-400 text-[10px] font-bold tracking-wider whitespace-nowrap">
-                                     🍜 水還沒開 無法泡麵 耐心稍後
+                                     🍜 水還沒開 無法泡麵 (Private Beta)
                                  </span>
                              )}
                              {(isAiUnlocked || isAdmin) && (
@@ -758,10 +768,9 @@ const Interactive: React.FC = () => {
                          </div>
                          <div>
                              <h3 className="text-3xl font-bold text-white mb-2 group-hover:text-purple-400 transition-colors">AI 音樂錄影帶導演</h3>
-                             {/* REMOVED SUBTITLE */}
                          </div>
                          <div className="flex items-center gap-2 text-sm text-white font-bold group-hover:translate-x-2 transition-transform mt-auto">
-                             啟動世代 (Start) <span>→</span>
+                             {isAiUnlocked || isAdmin ? '啟動世代 (Start)' : '需要密碼 (Locked)'} <span>→</span>
                          </div>
                      </div>
                  </button>
