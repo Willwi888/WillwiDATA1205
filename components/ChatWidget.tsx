@@ -9,7 +9,7 @@ interface Message {
 const ChatWidget: React.FC = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState<Message[]>([
-    { role: 'model', text: '你好，我是 Willwi 的 AI 助理「泡麵阿嬤」。關於音樂創作、作品背景或任何疑問，歡迎與我聊聊。' }
+    { role: 'model', text: '唉唷，來啦？隨便坐。我是泡麵阿嬤。肚子餓不餓？還是心裡有點擠？都可以跟阿嬤說，阿嬤都在。' }
   ]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -37,7 +37,7 @@ const ChatWidget: React.FC = () => {
       const responseText = await getChatResponse(userMessage);
       setMessages(prev => [...prev, { role: 'model', text: responseText }]);
     } catch (error) {
-      setMessages(prev => [...prev, { role: 'model', text: '系統連線異常，請稍後再試。' }]);
+      setMessages(prev => [...prev, { role: 'model', text: '唉唷，阿嬤這邊網路怪怪的，你等我一下喔。' }]);
     } finally {
       setIsLoading(false);
     }

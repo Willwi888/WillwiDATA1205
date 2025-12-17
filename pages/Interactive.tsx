@@ -377,8 +377,6 @@ const Interactive: React.FC = () => {
               ctx.lineTo(artAreaX + artSize, artY + artSize - r);
               ctx.quadraticCurveTo(artAreaX + artSize, artY + artSize, artAreaX + artSize - r, artY + artSize);
               ctx.lineTo(artAreaX + r, artY + artSize);
-              ctx.quadraticCurveTo(artAreaX, artY + artSize, artAreaX, artY + artSize - r);
-              ctx.lineTo(artAreaX, artY + r);
               ctx.quadraticCurveTo(artAreaX, artY, artAreaX + r, artY);
               ctx.closePath();
               
@@ -731,10 +729,10 @@ const Interactive: React.FC = () => {
                          <span className="inline-block px-3 py-1 rounded-full bg-brand-accent/20 text-brand-accent text-xs font-bold mb-4 w-fit">VIDEO MAKER</span>
                          <div>
                              <h3 className="text-3xl font-bold text-white mb-2 group-hover:text-brand-accent transition-colors">手工動態歌詞</h3>
-                             <h3 className="text-lg font-light text-slate-400 mb-6">Lyric Video Creator</h3>
+                             {/* REMOVED SUBTITLE */}
                          </div>
                          <div className="flex items-center gap-2 text-sm text-white font-bold group-hover:translate-x-2 transition-transform mt-auto">
-                             Enter Studio <span>→</span>
+                             進入工作室 (Enter) <span>→</span>
                          </div>
                      </div>
                  </button>
@@ -748,8 +746,8 @@ const Interactive: React.FC = () => {
                          <div className="flex items-center gap-2 mb-4">
                              <span className="inline-block px-3 py-1 rounded-full bg-purple-500/20 text-purple-400 text-xs font-bold">VEO GENERATOR</span>
                              {!isAiUnlocked && !isAdmin && (
-                                 <span className="inline-block px-2 py-1 rounded border border-red-500/50 text-red-500 text-[10px] font-bold uppercase tracking-wider">
-                                     🔒 Locked
+                                 <span className="inline-block px-2 py-1 rounded border border-orange-500/50 text-orange-400 text-[10px] font-bold tracking-wider whitespace-nowrap">
+                                     🍜 水還沒開 無法泡麵 耐心稍後
                                  </span>
                              )}
                              {(isAiUnlocked || isAdmin) && (
@@ -760,10 +758,10 @@ const Interactive: React.FC = () => {
                          </div>
                          <div>
                              <h3 className="text-3xl font-bold text-white mb-2 group-hover:text-purple-400 transition-colors">AI 音樂錄影帶導演</h3>
-                             <h3 className="text-lg font-light text-slate-400 mb-6">Music Video Director (Veo)</h3>
+                             {/* REMOVED SUBTITLE */}
                          </div>
                          <div className="flex items-center gap-2 text-sm text-white font-bold group-hover:translate-x-2 transition-transform mt-auto">
-                             Start Generation <span>→</span>
+                             啟動世代 (Start) <span>→</span>
                          </div>
                      </div>
                  </button>
