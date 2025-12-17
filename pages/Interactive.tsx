@@ -722,35 +722,34 @@ const Interactive: React.FC = () => {
              </div>
 
              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                 {/* LYRIC MAKER CARD */}
+                 {/* LYRIC MAKER CARD - MINIMAL */}
                  <button 
                     onClick={() => handleToolClick('lyric-maker')}
-                    className="group relative bg-slate-900 border border-slate-800 hover:border-brand-accent rounded-2xl p-8 text-left transition-all hover:shadow-[0_0_30px_rgba(56,189,248,0.1)] overflow-hidden md:col-span-2 lg:col-span-1"
+                    className="group relative bg-slate-900 border border-slate-800 hover:border-brand-accent rounded-3xl p-8 text-left transition-all hover:shadow-[0_0_30px_rgba(56,189,248,0.1)] overflow-hidden md:col-span-2 lg:col-span-1"
                  >
-                     <div className="relative z-10">
-                         <span className="inline-block px-3 py-1 rounded-full bg-brand-accent/20 text-brand-accent text-xs font-bold mb-4">VIDEO MAKER</span>
-                         <h3 className="text-2xl font-bold text-white mb-2 group-hover:text-brand-accent transition-colors">手工動態歌詞 (Hand-made Lyric Video)</h3>
-                         <p className="text-slate-400 text-sm leading-relaxed mb-6">
-                            親手敲擊節奏，錄製屬於你的動態歌詞影片。<br/>
-                            1st Free, then NT$80/song.
-                         </p>
-                         <div className="flex items-center gap-2 text-sm text-white font-bold group-hover:translate-x-2 transition-transform">
+                     <div className="relative z-10 flex flex-col h-full justify-between">
+                         <span className="inline-block px-3 py-1 rounded-full bg-brand-accent/20 text-brand-accent text-xs font-bold mb-4 w-fit">VIDEO MAKER</span>
+                         <div>
+                             <h3 className="text-3xl font-bold text-white mb-2 group-hover:text-brand-accent transition-colors">手工動態歌詞</h3>
+                             <h3 className="text-lg font-light text-slate-400 mb-6">Lyric Video Creator</h3>
+                         </div>
+                         <div className="flex items-center gap-2 text-sm text-white font-bold group-hover:translate-x-2 transition-transform mt-auto">
                              Enter Studio <span>→</span>
                          </div>
                      </div>
                  </button>
 
-                 {/* AI VIDEO CARD (LOCKED) */}
+                 {/* AI VIDEO CARD (LOCKED) - MINIMAL */}
                  <button 
                     onClick={() => handleToolClick('ai-video')}
-                    className="group relative bg-slate-900 border border-slate-800 hover:border-purple-500 rounded-2xl p-8 text-left transition-all hover:shadow-[0_0_30px_rgba(168,85,247,0.1)] overflow-hidden md:col-span-2 lg:col-span-2"
+                    className="group relative bg-slate-900 border border-slate-800 hover:border-purple-500 rounded-3xl p-8 text-left transition-all hover:shadow-[0_0_30px_rgba(168,85,247,0.1)] overflow-hidden md:col-span-2 lg:col-span-2"
                  >
-                     <div className="relative z-10">
+                     <div className="relative z-10 flex flex-col h-full justify-between">
                          <div className="flex items-center gap-2 mb-4">
                              <span className="inline-block px-3 py-1 rounded-full bg-purple-500/20 text-purple-400 text-xs font-bold">VEO GENERATOR</span>
                              {!isAiUnlocked && !isAdmin && (
                                  <span className="inline-block px-2 py-1 rounded border border-red-500/50 text-red-500 text-[10px] font-bold uppercase tracking-wider">
-                                     🔒 Locked Event
+                                     🔒 Locked
                                  </span>
                              )}
                              {(isAiUnlocked || isAdmin) && (
@@ -759,12 +758,11 @@ const Interactive: React.FC = () => {
                                  </span>
                              )}
                          </div>
-                         <h3 className="text-2xl font-bold text-white mb-2 group-hover:text-purple-400 transition-colors">AI Music Video Director</h3>
-                         <p className="text-slate-400 text-sm leading-relaxed mb-6">
-                            上傳照片，讓 Veo 模型生成逼真的音樂錄影帶。<br/>
-                            (Powered by Google Veo)
-                         </p>
-                         <div className="flex items-center gap-2 text-sm text-white font-bold group-hover:translate-x-2 transition-transform">
+                         <div>
+                             <h3 className="text-3xl font-bold text-white mb-2 group-hover:text-purple-400 transition-colors">AI 音樂錄影帶導演</h3>
+                             <h3 className="text-lg font-light text-slate-400 mb-6">Music Video Director (Veo)</h3>
+                         </div>
+                         <div className="flex items-center gap-2 text-sm text-white font-bold group-hover:translate-x-2 transition-transform mt-auto">
                              Start Generation <span>→</span>
                          </div>
                      </div>

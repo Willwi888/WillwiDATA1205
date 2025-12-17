@@ -44,7 +44,7 @@ const TRANSLATIONS = {
     home_quote_main: "Music is more than melody.",
     home_quote_sub: "It is the resonance of a soul.",
     home_purpose_text: "Guided by the power of storytelling, we craft customized songwriting and production experiences centered on each person’s truth. From initial conversations and lyric exploration to composition and final production, life’s meaningful moments deserve to be held and remembered through music.",
-    home_eco_text: "We support a fair and sustainable creative ecosystem. Our “First Song Free, then 80 NTD” approach ensures that digital tools enhance artistic expression without diminishing the value of the music industry.",
+    home_eco_text: "We support a fair and sustainable creative ecosystem. Our “First Song Free, then 320 NTD” approach ensures that digital tools enhance artistic expression without diminishing the value of the music industry.",
 
     // Database
     db_title: "Music Catalog",
@@ -153,7 +153,7 @@ const TRANSLATIONS = {
     home_quote_main: "音樂不只是旋律。",
     home_quote_sub: "它是靈魂的共鳴。",
     home_purpose_text: "本站旨在建立一個完整的音樂生態系統，透過詳細的介紹讓聽眾認識作品，利用 AI 互動引導創造參與感，提供深度的創作說明，並完整收集所有相關數據與資料，為音樂資產留下永恆紀錄。",
-    home_eco_text: "我們支持公平且永續的創作生態。我們的「首曲免費，後續 80 元」模式，確保數位工具能提升藝術表現，而非貶低音樂產業的價值。",
+    home_eco_text: "我們支持公平且永續的創作生態。我們的「首曲免費，後續 320 元」模式，確保數位工具能提升藝術表現，而非貶低音樂產業的價值。",
 
     // Database
     db_title: "作品資料庫",

@@ -66,13 +66,9 @@ const Home: React.FC = () => {
                  <span className="text-brand-accent font-bold text-xs tracking-[0.3em] uppercase">Official Archive</span>
             </div>
 
-            <h1 className="text-6xl md:text-9xl font-black text-white tracking-tighter uppercase mb-6 leading-[0.9] drop-shadow-2xl animate-fade-in-up" style={{animationDelay: '0.1s'}}>
+            <h1 className="text-6xl md:text-9xl font-black text-white tracking-tighter uppercase mb-10 leading-[0.9] drop-shadow-2xl animate-fade-in-up" style={{animationDelay: '0.1s'}}>
               Willwi
             </h1>
-            
-            <h2 className="text-lg md:text-xl font-mono tracking-[0.1em] text-slate-300 mb-8 uppercase animate-fade-in-up flex flex-wrap gap-x-4 gap-y-2" style={{animationDelay: '0.2s'}}>
-                {t('hero_subtitle')}
-            </h2>
             
             {/* CORE PILLARS - REDESIGNED: Minimal, Elliptical, Noise, No Icons */}
             <div className="flex flex-wrap gap-4 mb-10 animate-fade-in-up" style={{animationDelay: '0.3s'}}>
