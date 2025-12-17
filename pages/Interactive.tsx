@@ -730,27 +730,35 @@ const Interactive: React.FC = () => {
                  </div>
              </div>
 
-             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                 {/* LYRIC MAKER CARD - MINIMAL */}
+             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-6">
+                 {/* LYRIC MAKER CARD - ONLY CARD VISIBLE TO PUBLIC */}
                  <button 
                     onClick={() => handleToolClick('lyric-maker')}
-                    className="group relative bg-slate-900 border border-slate-800 hover:border-brand-accent rounded-3xl p-8 text-left transition-all hover:shadow-[0_0_30px_rgba(56,189,248,0.1)] overflow-hidden md:col-span-2 lg:col-span-1"
+                    className="group relative bg-slate-900 border border-slate-800 hover:border-brand-accent rounded-3xl p-8 text-left transition-all hover:shadow-[0_0_30px_rgba(56,189,248,0.1)] overflow-hidden md:col-span-2"
                  >
+                     <div className="absolute inset-0 bg-gradient-to-r from-brand-accent/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
                      <div className="relative z-10 flex flex-col h-full justify-between">
-                         <span className="inline-block px-3 py-1 rounded-full bg-brand-accent/20 text-brand-accent text-xs font-bold mb-4 w-fit">VIDEO MAKER</span>
-                         <div>
-                             <h3 className="text-3xl font-bold text-white mb-2 group-hover:text-brand-accent transition-colors">手工動態歌詞</h3>
+                         <div className="flex justify-between items-start">
+                             <span className="inline-block px-3 py-1 rounded-full bg-brand-accent/20 text-brand-accent text-xs font-bold mb-4 w-fit">VIDEO MAKER</span>
+                             <span className="text-6xl opacity-20 grayscale group-hover:grayscale-0 transition-all">🎬</span>
                          </div>
-                         <div className="flex items-center gap-2 text-sm text-white font-bold group-hover:translate-x-2 transition-transform mt-auto">
+                         <div>
+                             <h3 className="text-4xl font-bold text-white mb-2 group-hover:text-brand-accent transition-colors">手工動態歌詞</h3>
+                             <p className="text-slate-400 text-sm max-w-lg">
+                                 親手為喜愛的歌曲製作專屬的動態歌詞影片。跟隨節奏敲擊空白鍵，創造屬於你的視覺脈動。
+                             </p>
+                         </div>
+                         <div className="flex items-center gap-2 text-sm text-white font-bold group-hover:translate-x-2 transition-transform mt-6">
                              進入工作室 (Enter) <span>→</span>
                          </div>
                      </div>
                  </button>
 
-                 {/* AI VIDEO CARD (LOCKED) - MINIMAL */}
+                 {/* HIDDEN / ADMIN ONLY: AI VIDEO CARD */}
+                 {/* The AI Video Card is technically rendered but styled to be obscure/locked until password */}
                  <button 
                     onClick={() => handleToolClick('ai-video')}
-                    className="group relative bg-slate-900 border border-slate-800 hover:border-purple-500 rounded-3xl p-8 text-left transition-all hover:shadow-[0_0_30px_rgba(168,85,247,0.1)] overflow-hidden md:col-span-2 lg:col-span-2"
+                    className="group relative bg-slate-900 border border-slate-800 hover:border-purple-500 rounded-3xl p-8 text-left transition-all hover:shadow-[0_0_30px_rgba(168,85,247,0.1)] overflow-hidden md:col-span-2"
                  >
                      <div className="relative z-10 flex flex-col h-full justify-between">
                          <div className="flex items-center gap-2 mb-4">
@@ -768,6 +776,7 @@ const Interactive: React.FC = () => {
                          </div>
                          <div>
                              <h3 className="text-3xl font-bold text-white mb-2 group-hover:text-purple-400 transition-colors">AI 音樂錄影帶導演</h3>
+                             {!isAiUnlocked && !isAdmin && <p className="text-slate-600 text-xs">此功能目前僅供內部測試。</p>}
                          </div>
                          <div className="flex items-center gap-2 text-sm text-white font-bold group-hover:translate-x-2 transition-transform mt-auto">
                              {isAiUnlocked || isAdmin ? '啟動世代 (Start)' : '需要密碼 (Locked)'} <span>→</span>

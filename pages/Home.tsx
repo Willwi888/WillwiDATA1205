@@ -70,44 +70,7 @@ const Home: React.FC = () => {
               Willwi
             </h1>
             
-            {/* CORE PILLARS - REDESIGNED: Minimal, Elliptical, Noise, No Icons */}
-            <div className="flex flex-wrap gap-4 mb-10 animate-fade-in-up" style={{animationDelay: '0.3s'}}>
-                {[
-                  { title: t('pillar_1_title'), link: null }, // Introduction (Static for now, or anchor)
-                  { title: t('pillar_2_title'), link: '/interactive' },
-                  { title: t('pillar_3_title'), link: null }, // Explanation
-                  { title: t('pillar_4_title'), link: '/database' }
-                ].map((item, idx) => (
-                    item.link ? (
-                        <Link 
-                            key={idx} 
-                            to={item.link}
-                            className="relative group overflow-hidden rounded-full border border-white/10 hover:border-white/30 transition-all duration-500"
-                        >
-                             <div className="absolute inset-0 bg-white/5 backdrop-blur-md transition-opacity group-hover:bg-white/10"></div>
-                             <div className="absolute inset-0 opacity-30 pointer-events-none mix-blend-overlay" style={{ backgroundImage: noiseTexture }}></div>
-                             <div className="relative px-8 py-3 flex items-center justify-center gap-2">
-                                 <span className="text-xs font-bold text-slate-300 uppercase tracking-widest group-hover:text-white transition-colors">
-                                     {item.title}
-                                 </span>
-                             </div>
-                        </Link>
-                    ) : (
-                        <div 
-                            key={idx} 
-                            className="relative overflow-hidden rounded-full border border-white/5 cursor-default"
-                        >
-                             <div className="absolute inset-0 bg-white/5 backdrop-blur-sm"></div>
-                             <div className="absolute inset-0 opacity-20 pointer-events-none mix-blend-overlay" style={{ backgroundImage: noiseTexture }}></div>
-                             <div className="relative px-8 py-3 flex items-center justify-center">
-                                 <span className="text-xs font-bold text-slate-500 uppercase tracking-widest">
-                                     {item.title}
-                                 </span>
-                             </div>
-                        </div>
-                    )
-                ))}
-            </div>
+            {/* REMOVED: INTRODUCTION • INTERACTION... and PILL BUTTONS */}
 
             {/* REAL PLAYER SECTION */}
             {featuredTitle && (
