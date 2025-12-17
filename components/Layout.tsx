@@ -4,7 +4,6 @@ import { useTranslation } from '../context/LanguageContext';
 import { useUser } from '../context/UserContext';
 import ChatWidget from './ChatWidget';
 
-// Default Fallback Image (Can be overwritten in Admin)
 const DEFAULT_BG = "https://drive.google.com/thumbnail?id=18rpLhJQKHKK5EeonFqutlOoKAI2Eq_Hd&sz=w2560";
 
 const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -14,14 +13,10 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { t, lang, setLang } = useTranslation();
   const { isAdmin } = useUser();
   
-  // Dynamic Background State
   const [bgImage, setBgImage] = useState(DEFAULT_BG);
-
-  // CHECK FOR EMBED MODE (Query Param ?embed=true)
   const searchParams = new URLSearchParams(location.search);
   const isEmbed = searchParams.get('embed') === 'true';
 
-  // Load Background Config on Mount & Route Change (to ensure it updates if changed in Admin)
   useEffect(() => {
       const savedBg = localStorage.getItem('willwi_global_bg');
       if (savedBg && savedBg.trim() !== '') {
@@ -29,14 +24,12 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
       }
   }, [location.pathname]);
 
-  // Handle scroll effect for navbar
   useEffect(() => {
     const handleScroll = () => setScrolled(window.scrollY > 50);
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
-  // Check if we are on home page
   const isHome = location.pathname === '/';
 
   const isActive = (path: string) => location.pathname === path 
@@ -50,39 +43,24 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   };
 
   return (
-    // If embedded, base background is transparent. If standalone, keep slate-950 base.
     <div className={`min-h-screen flex flex-col relative font-sans selection:bg-brand-accent selection:text-brand-darker text-slate-100 overflow-x-hidden ${isEmbed ? 'bg-transparent' : 'bg-slate-950'}`}>
       
-      {/* --- CINEMATIC BACKGROUND SYSTEM --- */}
-      {/* Only render the heavy background system if NOT in embed mode. */}
       {!isEmbed && (
         <div className="fixed inset-0 z-[-1] pointer-events-none h-full w-full bg-slate-950">
-            {/* 1. Base Image Layer - Updated positioning to center portraits better */}
             <div 
                 className="absolute inset-0 bg-cover bg-no-repeat transition-all duration-1000 transform scale-[1.02] bg-[position:center_20%] md:bg-center"
                 style={{ backgroundImage: `url(${bgImage})` }}
             ></div>
-
-            {/* 2. Dynamic Overlay Logic - Lightened for better visibility of the portrait */}
             <div className={`absolute inset-0 transition-all duration-700 ${isHome ? 'bg-slate-950/20' : 'bg-slate-950/60 backdrop-blur-[2px]'}`}></div>
-
-            {/* 3. Cinematic Vignette - Adjusted transparency */}
             <div className={`absolute inset-0 transition-opacity duration-1000 ${isHome ? 'opacity-20' : 'opacity-50'} bg-[radial-gradient(circle_at_center,_transparent_0%,_rgba(2,6,23,0.8)_100%)]`}></div>
-
-            {/* 4. Bottom Fade */}
             <div className="absolute inset-x-0 bottom-0 h-1/3 bg-gradient-to-t from-slate-950 to-transparent"></div>
-            
-            {/* 5. Left Side Gradient - Only on Home, for text readability */}
             {isHome && <div className="absolute inset-y-0 left-0 w-full md:w-2/3 bg-gradient-to-r from-slate-950/70 via-slate-950/20 to-transparent"></div>}
         </div>
       )}
 
-      {/* --- PREMIUM NAVBAR --- */}
       <nav className={`fixed w-full top-0 z-50 transition-all duration-500 border-b ${scrolled || !isHome ? (isEmbed ? 'bg-slate-950/80' : 'bg-slate-950/60') + ' backdrop-blur-xl border-white/5 py-2' : 'bg-transparent border-transparent py-6'}`}>
         <div className="max-w-7xl mx-auto px-6 lg:px-8">
           <div className="flex items-center justify-between h-14">
-            
-            {/* Logo */}
             <div className="flex items-center">
               <Link to={isEmbed ? "/?embed=true" : "/"} className="group flex items-center gap-2">
                 <span className="text-2xl font-black tracking-[0.25em] text-white uppercase group-hover:text-brand-accent transition-colors duration-500 drop-shadow-lg">
@@ -94,26 +72,26 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
               </Link>
             </div>
 
-            {/* Desktop Menu */}
             <div className="hidden md:flex items-center">
               <div className="ml-10 flex items-center space-x-10 text-sm uppercase drop-shadow-md font-semibold">
                 <Link to={isEmbed ? "/?embed=true" : "/"} className={isActive('/')}>{t('nav_home')}</Link>
                 
-                {/* LOCKED: Catalog & Add (Admin Only) */}
+                {/* Catalog is now PUBLIC */}
+                <Link to={isEmbed ? "/database?embed=true" : "/database"} className={isActive('/database')}>{t('nav_catalog')}</Link>
+                
+                {/* Add & Manager are ADMIN ONLY */}
                 {isAdmin && (
                     <>
-                        <Link to={isEmbed ? "/database?embed=true" : "/database"} className={isActive('/database')}>{t('nav_catalog')}</Link>
                         <Link to={isEmbed ? "/add?embed=true" : "/add"} className="text-slate-300 hover:text-brand-accent transition-colors font-bold tracking-wider">
                         + {t('nav_add')}
                         </Link>
+                        <Link to="/admin" className={isActive('/admin')}>Manager</Link>
                     </>
                 )}
                 <Link to={isEmbed ? "/interactive?embed=true" : "/interactive"} className={isActive('/interactive')}>{t('nav_interactive')}</Link>
-                {isAdmin && <Link to="/admin" className={isActive('/admin')}>Manager</Link>}
               </div>
             </div>
 
-            {/* Right Side: Lang Toggle */}
             <div className="hidden md:flex items-center gap-4">
                 <button 
                   onClick={toggleLang}
@@ -123,7 +101,6 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
                 </button>
             </div>
 
-            {/* Mobile menu button */}
             <div className="md:hidden flex items-center gap-4">
                <button 
                   onClick={toggleLang}
@@ -135,7 +112,6 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
                 onClick={() => setIsMenuOpen(!isMenuOpen)}
                 className="inline-flex items-center justify-center p-2 rounded-md text-slate-400 hover:text-white hover:bg-slate-700 focus:outline-none"
               >
-                <span className="sr-only">Open main menu</span>
                 {!isMenuOpen ? (
                   <svg className="block h-6 w-6" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16M4 18h16" />
@@ -150,33 +126,29 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
           </div>
         </div>
 
-        {/* Mobile Menu */}
         {isMenuOpen && (
           <div className="md:hidden bg-slate-900/95 backdrop-blur-xl border-t border-slate-800 absolute w-full left-0 top-full shadow-2xl animate-fade-in-down">
             <div className="px-2 pt-2 pb-3 space-y-1 sm:px-3">
               <Link to="/" onClick={() => setIsMenuOpen(false)} className={mobileLinkClass('/')}>{t('nav_home')}</Link>
+              <Link to="/database" onClick={() => setIsMenuOpen(false)} className={mobileLinkClass('/database')}>{t('nav_catalog')}</Link>
               {isAdmin && (
                   <>
-                    <Link to="/database" onClick={() => setIsMenuOpen(false)} className={mobileLinkClass('/database')}>{t('nav_catalog')}</Link>
                     <Link to="/add" onClick={() => setIsMenuOpen(false)} className={mobileLinkClass('/add')}>{t('nav_add')}</Link>
+                    <Link to="/admin" onClick={() => setIsMenuOpen(false)} className={mobileLinkClass('/admin')}>Manager</Link>
                   </>
               )}
               <Link to="/interactive" onClick={() => setIsMenuOpen(false)} className={mobileLinkClass('/interactive')}>{t('nav_interactive')}</Link>
-              {isAdmin && <Link to="/admin" onClick={() => setIsMenuOpen(false)} className={mobileLinkClass('/admin')}>Manager</Link>}
             </div>
           </div>
         )}
       </nav>
 
-      {/* --- MAIN CONTENT --- */}
       <main className="flex-grow pt-20 z-10 relative">
         {children}
       </main>
       
-      {/* GLOBAL CHATBOT WIDGET */}
       <ChatWidget />
 
-      {/* --- FOOTER --- */}
       {!isEmbed && (
         <footer className="bg-slate-950 border-t border-slate-800/50 mt-auto relative z-10">
             <div className="max-w-7xl mx-auto py-8 px-4 sm:px-6 lg:px-8 flex flex-col md:flex-row justify-between items-center gap-4">
@@ -187,7 +159,6 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
             </div>
             <div className="flex space-x-6 text-slate-500">
                 <span className="text-[10px] font-mono">Build v2.5.0</span>
-                {/* ADMIN LINK RESTORED HERE */}
                 <Link to="/admin" className="text-[10px] font-mono hover:text-brand-accent transition-colors flex items-center gap-1 opacity-50 hover:opacity-100">
                     <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
                     Manager

@@ -16,6 +16,7 @@ interface UserContextType {
   isLoading: boolean;
   isAdmin: boolean; 
   enableAdmin: () => void;
+  logoutAdmin: () => void;
 }
 
 const UserContext = createContext<UserContextType | undefined>(undefined);
@@ -52,7 +53,6 @@ export const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     const db = JSON.parse(localStorage.getItem(USERS_DB_KEY) || '{}');
     let existing = db[email];
     if (!existing) {
-      // STRICT: 0 credits for new users. No free trial.
       existing = { email, name, credits: 0, isMember: false };
     } else {
         existing.name = name;
@@ -84,8 +84,13 @@ export const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       localStorage.setItem('willwi_admin_unlocked', 'true');
   };
 
+  const logoutAdmin = () => {
+      setIsAdmin(false);
+      localStorage.removeItem('willwi_admin_unlocked');
+  };
+
   return (
-    <UserContext.Provider value={{ user, login, logout, addCredits, deductCredit, isLoading, isAdmin, enableAdmin }}>
+    <UserContext.Provider value={{ user, login, logout, addCredits, deductCredit, isLoading, isAdmin, enableAdmin, logoutAdmin }}>
       {children}
     </UserContext.Provider>
   );
