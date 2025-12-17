@@ -6,7 +6,7 @@ interface PaymentModalProps {
   onClose: () => void;
 }
 
-// 設定單價 (可在這裡修改)
+// 設定單價: 320 TWD (符合人工創作行情)
 const UNIT_PRICE = 320;
 
 const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose }) => {

@@ -40,6 +40,12 @@ const Interactive: React.FC = () => {
   const [loginEmail, setLoginEmail] = useState('');
   const [loginName, setLoginName] = useState('');
 
+  // AI Video Unlock State
+  const [showAiUnlockModal, setShowAiUnlockModal] = useState(false);
+  const [aiUnlockCode, setAiUnlockCode] = useState('');
+  const [isAiUnlocked, setIsAiUnlocked] = useState(false);
+  const [aiError, setAiError] = useState('');
+
   // --- LYRIC MAKER STATE (VIDEO ENGINE) ---
   const [gameState, setGameState] = useState<GameState>('select');
   const [selectedSong, setSelectedSong] = useState<Song | null>(null);
@@ -82,7 +88,26 @@ const Interactive: React.FC = () => {
           setShowLoginModal(true);
           return;
       }
+      
+      // SPECIAL EVENT LOCK for AI Video
+      if (targetMode === 'ai-video' && !isAiUnlocked && !isAdmin) {
+          setShowAiUnlockModal(true);
+          return;
+      }
+
       setMode(targetMode);
+  };
+
+  const handleAiUnlockSubmit = (e: React.FormEvent) => {
+      e.preventDefault();
+      if (aiUnlockCode === '20261212') {
+          setIsAiUnlocked(true);
+          setShowAiUnlockModal(false);
+          setMode('ai-video');
+          setAiError('');
+      } else {
+          setAiError('Invalid Event Code (活動代碼錯誤)');
+      }
   };
 
   // --- AI VIDEO HANDLERS ---
@@ -601,6 +626,41 @@ const Interactive: React.FC = () => {
       </div>
   );
 
+  // AI UNLOCK MODAL
+  const AiUnlockModal = () => (
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/95 backdrop-blur-md" onClick={() => setShowAiUnlockModal(false)}></div>
+          <div className="relative z-10 max-w-sm w-full bg-slate-900 border border-purple-500/50 rounded-2xl p-8 shadow-2xl overflow-hidden animate-fade-in-up">
+                 <button onClick={() => setShowAiUnlockModal(false)} className="absolute top-4 right-4 text-slate-500 hover:text-white">✕</button>
+                 <div className="text-center">
+                     <div className="w-16 h-16 bg-purple-900/30 rounded-full mx-auto flex items-center justify-center mb-6 text-3xl">🔒</div>
+                     <h2 className="text-xl font-bold text-white mb-2">Special Event Access</h2>
+                     <p className="text-slate-400 mb-6 text-sm leading-relaxed">
+                        此功能為特別活動專屬。<br/>
+                        請輸入活動代碼以解鎖 AI 導演。
+                     </p>
+                     <form onSubmit={handleAiUnlockSubmit} className="space-y-4">
+                         <input 
+                            type="password" 
+                            required 
+                            placeholder="Event Code" 
+                            className="w-full bg-black border border-slate-700 rounded-lg px-4 py-3 text-white text-center focus:border-purple-500 outline-none transition-colors tracking-widest font-mono" 
+                            value={aiUnlockCode} 
+                            onChange={(e) => setAiUnlockCode(e.target.value)} 
+                         />
+                         {aiError && <p className="text-red-400 text-xs font-bold">{aiError}</p>}
+                         <button 
+                            type="submit" 
+                            className="w-full py-3 bg-purple-600 hover:bg-purple-500 text-white font-bold rounded-lg uppercase tracking-widest text-sm transition-colors shadow-lg"
+                         >
+                            Unlock
+                         </button>
+                     </form>
+                 </div>
+             </div>
+      </div>
+  );
+
   // --- RENDER MAIN ---
 
   if (mode === 'menu') {
@@ -608,6 +668,7 @@ const Interactive: React.FC = () => {
         <div className="max-w-6xl mx-auto pt-16 px-6 animate-fade-in pb-20">
              {showPaymentModal && <PaymentModal isOpen={true} onClose={() => setShowPaymentModal(false)} />}
              {showLoginModal && <LoginModal />}
+             {showAiUnlockModal && <AiUnlockModal />}
              
              <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-12 gap-6">
                  <div>
@@ -662,13 +723,25 @@ const Interactive: React.FC = () => {
                      </div>
                  </button>
 
-                 {/* AI VIDEO CARD */}
+                 {/* AI VIDEO CARD (LOCKED) */}
                  <button 
                     onClick={() => handleToolClick('ai-video')}
                     className="group relative bg-slate-900 border border-slate-800 hover:border-purple-500 rounded-2xl p-8 text-left transition-all hover:shadow-[0_0_30px_rgba(168,85,247,0.1)] overflow-hidden md:col-span-2 lg:col-span-2"
                  >
                      <div className="relative z-10">
-                         <span className="inline-block px-3 py-1 rounded-full bg-purple-500/20 text-purple-400 text-xs font-bold mb-4">VEO GENERATOR</span>
+                         <div className="flex items-center gap-2 mb-4">
+                             <span className="inline-block px-3 py-1 rounded-full bg-purple-500/20 text-purple-400 text-xs font-bold">VEO GENERATOR</span>
+                             {!isAiUnlocked && !isAdmin && (
+                                 <span className="inline-block px-2 py-1 rounded border border-red-500/50 text-red-500 text-[10px] font-bold uppercase tracking-wider">
+                                     🔒 Locked Event
+                                 </span>
+                             )}
+                             {(isAiUnlocked || isAdmin) && (
+                                 <span className="inline-block px-2 py-1 rounded border border-green-500/50 text-green-500 text-[10px] font-bold uppercase tracking-wider">
+                                     🔓 Unlocked
+                                 </span>
+                             )}
+                         </div>
                          <h3 className="text-2xl font-bold text-white mb-2 group-hover:text-purple-400 transition-colors">AI Music Video Director</h3>
                          <p className="text-slate-400 text-sm leading-relaxed mb-6">
                             上傳照片，讓 Veo 模型生成逼真的音樂錄影帶。<br/>
