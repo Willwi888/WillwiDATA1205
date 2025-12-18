@@ -66,11 +66,36 @@ export const getChatResponse = async (message: string, messageCount: number): Pr
 export const generateMusicCritique = async (song: Song): Promise<string> => {
   const client = getClient();
   if (!client) return "請先設定 API。";
-  const prompt = `你是一位專業資深樂評人。請為 Willwi 的作品《${song.title}》撰寫一段 150 字內的深度短評。`;
+
+  // Build a rich context prompt using all available song data
+  const context = `
+作品資訊：
+歌名：《${song.title}》
+曲風提示/文案：${song.description || '未提供'}
+歌詞內容：
+${song.lyrics || '未提供歌詞'}
+製作團隊資訊 (可從中分析配器)：
+${song.credits || '未提供製作資訊'}
+
+任務要求：
+你是一位專業、敏銳且富有文學氣息的資深樂評人。請針對以上資訊撰寫一段 150 字內的深度短評。
+評論中必須包含：
+1. 針對歌詞所體現的「情感主題」進行深度解析。
+2. 根據製作團隊或文案推敲其「曲風色彩」與「配器編制」的獨特性。
+3. 對 Willwi 創作語彙的評價。
+4. 語氣要專業但能引起聽眾共鳴。
+`;
+
   try {
-    const response = await client.models.generateContent({ model: 'gemini-3-flash-preview', contents: prompt });
-    return response.text || "無法生成。";
-  } catch (error) { return "出錯了。"; }
+    const response = await client.models.generateContent({ 
+      model: 'gemini-3-flash-preview', 
+      contents: context 
+    });
+    return response.text || "無法生成樂評。";
+  } catch (error) { 
+    console.error("Critique Generation Error:", error);
+    return "AI 樂評生成暫時不可用，請檢查網路連線。"; 
+  }
 };
 
 export const generateAiVideo = async (prompt: string): Promise<string | null> => {
