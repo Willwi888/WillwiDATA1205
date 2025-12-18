@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
 
 interface User {
@@ -23,6 +24,7 @@ const UserContext = createContext<UserContextType | undefined>(undefined);
 
 const USER_SESSION_KEY = 'willwi_user_v3';
 const USERS_DB_KEY = 'willwi_users_v3';
+const ADMIN_SESSION_KEY = 'willwi_admin_session';
 
 export const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
@@ -33,7 +35,11 @@ export const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     try {
         const storedUser = localStorage.getItem(USER_SESSION_KEY);
         if (storedUser) setUser(JSON.parse(storedUser));
-        if (localStorage.getItem('willwi_admin_unlocked') === 'true') setIsAdmin(true);
+        
+        // Use sessionStorage for admin status so it resets on tab close
+        if (sessionStorage.getItem(ADMIN_SESSION_KEY) === 'true') {
+            setIsAdmin(true);
+        }
     } catch(e) {}
     setIsLoading(false);
   }, []);
@@ -65,28 +71,30 @@ export const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     localStorage.removeItem(USER_SESSION_KEY);
   };
 
-  const addCredits = (amount: number) => {
-    if (!user) return;
-    setUser(prev => prev ? { ...prev, credits: prev.credits + amount } : null);
-  };
-
-  const deductCredit = (): boolean => {
-    if (!user) return false;
-    if (user.credits > 0) {
-      setUser(prev => prev ? { ...prev, credits: prev.credits - 1 } : null);
-      return true;
-    }
-    return false;
-  };
-
   const enableAdmin = () => {
       setIsAdmin(true);
-      localStorage.setItem('willwi_admin_unlocked', 'true');
+      sessionStorage.setItem(ADMIN_SESSION_KEY, 'true');
   };
 
   const logoutAdmin = () => {
       setIsAdmin(false);
-      localStorage.removeItem('willwi_admin_unlocked');
+      sessionStorage.removeItem(ADMIN_SESSION_KEY);
+  };
+
+  // Add credits to current user balance
+  const addCredits = (amount: number) => {
+    if (user) {
+      setUser(prev => prev ? { ...prev, credits: prev.credits + amount } : null);
+    }
+  };
+
+  // Deduct one credit from user balance and return if operation was successful
+  const deductCredit = () => {
+    if (user && user.credits > 0) {
+      setUser(prev => prev ? { ...prev, credits: prev.credits - 1 } : null);
+      return true;
+    }
+    return false;
   };
 
   return (

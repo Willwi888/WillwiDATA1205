@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useTranslation } from '../context/LanguageContext';
 import { useUser } from '../context/UserContext';
 import ChatWidget from './ChatWidget';
@@ -9,10 +9,11 @@ const DEFAULT_BG = "https://drive.google.com/thumbnail?id=18rpLhJQKHKK5EeonFqutl
 
 const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const location = useLocation();
+  const navigate = useNavigate();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const { t, lang, setLang } = useTranslation();
-  const { isAdmin } = useUser();
+  const { isAdmin, logoutAdmin } = useUser();
   const [isSnowing, setIsSnowing] = useState(() => localStorage.getItem('willwi_snowing') === 'true');
   
   const [bgImage, setBgImage] = useState(DEFAULT_BG);
@@ -50,6 +51,11 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     localStorage.setItem('willwi_snowing', String(newVal));
   };
 
+  const handleExitAdmin = () => {
+      logoutAdmin();
+      navigate('/');
+  };
+
   return (
     <div className={`min-h-screen flex flex-col relative font-sans selection:bg-brand-accent selection:text-brand-darker text-slate-100 overflow-x-hidden ${isEmbed ? 'bg-transparent' : 'bg-slate-950'}`}>
       
@@ -72,7 +78,7 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
       <nav className={`fixed w-full top-0 z-50 transition-all duration-500 border-b ${scrolled || !isHome ? (isEmbed ? 'bg-slate-950/80' : 'bg-slate-950/60') + ' backdrop-blur-xl border-white/5 py-2' : 'bg-transparent border-transparent py-6'}`}>
         <div className="max-w-7xl mx-auto px-6 lg:px-8">
           <div className="flex items-center justify-between h-14">
-            <div className="flex items-center">
+            <div className="flex items-center gap-2">
               <Link to={isEmbed ? "/?embed=true" : "/"} className="group flex items-center gap-2">
                 <span className="text-2xl font-black tracking-[0.25em] text-white uppercase group-hover:text-brand-accent transition-colors duration-500 drop-shadow-lg">
                     Willwi
@@ -81,6 +87,11 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
                     DB
                 </span>
               </Link>
+              {isAdmin && (
+                  <span className="hidden sm:inline-block text-[9px] bg-brand-accent text-slate-950 px-2 py-0.5 font-black uppercase tracking-widest rounded shadow-lg animate-pulse">
+                      Admin
+                  </span>
+              )}
             </div>
 
             <div className="hidden md:flex items-center">
@@ -100,7 +111,16 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
             </div>
 
             <div className="hidden md:flex items-center gap-4">
-                {/* Snow Toggle Button */}
+                {/* Admin Quick Exit */}
+                {isAdmin && (
+                    <button 
+                        onClick={handleExitAdmin}
+                        className="text-[10px] font-bold text-red-500 border border-red-900/50 hover:bg-red-500 hover:text-white px-3 py-1.5 rounded transition-all uppercase tracking-widest"
+                    >
+                        Exit Admin
+                    </button>
+                )}
+                
                 <button 
                   onClick={toggleSnow}
                   title="Let it Snow"
@@ -117,6 +137,7 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
             </div>
 
             <div className="md:hidden flex items-center gap-4">
+               {isAdmin && <span className="text-[8px] bg-brand-accent text-slate-950 px-1 py-0.5 rounded font-black">ADM</span>}
                <button 
                   onClick={toggleSnow}
                   className={`text-sm p-1 ${isSnowing ? 'opacity-100' : 'opacity-40'}`}
@@ -156,6 +177,7 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
                   <>
                     <Link to="/add" onClick={() => setIsMenuOpen(false)} className={mobileLinkClass('/add')}>{t('nav_add')}</Link>
                     <Link to="/admin" onClick={() => setIsMenuOpen(false)} className={mobileLinkClass('/admin')}>Manager</Link>
+                    <button onClick={handleExitAdmin} className="w-full text-left px-3 py-3 text-lg font-medium text-red-500 border-l-2 border-transparent">Exit Admin</button>
                   </>
               )}
               <Link to="/interactive" onClick={() => setIsMenuOpen(false)} className={mobileLinkClass('/interactive')}>{t('nav_interactive')}</Link>
