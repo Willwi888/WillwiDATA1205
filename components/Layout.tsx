@@ -3,6 +3,7 @@ import { Link, useLocation } from 'react-router-dom';
 import { useTranslation } from '../context/LanguageContext';
 import { useUser } from '../context/UserContext';
 import ChatWidget from './ChatWidget';
+import Snowfall from './Snowfall';
 
 const DEFAULT_BG = "https://drive.google.com/thumbnail?id=18rpLhJQKHKK5EeonFqutlOoKAI2Eq_Hd&sz=w2560";
 
@@ -12,6 +13,7 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [scrolled, setScrolled] = useState(false);
   const { t, lang, setLang } = useTranslation();
   const { isAdmin } = useUser();
+  const [isSnowing, setIsSnowing] = useState(() => localStorage.getItem('willwi_snowing') === 'true');
   
   const [bgImage, setBgImage] = useState(DEFAULT_BG);
   const searchParams = new URLSearchParams(location.search);
@@ -42,9 +44,18 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     setLang(lang === 'en' ? 'zh' : 'en');
   };
 
+  const toggleSnow = () => {
+    const newVal = !isSnowing;
+    setIsSnowing(newVal);
+    localStorage.setItem('willwi_snowing', String(newVal));
+  };
+
   return (
     <div className={`min-h-screen flex flex-col relative font-sans selection:bg-brand-accent selection:text-brand-darker text-slate-100 overflow-x-hidden ${isEmbed ? 'bg-transparent' : 'bg-slate-950'}`}>
       
+      {/* Snowfall Component */}
+      {isSnowing && <Snowfall />}
+
       {!isEmbed && (
         <div className="fixed inset-0 z-[-1] pointer-events-none h-full w-full bg-slate-950">
             <div 
@@ -75,11 +86,7 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
             <div className="hidden md:flex items-center">
               <div className="ml-10 flex items-center space-x-10 text-sm uppercase drop-shadow-md font-semibold">
                 <Link to={isEmbed ? "/?embed=true" : "/"} className={isActive('/')}>{t('nav_home')}</Link>
-                
-                {/* Catalog is now PUBLIC */}
                 <Link to={isEmbed ? "/database?embed=true" : "/database"} className={isActive('/database')}>{t('nav_catalog')}</Link>
-                
-                {/* Add & Manager are ADMIN ONLY */}
                 {isAdmin && (
                     <>
                         <Link to={isEmbed ? "/add?embed=true" : "/add"} className="text-slate-300 hover:text-brand-accent transition-colors font-bold tracking-wider">
@@ -93,6 +100,14 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
             </div>
 
             <div className="hidden md:flex items-center gap-4">
+                {/* Snow Toggle Button */}
+                <button 
+                  onClick={toggleSnow}
+                  title="Let it Snow"
+                  className={`text-sm transition-all p-2 rounded-full border ${isSnowing ? 'bg-white text-brand-darker border-white' : 'text-slate-400 border-slate-600 hover:border-white hover:text-white'}`}
+                >
+                  ❄️
+                </button>
                 <button 
                   onClick={toggleLang}
                   className="text-xs font-bold text-slate-400 hover:text-white border border-slate-600 hover:border-white px-2 py-1 rounded transition-all uppercase tracking-wider"
@@ -102,6 +117,12 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
             </div>
 
             <div className="md:hidden flex items-center gap-4">
+               <button 
+                  onClick={toggleSnow}
+                  className={`text-sm p-1 ${isSnowing ? 'opacity-100' : 'opacity-40'}`}
+                >
+                  ❄️
+                </button>
                <button 
                   onClick={toggleLang}
                   className="text-xs font-bold text-slate-400 hover:text-white border border-slate-600 px-2 py-1 rounded transition-all uppercase tracking-wider"
