@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useData } from '../context/DataContext';
 import { Language, ProjectType, ReleaseCategory, Song } from '../types';
 import { searchSpotifyTracks, searchSpotifyAlbums, getSpotifyAlbumTracks, SpotifyTrack, SpotifyAlbum } from '../services/spotifyService';
-import { getWillwiReleases, getCoverArtUrl, getReleaseGroupTracks, MBReleaseGroup, MBTrack } from '../services/musicbrainzService';
+import { getWillwiReleases, getCoverArtUrl, getReleaseGroupDetails, MBReleaseGroup, MBTrack, MBImportData } from '../services/musicbrainzService';
 import { useTranslation } from '../context/LanguageContext';
 import { useUser } from '../context/UserContext';
 
@@ -39,16 +39,19 @@ const AddSong: React.FC = () => {
   const [importMode, setImportMode] = useState<'single' | 'album' | 'mb'>('single');
   const [searchQuery, setSearchQuery] = useState('');
   const [isSearching, setIsSearching] = useState(false);
+  
+  // Spotify Results
   const [trackResults, setTrackResults] = useState<SpotifyTrack[]>([]);
   const [albumResults, setAlbumResults] = useState<SpotifyAlbum[]>([]);
-  const [selectedAlbum, setSelectedAlbum] = useState<SpotifyAlbum | null>(null);
-  const [albumTracks, setAlbumTracks] = useState<SpotifyTrack[]>([]);
+  
+  // MusicBrainz Results
   const [mbResults, setMbResults] = useState<MBReleaseGroup[]>([]);
-  const [selectedMBRelease, setSelectedMBRelease] = useState<(MBReleaseGroup & { coverUrl?: string }) | null>(null);
-  const [mbTracks, setMbTracks] = useState<MBTrack[]>([]);
+  const [selectedMBGroup, setSelectedMBGroup] = useState<MBReleaseGroup | null>(null);
+  const [mbImportData, setMbImportData] = useState<MBImportData | null>(null);
+  const [mbCoverUrl, setMbCoverUrl] = useState<string>('');
+
   const [searchError, setSearchError] = useState('');
   const [isSaving, setIsSaving] = useState(false);
-  const [importStatus, setImportStatus] = useState<string>('');
 
   const [formData, setFormData] = useState<Partial<Song>>({
     title: '',
@@ -105,28 +108,33 @@ const AddSong: React.FC = () => {
   };
 
   const handleSearch = async () => {
-    if (importMode === 'mb') {
-        setIsSearching(true); setSearchError(''); setMbResults([]); setSelectedMBRelease(null); setMbTracks([]);
-        const results = await getWillwiReleases();
-        if (results.length === 0) setSearchError('No releases found.');
-        setMbResults(results); setIsSearching(false); return;
-    }
-    if (!searchQuery.trim()) return;
-    setIsSearching(true); setSearchError(''); setTrackResults([]); setAlbumResults([]);
+    setTrackResults([]); setAlbumResults([]); setMbResults([]); setSelectedMBGroup(null);
+    setSearchError('');
+    setIsSearching(true);
+
     try {
-        const query = searchQuery.includes('Willwi') ? searchQuery : `${searchQuery} artist:Willwi`;
-        if (importMode === 'single') {
-            let results = await searchSpotifyTracks(query);
-            if (results.length === 0) setSearchError('No results found.');
-            setTrackResults(results);
+        if (importMode === 'mb') {
+            const results = await getWillwiReleases();
+            if (results.length === 0) setSearchError('No releases found on MusicBrainz.');
+            setMbResults(results);
         } else {
-            let results = await searchSpotifyAlbums(query);
-            if (results.length === 0) setSearchError('No albums found.');
-            setAlbumResults(results);
+            if (!searchQuery.trim()) return;
+            const query = searchQuery.includes('Willwi') ? searchQuery : `${searchQuery} artist:Willwi`;
+            if (importMode === 'single') {
+                let results = await searchSpotifyTracks(query);
+                if (results.length === 0) setSearchError('No results found.');
+                setTrackResults(results);
+            } else {
+                let results = await searchSpotifyAlbums(query);
+                if (results.length === 0) setSearchError('No albums found.');
+                setAlbumResults(results);
+            }
         }
-    } catch (err) { setSearchError('Spotify connection failed.'); } finally { setIsSearching(false); }
+    } catch (err) { setSearchError('Search connection failed.'); } 
+    finally { setIsSearching(false); }
   };
 
+  // SPOTIFY SELECTION
   const selectTrackForForm = (track: SpotifyTrack) => {
     setFormData(prev => ({
         ...prev,
@@ -141,6 +149,45 @@ const AddSong: React.FC = () => {
         releaseCompany: 'Willwi Music'
     }));
     setTrackResults([]);
+  };
+  
+  const selectAlbumForForm = async (album: SpotifyAlbum) => {
+      setFormData(prev => ({
+        ...prev,
+        releaseDate: album.release_date,
+        coverUrl: album.images[0]?.url || '',
+        releaseCategory: ReleaseCategory.Album,
+        releaseCompany: 'Willwi Music'
+      }));
+      setAlbumResults([]);
+      alert("Album metadata loaded. Please enter track details manually.");
+  };
+
+  // MUSICBRAINZ SELECTION
+  const handleSelectMBGroup = async (group: MBReleaseGroup) => {
+      setSelectedMBGroup(group);
+      setMbImportData(null);
+      
+      const cover = await getCoverArtUrl(group.id);
+      setMbCoverUrl(cover || '');
+      
+      const details = await getReleaseGroupDetails(group.id, group['primary-type']);
+      setMbImportData(details);
+  };
+
+  const handleSelectMBTrack = (track: MBTrack) => {
+      if (!selectedMBGroup || !mbImportData) return;
+      setFormData(prev => ({
+          ...prev,
+          title: track.title,
+          releaseDate: mbImportData.releaseDate,
+          coverUrl: mbCoverUrl,
+          releaseCategory: mbImportData.category,
+          releaseCompany: mbImportData.releaseCompany,
+          musicBrainzId: track.id
+      }));
+      setMbResults([]);
+      setSelectedMBGroup(null);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -163,7 +210,10 @@ const AddSong: React.FC = () => {
       upc: formData.upc,
       spotifyId: formData.spotifyId,
       youtubeUrl: formData.youtubeUrl,
+      musixmatchUrl: formData.musixmatchUrl,
+      youtubeMusicUrl: formData.youtubeMusicUrl,
       spotifyLink: formData.spotifyLink,
+      appleMusicLink: formData.appleMusicLink,
       audioUrl: formData.audioUrl,
       lyrics: formData.lyrics,
       description: formData.description,
@@ -178,73 +228,167 @@ const AddSong: React.FC = () => {
       <div className="flex flex-col md:flex-row justify-between items-center mb-10 gap-4">
           <h2 className="text-3xl font-black text-white uppercase tracking-tighter">{t('form_title_add')}</h2>
           <div className="bg-slate-800 p-1 rounded flex border border-slate-700">
-              <button onClick={() => setImportMode('single')} className={`px-4 py-2 rounded text-[10px] font-black uppercase tracking-widest transition-all ${importMode === 'single' ? 'bg-brand-accent text-slate-900 shadow' : 'text-slate-500 hover:text-white'}`}>Single</button>
-              <button onClick={() => setImportMode('album')} className={`px-4 py-2 rounded text-[10px] font-black uppercase tracking-widest transition-all ${importMode === 'album' ? 'bg-brand-accent text-slate-900 shadow' : 'text-slate-500 hover:text-white'}`}>Album</button>
-              <button onClick={() => setImportMode('mb')} className={`px-4 py-2 rounded text-[10px] font-black uppercase tracking-widest transition-all ${importMode === 'mb' ? 'bg-brand-gold text-slate-900 shadow' : 'text-slate-500 hover:text-white'}`}>Sync MB</button>
+              <button onClick={() => setImportMode('single')} className={`px-4 py-2 rounded text-[10px] font-black uppercase tracking-widest transition-all ${importMode === 'single' ? 'bg-brand-accent text-slate-900 shadow' : 'text-slate-500 hover:text-white'}`}>Spotify Single</button>
+              <button onClick={() => setImportMode('album')} className={`px-4 py-2 rounded text-[10px] font-black uppercase tracking-widest transition-all ${importMode === 'album' ? 'bg-brand-accent text-slate-900 shadow' : 'text-slate-500 hover:text-white'}`}>Spotify Album</button>
+              <button onClick={() => setImportMode('mb')} className={`px-4 py-2 rounded text-[10px] font-black uppercase tracking-widest transition-all ${importMode === 'mb' ? 'bg-brand-gold text-slate-900 shadow' : 'text-slate-500 hover:text-white'}`}>MusicBrainz</button>
           </div>
       </div>
 
       <div className="bg-slate-900 p-6 rounded border border-white/5 mb-8">
         <div className="flex gap-4">
-            <input type="text" placeholder="Spotify Search..." className="flex-grow bg-black border border-white/10 rounded px-4 py-3 text-white focus:border-brand-accent outline-none" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleSearch()} />
-            <button onClick={handleSearch} disabled={isSearching} className="px-8 py-3 bg-brand-accent text-slate-950 font-black uppercase text-[10px] tracking-widest rounded transition-all">{isSearching ? '...' : 'Search'}</button>
+            {importMode !== 'mb' && (
+                <input 
+                    className="flex-1 bg-black border border-white/10 px-4 py-3 text-white text-xs outline-none focus:border-white/30" 
+                    placeholder="Search Spotify..." 
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+                />
+            )}
+            <button onClick={handleSearch} disabled={isSearching} className="px-6 bg-white/10 text-white font-black text-[10px] uppercase tracking-widest hover:bg-white hover:text-black transition-all">
+                {isSearching ? 'Scanning...' : importMode === 'mb' ? 'Scan Releases' : 'Search'}
+            </button>
         </div>
-        {trackResults.length > 0 && (
-            <div className="mt-4 grid gap-2">
-                {trackResults.map(t => (
-                    <div key={t.id} className="flex items-center gap-4 p-3 bg-white/5 hover:bg-white/10 rounded border border-white/5 cursor-pointer" onClick={() => selectTrackForForm(t)}>
-                        <img src={t.album.images[2]?.url} className="w-10 h-10 object-cover" alt="" />
-                        <div className="flex-grow text-xs font-bold">{t.name} <span className="text-slate-500 font-normal">by {t.artists[0].name}</span></div>
+        
+        {searchError && <p className="text-red-500 text-xs mt-3">{searchError}</p>}
+
+        {/* RESULTS AREA */}
+        <div className="mt-4 space-y-2 max-h-60 overflow-y-auto custom-scrollbar">
+            {trackResults.map(t => (
+                <div key={t.id} onClick={() => selectTrackForForm(t)} className="flex items-center gap-3 p-2 hover:bg-white/5 cursor-pointer border border-transparent hover:border-white/10">
+                    <img src={t.album.images[2]?.url} className="w-8 h-8" alt="" />
+                    <div className="flex-1 min-w-0">
+                        <div className="text-white text-xs font-bold truncate">{t.name}</div>
+                        <div className="text-slate-500 text-[10px] truncate">{t.album.name}</div>
                     </div>
-                ))}
+                    <span className="text-[9px] text-brand-accent border border-brand-accent/50 px-2 py-0.5">SELECT</span>
+                </div>
+            ))}
+            
+            {albumResults.map(a => (
+                <div key={a.id} onClick={() => selectAlbumForForm(a)} className="flex items-center gap-3 p-2 hover:bg-white/5 cursor-pointer border border-transparent hover:border-white/10">
+                    <img src={a.images[2]?.url} className="w-8 h-8" alt="" />
+                    <div className="flex-1 min-w-0">
+                        <div className="text-white text-xs font-bold truncate">{a.name}</div>
+                        <div className="text-slate-500 text-[10px] truncate">{a.release_date}</div>
+                    </div>
+                    <span className="text-[9px] text-brand-accent border border-brand-accent/50 px-2 py-0.5">USE METADATA</span>
+                </div>
+            ))}
+
+            {mbResults.map(g => (
+                <div key={g.id} onClick={() => handleSelectMBGroup(g)} className={`p-3 border border-white/5 cursor-pointer transition-all ${selectedMBGroup?.id === g.id ? 'bg-brand-gold/10 border-brand-gold' : 'hover:bg-white/5'}`}>
+                    <div className="text-white text-xs font-bold">{g.title}</div>
+                    <div className="flex gap-2 mt-1">
+                        <span className="text-[9px] text-slate-500 bg-black px-1 border border-white/10">{g['primary-type'] || 'Unknown'}</span>
+                        <span className="text-[9px] text-slate-500">{g['first-release-date']}</span>
+                    </div>
+                </div>
+            ))}
+        </div>
+
+        {/* MB DRILLDOWN */}
+        {selectedMBGroup && mbImportData && (
+            <div className="mt-4 pt-4 border-t border-white/10">
+                 <h4 className="text-[10px] text-brand-gold font-black uppercase tracking-widest mb-3">Select Track from {selectedMBGroup.title}</h4>
+                 <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                     {mbImportData.tracks.map(t => (
+                         <div key={t.id} onClick={() => handleSelectMBTrack(t)} className="p-2 bg-black border border-white/10 hover:border-white text-xs text-slate-300 hover:text-white cursor-pointer truncate">
+                             {t.position}. {t.title}
+                         </div>
+                     ))}
+                 </div>
             </div>
         )}
       </div>
 
-      <form onSubmit={handleSubmit} className="space-y-10 animate-fade-in">
-            <section className="bg-slate-900/40 p-8 border border-white/5">
-                <h3 className="text-[10px] font-black text-brand-accent mb-6 uppercase tracking-[0.4em]">{t('form_section_basic')}</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                    <div>
-                        <label className="block text-[9px] text-slate-500 uppercase tracking-widest mb-2 font-mono">{t('form_label_title')} *</label>
-                        <input required name="title" value={formData.title} onChange={handleChange} className="w-full bg-black border border-white/10 p-3 text-white text-sm" />
-                    </div>
-                    <div>
-                        <label className="block text-[9px] text-slate-500 uppercase tracking-widest mb-2 font-mono">Cover Overlay Text (e.g. HEART BREAK)</label>
-                        <input name="coverOverlayText" value={formData.coverOverlayText} onChange={handleChange} className="w-full bg-black border border-white/10 p-3 text-brand-gold text-sm font-black" placeholder="動態標題文字" />
-                    </div>
-                    <div>
-                        <label className="block text-[9px] text-slate-500 uppercase tracking-widest mb-2 font-mono">{t('form_label_lang')}</label>
-                        <select name="language" value={formData.language} onChange={handleChange} className="w-full bg-black border border-white/10 p-3 text-white text-sm">
-                            {Object.values(Language).map(l => <option key={l} value={l}>{l}</option>)}
-                        </select>
-                    </div>
-                    <div>
-                        <label className="block text-[9px] text-slate-500 uppercase tracking-widest mb-2 font-mono">Cover URL</label>
-                        <input name="coverUrl" value={formData.coverUrl} onChange={handleChange} className="w-full bg-black border border-white/10 p-3 text-white text-xs font-mono" />
-                    </div>
-                    <div>
-                        <label className="block text-[9px] text-slate-500 uppercase tracking-widest mb-2 font-mono">Audio URL (Google Drive / MP3)</label>
-                        <input name="audioUrl" value={formData.audioUrl} onChange={handleChange} className="w-full bg-black border border-white/10 p-3 text-white text-xs font-mono" />
-                    </div>
-                    <div>
-                        <label className="block text-[9px] text-slate-500 uppercase tracking-widest mb-2 font-mono">YouTube URL</label>
-                        <input name="youtubeUrl" value={formData.youtubeUrl} onChange={handleChange} className="w-full bg-black border border-white/10 p-3 text-white text-xs font-mono" />
-                    </div>
+      <form onSubmit={handleSubmit} className="space-y-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+             <div className="space-y-2">
+                 <label className="text-[10px] text-slate-500 font-black uppercase tracking-widest">{t('form_label_title')}</label>
+                 <input name="title" className="w-full bg-slate-900 border border-white/10 px-4 py-3 text-white text-sm focus:border-brand-accent outline-none" value={formData.title} onChange={handleChange} required />
+             </div>
+             <div className="space-y-2">
+                 <label className="text-[10px] text-slate-500 font-black uppercase tracking-widest">Version Label</label>
+                 <input name="versionLabel" className="w-full bg-slate-900 border border-white/10 px-4 py-3 text-white text-sm focus:border-brand-accent outline-none" value={formData.versionLabel} onChange={handleChange} placeholder="e.g. Acoustic, Remix" />
+             </div>
+        </div>
+
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+             <div className="space-y-2">
+                 <label className="text-[10px] text-slate-500 font-black uppercase tracking-widest">{t('form_label_lang')}</label>
+                 <select name="language" className="w-full bg-slate-900 border border-white/10 px-4 py-3 text-white text-xs focus:border-brand-accent outline-none appearance-none" value={formData.language} onChange={handleChange}>
+                     {Object.values(Language).map(l => <option key={l} value={l}>{l}</option>)}
+                 </select>
+             </div>
+             <div className="space-y-2">
+                 <label className="text-[10px] text-slate-500 font-black uppercase tracking-widest">Project Type</label>
+                 <select name="projectType" className="w-full bg-slate-900 border border-white/10 px-4 py-3 text-white text-xs focus:border-brand-accent outline-none appearance-none" value={formData.projectType} onChange={handleChange}>
+                     {Object.values(ProjectType).map(p => <option key={p} value={p}>{p}</option>)}
+                 </select>
+             </div>
+             <div className="space-y-2">
+                 <label className="text-[10px] text-slate-500 font-black uppercase tracking-widest">Release Category</label>
+                 <select name="releaseCategory" className="w-full bg-slate-900 border border-white/10 px-4 py-3 text-white text-xs focus:border-brand-accent outline-none appearance-none" value={formData.releaseCategory} onChange={handleChange}>
+                     {Object.values(ReleaseCategory).map(c => <option key={c} value={c}>{c}</option>)}
+                 </select>
+             </div>
+             <div className="space-y-2">
+                 <label className="text-[10px] text-slate-500 font-black uppercase tracking-widest">Date</label>
+                 <input type="date" name="releaseDate" className="w-full bg-slate-900 border border-white/10 px-4 py-3 text-white text-xs focus:border-brand-accent outline-none" value={formData.releaseDate} onChange={handleChange} />
+             </div>
+        </div>
+
+        <div className="space-y-2">
+             <label className="text-[10px] text-slate-500 font-black uppercase tracking-widest">Cover Image URL</label>
+             <div className="flex gap-4">
+                 <input name="coverUrl" className="flex-1 bg-slate-900 border border-white/10 px-4 py-3 text-white text-xs focus:border-brand-accent outline-none font-mono" value={formData.coverUrl} onChange={handleChange} placeholder="https://..." />
+                 {formData.coverUrl && <img src={formData.coverUrl} className="w-10 h-10 object-cover border border-white/20" alt="" />}
+             </div>
+        </div>
+
+        <div className="space-y-2">
+             <label className="text-[10px] text-slate-500 font-black uppercase tracking-widest">Media Links</label>
+             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <input name="audioUrl" className="bg-slate-900 border border-white/10 px-4 py-3 text-white text-xs focus:border-brand-accent outline-none font-mono" value={formData.audioUrl} onChange={handleChange} placeholder="Audio Source URL (MP3/Drive)" />
+                <input name="youtubeUrl" className="bg-slate-900 border border-white/10 px-4 py-3 text-white text-xs focus:border-brand-accent outline-none font-mono" value={formData.youtubeUrl} onChange={handleChange} placeholder="YouTube URL" />
+                <input name="spotifyLink" className="bg-slate-900 border border-white/10 px-4 py-3 text-white text-xs focus:border-brand-accent outline-none font-mono" value={formData.spotifyLink} onChange={handleChange} placeholder="Spotify URL" />
+             </div>
+        </div>
+        
+        <div className="space-y-2">
+             <label className="text-[10px] text-slate-500 font-black uppercase tracking-widest">Metadata</label>
+             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <input name="isrc" className="bg-slate-900 border border-white/10 px-4 py-3 text-white text-xs focus:border-brand-accent outline-none font-mono" value={formData.isrc} onChange={handleChange} placeholder="ISRC" />
+                <input name="upc" className="bg-slate-900 border border-white/10 px-4 py-3 text-white text-xs focus:border-brand-accent outline-none font-mono" value={formData.upc} onChange={handleChange} placeholder="UPC" />
+                <input name="releaseCompany" className="bg-slate-900 border border-white/10 px-4 py-3 text-white text-xs focus:border-brand-accent outline-none" value={formData.releaseCompany} onChange={handleChange} placeholder="Label / Company" />
+                <div className="flex items-center px-4 bg-slate-900 border border-white/10">
+                     <label className="flex items-center gap-2 cursor-pointer">
+                         <input type="checkbox" name="isEditorPick" checked={formData.isEditorPick} onChange={handleChange} />
+                         <span className="text-[10px] text-white font-bold uppercase">Editor Pick</span>
+                     </label>
                 </div>
-            </section>
+             </div>
+        </div>
 
-            <section className="bg-slate-900/40 p-8 border border-white/5">
-                <h3 className="text-[10px] font-black text-brand-accent mb-6 uppercase tracking-[0.4em]">{t('form_label_lyrics')}</h3>
-                <textarea name="lyrics" rows={10} value={formData.lyrics} onChange={handleChange} className="w-full bg-black border border-white/10 p-4 text-white text-sm font-mono leading-loose" />
-            </section>
-
-            <div className="flex justify-end gap-6 pt-6 border-t border-white/5">
-                <button type="button" onClick={() => navigate('/database')} className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">{t('form_btn_cancel')}</button>
-                <button type="submit" disabled={isSaving} className="px-12 py-4 bg-brand-accent text-slate-950 font-black text-[10px] uppercase tracking-widest hover:bg-white transition-all">
-                    {isSaving ? t('form_btn_saving') : t('form_btn_save')}
-                </button>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="space-y-2">
+                 <label className="text-[10px] text-slate-500 font-black uppercase tracking-widest">{t('form_label_lyrics')}</label>
+                 <textarea name="lyrics" className="w-full h-40 bg-slate-900 border border-white/10 px-4 py-3 text-white text-xs focus:border-brand-accent outline-none font-mono leading-relaxed" value={formData.lyrics} onChange={handleChange} placeholder="Paste lyrics here..." />
             </div>
+            <div className="space-y-2">
+                 <label className="text-[10px] text-slate-500 font-black uppercase tracking-widest">Credits & Description</label>
+                 <textarea name="description" className="w-full h-20 bg-slate-900 border border-white/10 px-4 py-3 text-white text-xs focus:border-brand-accent outline-none mb-4" value={formData.description} onChange={handleChange} placeholder="Story behind the song..." />
+                 <textarea name="credits" className="w-full h-16 bg-slate-900 border border-white/10 px-4 py-3 text-white text-xs focus:border-brand-accent outline-none font-mono" value={formData.credits} onChange={handleChange} placeholder="Producer, Arranger, Mixing..." />
+            </div>
+        </div>
+
+        <div className="pt-6 border-t border-white/10 flex justify-end gap-4">
+            <button type="button" onClick={() => navigate('/database')} className="px-8 py-3 text-slate-400 hover:text-white text-[10px] font-black uppercase tracking-widest">{t('form_btn_cancel')}</button>
+            <button type="submit" disabled={isSaving} className="px-8 py-3 bg-brand-accent text-slate-900 font-black text-[10px] uppercase tracking-widest hover:bg-white transition-all shadow-lg shadow-brand-accent/20">
+                {isSaving ? t('form_btn_saving') : t('form_btn_save')}
+            </button>
+        </div>
       </form>
     </div>
   );

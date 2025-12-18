@@ -7,11 +7,18 @@ import { searchSpotifyTracks, SpotifyTrack } from '../services/spotifyService';
 
 const AdminDashboard: React.FC = () => {
   const { songs, updateSong, addSong, deleteSong } = useData();
-  const { isAdmin, enableAdmin, logoutAdmin } = useUser();
+  const { isAdmin, enableAdmin, logoutAdmin, getAllUsers, getAllTransactions } = useUser();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [passwordInput, setPasswordInput] = useState('');
   const [loginError, setLoginError] = useState('');
+
+  // Stats
+  const [stats, setStats] = useState({
+      totalUsers: 0,
+      incomeProduction: 0,
+      incomeDonation: 0
+  });
 
   // Search & Import
   const [searchQuery, setSearchQuery] = useState('');
@@ -29,7 +36,19 @@ const AdminDashboard: React.FC = () => {
   useEffect(() => {
       const savedConfig = localStorage.getItem('willwi_platform_config');
       if (savedConfig) setPlatformConfig(JSON.parse(savedConfig));
-  }, []);
+      
+      if (isAdmin) {
+          const users = getAllUsers();
+          const txs = getAllTransactions();
+          const prodIncome = txs.filter(t => t.type === 'production').reduce((acc, t) => acc + t.amount, 0);
+          const donaIncome = txs.filter(t => t.type === 'donation').reduce((acc, t) => acc + t.amount, 0);
+          setStats({
+              totalUsers: users.length,
+              incomeProduction: prodIncome,
+              incomeDonation: donaIncome
+          });
+      }
+  }, [isAdmin, getAllUsers, getAllTransactions]);
 
   const handleSpotifyImport = async (track: SpotifyTrack) => {
       const newSong: Song = {
@@ -43,7 +62,9 @@ const AdminDashboard: React.FC = () => {
           isrc: track.external_ids.isrc,
           upc: track.album.external_ids?.upc,
           spotifyLink: track.external_urls.spotify,
-          isEditorPick: false
+          isEditorPick: false,
+          youtubeUrl: '',
+          audioUrl: ''
       };
       if (await addSong(newSong)) {
           alert(`《${track.name}》已同步至作品庫。`);
@@ -106,7 +127,7 @@ const AdminDashboard: React.FC = () => {
       return (
           <div className="min-h-[60vh] flex items-center justify-center px-4">
                <div className="bg-slate-900 border border-slate-800 rounded-xl p-10 max-w-md w-full shadow-2xl text-center">
-                   <h2 className="text-2xl font-black text-white mb-8 uppercase tracking-[0.2em]">Management Access</h2>
+                   <h2 className="text-2xl font-black text-white mb-8 uppercase tracking-[0.2em]">Manager Login</h2>
                    <form onSubmit={(e) => { e.preventDefault(); if (passwordInput === '8888' || passwordInput === 'eloveg2026') enableAdmin(); else setLoginError('密碼錯誤'); }} className="space-y-6">
                        <input type="password" placeholder="ACCESS CODE" className="w-full bg-black border border-slate-700 rounded px-4 py-4 text-white text-center tracking-[0.8em] font-mono outline-none focus:border-brand-accent transition-all" value={passwordInput} onChange={(e) => setPasswordInput(e.target.value)} />
                        {loginError && <p className="text-red-500 text-[10px] font-bold uppercase tracking-widest">{loginError}</p>}
@@ -122,15 +143,46 @@ const AdminDashboard: React.FC = () => {
       <div className="flex justify-between items-center mb-12 border-b border-white/5 pb-8">
           <div>
             <h1 className="text-4xl font-black text-white uppercase tracking-tighter">Command Center</h1>
-            <p className="text-slate-500 text-[10px] font-bold uppercase tracking-[0.4em] mt-2">Manage Assets & Identity</p>
+            <p className="text-slate-500 text-[10px] font-bold uppercase tracking-[0.4em] mt-2">Manage Assets & Financials</p>
           </div>
-          <button onClick={logoutAdmin} className="text-[10px] font-bold text-red-500 border border-red-900/40 px-6 py-2 hover:bg-red-500 hover:text-white transition-all uppercase tracking-widest">Exit</button>
+          <button onClick={logoutAdmin} className="text-[10px] font-bold text-red-500 border border-red-900/40 px-6 py-2 hover:bg-red-500 hover:text-white transition-all uppercase tracking-widest">
+              Log Out / 登出
+          </button>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
+        
+        {/* LEFT COLUMN: STATS & TOOLS */}
         <div className="lg:col-span-4 space-y-10">
+            {/* FINANCIAL STATS */}
+            <div className="bg-slate-900 border border-white/10 rounded-xl overflow-hidden shadow-2xl">
+                 <div className="bg-white/5 px-8 py-6 border-b border-white/5">
+                     <h2 className="text-xs font-black text-brand-gold uppercase tracking-[0.3em]">Performance Data</h2>
+                 </div>
+                 <div className="p-8 grid grid-cols-1 gap-8">
+                      <div>
+                          <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest mb-1">Total Participants / 總參與人數</p>
+                          <p className="text-4xl font-black text-white font-mono">{stats.totalUsers}</p>
+                      </div>
+                      <div className="grid grid-cols-2 gap-4 pt-6 border-t border-white/5">
+                          <div>
+                              <p className="text-[9px] text-slate-500 font-bold uppercase tracking-widest mb-1">Donation (Thermal)</p>
+                              <p className="text-xl font-black text-white font-mono">NT$ {stats.incomeDonation.toLocaleString()}</p>
+                          </div>
+                          <div>
+                              <p className="text-[9px] text-slate-500 font-bold uppercase tracking-widest mb-1">Production (Lyrics)</p>
+                              <p className="text-xl font-black text-brand-accent font-mono">NT$ {stats.incomeProduction.toLocaleString()}</p>
+                          </div>
+                      </div>
+                      <div className="pt-6 border-t border-white/5">
+                           <p className="text-[9px] text-slate-500 font-bold uppercase tracking-widest mb-1">Total Revenue</p>
+                           <p className="text-2xl font-black text-white font-mono">NT$ {(stats.incomeDonation + stats.incomeProduction).toLocaleString()}</p>
+                      </div>
+                 </div>
+            </div>
+
             {/* SEARCH & IMPORT */}
-            <div className="bg-slate-900 p-8 border border-brand-accent/20 rounded shadow-2xl">
+            <div className="bg-slate-900 p-8 border border-white/10 rounded-xl shadow-2xl">
                  <h2 className="text-xs font-black text-brand-accent mb-6 uppercase tracking-[0.3em]">作品檢索同步 (Spotify)</h2>
                  <div className="flex gap-2 mb-6">
                     <input type="text" placeholder="輸入關鍵字..." className="flex-1 bg-black border border-white/10 rounded px-4 py-3 text-white text-xs outline-none" value={searchQuery} onChange={e => setSearchQuery(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleSearch()} />
@@ -139,7 +191,7 @@ const AdminDashboard: React.FC = () => {
                  <div className="space-y-3 max-h-[250px] overflow-y-auto custom-scrollbar pr-2">
                      {trackResults.map(t => (
                          <div key={t.id} onClick={() => handleSpotifyImport(t)} className="flex items-center gap-4 p-3 bg-white/5 hover:bg-white/10 border border-white/5 cursor-pointer transition-all rounded">
-                             <img src={t.album.images[2]?.url} className="w-8 h-8 rounded" />
+                             <img src={t.album.images[2]?.url} className="w-8 h-8 rounded" alt="" />
                              <div className="flex-1 overflow-hidden">
                                  <div className="text-white text-[10px] font-bold truncate">{t.name}</div>
                                  <div className="text-slate-500 text-[9px] truncate">{t.album.name}</div>
@@ -151,33 +203,36 @@ const AdminDashboard: React.FC = () => {
             </div>
 
             {/* GLOBAL IDENTITY */}
-            <div className="bg-slate-900 p-8 border border-white/5 rounded shadow-2xl">
-                <h2 className="text-xs font-black text-brand-gold mb-8 uppercase tracking-[0.3em]">全局品牌設定</h2>
+            <div className="bg-slate-900 p-8 border border-white/5 rounded-xl shadow-2xl">
+                <h2 className="text-xs font-black text-slate-400 mb-8 uppercase tracking-[0.3em]">Global Config</h2>
                 <div className="space-y-6">
                     <div>
-                        <label className="block text-[9px] text-slate-500 mb-2 uppercase font-bold tracking-widest">預設發行公司 (Company)</label>
+                        <label className="block text-[9px] text-slate-500 mb-2 uppercase font-bold tracking-widest">預設發行公司</label>
                         <input className="w-full bg-black border border-white/10 p-3 text-white text-xs" value={platformConfig.defaultCompany} onChange={e => setPlatformConfig({...platformConfig, defaultCompany: e.target.value})} />
                     </div>
                     <div>
-                        <label className="block text-[9px] text-slate-500 mb-2 uppercase font-bold tracking-widest">預設專案類型 (Type)</label>
+                        <label className="block text-[9px] text-slate-500 mb-2 uppercase font-bold tracking-widest">預設專案類型</label>
                         <select className="w-full bg-black border border-white/10 p-3 text-white text-xs" value={platformConfig.defaultProject} onChange={e => setPlatformConfig({...platformConfig, defaultProject: e.target.value as ProjectType})}>
                              {Object.values(ProjectType).map(p => <option key={p} value={p}>{p}</option>)}
                         </select>
                     </div>
-                    <button onClick={savePlatformConfig} className="w-full py-4 bg-brand-gold text-slate-950 font-black text-[10px] uppercase tracking-widest hover:bg-white transition-all">更新設定</button>
+                    <div>
+                         <label className="block text-[9px] text-slate-500 mb-2 uppercase font-bold tracking-widest">首頁 Youtube 影片 ID</label>
+                         <input className="w-full bg-black border border-white/10 p-3 text-white text-xs" placeholder="e.g. dQw4w9WgXcQ" value={platformConfig.youtubeFeaturedUrl} onChange={e => setPlatformConfig({...platformConfig, youtubeFeaturedUrl: e.target.value})} />
+                    </div>
+                    <button onClick={savePlatformConfig} className="w-full py-4 bg-white/10 text-white font-black text-[10px] uppercase tracking-widest hover:bg-white hover:text-black transition-all">更新設定</button>
+                    
+                    <div className="pt-6 border-t border-white/10">
+                        <button onClick={() => fileInputRef.current?.click()} className="w-full py-4 border border-white/10 text-slate-500 font-black text-[10px] uppercase tracking-widest hover:text-white hover:border-white transition-all">
+                            匯入備份 (JSON)
+                        </button>
+                        <input ref={fileInputRef} type="file" className="hidden" accept=".json" onChange={handleImportFile} />
+                    </div>
                 </div>
-            </div>
-
-            {/* SYNC IMPORT */}
-            <div className="bg-slate-900 p-8 border border-white/5 rounded shadow-2xl">
-                <h2 className="text-xs font-black text-white mb-6 uppercase tracking-[0.3em]">聽眾數據同步</h2>
-                <p className="text-[10px] text-slate-500 mb-6 leading-relaxed uppercase tracking-widest">匯入由「互動實驗室」產出的 JSON 同步檔案，將聽眾觀點帶入作品敘事。</p>
-                <button onClick={() => fileInputRef.current?.click()} className="w-full py-4 border border-white/10 text-white font-black text-[10px] uppercase tracking-widest hover:bg-white hover:text-black transition-all">選擇同步檔案</button>
-                <input type="file" ref={fileInputRef} onChange={handleImportFile} accept=".json" className="hidden" />
             </div>
         </div>
 
-        {/* SONG MANAGEMENT LIST */}
+        {/* RIGHT COLUMN: CATALOG LIST */}
         <div className="lg:col-span-8 space-y-10">
             <div className="bg-slate-900/50 border border-white/5 rounded-xl overflow-hidden shadow-2xl">
                 <div className="px-8 py-6 bg-white/5 border-b border-white/5 flex justify-between items-center">
@@ -185,37 +240,36 @@ const AdminDashboard: React.FC = () => {
                     <span className="text-[10px] text-slate-500 font-mono">TRACKS: {songs.length}</span>
                 </div>
                 <div className="overflow-x-auto">
-                    <table className="w-full text-left">
-                        <thead>
-                            <tr className="bg-black/40">
-                                <th className="px-8 py-4 text-[9px] font-black text-slate-500 uppercase tracking-widest">Title / Meta</th>
-                                <th className="px-8 py-4 text-[9px] font-black text-slate-500 uppercase tracking-widest">Company</th>
-                                <th className="px-8 py-4 text-[9px] font-black text-slate-500 uppercase tracking-widest">Project</th>
-                                <th className="px-8 py-4 text-[9px] font-black text-slate-500 uppercase tracking-widest text-right">Actions</th>
+                    <table className="w-full text-left border-collapse">
+                        <thead className="bg-white/5">
+                            <tr>
+                                <th className="p-4 text-[9px] font-black text-slate-500 uppercase tracking-widest">Asset</th>
+                                <th className="p-4 text-[9px] font-black text-slate-500 uppercase tracking-widest">Status</th>
+                                <th className="p-4 text-[9px] font-black text-slate-500 uppercase tracking-widest text-right">Action</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-white/5">
                             {songs.map(song => (
                                 <tr key={song.id} className="hover:bg-white/5 transition-colors">
-                                    <td className="px-8 py-4">
-                                        <div className="flex items-center gap-4">
-                                            <img src={song.coverUrl} className="w-8 h-8 object-cover border border-white/10" />
-                                            <div>
-                                                <div className="text-white text-xs font-bold">{song.title}</div>
-                                                <div className="text-slate-500 text-[9px] font-mono">{song.isrc || 'No ISRC'}</div>
-                                            </div>
+                                    <td className="p-4 flex items-center gap-4">
+                                        <img src={song.coverUrl} className="w-10 h-10 object-cover border border-white/10" alt="" />
+                                        <div>
+                                            <div className="text-white text-xs font-bold">{song.title}</div>
+                                            <div className="text-slate-500 text-[9px]">{song.isrc || 'NO_ISRC'}</div>
                                         </div>
                                     </td>
-                                    <td className="px-8 py-4">
-                                        <span className="text-[10px] text-brand-accent font-bold uppercase tracking-widest">{song.releaseCompany || '--'}</span>
+                                    <td className="p-4">
+                                        <span className={`px-2 py-1 text-[8px] font-black uppercase tracking-widest rounded ${song.isEditorPick ? 'bg-brand-accent text-black' : 'bg-slate-800 text-slate-500'}`}>
+                                            {song.isEditorPick ? 'Featured' : 'Standard'}
+                                        </span>
                                     </td>
-                                    <td className="px-8 py-4">
-                                        <span className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">{song.projectType}</span>
-                                    </td>
-                                    <td className="px-8 py-4 text-right">
-                                        <div className="flex justify-end gap-3">
-                                            <button onClick={() => deleteSong(song.id)} className="text-red-900 hover:text-red-500 transition-colors"><svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg></button>
-                                        </div>
+                                    <td className="p-4 text-right space-x-2">
+                                        <button onClick={() => updateSong(song.id, { isEditorPick: !song.isEditorPick })} className="text-[9px] text-slate-500 hover:text-white uppercase font-bold tracking-widest">
+                                            {song.isEditorPick ? 'Unfeature' : 'Feature'}
+                                        </button>
+                                        <button onClick={() => { if(window.confirm('Delete this track?')) deleteSong(song.id); }} className="text-[9px] text-red-900 hover:text-red-500 uppercase font-bold tracking-widest">
+                                            Delete
+                                        </button>
                                     </td>
                                 </tr>
                             ))}
@@ -224,6 +278,7 @@ const AdminDashboard: React.FC = () => {
                 </div>
             </div>
         </div>
+
       </div>
     </div>
   );

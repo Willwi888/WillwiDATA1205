@@ -1,8 +1,11 @@
+import { ReleaseCategory } from '../types';
 
 // MusicBrainz API Service for Willwi
+// Targeted Artist UUID: 526cc0f8-da20-4d2d-86a5-4bf841a6ba3c
 
 const MB_API_BASE = 'https://musicbrainz.org/ws/2';
-const USER_AGENT = 'WillwiMusicManager/1.0 ( will@willwi.com )'; // Required by MB API
+const WILLWI_MBID = '526cc0f8-da20-4d2d-86a5-4bf841a6ba3c';
+const USER_AGENT = 'WillwiMusicManager/2.0 ( will@willwi.com )'; 
 
 export interface MBReleaseGroup {
   id: string;
@@ -18,18 +21,23 @@ export interface MBTrack {
   position: number;
 }
 
-export interface MBCoverArtResponse {
-  images: {
-    image: string;
-    front: boolean;
-  }[];
+export interface MBImportData {
+  tracks: MBTrack[];
+  releaseDate: string;
+  releaseCompany: string;
+  category: ReleaseCategory;
 }
+
+export const mapMBTypeToCategory = (type: string): ReleaseCategory => {
+  if (type === 'EP') return ReleaseCategory.EP;
+  if (type === 'Single') return ReleaseCategory.Single;
+  return ReleaseCategory.Album; 
+};
 
 export const getWillwiReleases = async (): Promise<MBReleaseGroup[]> => {
   try {
-    // Search by Artist Name "Willwi"
-    const query = encodeURIComponent('artist:Willwi');
-    const url = `${MB_API_BASE}/release-group?query=${query}&fmt=json&limit=50`;
+    // Search strictly by Artist UUID
+    const url = `${MB_API_BASE}/release-group?artist=${WILLWI_MBID}&fmt=json&limit=100`;
     
     const response = await fetch(url, {
       headers: {
@@ -52,10 +60,9 @@ export const getWillwiReleases = async (): Promise<MBReleaseGroup[]> => {
   }
 };
 
-export const getReleaseGroupTracks = async (releaseGroupId: string): Promise<MBTrack[]> => {
+export const getReleaseGroupDetails = async (releaseGroupId: string, primaryType: string): Promise<MBImportData | null> => {
   try {
-    // 1. Get releases within this group (include media and recordings)
-    const url = `${MB_API_BASE}/release?release-group=${releaseGroupId}&inc=recordings+media&fmt=json`;
+    const url = `${MB_API_BASE}/release?release-group=${releaseGroupId}&inc=recordings+media+labels&fmt=json&limit=50`;
     
     const response = await fetch(url, {
       headers: {
@@ -64,24 +71,26 @@ export const getReleaseGroupTracks = async (releaseGroupId: string): Promise<MBT
       }
     });
 
-    if (!response.ok) return [];
+    if (!response.ok) return null;
 
     const data = await response.json();
     const releases = data.releases || [];
     
-    if (releases.length === 0) return [];
+    if (releases.length === 0) return null;
 
-    // 2. Sort by date to try and get the earliest/original release
+    // Sort by date to get original release
     releases.sort((a: any, b: any) => {
         const da = a.date || '9999-99-99';
         const db = b.date || '9999-99-99';
         return da.localeCompare(db);
     });
 
-    // 3. Pick the best candidate (first one)
-    const targetRelease = releases[0];
+    // Fallback: find release with tracks
+    const targetRelease = releases.find((r: any) => r.media && r.media.length > 0 && r.media[0].tracks && r.media[0].tracks.length > 0) || releases[0];
+
+    if (!targetRelease) return null;
+
     const tracks: MBTrack[] = [];
-    
     if (targetRelease.media) {
         targetRelease.media.forEach((medium: any) => {
             if (medium.tracks) {
@@ -95,30 +104,29 @@ export const getReleaseGroupTracks = async (releaseGroupId: string): Promise<MBT
             }
         });
     }
+
+    const label = targetRelease['label-info']?.[0]?.label?.name || '';
     
-    return tracks;
+    return {
+        tracks,
+        releaseDate: targetRelease.date || '',
+        releaseCompany: label,
+        category: mapMBTypeToCategory(primaryType)
+    };
+
   } catch (error) {
     console.error("MB Tracks Fetch Error:", error);
-    return [];
+    return null;
   }
 };
 
 export const getCoverArtUrl = async (releaseGroupId: string): Promise<string | null> => {
   try {
-    // Try to get cover art from Cover Art Archive using Release Group ID
-    // This usually redirects to the front cover of the "representative" release
     const url = `https://coverartarchive.org/release-group/${releaseGroupId}`;
-    
-    const response = await fetch(url, {
-        headers: { 'User-Agent': USER_AGENT }
-    });
-
+    const response = await fetch(url, { headers: { 'User-Agent': USER_AGENT } });
     if (!response.ok) return null;
-
-    const data: MBCoverArtResponse = await response.json();
-    // Prioritize image marked as 'front', fallback to first image
-    const frontImage = data.images.find(img => img.front) || data.images[0];
-    
+    const data = await response.json();
+    const frontImage = data.images.find((img: any) => img.front) || data.images[0];
     return frontImage ? frontImage.image : null;
   } catch (e) {
     return null;
