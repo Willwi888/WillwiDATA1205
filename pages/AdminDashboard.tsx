@@ -1,69 +1,103 @@
 import React, { useRef, useState, useEffect } from 'react';
-import { useData, INITIAL_DATA } from '../context/DataContext';
+import { useData } from '../context/DataContext';
 import { useUser } from '../context/UserContext';
 import { dbService } from '../services/db';
-import { Song, Language } from '../types';
+import { Song, Language, ProjectType } from '../types';
+import { searchSpotifyTracks, SpotifyTrack } from '../services/spotifyService';
 
 const AdminDashboard: React.FC = () => {
-  const { songs } = useData();
+  const { songs, updateSong, addSong, deleteSong } = useData();
   const { isAdmin, enableAdmin, logoutAdmin } = useUser();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [passwordInput, setPasswordInput] = useState('');
   const [loginError, setLoginError] = useState('');
 
-  const [homeConfig, setHomeConfig] = useState({ title: '', youtubeUrl: '' });
-  const [globalBg, setGlobalBg] = useState('');
-  const [metrics, setMetrics] = useState({ totalUsers: 124 });
+  // Search & Import
+  const [searchQuery, setSearchQuery] = useState('');
+  const [isSearching, setIsSearching] = useState(false);
+  const [trackResults, setTrackResults] = useState<SpotifyTrack[]>([]);
+
+  // Global Brand Configuration
+  const [platformConfig, setPlatformConfig] = useState({
+    defaultCompany: 'Willwi Music',
+    defaultProject: ProjectType.Indie,
+    youtubeFeaturedUrl: '',
+    homeTitle: ''
+  });
 
   useEffect(() => {
-      const savedConfig = localStorage.getItem('willwi_home_player_config');
-      if (savedConfig) setHomeConfig(JSON.parse(savedConfig));
-      const savedBg = localStorage.getItem('willwi_global_bg');
-      if (savedBg) setGlobalBg(savedBg);
+      const savedConfig = localStorage.getItem('willwi_platform_config');
+      if (savedConfig) setPlatformConfig(JSON.parse(savedConfig));
   }, []);
 
-  const saveHomeConfig = () => { 
-    localStorage.setItem('willwi_home_player_config', JSON.stringify(homeConfig)); 
-    alert("首頁影片設定已更新！(Home Config Updated)"); 
-  };
-  
-  const saveGlobalBg = () => { localStorage.setItem('willwi_global_bg', globalBg); window.location.reload(); };
-  const resetGlobalBg = () => { localStorage.removeItem('willwi_global_bg'); setGlobalBg(''); window.location.reload(); };
-
-  const handleAdminLogin = (e: React.FormEvent) => {
-      e.preventDefault();
-      if (passwordInput === '8888' || passwordInput === 'eloveg2026') { enableAdmin(); setLoginError(''); }
-      else { setLoginError('Invalid Admin Code'); }
-  };
-
-  const handleExport = async () => {
-    const dataStr = JSON.stringify(songs, null, 2);
-    const blob = new Blob([dataStr], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `willwi_backup_${new Date().toISOString().split('T')[0]}.json`;
-    link.click();
+  const handleSpotifyImport = async (track: SpotifyTrack) => {
+      const newSong: Song = {
+          id: Date.now().toString(),
+          title: track.name,
+          coverUrl: track.album.images[0]?.url || '',
+          language: Language.Mandarin,
+          projectType: platformConfig.defaultProject,
+          releaseCompany: platformConfig.defaultCompany,
+          releaseDate: track.album.release_date,
+          isrc: track.external_ids.isrc,
+          upc: track.album.external_ids?.upc,
+          spotifyLink: track.external_urls.spotify,
+          isEditorPick: false
+      };
+      if (await addSong(newSong)) {
+          alert(`《${track.name}》已同步至作品庫。`);
+          setTrackResults([]);
+          setSearchQuery('');
+      }
   };
 
-  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleSearch = async () => {
+    if (!searchQuery.trim()) return;
+    setIsSearching(true);
+    const results = await searchSpotifyTracks(searchQuery);
+    setTrackResults(results);
+    setIsSearching(false);
+  };
+
+  const savePlatformConfig = () => { 
+    localStorage.setItem('willwi_platform_config', JSON.stringify(platformConfig)); 
+    localStorage.setItem('willwi_home_player_config', JSON.stringify({
+        title: platformConfig.homeTitle,
+        youtubeUrl: platformConfig.youtubeFeaturedUrl
+    }));
+    alert("全局品牌設定已更新。"); 
+  };
+
+  const handleImportFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
       const file = e.target.files?.[0];
       if (!file) return;
       setIsProcessing(true);
       const reader = new FileReader();
       reader.onload = async (event) => {
           try {
-            const validSongs = JSON.parse(event.target?.result as string);
-            await dbService.clearAllSongs();
-            await dbService.bulkAdd(validSongs);
-            alert("資料庫已成功恢復！");
-            window.location.reload();
-          } catch (e) {
-            alert("匯入失敗，請檢查檔案格式。");
-          } finally {
-            setIsProcessing(false);
-          }
+            const data = JSON.parse(event.target?.result as string);
+            // Handle Interactive Studio Sync JSON (PROD- ID)
+            if (data.id && (data.id.startsWith('PROD-') || data.id.startsWith('archive-'))) {
+                const existing = songs.find(s => s.title === data.title);
+                if (existing) {
+                    if (window.confirm(`檢測到聽眾對《${data.title}》的參與數據，是否合併至現有作品？`)) {
+                        await updateSong(existing.id, {
+                            description: data.description, 
+                            credits: `${existing.credits || ''}\n[聽眾參與: ${data.listener_info?.name || '匿名'}]`
+                        });
+                        alert("聽眾數據同步成功！");
+                    }
+                }
+            } else if (Array.isArray(data)) {
+                if (window.confirm("偵測到完整備份檔，這將會清空目前所有資料。確定嗎？")) {
+                    await dbService.clearAllSongs();
+                    await dbService.bulkAdd(data);
+                    window.location.reload();
+                }
+            }
+          } catch (e) { alert("讀取同步檔失敗。"); }
+          finally { setIsProcessing(false); }
       };
       reader.readAsText(file);
   };
@@ -71,12 +105,12 @@ const AdminDashboard: React.FC = () => {
   if (!isAdmin) {
       return (
           <div className="min-h-[60vh] flex items-center justify-center px-4">
-               <div className="bg-slate-900 border border-slate-800 rounded-xl p-8 max-w-md w-full shadow-2xl text-center">
-                   <h2 className="text-2xl font-bold text-white mb-2">Admin Login</h2>
-                   <form onSubmit={handleAdminLogin} className="space-y-4 mt-6">
-                       <input type="password" placeholder="Code" className="w-full bg-black border border-slate-700 rounded-lg px-4 py-3 text-white text-center tracking-[0.5em] font-mono outline-none" value={passwordInput} onChange={(e) => setPasswordInput(e.target.value)} />
-                       {loginError && <p className="text-red-500 text-xs">{loginError}</p>}
-                       <button className="w-full py-3 bg-brand-accent text-slate-900 font-bold rounded-lg hover:bg-white transition-colors">Unlock Dashboard</button>
+               <div className="bg-slate-900 border border-slate-800 rounded-xl p-10 max-w-md w-full shadow-2xl text-center">
+                   <h2 className="text-2xl font-black text-white mb-8 uppercase tracking-[0.2em]">Management Access</h2>
+                   <form onSubmit={(e) => { e.preventDefault(); if (passwordInput === '8888' || passwordInput === 'eloveg2026') enableAdmin(); else setLoginError('密碼錯誤'); }} className="space-y-6">
+                       <input type="password" placeholder="ACCESS CODE" className="w-full bg-black border border-slate-700 rounded px-4 py-4 text-white text-center tracking-[0.8em] font-mono outline-none focus:border-brand-accent transition-all" value={passwordInput} onChange={(e) => setPasswordInput(e.target.value)} />
+                       {loginError && <p className="text-red-500 text-[10px] font-bold uppercase tracking-widest">{loginError}</p>}
+                       <button className="w-full py-4 bg-brand-gold text-slate-950 font-black rounded uppercase tracking-widest text-xs shadow-[0_0_20px_rgba(251,191,36,0.2)]">Unlock System</button>
                    </form>
                </div>
           </div>
@@ -84,89 +118,109 @@ const AdminDashboard: React.FC = () => {
   }
 
   return (
-    <div className="max-w-7xl mx-auto px-4 py-12 animate-fade-in">
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-10 gap-4">
+    <div className="max-w-7xl mx-auto px-6 py-12 animate-fade-in pb-40">
+      <div className="flex justify-between items-center mb-12 border-b border-white/5 pb-8">
           <div>
-            <h1 className="text-3xl font-black text-white uppercase tracking-tighter">Manager Dashboard</h1>
-            <p className="text-slate-400 text-sm mt-1">Willwi's Legacy Archive Control</p>
+            <h1 className="text-4xl font-black text-white uppercase tracking-tighter">Command Center</h1>
+            <p className="text-slate-500 text-[10px] font-bold uppercase tracking-[0.4em] mt-2">Manage Assets & Identity</p>
           </div>
-          <button onClick={logoutAdmin} className="text-[10px] font-bold text-red-500 border border-red-900/50 px-4 py-2 hover:bg-red-500 hover:text-white transition-all uppercase tracking-widest">Sign Out Manager</button>
+          <button onClick={logoutAdmin} className="text-[10px] font-bold text-red-500 border border-red-900/40 px-6 py-2 hover:bg-red-500 hover:text-white transition-all uppercase tracking-widest">Exit</button>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        <div className="lg:col-span-2 space-y-8">
-            
-            {/* NEW: Home Config Section */}
-            <div className="bg-slate-900 border border-brand-gold/30 rounded-xl p-8 shadow-2xl">
-                <h2 className="text-xl font-bold text-brand-gold mb-6 uppercase tracking-widest flex items-center gap-2">
-                   <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg>
-                   Home Featured Video
-                </h2>
-                <div className="space-y-6">
-                    <div>
-                        <label className="block text-xs text-slate-400 mb-2 uppercase font-mono">YouTube URL</label>
-                        <input 
-                            className="w-full bg-black border border-slate-700 rounded p-3 text-white text-xs font-mono" 
-                            value={homeConfig.youtubeUrl} 
-                            onChange={(e) => setHomeConfig({...homeConfig, youtubeUrl: e.target.value})} 
-                            placeholder="https://www.youtube.com/watch?v=..."
-                        />
-                        <p className="text-[10px] text-slate-500 mt-2">支援一般連結或短網址 (Supports normal or short URLs)</p>
-                    </div>
-                    <div>
-                        <label className="block text-xs text-slate-400 mb-2 uppercase">Featured Label / Title</label>
-                        <input 
-                            className="w-full bg-black border border-slate-700 rounded p-3 text-white text-xs" 
-                            value={homeConfig.title} 
-                            onChange={(e) => setHomeConfig({...homeConfig, title: e.target.value})} 
-                            placeholder="e.g. 最新創作 / 再愛一次"
-                        />
-                    </div>
-                    <button onClick={saveHomeConfig} className="w-full py-4 bg-brand-gold text-slate-950 font-black text-[10px] uppercase tracking-[0.2em] hover:bg-white transition-all">
-                        Update Home Content
-                    </button>
-                </div>
-            </div>
-
-            <div className="bg-slate-900 border border-brand-accent/30 rounded-xl p-8 shadow-2xl">
-                <h2 className="text-xl font-bold text-brand-accent mb-6 uppercase tracking-widest">Global Visuals</h2>
-                <div className="space-y-6">
-                    <div>
-                        <label className="block text-xs text-slate-400 mb-2 uppercase">Background Image URL</label>
-                        <input className="w-full bg-black border border-slate-700 rounded p-3 text-white text-xs" value={globalBg} onChange={(e) => setGlobalBg(e.target.value)} />
-                        <div className="mt-2 flex gap-2">
-                            <button onClick={saveGlobalBg} className="px-4 py-2 bg-slate-700 text-white text-[10px] font-bold uppercase hover:bg-brand-accent hover:text-black">Apply</button>
-                            <button onClick={resetGlobalBg} className="px-4 py-2 border border-slate-700 text-slate-500 text-[10px] uppercase">Reset to Default</button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <div className="bg-slate-900 border border-slate-800 rounded-xl p-8 shadow-2xl">
-                 <h2 className="text-xl font-bold text-white mb-6 uppercase tracking-widest">Database Management</h2>
-                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                     <button onClick={handleExport} className="py-4 bg-white/5 border border-white/10 text-white font-bold text-xs uppercase tracking-widest hover:bg-white hover:text-black transition-all">Download JSON Backup</button>
-                     <button onClick={() => fileInputRef.current?.click()} className="py-4 bg-red-900/20 border border-red-800 text-red-500 font-bold text-xs uppercase tracking-widest hover:bg-red-600 hover:text-white transition-all">
-                         Restore / Overwrite
-                     </button>
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
+        <div className="lg:col-span-4 space-y-10">
+            {/* SEARCH & IMPORT */}
+            <div className="bg-slate-900 p-8 border border-brand-accent/20 rounded shadow-2xl">
+                 <h2 className="text-xs font-black text-brand-accent mb-6 uppercase tracking-[0.3em]">作品檢索同步 (Spotify)</h2>
+                 <div className="flex gap-2 mb-6">
+                    <input type="text" placeholder="輸入關鍵字..." className="flex-1 bg-black border border-white/10 rounded px-4 py-3 text-white text-xs outline-none" value={searchQuery} onChange={e => setSearchQuery(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleSearch()} />
+                    <button onClick={handleSearch} className="px-4 py-3 bg-brand-accent text-slate-950 text-[10px] font-black uppercase tracking-widest rounded">{isSearching ? '...' : '搜尋'}</button>
                  </div>
-                 <input type="file" ref={fileInputRef} onChange={handleFileChange} accept=".json" className="hidden" />
-                 {isProcessing && <p className="text-center mt-4 text-xs text-brand-accent animate-pulse">Processing Database...</p>}
+                 <div className="space-y-3 max-h-[250px] overflow-y-auto custom-scrollbar pr-2">
+                     {trackResults.map(t => (
+                         <div key={t.id} onClick={() => handleSpotifyImport(t)} className="flex items-center gap-4 p-3 bg-white/5 hover:bg-white/10 border border-white/5 cursor-pointer transition-all rounded">
+                             <img src={t.album.images[2]?.url} className="w-8 h-8 rounded" />
+                             <div className="flex-1 overflow-hidden">
+                                 <div className="text-white text-[10px] font-bold truncate">{t.name}</div>
+                                 <div className="text-slate-500 text-[9px] truncate">{t.album.name}</div>
+                             </div>
+                             <div className="text-brand-accent text-[8px] font-black">IMPORT</div>
+                         </div>
+                     ))}
+                 </div>
+            </div>
+
+            {/* GLOBAL IDENTITY */}
+            <div className="bg-slate-900 p-8 border border-white/5 rounded shadow-2xl">
+                <h2 className="text-xs font-black text-brand-gold mb-8 uppercase tracking-[0.3em]">全局品牌設定</h2>
+                <div className="space-y-6">
+                    <div>
+                        <label className="block text-[9px] text-slate-500 mb-2 uppercase font-bold tracking-widest">預設發行公司 (Company)</label>
+                        <input className="w-full bg-black border border-white/10 p-3 text-white text-xs" value={platformConfig.defaultCompany} onChange={e => setPlatformConfig({...platformConfig, defaultCompany: e.target.value})} />
+                    </div>
+                    <div>
+                        <label className="block text-[9px] text-slate-500 mb-2 uppercase font-bold tracking-widest">預設專案類型 (Type)</label>
+                        <select className="w-full bg-black border border-white/10 p-3 text-white text-xs" value={platformConfig.defaultProject} onChange={e => setPlatformConfig({...platformConfig, defaultProject: e.target.value as ProjectType})}>
+                             {Object.values(ProjectType).map(p => <option key={p} value={p}>{p}</option>)}
+                        </select>
+                    </div>
+                    <button onClick={savePlatformConfig} className="w-full py-4 bg-brand-gold text-slate-950 font-black text-[10px] uppercase tracking-widest hover:bg-white transition-all">更新設定</button>
+                </div>
+            </div>
+
+            {/* SYNC IMPORT */}
+            <div className="bg-slate-900 p-8 border border-white/5 rounded shadow-2xl">
+                <h2 className="text-xs font-black text-white mb-6 uppercase tracking-[0.3em]">聽眾數據同步</h2>
+                <p className="text-[10px] text-slate-500 mb-6 leading-relaxed uppercase tracking-widest">匯入由「互動實驗室」產出的 JSON 同步檔案，將聽眾觀點帶入作品敘事。</p>
+                <button onClick={() => fileInputRef.current?.click()} className="w-full py-4 border border-white/10 text-white font-black text-[10px] uppercase tracking-widest hover:bg-white hover:text-black transition-all">選擇同步檔案</button>
+                <input type="file" ref={fileInputRef} onChange={handleImportFile} accept=".json" className="hidden" />
             </div>
         </div>
 
-        <div className="space-y-8">
-            <div className="bg-slate-900 border border-slate-800 rounded-xl p-8 shadow-2xl h-fit">
-                <h2 className="text-xl font-bold text-white mb-6 uppercase tracking-widest">Archive Metrics</h2>
-                <div className="space-y-6">
-                    <div className="p-6 bg-black rounded border border-white/5 text-center">
-                        <div className="text-4xl font-black text-white">{songs.length}</div>
-                        <div className="text-[10px] text-slate-500 uppercase mt-2">Indexed Tracks</div>
-                    </div>
-                    <div className="p-6 bg-black rounded border border-white/5 text-center">
-                        <div className="text-4xl font-black text-brand-gold">{metrics.totalUsers}</div>
-                        <div className="text-[10px] text-slate-500 uppercase mt-2">System Accesses</div>
-                    </div>
+        {/* SONG MANAGEMENT LIST */}
+        <div className="lg:col-span-8 space-y-10">
+            <div className="bg-slate-900/50 border border-white/5 rounded-xl overflow-hidden shadow-2xl">
+                <div className="px-8 py-6 bg-white/5 border-b border-white/5 flex justify-between items-center">
+                    <h2 className="text-xs font-black text-white uppercase tracking-[0.3em]">目錄作品管理</h2>
+                    <span className="text-[10px] text-slate-500 font-mono">TRACKS: {songs.length}</span>
+                </div>
+                <div className="overflow-x-auto">
+                    <table className="w-full text-left">
+                        <thead>
+                            <tr className="bg-black/40">
+                                <th className="px-8 py-4 text-[9px] font-black text-slate-500 uppercase tracking-widest">Title / Meta</th>
+                                <th className="px-8 py-4 text-[9px] font-black text-slate-500 uppercase tracking-widest">Company</th>
+                                <th className="px-8 py-4 text-[9px] font-black text-slate-500 uppercase tracking-widest">Project</th>
+                                <th className="px-8 py-4 text-[9px] font-black text-slate-500 uppercase tracking-widest text-right">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-white/5">
+                            {songs.map(song => (
+                                <tr key={song.id} className="hover:bg-white/5 transition-colors">
+                                    <td className="px-8 py-4">
+                                        <div className="flex items-center gap-4">
+                                            <img src={song.coverUrl} className="w-8 h-8 object-cover border border-white/10" />
+                                            <div>
+                                                <div className="text-white text-xs font-bold">{song.title}</div>
+                                                <div className="text-slate-500 text-[9px] font-mono">{song.isrc || 'No ISRC'}</div>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td className="px-8 py-4">
+                                        <span className="text-[10px] text-brand-accent font-bold uppercase tracking-widest">{song.releaseCompany || '--'}</span>
+                                    </td>
+                                    <td className="px-8 py-4">
+                                        <span className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">{song.projectType}</span>
+                                    </td>
+                                    <td className="px-8 py-4 text-right">
+                                        <div className="flex justify-end gap-3">
+                                            <button onClick={() => deleteSong(song.id)} className="text-red-900 hover:text-red-500 transition-colors"><svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg></button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
                 </div>
             </div>
         </div>

@@ -123,7 +123,9 @@ const Database: React.FC = () => {
                                         <Link key={song.id} to={`/song/${song.id}`} className="flex items-center gap-4 p-4 hover:bg-white/5 transition-colors group/track">
                                             <span className="text-slate-600 font-mono text-[10px] w-4 text-center group-hover/track:text-brand-accent">{idx + 1}</span>
                                             <div className="flex-1 min-w-0"><div className="text-sm font-bold text-slate-300 group-hover/track:text-white truncate transition-colors">{song.title}</div></div>
-                                            {isAdmin && <div className="text-[10px] text-slate-600 font-mono hidden sm:block">ISRC: {song.isrc || '-'}</div>}
+                                            <div className="flex gap-2">
+                                                {song.spotifyLink && <span className="text-green-500 opacity-40 group-hover/track:opacity-100"><svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.503 17.29c-.215.352-.674.463-1.025.248-2.846-1.74-6.427-2.13-10.647-1.168-.403.092-.806-.16-.898-.562-.092-.403.16-.806.562-.898 4.625-1.057 8.575-.61 11.76 1.332.35.215.462.674.248 1.025zm1.468-3.264c-.27.437-.84.577-1.277.307-3.257-2.003-8.223-2.585-12.073-1.417-.49.15-.94-.132-1.09-.622-.15-.49.132-.94.622-1.09 4.39-1.332 9.873-.67 13.633 1.644.437.27.577.84.307 1.277zm.127-3.41c-3.906-2.32-10.334-2.533-14.103-1.387-.6.182-1.23-.16-1.41-.76-.182-.6.16-1.23.76-1.41 4.322-1.312 11.41-1.063 15.897 1.6 1.41.84 1.88 2.65 1.04 4.06-.54.91-1.5 1.22-2.34.897z"/></svg></span>}
+                                            </div>
                                         </Link>
                                     ))}
                                 </div>
@@ -159,7 +161,7 @@ const Database: React.FC = () => {
                     <tr>
                         <th className="px-6 py-4 text-left text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em]">{t('db_col_cover')}</th>
                         <th className="px-6 py-4 text-left text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em]">{t('db_col_info')}</th>
-                        {isAdmin && <th className="px-6 py-4 text-left text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em] hidden md:table-cell">ISRC / UPC</th>}
+                        <th className="px-6 py-4 text-left text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em] hidden md:table-cell">Links</th>
                         <th className="px-6 py-4 text-left text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em] hidden sm:table-cell">{t('db_col_release')}</th>
                         {isAdmin && <th className="px-6 py-4 text-left text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em]">{t('db_col_status')}</th>}
                         <th className="px-6 py-4"></th> 
@@ -173,7 +175,12 @@ const Database: React.FC = () => {
                                 <div className="text-sm font-bold text-white mb-1 group-hover:text-brand-accent transition-colors">{song.title}</div>
                                 <div className="text-[10px] text-slate-500 uppercase tracking-wider">{song.language}</div>
                             </td>
-                            {isAdmin && <td className="px-6 py-4 whitespace-nowrap text-[10px] text-slate-500 font-mono hidden md:table-cell"><div>{song.isrc || '-'}</div><div>{song.upc || '-'}</div></td>}
+                            <td className="px-6 py-4 whitespace-nowrap hidden md:table-cell">
+                                <div className="flex gap-3">
+                                    {song.spotifyLink && <span className="text-green-500 opacity-30 group-hover:opacity-100 transition-opacity"><svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.503 17.29c-.215.352-.674.463-1.025.248-2.846-1.74-6.427-2.13-10.647-1.168-.403.092-.806-.16-.898-.562-.092-.403.16-.806.562-.898 4.625-1.057 8.575-.61 11.76 1.332.35.215.462.674.248 1.025zm1.468-3.264c-.27.437-.84.577-1.277.307-3.257-2.003-8.223-2.585-12.073-1.417-.49.15-.94-.132-1.09-.622-.15-.49.132-.94.622-1.09 4.39-1.332 9.873-.67 13.633 1.644.437.27.577.84.307 1.277zm.127-3.41c-3.906-2.32-10.334-2.533-14.103-1.387-.6.182-1.23-.16-1.41-.76-.182-.6.16-1.23.76-1.41 4.322-1.312 11.41-1.063 15.897 1.6 1.41.84 1.88 2.65 1.04 4.06-.54.91-1.5 1.22-2.34.897z"/></svg></span>}
+                                    {song.youtubeUrl && <span className="text-red-500 opacity-30 group-hover:opacity-100 transition-opacity"><svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M19.615 3.184c-3.604-.246-11.631-.245-15.23 0-3.897.266-4.356 2.62-4.385 8.816.029 6.185.484 8.549 4.385 8.816 3.6.245 11.626.246 15.23 0 3.897-.266 4.356-2.62 4.385-8.816-.029-6.185-.484-8.549-4.385-8.816zm-10.615 12.816v-8l8 3.993-8 4.007z"/></svg></span>}
+                                </div>
+                            </td>
                             <td className="px-6 py-4 whitespace-nowrap text-[10px] text-slate-500 font-mono hidden sm:table-cell tracking-wider">{song.releaseDate}</td>
                             {isAdmin && <td className="px-6 py-4 whitespace-nowrap">
                                 {getMissingFields(song).length > 0 ? <span className="w-2 h-2 rounded-full bg-red-500/50 inline-block"></span> : <span className="w-2 h-2 rounded-full bg-green-500/50 inline-block"></span>}

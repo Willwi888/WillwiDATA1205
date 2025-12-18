@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { useTranslation } from '../context/LanguageContext';
 import { ASSETS } from '../context/DataContext';
 
@@ -18,89 +19,59 @@ const Home: React.FC = () => {
     }
   }, []);
 
-  const getEmbedUrl = (url?: string) => {
-    if (!url) return null;
-    try {
-        let videoId = '';
-        if (url.includes('v=')) {
-            videoId = new URLSearchParams(new URL(url).search).get('v') || '';
-        } else if (url.includes('youtu.be/')) {
-            videoId = url.split('/').pop()?.split('?')[0] || '';
-        } else if (url.includes('youtube.com/embed/')) {
-            videoId = url.split('/embed/').pop()?.split('?')[0] || '';
-        } else if (url.includes('shorts/')) {
-            videoId = url.split('/shorts/').pop()?.split('?')[0] || '';
-        }
-        return videoId ? `https://www.youtube.com/embed/${videoId}?autoplay=0&mute=0&controls=1&rel=0` : null;
-    } catch (e) { return null; }
-  };
-
-  const videoEmbedUrl = getEmbedUrl(homeConfig?.youtubeUrl);
-
   return (
-    <div className="min-h-[calc(100vh-80px)] relative bg-slate-950 flex flex-col items-center justify-center overflow-hidden py-24">
+    <div className="min-h-[calc(100vh-80px)] relative bg-slate-950 flex flex-col items-center justify-center overflow-hidden">
       
-      {/* 1. BACKGROUND PORTRAIT */}
+      {/* 1. ARTISTIC BACKGROUND */}
       <div className="absolute inset-0 bg-cover bg-center transition-all duration-1000 z-0"
            style={{ backgroundImage: `url(${ASSETS.willwiPortrait})`, backgroundSize: 'cover' }}></div>
-      
-      {/* 2. CINEMATIC OVERLAYS */}
       <div className="absolute inset-0 bg-slate-950/40 z-[1]"></div>
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_transparent_0%,_rgba(2,6,23,0.9)_100%)] z-[1]"></div>
-      <div className="absolute inset-x-0 bottom-0 h-1/2 bg-gradient-to-t from-slate-950 via-slate-950/80 to-transparent z-[1]"></div>
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_transparent_0%,_rgba(2,6,23,0.95)_100%)] z-[1]"></div>
 
-      {/* 3. CENTERED CONTENT AREA */}
+      {/* 2. MAIN CONTENT - GALLERY STYLE */}
       <div className="relative z-10 flex flex-col items-center text-center px-6 max-w-6xl w-full">
         
-        <div className="flex items-center gap-4 mb-8 animate-fade-in">
-          <div className="h-px w-10 bg-brand-gold/50"></div>
-          <span className="text-brand-gold font-black text-[10px] tracking-[0.5em] uppercase">Featured Selection</span>
-          <div className="h-px w-10 bg-brand-gold/50"></div>
+        <div className="flex items-center gap-6 mb-12 animate-fade-in">
+          <div className="h-px w-12 bg-white/20"></div>
+          <span className="text-white/60 font-black text-[10px] tracking-[0.8em] uppercase">Willwi Music Legacy</span>
+          <div className="h-px w-12 bg-white/20"></div>
         </div>
 
-        <h1 className="text-7xl md:text-[14rem] font-black tracking-tighter uppercase leading-none mb-16 text-gold-glow drop-shadow-2xl">
-          Willwi
-        </h1>
-
-        {/* Cinematic Widescreen Player */}
-        <div className="w-full group animate-fade-in-up" style={{ animationDelay: '0.4s' }}>
-           <div className="relative bg-black aspect-video shadow-[0_60px_100px_-20px_rgba(0,0,0,1)] border border-white/5 overflow-hidden">
-               {videoEmbedUrl ? (
-                   <iframe src={videoEmbedUrl} className="absolute inset-0 w-full h-full z-10" title="Featured" frameBorder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowFullScreen />
-               ) : (
-                   <div className="absolute inset-0 flex flex-col items-center justify-center p-12 bg-slate-900">
-                       <div className="text-[10px] font-bold text-brand-accent tracking-[0.4em] uppercase mb-4">Latest Release</div>
-                       <div className="text-4xl md:text-6xl font-black text-white mb-6 uppercase tracking-tighter">{homeConfig?.title || "未說出口的保重"}</div>
-                       <div className="w-16 h-16 rounded-full border border-white/10 flex items-center justify-center bg-white/5 text-white/50 animate-pulse">
-                           <svg className="w-6 h-6 ml-1" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z" /></svg>
-                       </div>
-                   </div>
-               )}
-               {/* Aesthetic Player Overlays */}
-               <div className="absolute bottom-6 left-6 z-20 pointer-events-none opacity-50 group-hover:opacity-100 transition-opacity">
-                   <div className="text-[9px] font-mono text-white/60 uppercase tracking-widest">WILLWI ARCHIVE // SYSTEM: CONNECTED</div>
-               </div>
-           </div>
-           
-           <div className="mt-8 flex justify-between items-end px-2">
-               <div className="text-left">
-                   <div className="text-white font-black text-2xl uppercase tracking-tighter">{homeConfig?.title || "WILLWI MUSIC CATALOG"}</div>
-                   <div className="text-slate-500 text-[10px] font-mono uppercase mt-1 tracking-widest">Archive Reference: {new Date().getFullYear()}</div>
-               </div>
-               <div className="text-right">
-                   <div className="text-[10px] text-slate-600 font-mono uppercase tracking-widest">Format: 4K Masters / Official Stream</div>
-               </div>
-           </div>
+        {/* HERO TITLES */}
+        <div className="mb-24 space-y-4">
+            <h1 className="text-8xl md:text-[14rem] font-black tracking-tighter uppercase leading-none text-white animate-fade-in-up">
+              Willwi
+            </h1>
+            <div className="h-1 w-24 bg-brand-gold mx-auto animate-fade-in" style={{ animationDelay: '0.4s' }}></div>
         </div>
 
-        <div className="mt-24 max-w-2xl animate-fade-in" style={{ animationDelay: '0.8s' }}>
-            <h2 className="text-2xl md:text-3xl font-light text-white leading-tight mb-6">
-                 {t('home_quote_main')} <span className="font-bold text-brand-gold">{t('home_quote_sub')}</span>
-            </h2>
-            <div className="h-px w-24 bg-brand-gold/30 mx-auto mb-6"></div>
-            <p className="text-slate-400 text-sm font-light leading-relaxed tracking-wide">
-                {t('home_purpose_text')}
-            </p>
+        {/* PHILOSOPHY QUOTE - RE-DESIGNED (MINIMALIST) */}
+        <div className="max-w-4xl mb-24 animate-fade-in" style={{ animationDelay: '0.6s' }}>
+            <div className="space-y-4">
+                <h2 className="text-4xl md:text-6xl font-extralight text-white leading-tight tracking-tight opacity-90">
+                    Music is more than melody.
+                </h2>
+                <h2 className="text-4xl md:text-6xl font-black text-brand-gold italic uppercase tracking-tighter">
+                    It is the resonance of a soul.
+                </h2>
+            </div>
+            
+            <div className="mt-12 max-w-2xl mx-auto">
+                <p className="text-slate-300 text-sm md:text-base font-light leading-relaxed tracking-widest italic opacity-60">
+                    "{t('home_purpose_text')}"
+                </p>
+            </div>
+        </div>
+
+        {/* NAVIGATION ENTRY POINTS */}
+        <div className="flex flex-col md:flex-row gap-8 animate-fade-in" style={{ animationDelay: '0.8s' }}>
+            <Link to="/database" className="group relative px-12 py-5 bg-white text-slate-950 font-black text-[11px] uppercase tracking-[0.4em] hover:bg-brand-gold transition-all duration-500 overflow-hidden">
+                <span className="relative z-10">{t('nav_catalog')}</span>
+                <div className="absolute inset-0 translate-y-full group-hover:translate-y-0 bg-brand-gold transition-transform duration-500"></div>
+            </Link>
+            <Link to="/interactive" className="group relative px-12 py-5 border border-white/20 text-white font-black text-[11px] uppercase tracking-[0.4em] hover:border-brand-gold transition-all duration-500">
+                <span className="group-hover:text-brand-gold transition-colors">{t('nav_interactive')}</span>
+            </Link>
         </div>
       </div>
 
