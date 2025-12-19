@@ -31,7 +31,7 @@ const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose }) => {
   const isFormValid = name.trim().length > 0 && email.includes('@') && totalAmount > 0;
 
   const handleManualConfirm = () => {
-      if (!isFormValid) return alert("請填寫完整資訊與金額 (Please complete all fields).");
+      if (!isFormValid) return alert("請填寫完整資訊 (Please complete name & email) 以便系統歸檔。");
       
       login(name, email);
       
@@ -60,7 +60,7 @@ const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose }) => {
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/98 backdrop-blur-3xl" onClick={onClose}></div>
       
-      <div className="relative z-10 bg-[#020617] border border-white/10 rounded-sm max-w-4xl w-full overflow-hidden shadow-2xl animate-fade-in flex flex-col">
+      <div className="relative z-10 bg-[#020617] border border-white/10 rounded-sm max-w-4xl w-full overflow-hidden shadow-2xl animate-fade-in flex flex-col max-h-[90vh] overflow-y-auto custom-scrollbar">
         
         <div className="p-10 bg-white/[0.02] border-b border-white/5">
             <div className="flex justify-between items-center mb-10">
@@ -92,7 +92,7 @@ const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose }) => {
             </div>
         </div>
 
-        <div className={`px-10 py-8 bg-black flex gap-6 border-b border-white/5 transition-opacity duration-500 ${isFormValid ? 'opacity-100' : 'opacity-20'}`}>
+        <div className={`px-10 py-8 bg-black flex gap-6 border-b border-white/5`}>
             <button 
                 onClick={() => setSupportMode('production')}
                 className={`flex-1 py-5 px-6 border transition-all text-left group ${supportMode === 'production' ? 'border-brand-gold bg-brand-gold/5' : 'border-white/5 hover:border-white/20'}`}
@@ -111,10 +111,11 @@ const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose }) => {
             </button>
         </div>
 
-        <div className={`flex flex-col md:flex-row transition-all duration-700 ${isFormValid ? 'opacity-100' : 'opacity-5 blur-sm pointer-events-none'}`}>
+        {/* Payment Area - Always Visible */}
+        <div className="flex flex-col md:flex-row opacity-100">
             <div className="flex-1 p-10 bg-slate-900/10">
                 <div className="flex items-center justify-between mb-8">
-                    <span className="text-[10px] font-black text-white uppercase tracking-[0.3em]">Manual Method</span>
+                    <span className="text-[10px] font-black text-white uppercase tracking-[0.3em]">Payment Method</span>
                     <span className="text-[10px] font-mono text-slate-500 uppercase tracking-widest">LINE Pay / Bank</span>
                 </div>
 
@@ -135,9 +136,9 @@ const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose }) => {
 
                     <button 
                         onClick={handleManualConfirm}
-                        className="w-full py-5 border border-white/10 text-slate-400 font-black text-[11px] uppercase tracking-[0.4em] transition-all hover:bg-white hover:text-black"
+                        className={`w-full py-5 border text-[11px] font-black uppercase tracking-[0.4em] transition-all ${isFormValid ? 'border-white/10 text-slate-400 hover:bg-white hover:text-black' : 'border-red-900/30 text-red-800 cursor-not-allowed'}`}
                     >
-                        I Have Contributed (Manual Check)
+                        {isFormValid ? "I Have Contributed (Confirm)" : "Fill Identity to Confirm"}
                     </button>
                 </div>
             </div>
