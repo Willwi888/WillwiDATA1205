@@ -43,8 +43,6 @@ const SongDetail: React.FC = () => {
     setLoadingAi(false);
   };
 
-  const embedUrl = song.youtubeUrl?.includes('v=') ? `https://www.youtube.com/embed/${new URLSearchParams(new URL(song.youtubeUrl).search).get('v')}` : null;
-
   return (
     <div className="animate-fade pb-32 max-w-7xl mx-auto px-6">
         <div className="mb-6"><Link to="/database" className="text-[10px] text-slate-500 hover:text-white uppercase tracking-widest">← Back to Catalog</Link></div>
@@ -135,10 +133,6 @@ const SongDetail: React.FC = () => {
                 </div>
             </div>
             <div className="space-y-8">
-                <div className="bg-slate-900 p-8 border border-white/5">
-                    <h3 className="text-[10px] font-black text-white uppercase tracking-[0.4em] mb-6">Media Stream</h3>
-                    {embedUrl ? <iframe className="w-full aspect-video border border-white/10" src={embedUrl} allowFullScreen></iframe> : <div className="aspect-video bg-black flex items-center justify-center text-[10px] text-slate-700 tracking-widest uppercase border border-white/5">No Video Link</div>}
-                </div>
                 <div className="bg-slate-900 p-8 border border-white/5">
                     <h3 className="text-[10px] font-black text-white uppercase tracking-[0.4em] mb-6">Credits</h3>
                     <div className="text-[10px] text-slate-500 font-mono leading-loose uppercase tracking-wider">{song.credits || "Production team undisclosed."}</div>

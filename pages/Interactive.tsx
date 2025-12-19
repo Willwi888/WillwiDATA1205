@@ -15,6 +15,7 @@ type InteractionMode =
   | 'playing'           // 錄製中
   | 'finished'          // 模組 7 & 8：完成與下載
   | 'pure-support'      // 單純支持頁面
+  | 'cloud-cinema'      // 新增：雲端高畫質製作
   | 'support-thanks'    // 支持感謝頁
   | 'veo-lab';          // 管理員專用 AI 實驗室
 
@@ -79,11 +80,12 @@ const Interactive: React.FC = () => {
 
   const handleStudioUnlock = (e: React.FormEvent) => {
       e.preventDefault();
+      // 在此處設定後台給予的密碼，例如 'willwi2024'
       if (studioPass.toLowerCase() === 'willwi' || isAdmin) {
           setMode('studio-welcome');
           setStudioError('');
       } else {
-          setStudioError('代碼錯誤。請確認您已完成支持並獲得通行碼。');
+          setStudioError('代碼錯誤。請確認您已付款並收到確認信。');
       }
   };
 
@@ -410,18 +412,28 @@ const Interactive: React.FC = () => {
                 </p>
                 
                 <div className="flex flex-col gap-8 w-full max-w-sm">
+                    {/* Option 1: Resonance Sync */}
                     <button onClick={() => setMode('intro')} className="group relative w-full py-6 bg-slate-900 border border-white/10 hover:border-brand-gold transition-all overflow-hidden">
                         <div className="relative z-10 flex flex-col items-center">
                             <span className="text-brand-gold font-black text-sm uppercase tracking-[0.3em] mb-2 group-hover:scale-110 transition-transform">Resonance Sync</span>
-                            <span className="text-[9px] text-slate-500 uppercase tracking-widest">進入手工歌詞製作 (需支持)</span>
+                            <span className="text-[9px] text-slate-500 uppercase tracking-widest">手工歌詞製作</span>
                         </div>
                         <div className="absolute inset-0 bg-brand-gold/5 transform scale-x-0 group-hover:scale-x-100 transition-transform origin-left"></div>
                     </button>
 
+                    {/* Option 2: Pure Support */}
                     <button onClick={() => setMode('pure-support')} className="group relative w-full py-6 bg-transparent border border-white/10 hover:border-white transition-all">
                         <div className="relative z-10 flex flex-col items-center">
                             <span className="text-white font-black text-sm uppercase tracking-[0.3em] mb-2">Pure Support</span>
-                            <span className="text-[9px] text-slate-500 uppercase tracking-widest">單純支持 (不參與製作)</span>
+                            <span className="text-[9px] text-slate-500 uppercase tracking-widest">單純支持</span>
+                        </div>
+                    </button>
+
+                    {/* Option 3: Cloud Cinema */}
+                    <button onClick={() => setMode('cloud-cinema')} className="group relative w-full py-6 bg-gradient-to-r from-slate-900 to-black border border-white/10 hover:border-brand-accent transition-all">
+                        <div className="relative z-10 flex flex-col items-center">
+                            <span className="text-brand-accent font-black text-sm uppercase tracking-[0.3em] mb-2">Cloud Cinema</span>
+                            <span className="text-[9px] text-slate-500 uppercase tracking-widest">雲端高畫質製作</span>
                         </div>
                     </button>
 
@@ -461,18 +473,27 @@ const Interactive: React.FC = () => {
             </div>
         )}
 
-        {/* --- MODE: GATE (Updated Copy) --- */}
+        {/* --- MODE: GATE (Updated: Hidden QR, PayPal Only) --- */}
         {mode === 'gate' && (
             <div className="max-w-4xl w-full flex flex-col md:flex-row bg-slate-900 border border-white/10 shadow-2xl animate-fade-in">
                 <div className="w-full md:w-1/2 bg-white p-12 flex flex-col items-center justify-center text-slate-900">
                     <h3 className="text-xl font-black uppercase tracking-tighter mb-2">Access Ticket</h3>
                     <p className="text-[10px] font-bold uppercase tracking-[0.3em] text-slate-400 mb-8">Single Session</p>
-                    <div className="w-48 h-48 bg-slate-100 p-2 border-4 border-slate-900 mb-6">
-                        <img src="https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=WILLWI_PAYMENT_320" className="w-full h-full object-contain" alt="QR" />
-                    </div>
-                    <div className="text-center">
+                    
+                    {/* QR Code Hidden as requested */}
+                    <div className="text-center w-full py-10">
                         <span className="block text-[10px] font-bold uppercase tracking-widest text-slate-500">Entry Fee</span>
-                        <span className="block text-4xl font-black tracking-tighter mt-1">NT$ 320</span>
+                        <span className="block text-5xl font-black tracking-tighter mt-2 mb-8">NT$ 320</span>
+                        
+                        {/* PAYPAL ONLY */}
+                        <a href="https://paypal.me/Willwichen/320TWD" target="_blank" rel="noopener noreferrer" className="block w-full py-4 bg-[#003087] text-white font-bold text-xs uppercase tracking-[0.2em] shadow-lg hover:bg-[#00256b] transition-all transform hover:-translate-y-1">
+                            Pay via PayPal
+                        </a>
+                        <p className="mt-4 text-[9px] text-slate-500 leading-relaxed">
+                            付款後請將單據 Email 至 <br/>
+                            <span className="font-bold">will@willwi.com</span> <br/>
+                            我們將以人工方式回傳通行碼 (Code)
+                        </p>
                     </div>
                 </div>
                 <div className="w-full md:w-1/2 bg-slate-950 p-12 flex flex-col justify-center">
@@ -597,7 +618,7 @@ const Interactive: React.FC = () => {
             </div>
         )}
 
-        {/* --- MODE: FINISHED (Updated Copy with Premium Option) --- */}
+        {/* --- MODE: FINISHED --- */}
         {mode === 'finished' && (
             <div className="max-w-3xl w-full text-center animate-fade-in py-12">
                 <h2 className="text-4xl font-black text-white uppercase tracking-tighter mb-4">創作完成</h2>
@@ -623,28 +644,42 @@ const Interactive: React.FC = () => {
                     </div>
                 </div>
 
-                {/* 2. PREMIUM COLLECTION AREA */}
-                <div className="relative p-1 border-2 border-brand-gold/20 bg-gradient-to-br from-slate-900 to-black overflow-hidden shadow-[0_0_50px_rgba(251,191,36,0.1)]">
+                <div className="py-8 border-t border-white/5">
+                    <button onClick={() => setMode('cloud-cinema')} className="text-slate-500 hover:text-white text-[10px] uppercase tracking-widest transition-colors border border-white/10 px-6 py-3 hover:bg-white/5">
+                        Upgrade to Cloud Cinema / 雲端高畫質收藏
+                    </button>
+                </div>
+                
+                <button onClick={() => setMode('menu')} className="mt-8 text-slate-500 hover:text-white text-[10px] uppercase tracking-widest transition-colors">
+                    Return to Menu
+                </button>
+            </div>
+        )}
+
+        {/* --- MODE: CLOUD CINEMA (Standalone) --- */}
+        {mode === 'cloud-cinema' && (
+            <div className="max-w-3xl w-full text-center animate-fade-in py-12">
+                <div className="relative p-1 border-2 border-brand-accent/20 bg-gradient-to-br from-slate-900 to-black overflow-hidden shadow-[0_0_50px_rgba(56,189,248,0.1)]">
                     
                     {/* Decorative Elements */}
-                    <div className="absolute top-0 right-0 w-24 h-24 bg-brand-gold/10 blur-3xl rounded-full"></div>
-                    <div className="absolute bottom-0 left-0 w-32 h-32 bg-brand-gold/5 blur-3xl rounded-full"></div>
+                    <div className="absolute top-0 right-0 w-24 h-24 bg-brand-accent/10 blur-3xl rounded-full"></div>
+                    <div className="absolute bottom-0 left-0 w-32 h-32 bg-brand-accent/5 blur-3xl rounded-full"></div>
                     
                     <div className="p-10 md:p-14 relative z-10">
                         
                         {/* Header */}
                         <div className="flex flex-col items-center mb-10">
-                            <span className="text-brand-gold font-serif italic text-xl mb-2">A Timeless Keepsake</span>
+                            <span className="text-brand-accent font-serif italic text-xl mb-2">Cloud Cinema</span>
                             <h3 className="text-white text-3xl font-black uppercase tracking-[0.3em]">
-                                珍藏・這份共同創作的記憶
+                                雲端高畫質製作
                             </h3>
-                            <div className="w-12 h-0.5 bg-brand-gold mt-6"></div>
+                            <div className="w-12 h-0.5 bg-brand-accent mt-6"></div>
                         </div>
 
                         {/* Story / Context */}
                         <div className="text-left md:text-center text-sm text-slate-300 leading-loose tracking-widest space-y-6 font-light max-w-2xl mx-auto mb-10">
                             <p>
-                                剛剛的創作很棒。如果您希望將這份回憶以最高品質保存下來，<br className="hidden md:block"/>
+                                如果您希望將這份回憶以最高品質保存下來，<br className="hidden md:block"/>
                                 我想邀請您收藏這份由我們共同完成的作品。
                             </p>
                             <p>
@@ -656,17 +691,17 @@ const Interactive: React.FC = () => {
                         {/* Features List */}
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12 border-y border-white/5 py-8">
                             <div className="text-center space-y-2">
-                                <div className="text-brand-gold text-lg">✦</div>
+                                <div className="text-brand-accent text-lg">✦</div>
                                 <h4 className="text-white text-xs font-bold uppercase tracking-widest">High Definition</h4>
                                 <p className="text-[10px] text-slate-500">1080p / 4K 高畫質重製</p>
                             </div>
                             <div className="text-center space-y-2">
-                                <div className="text-brand-gold text-lg">✦</div>
+                                <div className="text-brand-accent text-lg">✦</div>
                                 <h4 className="text-white text-xs font-bold uppercase tracking-widest">Lossless Audio</h4>
                                 <p className="text-[10px] text-slate-500">無損音質整合</p>
                             </div>
                             <div className="text-center space-y-2">
-                                <div className="text-brand-gold text-lg">✦</div>
+                                <div className="text-brand-accent text-lg">✦</div>
                                 <h4 className="text-white text-xs font-bold uppercase tracking-widest">Hand-Signed</h4>
                                 <p className="text-[10px] text-slate-500">Willwi 專屬親筆簽名 (數位)</p>
                             </div>
@@ -676,12 +711,12 @@ const Interactive: React.FC = () => {
                         <div className="flex flex-col items-center mb-10 space-y-6">
                             <div className="flex flex-col md:flex-row justify-center gap-8 md:gap-16">
                                 <div className="text-center group cursor-default">
-                                    <span className="block text-[10px] text-slate-500 uppercase font-bold mb-2 group-hover:text-brand-gold transition-colors">Single Collection (一部)</span>
+                                    <span className="block text-[10px] text-slate-500 uppercase font-bold mb-2 group-hover:text-brand-accent transition-colors">Single Collection (一部)</span>
                                     <span className="text-3xl font-serif text-white italic">NT$ 2,800</span>
                                 </div>
                                 <div className="w-px bg-white/10 hidden md:block"></div>
                                 <div className="text-center group cursor-default">
-                                    <span className="block text-[10px] text-slate-500 uppercase font-bold mb-2 group-hover:text-brand-gold transition-colors">Double Collection (兩部)</span>
+                                    <span className="block text-[10px] text-slate-500 uppercase font-bold mb-2 group-hover:text-brand-accent transition-colors">Double Collection (兩部)</span>
                                     <span className="text-3xl font-serif text-white italic">NT$ 5,000</span>
                                 </div>
                             </div>
@@ -705,7 +740,7 @@ const Interactive: React.FC = () => {
                                 <p className="text-[10px] text-slate-400">
                                     付款後，請將您的「歌名」與「希望署名」寄至：
                                 </p>
-                                <a href="mailto:will@willwi.com" className="text-brand-gold hover:text-white border-b border-brand-gold/30 pb-0.5 transition-colors text-xs font-mono">
+                                <a href="mailto:will@willwi.com" className="text-brand-accent hover:text-white border-b border-brand-accent/30 pb-0.5 transition-colors text-xs font-mono">
                                     will@willwi.com
                                 </a>
                             </div>
@@ -727,7 +762,7 @@ const Interactive: React.FC = () => {
             </div>
         )}
 
-        {/* --- MODE: PURE SUPPORT --- */}
+        {/* --- MODE: PURE SUPPORT (Updated: Hidden QR, PayPal Only) --- */}
         {mode === 'pure-support' && (
             <div className="max-w-4xl w-full flex flex-col md:flex-row bg-slate-900 border border-white/10 shadow-2xl animate-fade-in">
                 <div className="w-full md:w-1/2 bg-slate-950 p-12 flex flex-col justify-center">
@@ -748,10 +783,16 @@ const Interactive: React.FC = () => {
                 </div>
                 <div className="w-full md:w-1/2 bg-white p-12 flex flex-col items-center justify-center text-slate-900">
                     <p className="text-[10px] font-bold uppercase tracking-[0.3em] text-slate-400 mb-8">Flexible Amount</p>
-                    <div className="w-48 h-48 bg-slate-100 p-2 border-4 border-slate-900 mb-6">
-                        <img src="https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=WILLWI_PURE_SUPPORT" className="w-full h-full object-contain" alt="QR" />
+                    
+                    {/* QR Hidden */}
+                    <div className="w-full text-center py-10">
+                        <span className="text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-6 block">Support via PayPal</span>
+
+                        {/* PAYPAL ADDITION */}
+                        <a href="https://paypal.me/Willwichen" target="_blank" rel="noopener noreferrer" className="block w-full py-5 bg-[#003087] text-white font-bold text-xs uppercase tracking-[0.2em] text-center shadow-lg hover:bg-[#00256b] transition-all transform hover:-translate-y-1">
+                            Pay via PayPal
+                        </a>
                     </div>
-                    <span className="text-[10px] font-bold uppercase tracking-widest text-slate-500">Scan to Support</span>
                 </div>
             </div>
         )}

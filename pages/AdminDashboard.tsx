@@ -1,4 +1,5 @@
 import React, { useRef, useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useData } from '../context/DataContext';
 import { useUser } from '../context/UserContext';
 import { dbService } from '../services/db';
@@ -8,6 +9,7 @@ import { searchSpotifyTracks, SpotifyTrack } from '../services/spotifyService';
 const AdminDashboard: React.FC = () => {
   const { songs, updateSong, addSong, deleteSong } = useData();
   const { isAdmin, enableAdmin, logoutAdmin, getAllUsers, getAllTransactions } = useUser();
+  const navigate = useNavigate();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [passwordInput, setPasswordInput] = useState('');
@@ -121,6 +123,21 @@ const AdminDashboard: React.FC = () => {
           finally { setIsProcessing(false); }
       };
       reader.readAsText(file);
+  };
+
+  // Helper to extract Spotify ID for embedding
+  const getSpotifyEmbedId = (link?: string, id?: string) => {
+      if (id) return id;
+      if (!link) return null;
+      try {
+          const url = new URL(link);
+          const parts = url.pathname.split('/');
+          const trackIndex = parts.indexOf('track');
+          if (trackIndex !== -1 && parts[trackIndex + 1]) {
+              return parts[trackIndex + 1];
+          }
+      } catch (e) { return null; }
+      return null;
   };
 
   if (!isAdmin) {
@@ -244,35 +261,56 @@ const AdminDashboard: React.FC = () => {
                         <thead className="bg-white/5">
                             <tr>
                                 <th className="p-4 text-[9px] font-black text-slate-500 uppercase tracking-widest">Asset</th>
+                                <th className="p-4 text-[9px] font-black text-slate-500 uppercase tracking-widest">Audio (Admin)</th>
                                 <th className="p-4 text-[9px] font-black text-slate-500 uppercase tracking-widest">Status</th>
                                 <th className="p-4 text-[9px] font-black text-slate-500 uppercase tracking-widest text-right">Action</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-white/5">
-                            {songs.map(song => (
+                            {songs.map(song => {
+                                const spotifyEmbedId = getSpotifyEmbedId(song.spotifyLink, song.spotifyId);
+                                return (
                                 <tr key={song.id} className="hover:bg-white/5 transition-colors">
-                                    <td className="p-4 flex items-center gap-4">
+                                    <td className="p-4 flex items-center gap-4 min-w-[200px]">
                                         <img src={song.coverUrl} className="w-10 h-10 object-cover border border-white/10" alt="" />
                                         <div>
                                             <div className="text-white text-xs font-bold">{song.title}</div>
                                             <div className="text-slate-500 text-[9px]">{song.isrc || 'NO_ISRC'}</div>
                                         </div>
                                     </td>
+                                    <td className="p-4 min-w-[250px]">
+                                        {spotifyEmbedId ? (
+                                            <iframe 
+                                                src={`https://open.spotify.com/embed/track/${spotifyEmbedId}?utm_source=generator&theme=0`} 
+                                                width="100%" 
+                                                height="80" 
+                                                frameBorder="0" 
+                                                allow="clipboard-write; encrypted-media; fullscreen; picture-in-picture" 
+                                                loading="lazy"
+                                                className="rounded opacity-70 hover:opacity-100 transition-opacity"
+                                            ></iframe>
+                                        ) : (
+                                            <span className="text-[8px] text-slate-600 font-mono uppercase">NO SPOTIFY SOURCE</span>
+                                        )}
+                                    </td>
                                     <td className="p-4">
                                         <span className={`px-2 py-1 text-[8px] font-black uppercase tracking-widest rounded ${song.isEditorPick ? 'bg-brand-accent text-black' : 'bg-slate-800 text-slate-500'}`}>
                                             {song.isEditorPick ? 'Featured' : 'Standard'}
                                         </span>
                                     </td>
-                                    <td className="p-4 text-right space-x-2">
+                                    <td className="p-4 text-right space-x-2 whitespace-nowrap">
+                                        <button onClick={() => navigate(`/song/${song.id}`)} className="text-[9px] bg-white text-black px-3 py-1 hover:bg-brand-gold uppercase font-bold tracking-widest transition-colors rounded">
+                                            Edit
+                                        </button>
                                         <button onClick={() => updateSong(song.id, { isEditorPick: !song.isEditorPick })} className="text-[9px] text-slate-500 hover:text-white uppercase font-bold tracking-widest">
-                                            {song.isEditorPick ? 'Unfeature' : 'Feature'}
+                                            {song.isEditorPick ? 'Unfeat' : 'Feat'}
                                         </button>
                                         <button onClick={() => { if(window.confirm('Delete this track?')) deleteSong(song.id); }} className="text-[9px] text-red-900 hover:text-red-500 uppercase font-bold tracking-widest">
-                                            Delete
+                                            Del
                                         </button>
                                     </td>
                                 </tr>
-                            ))}
+                            )})}
                         </tbody>
                     </table>
                 </div>

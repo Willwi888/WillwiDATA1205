@@ -22,11 +22,6 @@ const Home: React.FC = () => {
     }
   }, []);
 
-  const videoUrl = homeConfig?.youtubeUrl || "https://www.youtube.com/embed/dQw4w9WgXcQ";
-  const embedUrl = videoUrl.includes('v=') 
-    ? `https://www.youtube.com/embed/${new URLSearchParams(new URL(videoUrl).search).get('v')}?autoplay=0&mute=1&loop=1&controls=1` 
-    : videoUrl.includes('embed/') ? videoUrl : `https://www.youtube.com/embed/${videoUrl.split('/').pop()}`;
-
   return (
     <div className="min-h-screen relative flex flex-col items-center">
       
@@ -107,27 +102,6 @@ const Home: React.FC = () => {
                 </div>
             </div>
         </div>
-      </section>
-
-      {/* LATEST RESULT */}
-      <section className="w-full max-w-7xl px-6 py-32">
-         <div className="flex flex-col md:flex-row justify-between items-end mb-16 gap-4">
-            <div>
-                <h3 className="text-4xl font-black text-white uppercase tracking-tighter mb-2">The Result / 製作成果</h3>
-            </div>
-         </div>
-
-         <div className="w-full aspect-video bg-black border border-white/5 shadow-[0_0_50px_rgba(0,0,0,0.5)] overflow-hidden relative group">
-             <iframe 
-                className="w-full h-full transition-all duration-1000" 
-                src={embedUrl} 
-                title="Featured Work"
-                frameBorder="0" 
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
-                allowFullScreen
-             ></iframe>
-             <div className="absolute inset-0 pointer-events-none border border-white/10"></div>
-         </div>
       </section>
 
     </div>

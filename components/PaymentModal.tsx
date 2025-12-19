@@ -45,15 +45,15 @@ const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose }) => {
           } else {
               recordDonation(totalAmount);
           }
-          alert("已收到您的支持資訊。系統將進行驗證。(Success)");
+          alert("已收到您的支持資訊。系統將進行人工驗證。(Verification Pending)");
           onClose();
       }
   };
 
-  const handleLinePay = () => {
+  const handlePayPal = () => {
     if (!isFormValid) return alert("請先填寫您的基本資訊 (Please complete identity).");
     login(name, email);
-    window.open('https://line.me/R/ti/p/@willwi', '_blank');
+    window.open(supportMode === 'production' ? 'https://paypal.me/Willwichen/320TWD' : 'https://paypal.me/Willwichen', '_blank');
   };
 
   return (
@@ -116,29 +116,36 @@ const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose }) => {
             <div className="flex-1 p-10 bg-slate-900/10">
                 <div className="flex items-center justify-between mb-8">
                     <span className="text-[10px] font-black text-white uppercase tracking-[0.3em]">Payment Method</span>
-                    <span className="text-[10px] font-mono text-slate-500 uppercase tracking-widest">LINE Pay / Bank</span>
+                    <span className="text-[10px] font-mono text-slate-500 uppercase tracking-widest">PayPal ONLY</span>
                 </div>
 
                 <div className="space-y-8">
+                    {/* PAYPAL ONLY INSTRUCTION */}
                     <div className="bg-white p-8 rounded-sm flex flex-col items-center shadow-inner">
-                        <div className="w-48 h-48 bg-slate-100 p-4 border border-slate-200">
-                             <img 
-                                src="https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=https://line.me/R/ti/p/@willwi" 
-                                className="w-full h-full object-contain"
-                                alt="LINE PAY QR"
-                             />
+                        <div className="w-full text-center py-6">
+                            <h4 className="text-slate-900 font-black text-lg uppercase tracking-tight mb-2">PayPal Checkout</h4>
+                            <p className="text-slate-500 text-[10px] font-bold uppercase tracking-widest mb-6">Secure International Payment</p>
+                            <span className="text-3xl font-black text-slate-900 block mb-6">NT$ {totalAmount}</span>
+                            
+                            <button 
+                                onClick={handlePayPal}
+                                className="w-full py-4 bg-[#003087] text-white font-black text-[12px] uppercase tracking-[0.2em] shadow-lg hover:bg-[#00256b] transition-all transform active:scale-95 mb-4"
+                            >
+                                Pay Now (PayPal)
+                            </button>
+                            
+                            <p className="text-[9px] text-slate-500 leading-relaxed max-w-xs mx-auto">
+                                * 暫不支援自動發碼。<br/>
+                                付款後請 Email 至 will@willwi.com 索取 Code。
+                            </p>
                         </div>
-                        <p className="mt-6 text-slate-950 font-black text-[10px] uppercase tracking-widest text-center leading-loose">
-                            掃描 LINE Pay QR Code：<br/>
-                            <span className="text-lg underline underline-offset-4">NT$ {totalAmount}</span>
-                        </p>
                     </div>
 
                     <button 
                         onClick={handleManualConfirm}
                         className={`w-full py-5 border text-[11px] font-black uppercase tracking-[0.4em] transition-all ${isFormValid ? 'border-white/10 text-slate-400 hover:bg-white hover:text-black' : 'border-red-900/30 text-red-800 cursor-not-allowed'}`}
                     >
-                        {isFormValid ? "I Have Contributed (Confirm)" : "Fill Identity to Confirm"}
+                        {isFormValid ? "我已完成付款 (Notify Admin)" : "Fill Identity to Confirm"}
                     </button>
                 </div>
             </div>
@@ -170,13 +177,10 @@ const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose }) => {
                     )}
                 </div>
 
-                <div className="mt-auto pt-10 border-t border-white/5">
-                    <button 
-                        onClick={handleLinePay}
-                        className="w-full py-4 bg-[#06C755] text-white font-black text-[12px] uppercase tracking-[0.2em] shadow-[0_0_20px_rgba(6,199,85,0.3)] hover:bg-[#05b34c] hover:shadow-[0_0_30px_rgba(6,199,85,0.5)] transition-all transform active:scale-95"
-                    >
-                        Open LINE Pay (Instant)
-                    </button>
+                <div className="mt-auto pt-10 border-t border-white/5 space-y-4 text-center">
+                    <p className="text-[9px] text-slate-600 leading-loose">
+                        系統升級中<br/>暫僅支援 PayPal
+                    </p>
                 </div>
             </div>
         </div>
