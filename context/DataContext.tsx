@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
 import { Song, Language, ProjectType, ReleaseCategory, SongContextType } from '../types';
 import { dbService } from '../services/db';
@@ -17,7 +16,7 @@ export const ASSETS = {
 export const INITIAL_DATA: Song[] = [
   {
     id: 'seed-001',
-    title: '再愛一次',
+    title: '再愛一次 (Love Again)',
     versionLabel: 'Original',
     coverUrl: ASSETS.defaultCover,
     language: Language.Mandarin,
@@ -29,7 +28,101 @@ export const INITIAL_DATA: Song[] = [
     isrc: 'QZNWQ2392729',
     upc: '198004739563',
     spotifyLink: 'https://open.spotify.com/track/5g5X2x1T9bZqQ1v8K3k9J2',
-    description: 'A heartfelt ballad exploring the courage to love again after heartbreak.'
+    description: 'A heartfelt ballad exploring the courage to love again after heartbreak. \n關於失戀後重新找回愛自己的勇氣。鋼琴與弦樂的交織，訴說著深夜裡的內心獨白。',
+    lyrics: `[VERSE 1]
+窗外的雨還在下
+心中的鎖還沒打開
+這是一段漫長的旅程
+通往未知的將來
+
+[CHORUS]
+能不能再愛一次
+就像從沒受傷過
+能不能再愛一次
+擁抱那最初的感動`,
+    credits: 'Producer: Willwi\nArrangement: Alex\nMixing: Studio A',
+    audioUrl: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3'
+  },
+  {
+    id: 'seed-002',
+    title: 'Neon Drift (霓虹漂流)',
+    versionLabel: 'Synthwave Mix',
+    coverUrl: 'https://images.unsplash.com/photo-1574169208507-84376194878b?q=80&w=1000&auto=format&fit=crop',
+    language: Language.English,
+    projectType: ProjectType.PaoMien,
+    releaseCategory: ReleaseCategory.Single,
+    releaseCompany: 'Neon Records',
+    releaseDate: '2023-06-15',
+    isEditorPick: false,
+    description: 'A drive through the cyberpunk city at 3 AM. \n充滿未來感的合成器聲響，模擬深夜在霓虹城市漫遊的孤寂與自由。',
+    lyrics: `[INTRO]
+(Instrumental Build up)
+
+[VERSE]
+City lights flashing by
+Reflections in your eyes
+We are drifting through the night
+Everything is gonna be alright
+
+[DROP]
+(Synth Solo)
+(Rhythm Intensifies)
+
+[OUTRO]
+Neon lights...
+Fading out...`,
+    credits: 'Producer: Willwi\nSynth: Prophet-6',
+    audioUrl: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3'
+  },
+  {
+    id: 'seed-003',
+    title: '沉默 (Silence)',
+    versionLabel: 'Acoustic',
+    coverUrl: 'https://images.unsplash.com/photo-1493225255756-d9584f8606e9?q=80&w=1000&auto=format&fit=crop',
+    language: Language.Mandarin,
+    projectType: ProjectType.Indie,
+    releaseCategory: ReleaseCategory.EP,
+    releaseCompany: 'Willwi Music',
+    releaseDate: '2023-11-20',
+    isEditorPick: true,
+    description: '有時候，不說話才是最大聲的控訴。\n一把吉他，一個聲音，最純粹的表達。',
+    lyrics: `[VERSE]
+你說的我都懂
+只是不想再辯駁
+安靜是一種選擇
+也是最後的溫柔
+
+[CHORUS]
+沉默
+是我們之間的默契
+不用言語
+也能聽見心碎的聲音
+
+[BRIDGE]
+就讓時間去證明
+誰對誰錯
+都不重要了`,
+    credits: 'Guitar: John\nVocal: Willwi',
+    audioUrl: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-3.mp3'
+  },
+  {
+    id: 'seed-004',
+    title: 'Golden Hour (黃金時刻)',
+    versionLabel: 'Demo',
+    coverUrl: 'https://images.unsplash.com/photo-1500462918059-b1a0cb512f1d?q=80&w=1000&auto=format&fit=crop',
+    language: Language.Instrumental,
+    projectType: ProjectType.Indie,
+    releaseCategory: ReleaseCategory.Single,
+    releaseCompany: 'Willwi Music',
+    releaseDate: '2024-01-01',
+    isEditorPick: false,
+    description: '捕捉日落前最美的那一刻光影。',
+    lyrics: `[INSTRUMENTAL TRACK]
+(No Lyrics)
+(Relaxing Beats)
+(Ambient Sounds)`,
+    credits: 'Producer: Willwi',
+    audioUrl: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-4.mp3'
   }
 ];
 
@@ -42,7 +135,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       try {
         let loadedSongs = await dbService.getAllSongs();
         
-        // Migration from localstorage if DB is empty
+        // 1. Migration from localstorage if DB is empty
         if (loadedSongs.length === 0) {
             const localData = localStorage.getItem(LOCAL_STORAGE_KEY);
             if (localData) {
@@ -51,11 +144,21 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             }
         }
 
-        // Still empty? Seed initial data.
-        if (loadedSongs.length === 0) {
-             loadedSongs = INITIAL_DATA;
-             await dbService.bulkAdd(loadedSongs);
+        // 2. Seed Injection Logic
+        // Ensure INITIAL_DATA exists in the DB (for new users OR existing users missing new seeds)
+        const currentIds = new Set(loadedSongs.map(s => s.id));
+        let hasNewSeeds = false;
+
+        for (const seed of INITIAL_DATA) {
+            if (!currentIds.has(seed.id)) {
+                await dbService.addSong(seed);
+                loadedSongs.push(seed);
+                hasNewSeeds = true;
+            }
         }
+
+        // 3. Sort by Release Date (Newest First)
+        loadedSongs.sort((a, b) => new Date(b.releaseDate).getTime() - new Date(a.releaseDate).getTime());
 
         setSongs(loadedSongs);
         setIsReady(true);

@@ -86,7 +86,8 @@ const Interactive: React.FC = () => {
         const img = new Image();
         img.crossOrigin = "anonymous"; // Important for canvas export
         img.src = song.coverUrl;
-        bgImageRef.current = img;
+        img.onload = () => { bgImageRef.current = img; };
+        // If image fails to load, we still proceed but without BG
     } else {
         bgImageRef.current = null;
     }
@@ -107,6 +108,7 @@ const Interactive: React.FC = () => {
         if (ctx.state === 'suspended') await ctx.resume();
 
         try {
+            // Re-connect audio nodes if needed
             if (!audioSourceRef.current) {
                 const source = ctx.createMediaElementSource(audioRef.current);
                 const dest = ctx.createMediaStreamDestination();
@@ -116,11 +118,12 @@ const Interactive: React.FC = () => {
                 audioDestRef.current = dest;
             }
         } catch (e) {
-            console.warn("Audio node connection warning:", e);
+            console.warn("Audio node connection warning (already connected?):", e);
         }
 
         // 2. Prepare Streams
         // Capture Video from Canvas
+        // Important: Canvas must be visible/rendered for captureStream to work in some browsers
         const canvasStream = (canvasRef.current as any).captureStream(60); 
         const tracks = [...canvasStream.getVideoTracks()];
         
@@ -224,16 +227,15 @@ const Interactive: React.FC = () => {
           ctx.restore();
       }
 
-      // 2. Lyrics - Vertical Upward Motion
+      // 2. Lyrics - Vertical Floating Motion
       const currLine = lyricsArrayRef.current[lineIndex] || "";
       
       ctx.save();
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
       
-      // Motion Calculation: Subtle float upward
-      // We simulate a continuous upward drift for "life"
-      const floatY = (time / 50) % 10; 
+      // Motion Calculation: Gentle sine wave float
+      const floatY = Math.sin(time / 800) * 5; 
       
       // Main Text
       ctx.fillStyle = 'white';
@@ -241,7 +243,7 @@ const Interactive: React.FC = () => {
       ctx.shadowColor = 'rgba(0,0,0,0.9)';
       ctx.shadowBlur = 30;
       
-      // Position: Center with slight upward motion bias
+      // Position: Center with float
       ctx.fillText(currLine, w/2, h/2 - floatY);
       
       // Optional: Show previous line fading out above
@@ -521,43 +523,22 @@ const Interactive: React.FC = () => {
                         </button>
                     </div>
                 </div>
-                
-                {/* Audio with KEY to force re-mount on song change and ensure clean state */}
-                {selectedSong.audioUrl && (
-                    <audio 
-                        ref={audioRef} 
-                        src={selectedSong.audioUrl} 
-                        crossOrigin="anonymous" 
-                        key={selectedSong.id} 
-                        className="hidden" 
-                        onEnded={() => {
-                            if (mediaRecorderRef.current?.state === 'recording') {
-                                mediaRecorderRef.current.stop();
-                            } else if (mode === 'playing') {
-                                setMode('finished');
-                            }
-                        }}
-                    />
-                )}
-                <canvas ref={canvasRef} width={1280} height={720} className="hidden" />
             </div>
         )}
 
         {/* --- MODE: PLAYING --- */}
         {mode === 'playing' && (
-            <div className="fixed inset-0 z-50 bg-black flex flex-col items-center justify-center">
-                 <div className="w-full max-w-6xl aspect-video bg-slate-900 relative shadow-2xl cursor-pointer group" onClick={handleLineClick}>
-                     <canvas ref={canvasRef} width={1280} height={720} className="w-full h-full" />
-                     <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity">
-                         <span className="bg-black/50 text-white px-4 py-2 text-[10px] uppercase tracking-widest backdrop-blur-md border border-white/20">
-                             Tap / Click to Sync Next Line
-                         </span>
-                     </div>
+            <div className="fixed inset-0 z-50 flex flex-col items-center justify-end pb-20 pointer-events-none">
+                 <div className="pointer-events-auto">
+                     <span className="bg-black/50 text-white px-4 py-2 text-[10px] uppercase tracking-widest backdrop-blur-md border border-white/20 animate-pulse">
+                         Tap Screen to Sync Next Line
+                     </span>
                  </div>
-                 <div className="mt-8 text-center">
-                     <p className="text-brand-gold text-xs font-black uppercase tracking-[0.5em] animate-pulse">Recording Session Active</p>
-                     <p className="text-slate-600 text-[10px] mt-2 uppercase tracking-widest">Listening: {selectedSong?.title}</p>
+                 <div className="mt-8 text-center pointer-events-auto">
+                     <p className="text-brand-gold text-xs font-black uppercase tracking-[0.5em]">Recording...</p>
                  </div>
+                 {/* Backdrop for playing mode to cover other content */}
+                 <div className="fixed inset-0 bg-black -z-10" />
             </div>
         )}
 
@@ -660,6 +641,45 @@ const Interactive: React.FC = () => {
                     </div>
                 )}
             </div>
+        )}
+
+        {/* --- PERSISTENT ELEMENTS --- */}
+        {selectedSong && (
+            <>
+                {/* 
+                   KEY CHANGE: 
+                   Canvas and Audio must persist in the DOM to avoid breaking MediaRecorder streams.
+                   We toggle visibility via CSS opacity/pointer-events instead of unmounting.
+                */}
+                {selectedSong.audioUrl && (
+                    <audio 
+                        ref={audioRef} 
+                        src={selectedSong.audioUrl} 
+                        crossOrigin="anonymous" 
+                        key={selectedSong.id} 
+                        className="hidden" 
+                        onEnded={() => {
+                            if (mediaRecorderRef.current?.state === 'recording') {
+                                mediaRecorderRef.current.stop();
+                            } else if (mode === 'playing') {
+                                setMode('finished');
+                            }
+                        }}
+                    />
+                )}
+                
+                <canvas 
+                    ref={canvasRef} 
+                    width={1280} 
+                    height={720} 
+                    className={`transition-all duration-500 ${
+                        mode === 'playing' 
+                            ? 'fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-6xl aspect-video z-[45] shadow-2xl cursor-pointer opacity-100' 
+                            : 'fixed top-0 left-0 opacity-0 pointer-events-none -z-50 w-px h-px'
+                    }`}
+                    onClick={mode === 'playing' ? handleLineClick : undefined}
+                />
+            </>
         )}
 
     </div>
