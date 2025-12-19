@@ -116,11 +116,17 @@ const SongDetail: React.FC = () => {
                 <div className="bg-slate-900/50 p-10 border border-white/5">
                     <div className="flex items-center justify-between mb-8">
                         <h3 className="text-sm font-black text-white uppercase tracking-[0.4em]">Context & Story</h3>
-                        <button onClick={handleAiGenerate} disabled={loadingAi} className="text-[9px] border border-brand-accent/30 text-brand-accent px-4 py-2 uppercase tracking-widest hover:bg-brand-accent hover:text-black transition-all">Generate AI Analysis</button>
+                        {/* AI Button - Strictly Admin Only */}
+                        {isAdmin && (
+                            <button onClick={handleAiGenerate} disabled={loadingAi} className="text-[9px] border border-brand-accent/30 text-brand-accent px-4 py-2 uppercase tracking-widest hover:bg-brand-accent hover:text-black transition-all">
+                                {loadingAi ? "Analyzing..." : "Generate AI Analysis (Admin)"}
+                            </button>
+                        )}
                     </div>
                     <div className="text-slate-400 text-sm font-light leading-relaxed whitespace-pre-line tracking-wide">
                         {song.description || "Historical data not available."}
                     </div>
+                    {/* Only show AI review if it exists (Admin generated) */}
                     {aiReview && <div className="mt-8 p-6 bg-white/5 border-l-2 border-brand-gold text-xs text-slate-300 leading-loose italic">{aiReview}</div>}
                 </div>
                 <div className="bg-slate-900/50 p-10 border border-white/5">

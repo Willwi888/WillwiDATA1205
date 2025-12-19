@@ -40,7 +40,8 @@ const Home: React.FC = () => {
             <span className="text-brand-gold font-black text-[10px] uppercase tracking-[0.5em] mb-6 block border border-brand-gold/30 px-4 py-2 inline-block mx-auto rounded-full backdrop-blur-md">
                 {t('common_verified')}
             </span>
-            <h1 className="text-[15vw] md:text-[10rem] font-black tracking-tighter uppercase leading-none text-white mb-6 drop-shadow-2xl">
+            {/* Added 'text-gold-glow' class for the golden halo effect */}
+            <h1 className="text-[15vw] md:text-[10rem] font-black tracking-tighter uppercase leading-none text-white mb-6 text-gold-glow">
               Willwi
             </h1>
             <p className="text-white text-xs md:text-sm tracking-[0.6em] uppercase mb-16 font-light max-w-2xl mx-auto leading-loose opacity-80">
@@ -55,6 +56,55 @@ const Home: React.FC = () => {
                 <Link to="/interactive" className="px-16 py-5 border border-white/20 backdrop-blur-md text-white font-black text-[10px] uppercase tracking-[0.4em] hover:border-brand-gold transition-all shadow-xl hover:-translate-y-1">
                     參與製作 (歌詞)
                 </Link>
+            </div>
+        </div>
+      </section>
+
+      {/* HOW TO OPERATE GUIDE */}
+      <section className="w-full max-w-6xl px-6 py-20 border-b border-white/5 relative z-10 bg-slate-950/50 backdrop-blur-sm">
+        <div className="text-center mb-16">
+            <h3 className="text-brand-gold text-xs font-black uppercase tracking-[0.5em] mb-4">User Guide</h3>
+            <h2 className="text-3xl font-black text-white uppercase tracking-tight">How to Participate / 操作指南</h2>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-12 relative">
+            {/* Connecting Line (Desktop) */}
+            <div className="hidden md:block absolute top-8 left-[16%] right-[16%] h-px bg-gradient-to-r from-transparent via-white/20 to-transparent"></div>
+
+            {/* Step 1 */}
+            <div className="flex flex-col items-center text-center space-y-6 group relative z-10">
+                <div className="w-16 h-16 bg-slate-900 border border-white/20 rounded-full flex items-center justify-center text-xl font-black text-slate-500 group-hover:border-brand-gold group-hover:text-brand-gold transition-all shadow-lg">01</div>
+                <div>
+                    <h4 className="text-white font-black uppercase tracking-widest mb-3 text-sm">Select & Explore</h4>
+                    <p className="text-[10px] text-slate-400 leading-loose uppercase tracking-widest">
+                        前往資料庫 (Database)<br/>
+                        瀏覽並選擇您喜愛的作品
+                    </p>
+                </div>
+            </div>
+
+            {/* Step 2 */}
+            <div className="flex flex-col items-center text-center space-y-6 group relative z-10">
+                <div className="w-16 h-16 bg-slate-900 border border-white/20 rounded-full flex items-center justify-center text-xl font-black text-slate-500 group-hover:border-brand-gold group-hover:text-brand-gold transition-all shadow-lg">02</div>
+                <div>
+                    <h4 className="text-white font-black uppercase tracking-widest mb-3 text-sm">Handcraft Sync</h4>
+                    <p className="text-[10px] text-slate-400 leading-loose uppercase tracking-widest">
+                        進入互動實驗室 (Interactive)<br/>
+                        親手完成歌詞與音樂的對齊製作
+                    </p>
+                </div>
+            </div>
+
+            {/* Step 3 */}
+            <div className="flex flex-col items-center text-center space-y-6 group relative z-10">
+                <div className="w-16 h-16 bg-slate-900 border border-white/20 rounded-full flex items-center justify-center text-xl font-black text-slate-500 group-hover:border-brand-gold group-hover:text-brand-gold transition-all shadow-lg">03</div>
+                <div>
+                    <h4 className="text-white font-black uppercase tracking-widest mb-3 text-sm">Support & Keep</h4>
+                    <p className="text-[10px] text-slate-400 leading-loose uppercase tracking-widest">
+                        支持創作並下載 (Download)<br/>
+                        獲得屬於您的專屬 MV 紀錄
+                    </p>
+                </div>
             </div>
         </div>
       </section>

@@ -57,6 +57,9 @@ const Interactive: React.FC = () => {
 
   // Background Image Ref (Preloaded)
   const bgImageRef = useRef<HTMLImageElement | null>(null);
+  
+  // Animation Ref
+  const animationFrameRef = useRef<number>(0);
 
   // --- Handlers ---
 
@@ -103,13 +106,7 @@ const Interactive: React.FC = () => {
         const ctx = audioContextRef.current;
         if (ctx.state === 'suspended') await ctx.resume();
 
-        // Connect Source (ensure we don't double connect if reusing context)
-        // We use a key on the audio element to force remount, so ref should be fresh-ish, 
-        // but audioContext persists. We check if source is valid.
         try {
-            // Note: createMediaElementSource can throw if element is already connected to another context
-            // or same context. Since we reuse context, we should try to reuse the node or recreate if element changed.
-            // For simplicity in this flow, we assume a fresh connection attempt or ignore if already connected.
             if (!audioSourceRef.current) {
                 const source = ctx.createMediaElementSource(audioRef.current);
                 const dest = ctx.createMediaStreamDestination();
@@ -120,11 +117,10 @@ const Interactive: React.FC = () => {
             }
         } catch (e) {
             console.warn("Audio node connection warning:", e);
-            // Proceed, might be already connected
         }
 
         // 2. Prepare Streams
-        // Capture Video from Canvas - Increased to 60 FPS for smoother playback
+        // Capture Video from Canvas
         const canvasStream = (canvasRef.current as any).captureStream(60); 
         const tracks = [...canvasStream.getVideoTracks()];
         
@@ -136,7 +132,7 @@ const Interactive: React.FC = () => {
 
         const combinedStream = new MediaStream(tracks);
 
-        // 3. Determine Supported MimeType - Prioritize high quality codecs
+        // 3. Determine Supported MimeType
         const mimeTypes = [
             'video/webm;codecs=vp9,opus',
             'video/webm;codecs=h264,opus',
@@ -145,13 +141,8 @@ const Interactive: React.FC = () => {
             'video/mp4'
         ];
         const selectedMime = mimeTypes.find(type => MediaRecorder.isTypeSupported(type)) || '';
-        
-        if (!selectedMime) {
-            console.warn("No optimal mime type found, letting browser decide.");
-        }
-
-        // Increased bitrate to 8 Mbps (8,000,000 bits/sec) for higher quality export
         const options = selectedMime ? { mimeType: selectedMime, videoBitsPerSecond: 8000000 } : { videoBitsPerSecond: 8000000 };
+        
         const recorder = new MediaRecorder(combinedStream, options);
         
         recordedChunksRef.current = [];
@@ -161,6 +152,7 @@ const Interactive: React.FC = () => {
         
         recorder.onstop = () => {
             setMode('finished');
+            cancelAnimationFrame(animationFrameRef.current);
         };
 
         // 4. Start
@@ -171,16 +163,15 @@ const Interactive: React.FC = () => {
         mediaRecorderRef.current = recorder;
         
         await audioRef.current.play();
-        requestAnimationFrame(loop);
+        loop();
 
       } catch (e) { 
         console.error("Recording Start Failed:", e);
         alert("錄製初始化遭遇問題 (可能為瀏覽器相容性或權限)。將切換至無錄影模式。");
-        // Fallback: Just play
         setMode('playing');
         setLineIndex(0);
         audioRef.current.play();
-        requestAnimationFrame(loop);
+        loop();
       }
   };
 
@@ -197,9 +188,8 @@ const Interactive: React.FC = () => {
       
       const audio = audioRef.current;
       if (audio && !audio.paused && !audio.ended) {
-          requestAnimationFrame(loop);
+          animationFrameRef.current = requestAnimationFrame(loop);
       } else if (audio?.ended) {
-          // Stop recording slightly after audio ends
           if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
               mediaRecorderRef.current.stop();
           } else if (mode === 'playing') {
@@ -214,17 +204,19 @@ const Interactive: React.FC = () => {
       if (!canvas || !ctx || !selectedSong) return;
 
       const w = canvas.width, h = canvas.height;
+      const time = Date.now();
       
-      // 1. Background
+      // 1. Background (Strictly Album Cover)
       ctx.fillStyle = '#020617';
       ctx.fillRect(0, 0, w, h);
 
-      // Optional: Draw Blurred Cover as Background
       if (bgImageRef.current) {
           ctx.save();
-          ctx.globalAlpha = 0.2;
-          ctx.filter = 'blur(20px) grayscale(50%)';
-          // Maintain Aspect Ratio Cover
+          // Darken background for legibility
+          ctx.globalAlpha = 0.3;
+          ctx.filter = 'blur(15px) grayscale(30%)';
+          
+          // Center crop logic
           const scale = Math.max(w / bgImageRef.current.width, h / bgImageRef.current.height);
           const x = (w / 2) - (bgImageRef.current.width / 2) * scale;
           const y = (h / 2) - (bgImageRef.current.height / 2) * scale;
@@ -232,24 +224,34 @@ const Interactive: React.FC = () => {
           ctx.restore();
       }
 
-      // 2. Lyrics
+      // 2. Lyrics - Vertical Upward Motion
       const currLine = lyricsArrayRef.current[lineIndex] || "";
       
       ctx.save();
-      ctx.fillStyle = 'white';
-      ctx.font = '900 60px Montserrat';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
       
-      // Dynamic motion
-      const time = Date.now() / 1000;
-      const yOffset = Math.sin(time * 2) * 5;
+      // Motion Calculation: Subtle float upward
+      // We simulate a continuous upward drift for "life"
+      const floatY = (time / 50) % 10; 
       
-      // Shadow for better visibility
-      ctx.shadowColor = 'rgba(0,0,0,0.8)';
-      ctx.shadowBlur = 20;
+      // Main Text
+      ctx.fillStyle = 'white';
+      ctx.font = '900 64px Montserrat';
+      ctx.shadowColor = 'rgba(0,0,0,0.9)';
+      ctx.shadowBlur = 30;
       
-      ctx.fillText(currLine, w/2, h/2 + yOffset);
+      // Position: Center with slight upward motion bias
+      ctx.fillText(currLine, w/2, h/2 - floatY);
+      
+      // Optional: Show previous line fading out above
+      if (lineIndex > 0) {
+          ctx.globalAlpha = 0.3;
+          ctx.fillStyle = '#94a3b8';
+          ctx.font = '700 40px Montserrat';
+          ctx.fillText(lyricsArrayRef.current[lineIndex - 1], w/2, h/2 - 120 - floatY);
+      }
+      
       ctx.restore();
 
       // 3. Watermark / UI
@@ -270,7 +272,7 @@ const Interactive: React.FC = () => {
 
   const downloadProductionPackage = () => {
     if (recordedChunksRef.current.length === 0) {
-        alert("未偵測到錄製數據 (可能因瀏覽器限制)。無法下載影片，但仍可下載記錄檔。");
+        alert("未偵測到錄製數據。");
     } else {
         const mimeType = mediaRecorderRef.current?.mimeType || 'video/webm';
         const ext = mimeType.includes('mp4') ? 'mp4' : 'webm';
