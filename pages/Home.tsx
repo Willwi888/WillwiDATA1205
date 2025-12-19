@@ -113,8 +113,7 @@ const Home: React.FC = () => {
       <section className="w-full max-w-7xl px-6 py-32">
          <div className="flex flex-col md:flex-row justify-between items-end mb-16 gap-4">
             <div>
-                <h3 className="text-4xl font-black text-white uppercase tracking-tighter italic mb-2">The Result / 製作成果</h3>
-                <p className="text-slate-500 text-[10px] font-bold uppercase tracking-[0.4em]">Handcrafted by Willwi</p>
+                <h3 className="text-4xl font-black text-white uppercase tracking-tighter mb-2">The Result / 製作成果</h3>
             </div>
          </div>
 

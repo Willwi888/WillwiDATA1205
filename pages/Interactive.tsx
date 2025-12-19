@@ -61,6 +61,20 @@ const Interactive: React.FC = () => {
   // Animation Ref
   const animationFrameRef = useRef<number>(0);
 
+  // --- Keyboard Interaction ---
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+        if (mode === 'playing') {
+            if (e.code === 'Space' || e.code === 'Enter') {
+                e.preventDefault(); // Prevent scrolling
+                handleLineClick();
+            }
+        }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [mode]);
+
   // --- Handlers ---
 
   const handleStudioUnlock = (e: React.FormEvent) => {
@@ -79,6 +93,7 @@ const Interactive: React.FC = () => {
     
     // Prepare Lyrics
     const rawLines = song.lyrics.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+    // [ READY ] is index 0. First tap moves to index 1 (First Line).
     lyricsArrayRef.current = ["[ READY ]", ...rawLines, "[ END ]"]; 
     
     // Preload Cover Image for Canvas to avoid flickering/loading issues during record
@@ -135,13 +150,12 @@ const Interactive: React.FC = () => {
 
         const combinedStream = new MediaStream(tracks);
 
-        // 3. Determine Supported MimeType
+        // 3. Determine Supported MimeType (Prioritize MP4)
         const mimeTypes = [
-            'video/webm;codecs=vp9,opus',
+            'video/mp4', // Safari / Some modern browsers
             'video/webm;codecs=h264,opus',
-            'video/webm;codecs=vp8,opus',
-            'video/webm',
-            'video/mp4'
+            'video/webm;codecs=vp9,opus',
+            'video/webm'
         ];
         const selectedMime = mimeTypes.find(type => MediaRecorder.isTypeSupported(type)) || '';
         const options = selectedMime ? { mimeType: selectedMime, videoBitsPerSecond: 8000000 } : { videoBitsPerSecond: 8000000 };
@@ -160,7 +174,7 @@ const Interactive: React.FC = () => {
 
         // 4. Start
         setMode('playing');
-        setLineIndex(0);
+        setLineIndex(0); // Start at [ READY ]
         
         recorder.start();
         mediaRecorderRef.current = recorder;
@@ -180,7 +194,14 @@ const Interactive: React.FC = () => {
 
   const handleLineClick = () => {
       if (mode === 'playing') {
-          setLineIndex(prev => prev + 1);
+          // Advance lyric
+          setLineIndex(prev => {
+              // Don't go past the end
+              if (prev < lyricsArrayRef.current.length - 1) {
+                  return prev + 1;
+              }
+              return prev;
+          });
       } else if (mode === 'tool-start') {
           startRecording();
       }
@@ -207,19 +228,16 @@ const Interactive: React.FC = () => {
       if (!canvas || !ctx || !selectedSong) return;
 
       const w = canvas.width, h = canvas.height;
-      const time = Date.now();
       
-      // 1. Background (Strictly Album Cover)
+      // 1. Background: Blurred Album Cover
       ctx.fillStyle = '#020617';
       ctx.fillRect(0, 0, w, h);
 
       if (bgImageRef.current) {
           ctx.save();
-          // Darken background for legibility
-          ctx.globalAlpha = 0.3;
-          ctx.filter = 'blur(15px) grayscale(30%)';
-          
-          // Center crop logic
+          // Heavy blur for background
+          ctx.filter = 'blur(20px) brightness(0.4)';
+          // Fill screen keeping aspect ratio
           const scale = Math.max(w / bgImageRef.current.width, h / bgImageRef.current.height);
           const x = (w / 2) - (bgImageRef.current.width / 2) * scale;
           const y = (h / 2) - (bgImageRef.current.height / 2) * scale;
@@ -227,48 +245,86 @@ const Interactive: React.FC = () => {
           ctx.restore();
       }
 
-      // 2. Lyrics - Vertical Floating Motion
-      const currLine = lyricsArrayRef.current[lineIndex] || "";
+      // 2. Lyrics Engine (3 Lines Visible)
+      // Visual Config
+      const centerY = h / 2 - 50; // Shifted up slightly to make room for cover at bottom
+      const lineHeight = 80;
       
-      ctx.save();
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      
-      // Motion Calculation: Gentle sine wave float
-      const floatY = Math.sin(time / 800) * 5; 
-      
-      // Main Text
-      ctx.fillStyle = 'white';
-      ctx.font = '900 64px Montserrat';
-      ctx.shadowColor = 'rgba(0,0,0,0.9)';
-      ctx.shadowBlur = 30;
-      
-      // Position: Center with float
-      ctx.fillText(currLine, w/2, h/2 - floatY);
-      
-      // Optional: Show previous line fading out above
+
+      // -- Previous Line --
       if (lineIndex > 0) {
-          ctx.globalAlpha = 0.3;
+          ctx.save();
+          ctx.globalAlpha = 0.4;
           ctx.fillStyle = '#94a3b8';
-          ctx.font = '700 40px Montserrat';
-          ctx.fillText(lyricsArrayRef.current[lineIndex - 1], w/2, h/2 - 120 - floatY);
+          ctx.font = '700 32px Montserrat';
+          const prevText = lyricsArrayRef.current[lineIndex - 1];
+          ctx.fillText(prevText, w/2, centerY - lineHeight);
+          ctx.restore();
       }
+
+      // -- Current Line --
+      ctx.save();
+      const currText = lyricsArrayRef.current[lineIndex] || "";
+      ctx.shadowColor = 'rgba(0,0,0,0.8)';
+      ctx.shadowBlur = 20;
+      ctx.fillStyle = '#ffffff';
       
+      // Dynamic scaling for current line based on length
+      const fontSize = currText.length > 20 ? 48 : 60;
+      ctx.font = `900 ${fontSize}px Montserrat`;
+      
+      ctx.fillText(currText, w/2, centerY);
       ctx.restore();
 
-      // 3. Watermark / UI
-      ctx.fillStyle = '#fbbf24'; 
-      ctx.font = '700 20px Montserrat'; 
-      ctx.textAlign = 'left';
-      ctx.fillText(`HANDCRAFTED BY ${user?.name || 'GUEST'} // ${selectedSong.title}`.toUpperCase(), 50, h - 50);
+      // -- Next Line --
+      if (lineIndex < lyricsArrayRef.current.length - 1) {
+          ctx.save();
+          ctx.globalAlpha = 0.4;
+          ctx.fillStyle = '#94a3b8';
+          ctx.font = '700 32px Montserrat';
+          const nextText = lyricsArrayRef.current[lineIndex + 1];
+          ctx.fillText(nextText, w/2, centerY + lineHeight);
+          ctx.restore();
+      }
 
-      // Progress bar
+      // 3. Bottom Elements: 1:1 Cover & Song Info
+      if (bgImageRef.current) {
+          const coverSize = 180;
+          const coverY = h - coverSize - 80;
+          
+          // Draw 1:1 Cover with shadow
+          ctx.save();
+          ctx.shadowColor = 'rgba(0,0,0,0.5)';
+          ctx.shadowBlur = 30;
+          const coverX = (w / 2) - (coverSize / 2);
+          
+          // Draw a white border around cover
+          ctx.fillStyle = 'white';
+          ctx.fillRect(coverX - 2, coverY - 2, coverSize + 4, coverSize + 4);
+          
+          ctx.drawImage(bgImageRef.current, 0, 0, bgImageRef.current.width, bgImageRef.current.height, coverX, coverY, coverSize, coverSize);
+          ctx.restore();
+
+          // Song Title
+          ctx.fillStyle = '#fbbf24'; // Brand Gold
+          ctx.font = '800 24px Montserrat';
+          ctx.fillText(selectedSong.title.toUpperCase(), w/2, coverY + coverSize + 35);
+
+          // Artist / Credits
+          ctx.fillStyle = '#cbd5e1';
+          ctx.font = '500 14px Montserrat';
+          ctx.letterSpacing = '2px';
+          const creator = user?.name ? `HANDCRAFTED BY ${user.name}` : 'WILLWI OFFICIAL DB';
+          ctx.fillText(creator.toUpperCase(), w/2, coverY + coverSize + 60);
+      }
+
+      // 4. Progress Bar (Bottom Edge)
       if (audioRef.current) {
-          const progress = audioRef.current.currentTime / audioRef.current.duration;
-          ctx.fillStyle = 'rgba(255,255,255,0.1)';
-          ctx.fillRect(0, h - 10, w, 10);
+          const progress = audioRef.current.currentTime / audioRef.current.duration || 0;
           ctx.fillStyle = '#fbbf24';
-          ctx.fillRect(0, h - 10, w * progress, 10);
+          ctx.fillRect(0, h - 6, w * progress, 6);
       }
   };
 
@@ -276,13 +332,13 @@ const Interactive: React.FC = () => {
     if (recordedChunksRef.current.length === 0) {
         alert("未偵測到錄製數據。");
     } else {
-        const mimeType = mediaRecorderRef.current?.mimeType || 'video/webm';
-        const ext = mimeType.includes('mp4') ? 'mp4' : 'webm';
+        const mimeType = mediaRecorderRef.current?.mimeType || 'video/mp4';
+        // Force .mp4 extension for compatibility, even if browser generates webm/h264
         const blob = new Blob(recordedChunksRef.current, { type: mimeType });
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = `WILLWI_HANDCRAFTED_${selectedSong?.title || 'DEMO'}.${ext}`;
+        a.download = `WILLWI_HANDCRAFTED_${selectedSong?.title || 'DEMO'}.mp4`;
         a.click();
     }
     
@@ -378,39 +434,34 @@ const Interactive: React.FC = () => {
             </div>
         )}
 
-        {/* --- MODE: INTRO --- */}
+        {/* --- MODE: INTRO (Updated Copy) --- */}
         {mode === 'intro' && (
             <div className="max-w-2xl w-full text-center animate-fade-in space-y-12">
                 <div>
-                    <h3 className="text-brand-gold text-xs font-black uppercase tracking-[0.5em] mb-6">關於參與</h3>
-                    <h2 className="text-3xl md:text-4xl font-black text-white uppercase tracking-tight mb-8">這不是購買作品</h2>
+                    <h3 className="text-brand-gold text-xs font-black uppercase tracking-[0.5em] mb-6">參與一首歌的方式</h3>
+                    <h2 className="text-2xl md:text-4xl font-black text-white uppercase tracking-tight mb-8 leading-snug">
+                        這不是購買，也不是授權<br/>
+                        是一次創作在場的紀錄
+                    </h2>
                     <p className="text-slate-400 text-sm leading-loose tracking-widest font-light">
-                        這也不是委託他人製作。<br/><br/>
-                        這是一個讓你親手完成歌詞影片的創作實驗場。<br/>
-                        你將會進入一個已準備好素材的環境：<br/>
-                        <span className="block mt-4 text-white">
-                        ・ 原創音檔 (作為創作練習素材)<br/>
-                        ・ 已整理完成的歌詞文本<br/>
-                        ・ 一個手工對齊歌詞的操作介面<br/>
-                        </span>
-                        <br/>
-                        創作的每一個動作，都將由你親自完成。
+                        此頁面的金額，並非購買任何商品或內容。<br/>
+                        這是一種參與創作的行為。<br/><br/>
+                        透過參與自己親手製作一支<br/>
+                        Willwi 純手工歌詞動態影片<br/><br/>
+                        該影片不附帶任何使用權、授權，<br/>
+                        僅提供私人觀看連結保存。
                     </p>
                 </div>
                 
                 <div className="pt-12 border-t border-white/5">
-                    <p className="text-[10px] text-slate-500 uppercase tracking-widest mb-8 leading-relaxed">
-                        參與金額為一次性進場門票，<br/>用於解鎖創作實驗場之使用權限。<br/>
-                        此行為不包含任何作品授權、不構成商品購買或服務交付。
-                    </p>
                     <button onClick={() => setMode('gate')} className="px-12 py-5 bg-brand-gold text-slate-950 font-black text-xs uppercase tracking-[0.3em] hover:bg-white transition-all shadow-[0_0_30px_rgba(251,191,36,0.3)]">
-                        解鎖創作實驗場 (NT$ 320)
+                        參與創作 (NT$ 320)
                     </button>
                 </div>
             </div>
         )}
 
-        {/* --- MODE: GATE --- */}
+        {/* --- MODE: GATE (Updated Copy) --- */}
         {mode === 'gate' && (
             <div className="max-w-4xl w-full flex flex-col md:flex-row bg-slate-900 border border-white/10 shadow-2xl animate-fade-in">
                 <div className="w-full md:w-1/2 bg-white p-12 flex flex-col items-center justify-center text-slate-900">
@@ -426,10 +477,15 @@ const Interactive: React.FC = () => {
                 </div>
                 <div className="w-full md:w-1/2 bg-slate-950 p-12 flex flex-col justify-center">
                     <h4 className="text-white font-black uppercase tracking-[0.2em] mb-6">Enter Access Code</h4>
-                    <p className="text-[10px] text-slate-500 leading-loose mb-8">
-                        請掃描左側 QR Code 進行支持。<br/>
-                        完成後，輸入您獲得的通行碼 (Access Code)。
-                    </p>
+                    
+                    {/* Disclaimer Box */}
+                    <div className="mb-8 p-4 border border-brand-gold/20 bg-brand-gold/5 text-[10px] text-brand-gold/80 leading-loose">
+                        點擊付款，即表示你理解並同意：<br/>
+                        ・這不是商品販售<br/>
+                        ・不包含任何授權或權利轉移<br/>
+                        ・此為一次性的創作參與紀錄
+                    </div>
+
                     <form onSubmit={handleStudioUnlock} className="space-y-4">
                         <input 
                             type="password" 
@@ -447,17 +503,16 @@ const Interactive: React.FC = () => {
             </div>
         )}
 
-        {/* --- MODE: STUDIO WELCOME --- */}
+        {/* --- MODE: STUDIO WELCOME (Updated Copy) --- */}
         {mode === 'studio-welcome' && (
             <div className="max-w-2xl w-full text-center animate-fade-in py-20">
                 <div className="mb-12">
                     <div className="w-16 h-1 bg-brand-gold mx-auto mb-8"></div>
                     <h2 className="text-3xl font-black text-white uppercase tracking-widest mb-6">實驗場已解鎖</h2>
                     <p className="text-slate-400 text-sm leading-loose tracking-widest">
-                        你已成功進入創作實驗場。<br/><br/>
-                        接下來，請選擇一首你想參與的作品。<br/>
-                        系統將會為你準備該作品的音檔與歌詞素材，<br/>
-                        並引導你完成手工對齊。
+                        謝謝你選擇參與。<br/>
+                        接下來，請您親手完成一支<br/>
+                        歌詞時間對齊影片，作為這次參與的紀錄。
                     </p>
                 </div>
                 <button onClick={() => setMode('select')} className="px-12 py-5 border border-white/20 text-white font-black text-xs uppercase tracking-[0.3em] hover:bg-white hover:text-black transition-all">
@@ -508,10 +563,10 @@ const Interactive: React.FC = () => {
                     <div className="bg-slate-900 p-6 border border-white/5">
                         <h4 className="text-brand-gold text-[10px] font-black uppercase tracking-widest mb-4">操作指引</h4>
                         <ul className="text-[10px] text-slate-400 space-y-3 leading-relaxed list-disc list-inside">
-                            <li>播放音檔，聆聽旋律與節奏</li>
-                            <li>當你感覺一句歌詞「剛好出現的時刻」，請點擊畫面</li>
-                            <li>系統將記錄你每一次的選擇</li>
-                            <li>完成所有歌詞後，即完成本次對齊</li>
+                            <li>點擊下方按鈕開始，音樂將隨即播放</li>
+                            <li>當您感覺歌詞該出現時，請點擊畫面或按空白鍵/Enter</li>
+                            <li>第一下點擊將同步第一句歌詞</li>
+                            <li>直到 [ END ] 出現，創作即完成</li>
                         </ul>
                     </div>
                     <div className="flex flex-col justify-center items-center text-center p-6 border border-white/5 bg-slate-900/50">
@@ -531,7 +586,7 @@ const Interactive: React.FC = () => {
             <div className="fixed inset-0 z-50 flex flex-col items-center justify-end pb-20 pointer-events-none">
                  <div className="pointer-events-auto">
                      <span className="bg-black/50 text-white px-4 py-2 text-[10px] uppercase tracking-widest backdrop-blur-md border border-white/20 animate-pulse">
-                         Tap Screen to Sync Next Line
+                         Tap or Press Space to Sync
                      </span>
                  </div>
                  <div className="mt-8 text-center pointer-events-auto">
@@ -542,32 +597,131 @@ const Interactive: React.FC = () => {
             </div>
         )}
 
-        {/* --- MODE: FINISHED --- */}
+        {/* --- MODE: FINISHED (Updated Copy with Premium Option) --- */}
         {mode === 'finished' && (
-            <div className="max-w-2xl w-full text-center animate-fade-in py-12">
+            <div className="max-w-3xl w-full text-center animate-fade-in py-12">
                 <h2 className="text-4xl font-black text-white uppercase tracking-tighter mb-4">創作完成</h2>
                 <p className="text-slate-500 text-[10px] font-bold uppercase tracking-[0.4em] mb-12">Session Completed</p>
                 
-                <div className="bg-slate-900 p-10 border border-white/10 mb-12">
+                {/* 1. STANDARD DOWNLOAD AREA */}
+                <div className="bg-slate-900/80 p-10 border border-white/10 mb-16 backdrop-blur-sm">
                     <p className="text-slate-300 text-sm leading-loose tracking-widest font-light mb-8">
-                        這是一支由你親手完成的歌詞影片。<br/>
-                        它是一段屬於你的創作練習紀錄。<br/>
-                        你可以下載或保存此檔案，作為這次參與的留存。
+                        這支影片，是為這次參與留下的創作紀錄。<br/>
+                        它不代表任何權利，也不構成內容授權或轉讓。<br/>
+                        謝謝你曾經在這首歌裡。
                     </p>
-                    <div className="flex flex-col gap-4">
+                    <div className="flex flex-col gap-4 max-w-md mx-auto">
                         <input 
-                            placeholder="Enter Your Name for Credits" 
+                            placeholder="輸入您的名字 (作為紀錄)" 
                             className="w-full bg-black border border-white/20 p-4 text-center text-white text-xs uppercase tracking-widest outline-none focus:border-brand-gold"
                             value={listenerName}
                             onChange={e => setListenerName(e.target.value)}
                         />
-                        <button onClick={downloadProductionPackage} className="w-full py-5 bg-brand-gold text-slate-950 font-black text-xs uppercase tracking-[0.3em] hover:bg-white transition-all">
-                            下載成果 (Download MP4 & JSON)
+                        <button onClick={downloadProductionPackage} className="w-full py-5 bg-white text-slate-950 font-black text-xs uppercase tracking-[0.3em] hover:bg-brand-gold transition-all">
+                            下載成果 (MP4 Video)
                         </button>
                     </div>
                 </div>
+
+                {/* 2. PREMIUM COLLECTION AREA */}
+                <div className="relative p-1 border-2 border-brand-gold/20 bg-gradient-to-br from-slate-900 to-black overflow-hidden shadow-[0_0_50px_rgba(251,191,36,0.1)]">
+                    
+                    {/* Decorative Elements */}
+                    <div className="absolute top-0 right-0 w-24 h-24 bg-brand-gold/10 blur-3xl rounded-full"></div>
+                    <div className="absolute bottom-0 left-0 w-32 h-32 bg-brand-gold/5 blur-3xl rounded-full"></div>
+                    
+                    <div className="p-10 md:p-14 relative z-10">
+                        
+                        {/* Header */}
+                        <div className="flex flex-col items-center mb-10">
+                            <span className="text-brand-gold font-serif italic text-xl mb-2">A Timeless Keepsake</span>
+                            <h3 className="text-white text-3xl font-black uppercase tracking-[0.3em]">
+                                珍藏・這份共同創作的記憶
+                            </h3>
+                            <div className="w-12 h-0.5 bg-brand-gold mt-6"></div>
+                        </div>
+
+                        {/* Story / Context */}
+                        <div className="text-left md:text-center text-sm text-slate-300 leading-loose tracking-widest space-y-6 font-light max-w-2xl mx-auto mb-10">
+                            <p>
+                                剛剛的創作很棒。如果您希望將這份回憶以最高品質保存下來，<br className="hidden md:block"/>
+                                我想邀請您收藏這份由我們共同完成的作品。
+                            </p>
+                            <p>
+                                這不只是一支影片，是我們在音樂裡相遇的證明。<br/>
+                                我會親自回到工作室，使用原始專案檔，為您重新算圖與輸出。
+                            </p>
+                        </div>
+
+                        {/* Features List */}
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12 border-y border-white/5 py-8">
+                            <div className="text-center space-y-2">
+                                <div className="text-brand-gold text-lg">✦</div>
+                                <h4 className="text-white text-xs font-bold uppercase tracking-widest">High Definition</h4>
+                                <p className="text-[10px] text-slate-500">1080p / 4K 高畫質重製</p>
+                            </div>
+                            <div className="text-center space-y-2">
+                                <div className="text-brand-gold text-lg">✦</div>
+                                <h4 className="text-white text-xs font-bold uppercase tracking-widest">Lossless Audio</h4>
+                                <p className="text-[10px] text-slate-500">無損音質整合</p>
+                            </div>
+                            <div className="text-center space-y-2">
+                                <div className="text-brand-gold text-lg">✦</div>
+                                <h4 className="text-white text-xs font-bold uppercase tracking-widest">Hand-Signed</h4>
+                                <p className="text-[10px] text-slate-500">Willwi 專屬親筆簽名 (數位)</p>
+                            </div>
+                        </div>
+
+                        {/* Pricing */}
+                        <div className="flex flex-col items-center mb-10 space-y-6">
+                            <div className="flex flex-col md:flex-row justify-center gap-8 md:gap-16">
+                                <div className="text-center group cursor-default">
+                                    <span className="block text-[10px] text-slate-500 uppercase font-bold mb-2 group-hover:text-brand-gold transition-colors">Single Collection (一部)</span>
+                                    <span className="text-3xl font-serif text-white italic">NT$ 2,800</span>
+                                </div>
+                                <div className="w-px bg-white/10 hidden md:block"></div>
+                                <div className="text-center group cursor-default">
+                                    <span className="block text-[10px] text-slate-500 uppercase font-bold mb-2 group-hover:text-brand-gold transition-colors">Double Collection (兩部)</span>
+                                    <span className="text-3xl font-serif text-white italic">NT$ 5,000</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Call to Action */}
+                        <div className="flex flex-col items-center space-y-6">
+                            <a 
+                                href="https://paypal.me/Willwichen" 
+                                target="_blank" 
+                                rel="noopener noreferrer"
+                                className="group relative inline-flex items-center gap-4 px-10 py-4 bg-[#003087] text-white font-bold text-xs uppercase tracking-[0.2em] hover:bg-[#00256b] transition-all overflow-hidden shadow-lg hover:shadow-blue-900/30 rounded-sm"
+                            >
+                                <span className="relative z-10 flex items-center gap-2">
+                                    前往 PayPal 付款
+                                    <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M14 5l7 7m0 0l-7 7m7-7H3" /></svg>
+                                </span>
+                            </a>
+                            
+                            <div className="text-center space-y-2">
+                                <p className="text-[10px] text-slate-400">
+                                    付款後，請將您的「歌名」與「希望署名」寄至：
+                                </p>
+                                <a href="mailto:will@willwi.com" className="text-brand-gold hover:text-white border-b border-brand-gold/30 pb-0.5 transition-colors text-xs font-mono">
+                                    will@willwi.com
+                                </a>
+                            </div>
+                        </div>
+
+                        {/* Disclaimer */}
+                        <div className="mt-10 pt-6 border-t border-white/5 text-center">
+                             <p className="text-[9px] text-slate-600 leading-relaxed">
+                                 * 此費用包含 Willwi 親自重新製作的人力成本、器材使用與雲端空間。<br/>
+                                 * 影片成品僅供您個人收藏與非商業用途觀看，不包含任何音樂或影像的商業授權。
+                             </p>
+                        </div>
+                    </div>
+                </div>
                 
-                <button onClick={() => setMode('menu')} className="text-slate-500 hover:text-white text-[10px] uppercase tracking-widest">
+                <button onClick={() => setMode('menu')} className="mt-12 text-slate-500 hover:text-white text-[10px] uppercase tracking-widest transition-colors">
                     Return to Menu
                 </button>
             </div>

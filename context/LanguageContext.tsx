@@ -40,7 +40,7 @@ const TRANSLATIONS = {
     common_result: "Production Result"
   },
   zh: {
-    nav_home: "個人簡介",
+    nav_home: "活動首頁",
     nav_catalog: "音樂庫",
     nav_interactive: "互動引導",
     nav_add: "登錄作品",
