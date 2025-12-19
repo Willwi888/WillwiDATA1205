@@ -27,13 +27,6 @@ const Home: React.FC = () => {
     ? `https://www.youtube.com/embed/${new URLSearchParams(new URL(videoUrl).search).get('v')}?autoplay=0&mute=1&loop=1&controls=1` 
     : videoUrl.includes('embed/') ? videoUrl : `https://www.youtube.com/embed/${videoUrl.split('/').pop()}`;
 
-  const features = [
-    { title: "Introduction", desc: "Willwi 的音樂歷程與視覺風格。" },
-    { title: "Participation", desc: "參與歌詞影片製作，共創視覺。" },
-    { title: "Support", desc: "透過樂捐，支持獨立音樂的永續產出。" },
-    { title: "Archival", desc: "完整的 MusicBrainz 數據歸檔。" }
-  ];
-
   return (
     <div className="min-h-screen relative flex flex-col items-center">
       
@@ -86,26 +79,6 @@ const Home: React.FC = () => {
              ></iframe>
              <div className="absolute inset-0 pointer-events-none border border-white/10"></div>
          </div>
-      </section>
-
-      {/* VISION PILLARS */}
-      <section className="w-full py-40 bg-white/[0.02] border-y border-white/5">
-          <div className="max-w-6xl mx-auto px-6">
-              <div className="text-center mb-24">
-                  <h2 className="text-5xl font-black text-white italic uppercase tracking-tighter mb-6">Support & Create.</h2>
-                  <p className="text-slate-400 text-sm font-light max-w-3xl mx-auto leading-loose tracking-widest">{t('home_purpose_text')}</p>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-10">
-                  {features.map((f, i) => (
-                      <div key={f.title} className="p-10 bg-slate-900/40 border border-white/5 hover:border-brand-gold/30 transition-all group">
-                          <span className="text-brand-gold font-mono text-xs block mb-8 opacity-50 group-hover:opacity-100">0{i+1}</span>
-                          <h4 className="text-xl font-black text-white uppercase tracking-tighter mb-4">{f.title}</h4>
-                          <p className="text-slate-500 text-[11px] leading-relaxed uppercase tracking-widest">{f.desc}</p>
-                      </div>
-                  ))}
-              </div>
-          </div>
       </section>
 
     </div>

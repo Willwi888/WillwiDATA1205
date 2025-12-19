@@ -4,7 +4,7 @@ import { useData } from '../context/DataContext';
 import { Song } from '../types';
 import { GoogleGenAI } from "@google/genai";
 
-// 狀態定義：對應您設計的模組流程
+// 狀態定義
 type InteractionMode = 
   | 'menu'              // 首頁選單
   | 'intro'             // 模組 1 & 2：說明與定義
@@ -29,7 +29,7 @@ const Interactive: React.FC = () => {
   const [studioPass, setStudioPass] = useState('');
   const [studioError, setStudioError] = useState('');
 
-  // Veo State (Admin Only)
+  // Veo State
   const [veoPass, setVeoPass] = useState('');
   const [isVeoUnlocked, setIsVeoUnlocked] = useState(false);
   const [veoPrompt, setVeoPrompt] = useState('');
@@ -37,23 +37,31 @@ const Interactive: React.FC = () => {
   const [isGeneratingVideo, setIsGeneratingVideo] = useState(false);
   const [videoModel, setVideoModel] = useState<'fast' | 'hq'>('fast');
 
-  // Listener Data for JSON Archive
-  const [listenerOpinion, setListenerOpinion] = useState('');
+  // Archive Data
   const [listenerName, setListenerName] = useState(user?.name || '');
 
-  // Canvas & Recording Refs
+  // Refs
   const [lineIndex, setLineIndex] = useState(0); 
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const audioRef = useRef<HTMLAudioElement>(null);
+  
+  // Recording Refs
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const recordedChunksRef = useRef<Blob[]>([]);
   const lyricsArrayRef = useRef<string[]>([]);
+  
+  // Audio Context Refs (For mixing audio into video)
+  const audioContextRef = useRef<AudioContext | null>(null);
+  const audioSourceRef = useRef<MediaElementAudioSourceNode | null>(null);
+  const audioDestRef = useRef<MediaStreamAudioDestinationNode | null>(null);
+
+  // Background Image Ref (Preloaded)
+  const bgImageRef = useRef<HTMLImageElement | null>(null);
 
   // --- Handlers ---
 
   const handleStudioUnlock = (e: React.FormEvent) => {
       e.preventDefault();
-      // 驗證邏輯：輸入 'willwi' 或 管理員可進入
       if (studioPass.toLowerCase() === 'willwi' || isAdmin) {
           setMode('studio-welcome');
           setStudioError('');
@@ -65,19 +73,86 @@ const Interactive: React.FC = () => {
   const handleSelectSong = (song: Song) => {
     setSelectedSong(song);
     if (!song.lyrics) { alert("此歌曲尚未建立歌詞文本，無法進行練習。"); return; }
-    // 準備歌詞
+    
+    // Prepare Lyrics
     const rawLines = song.lyrics.split('\n').map(l => l.trim()).filter(l => l.length > 0);
     lyricsArrayRef.current = ["[ READY ]", ...rawLines, "[ END ]"]; 
+    
+    // Preload Cover Image for Canvas to avoid flickering/loading issues during record
+    if (song.coverUrl) {
+        const img = new Image();
+        img.crossOrigin = "anonymous"; // Important for canvas export
+        img.src = song.coverUrl;
+        bgImageRef.current = img;
+    } else {
+        bgImageRef.current = null;
+    }
+
     setMode('tool-start');
   };
 
-  const startRecording = () => {
-      if (!canvasRef.current) return;
+  const startRecording = async () => {
+      if (!canvasRef.current || !audioRef.current || !selectedSong) return;
       
-      // 嘗試啟動錄製
       try {
-        const stream = canvasRef.current.captureStream(60);
-        const recorder = new MediaRecorder(stream, { mimeType: 'video/webm;codecs=vp9' });
+        // 1. Setup Audio Context & Mix
+        if (!audioContextRef.current) {
+            const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+            audioContextRef.current = new AudioContextClass();
+        }
+        const ctx = audioContextRef.current;
+        if (ctx.state === 'suspended') await ctx.resume();
+
+        // Connect Source (ensure we don't double connect if reusing context)
+        // We use a key on the audio element to force remount, so ref should be fresh-ish, 
+        // but audioContext persists. We check if source is valid.
+        try {
+            // Note: createMediaElementSource can throw if element is already connected to another context
+            // or same context. Since we reuse context, we should try to reuse the node or recreate if element changed.
+            // For simplicity in this flow, we assume a fresh connection attempt or ignore if already connected.
+            if (!audioSourceRef.current) {
+                const source = ctx.createMediaElementSource(audioRef.current);
+                const dest = ctx.createMediaStreamDestination();
+                source.connect(dest);
+                source.connect(ctx.destination); // Monitor output
+                audioSourceRef.current = source;
+                audioDestRef.current = dest;
+            }
+        } catch (e) {
+            console.warn("Audio node connection warning:", e);
+            // Proceed, might be already connected
+        }
+
+        // 2. Prepare Streams
+        // Capture Video from Canvas - Increased to 60 FPS for smoother playback
+        const canvasStream = (canvasRef.current as any).captureStream(60); 
+        const tracks = [...canvasStream.getVideoTracks()];
+        
+        // Add Audio Track if available
+        if (audioDestRef.current) {
+            const audioTracks = audioDestRef.current.stream.getAudioTracks();
+            if (audioTracks.length > 0) tracks.push(audioTracks[0]);
+        }
+
+        const combinedStream = new MediaStream(tracks);
+
+        // 3. Determine Supported MimeType - Prioritize high quality codecs
+        const mimeTypes = [
+            'video/webm;codecs=vp9,opus',
+            'video/webm;codecs=h264,opus',
+            'video/webm;codecs=vp8,opus',
+            'video/webm',
+            'video/mp4'
+        ];
+        const selectedMime = mimeTypes.find(type => MediaRecorder.isTypeSupported(type)) || '';
+        
+        if (!selectedMime) {
+            console.warn("No optimal mime type found, letting browser decide.");
+        }
+
+        // Increased bitrate to 8 Mbps (8,000,000 bits/sec) for higher quality export
+        const options = selectedMime ? { mimeType: selectedMime, videoBitsPerSecond: 8000000 } : { videoBitsPerSecond: 8000000 };
+        const recorder = new MediaRecorder(combinedStream, options);
         
         recordedChunksRef.current = [];
         recorder.ondataavailable = e => {
@@ -85,26 +160,26 @@ const Interactive: React.FC = () => {
         };
         
         recorder.onstop = () => {
-            // 錄製結束，切換到完成頁
             setMode('finished');
         };
-        
-        // 開始流程
+
+        // 4. Start
         setMode('playing');
         setLineIndex(0);
         
         recorder.start();
         mediaRecorderRef.current = recorder;
-        audioRef.current?.play();
         
+        await audioRef.current.play();
         requestAnimationFrame(loop);
+
       } catch (e) { 
-        console.error(e);
-        alert("您的瀏覽器不支援畫面錄製，或權限不足。無法生成影片，但仍可體驗互動。");
-        // Fallback flow without recording
+        console.error("Recording Start Failed:", e);
+        alert("錄製初始化遭遇問題 (可能為瀏覽器相容性或權限)。將切換至無錄影模式。");
+        // Fallback: Just play
         setMode('playing');
         setLineIndex(0);
-        audioRef.current?.play();
+        audioRef.current.play();
         requestAnimationFrame(loop);
       }
   };
@@ -119,15 +194,15 @@ const Interactive: React.FC = () => {
 
   const loop = () => {
       drawFrame();
-      // 簡單的 loop 控制，依賴 mode 狀態
-      // 注意：在真實高頻應用中建議使用 useRef 保存 isPlaying 狀態以避免閉包問題，
-      // 但在此架構下，只要組件未卸載，mode 變更會觸發重繪，requestAnimationFrame 會持續跑到 audio end
-      if (audioRef.current && !audioRef.current.paused && !audioRef.current.ended) {
+      
+      const audio = audioRef.current;
+      if (audio && !audio.paused && !audio.ended) {
           requestAnimationFrame(loop);
-      } else if (audioRef.current?.ended) {
+      } else if (audio?.ended) {
+          // Stop recording slightly after audio ends
           if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
               mediaRecorderRef.current.stop();
-          } else {
+          } else if (mode === 'playing') {
               setMode('finished');
           }
       }
@@ -140,11 +215,24 @@ const Interactive: React.FC = () => {
 
       const w = canvas.width, h = canvas.height;
       
-      // 背景：繪製黑色
+      // 1. Background
       ctx.fillStyle = '#020617';
       ctx.fillRect(0, 0, w, h);
 
-      // 簡單的視覺化：文字
+      // Optional: Draw Blurred Cover as Background
+      if (bgImageRef.current) {
+          ctx.save();
+          ctx.globalAlpha = 0.2;
+          ctx.filter = 'blur(20px) grayscale(50%)';
+          // Maintain Aspect Ratio Cover
+          const scale = Math.max(w / bgImageRef.current.width, h / bgImageRef.current.height);
+          const x = (w / 2) - (bgImageRef.current.width / 2) * scale;
+          const y = (h / 2) - (bgImageRef.current.height / 2) * scale;
+          ctx.drawImage(bgImageRef.current, x, y, bgImageRef.current.width * scale, bgImageRef.current.height * scale);
+          ctx.restore();
+      }
+
+      // 2. Lyrics
       const currLine = lyricsArrayRef.current[lineIndex] || "";
       
       ctx.save();
@@ -153,37 +241,56 @@ const Interactive: React.FC = () => {
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
       
-      // 稍微加上一點動態位移模擬呼吸感
+      // Dynamic motion
       const time = Date.now() / 1000;
-      const yOffset = Math.sin(time) * 10;
+      const yOffset = Math.sin(time * 2) * 5;
+      
+      // Shadow for better visibility
+      ctx.shadowColor = 'rgba(0,0,0,0.8)';
+      ctx.shadowBlur = 20;
       
       ctx.fillText(currLine, w/2, h/2 + yOffset);
       ctx.restore();
 
-      // 浮水印
+      // 3. Watermark / UI
       ctx.fillStyle = '#fbbf24'; 
       ctx.font = '700 20px Montserrat'; 
       ctx.textAlign = 'left';
       ctx.fillText(`HANDCRAFTED BY ${user?.name || 'GUEST'} // ${selectedSong.title}`.toUpperCase(), 50, h - 50);
+
+      // Progress bar
+      if (audioRef.current) {
+          const progress = audioRef.current.currentTime / audioRef.current.duration;
+          ctx.fillStyle = 'rgba(255,255,255,0.1)';
+          ctx.fillRect(0, h - 10, w, 10);
+          ctx.fillStyle = '#fbbf24';
+          ctx.fillRect(0, h - 10, w * progress, 10);
+      }
   };
 
   const downloadProductionPackage = () => {
     if (recordedChunksRef.current.length === 0) {
-        alert("未偵測到錄製數據。");
-        return;
+        alert("未偵測到錄製數據 (可能因瀏覽器限制)。無法下載影片，但仍可下載記錄檔。");
+    } else {
+        const mimeType = mediaRecorderRef.current?.mimeType || 'video/webm';
+        const ext = mimeType.includes('mp4') ? 'mp4' : 'webm';
+        const blob = new Blob(recordedChunksRef.current, { type: mimeType });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `WILLWI_HANDCRAFTED_${selectedSong?.title || 'DEMO'}.${ext}`;
+        a.click();
     }
-    const blob = new Blob(recordedChunksRef.current, { type: 'video/webm' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `WILLWI_HANDCRAFTED_${selectedSong?.title || 'DEMO'}.webm`;
-    a.click();
     
     // JSON Archive
     const archiveData = {
         title: selectedSong?.title,
         creator_note: "User Handcrafted Session",
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
+        listener_info: {
+            name: listenerName,
+            id: user?.email || 'anonymous'
+        }
     };
     const jsonBlob = new Blob([JSON.stringify(archiveData, null, 2)], { type: 'application/json' });
     const jsonUrl = URL.createObjectURL(jsonBlob);
@@ -226,7 +333,7 @@ const Interactive: React.FC = () => {
   return (
     <div className="max-w-6xl mx-auto pt-24 px-6 pb-40 min-h-screen flex flex-col items-center">
         
-        {/* TOP NAV FOR INTERACTIVE */}
+        {/* TOP NAV */}
         {mode !== 'menu' && mode !== 'playing' && (
              <button onClick={() => setMode('menu')} className="self-start text-[10px] text-slate-500 hover:text-white uppercase tracking-widest mb-10 transition-colors">
                  ← Back to Menu
@@ -243,7 +350,6 @@ const Interactive: React.FC = () => {
                 </p>
                 
                 <div className="flex flex-col gap-8 w-full max-w-sm">
-                    {/* Path A: The Tool */}
                     <button onClick={() => setMode('intro')} className="group relative w-full py-6 bg-slate-900 border border-white/10 hover:border-brand-gold transition-all overflow-hidden">
                         <div className="relative z-10 flex flex-col items-center">
                             <span className="text-brand-gold font-black text-sm uppercase tracking-[0.3em] mb-2 group-hover:scale-110 transition-transform">Resonance Sync</span>
@@ -252,7 +358,6 @@ const Interactive: React.FC = () => {
                         <div className="absolute inset-0 bg-brand-gold/5 transform scale-x-0 group-hover:scale-x-100 transition-transform origin-left"></div>
                     </button>
 
-                    {/* Path B: Pure Support */}
                     <button onClick={() => setMode('pure-support')} className="group relative w-full py-6 bg-transparent border border-white/10 hover:border-white transition-all">
                         <div className="relative z-10 flex flex-col items-center">
                             <span className="text-white font-black text-sm uppercase tracking-[0.3em] mb-2">Pure Support</span>
@@ -260,7 +365,6 @@ const Interactive: React.FC = () => {
                         </div>
                     </button>
 
-                    {/* Path C: Admin AI (Hidden) */}
                     {isAdmin && (
                         <button onClick={() => setMode('veo-lab')} className="mt-8 py-4 border border-red-900/30 text-red-900 hover:text-red-500 hover:border-red-500 text-[9px] font-black uppercase tracking-[0.3em] transition-all">
                             [ADMIN] AI Video Lab
@@ -270,7 +374,7 @@ const Interactive: React.FC = () => {
             </div>
         )}
 
-        {/* --- MODE: INTRO (MODULE 1 & 2) --- */}
+        {/* --- MODE: INTRO --- */}
         {mode === 'intro' && (
             <div className="max-w-2xl w-full text-center animate-fade-in space-y-12">
                 <div>
@@ -302,10 +406,9 @@ const Interactive: React.FC = () => {
             </div>
         )}
 
-        {/* --- MODE: GATE (PAYMENT) --- */}
+        {/* --- MODE: GATE --- */}
         {mode === 'gate' && (
             <div className="max-w-4xl w-full flex flex-col md:flex-row bg-slate-900 border border-white/10 shadow-2xl animate-fade-in">
-                {/* Left: QR */}
                 <div className="w-full md:w-1/2 bg-white p-12 flex flex-col items-center justify-center text-slate-900">
                     <h3 className="text-xl font-black uppercase tracking-tighter mb-2">Access Ticket</h3>
                     <p className="text-[10px] font-bold uppercase tracking-[0.3em] text-slate-400 mb-8">Single Session</p>
@@ -317,8 +420,6 @@ const Interactive: React.FC = () => {
                         <span className="block text-4xl font-black tracking-tighter mt-1">NT$ 320</span>
                     </div>
                 </div>
-                
-                {/* Right: Input */}
                 <div className="w-full md:w-1/2 bg-slate-950 p-12 flex flex-col justify-center">
                     <h4 className="text-white font-black uppercase tracking-[0.2em] mb-6">Enter Access Code</h4>
                     <p className="text-[10px] text-slate-500 leading-loose mb-8">
@@ -342,7 +443,7 @@ const Interactive: React.FC = () => {
             </div>
         )}
 
-        {/* --- MODE: STUDIO WELCOME (MODULE 3) --- */}
+        {/* --- MODE: STUDIO WELCOME --- */}
         {mode === 'studio-welcome' && (
             <div className="max-w-2xl w-full text-center animate-fade-in py-20">
                 <div className="mb-12">
@@ -361,7 +462,7 @@ const Interactive: React.FC = () => {
             </div>
         )}
 
-        {/* --- MODE: SELECT (MODULE 4) --- */}
+        {/* --- MODE: SELECT --- */}
         {mode === 'select' && (
             <div className="w-full animate-fade-in">
                 <h3 className="text-center text-sm font-black text-brand-gold uppercase tracking-[0.4em] mb-12">Select Material</h3>
@@ -378,17 +479,13 @@ const Interactive: React.FC = () => {
                         </div>
                     ))}
                 </div>
-                <p className="text-center text-[10px] text-slate-600 mt-12 uppercase tracking-widest">
-                    選擇這首歌後，系統將載入對應的音檔與歌詞，作為本次創作練習的素材。
-                </p>
             </div>
         )}
 
-        {/* --- MODE: TOOL START (MODULE 5 & 6) --- */}
+        {/* --- MODE: TOOL START --- */}
         {mode === 'tool-start' && selectedSong && (
             <div className="max-w-4xl w-full flex flex-col items-center animate-fade-in">
                 <div className="w-full aspect-video bg-black border border-white/10 mb-8 relative flex items-center justify-center overflow-hidden">
-                    {/* Preview Canvas (Static) */}
                     <div className="absolute inset-0 opacity-30 bg-cover bg-center grayscale" style={{backgroundImage: `url(${selectedSong.coverUrl})`}}></div>
                     <div className="relative z-10 text-center space-y-6 bg-black/80 p-12 backdrop-blur-sm border border-white/10">
                         <h3 className="text-xl font-black text-white uppercase tracking-[0.3em]">準備開始你的創作</h3>
@@ -422,8 +519,24 @@ const Interactive: React.FC = () => {
                         </button>
                     </div>
                 </div>
-
-                {/* Hidden Elements for Logic */}
+                
+                {/* Audio with KEY to force re-mount on song change and ensure clean state */}
+                {selectedSong.audioUrl && (
+                    <audio 
+                        ref={audioRef} 
+                        src={selectedSong.audioUrl} 
+                        crossOrigin="anonymous" 
+                        key={selectedSong.id} 
+                        className="hidden" 
+                        onEnded={() => {
+                            if (mediaRecorderRef.current?.state === 'recording') {
+                                mediaRecorderRef.current.stop();
+                            } else if (mode === 'playing') {
+                                setMode('finished');
+                            }
+                        }}
+                    />
+                )}
                 <canvas ref={canvasRef} width={1280} height={720} className="hidden" />
             </div>
         )}
@@ -443,11 +556,10 @@ const Interactive: React.FC = () => {
                      <p className="text-brand-gold text-xs font-black uppercase tracking-[0.5em] animate-pulse">Recording Session Active</p>
                      <p className="text-slate-600 text-[10px] mt-2 uppercase tracking-widest">Listening: {selectedSong?.title}</p>
                  </div>
-                 {selectedSong?.audioUrl && <audio ref={audioRef} src={selectedSong.audioUrl} className="hidden" />}
             </div>
         )}
 
-        {/* --- MODE: FINISHED (MODULE 7 & 8) --- */}
+        {/* --- MODE: FINISHED --- */}
         {mode === 'finished' && (
             <div className="max-w-2xl w-full text-center animate-fade-in py-12">
                 <h2 className="text-4xl font-black text-white uppercase tracking-tighter mb-4">創作完成</h2>
@@ -521,7 +633,7 @@ const Interactive: React.FC = () => {
             </div>
         )}
 
-        {/* --- MODE: VEO LAB (ADMIN ONLY) --- */}
+        {/* --- MODE: VEO LAB --- */}
         {isAdmin && mode === 'veo-lab' && (
              <div className="flex flex-col items-center w-full max-w-3xl mx-auto animate-fade-in">
                 {!isVeoUnlocked ? (
