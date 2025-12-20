@@ -95,32 +95,68 @@ const AdminDashboard: React.FC = () => {
   const handleImportFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
       const file = e.target.files?.[0];
       if (!file) return;
+      
       setIsProcessing(true);
       const reader = new FileReader();
+      
       reader.onload = async (event) => {
           try {
-            const data = JSON.parse(event.target?.result as string);
-            // Handle Interactive Studio Sync JSON (PROD- ID)
+            const jsonStr = event.target?.result as string;
+            if (!jsonStr) throw new Error("Empty file content");
+
+            const data = JSON.parse(jsonStr);
+            
+            // Scenario 1: Interactive Studio Archive (Single Object Sync)
+            // This allows merging user-generated content back into the official song record
             if (data.id && (data.id.startsWith('PROD-') || data.id.startsWith('archive-'))) {
                 const existing = songs.find(s => s.title === data.title);
                 if (existing) {
                     if (window.confirm(`檢測到聽眾對《${data.title}》的參與數據，是否合併至現有作品？`)) {
                         await updateSong(existing.id, {
-                            description: data.description, 
+                            description: data.description || existing.description, 
                             credits: `${existing.credits || ''}\n[聽眾參與: ${data.listener_info?.name || '匿名'}]`
                         });
                         alert("聽眾數據同步成功！");
                     }
+                } else {
+                    alert("找不到對應歌曲，無法同步。");
                 }
-            } else if (Array.isArray(data)) {
-                if (window.confirm("偵測到完整備份檔，這將會清空目前所有資料。確定嗎？")) {
+            } 
+            // Scenario 2: Full Database Backup (Array of Songs)
+            else if (Array.isArray(data)) {
+                // VALIDATION: Check if items look like valid Song objects
+                const isValidBackup = data.length > 0 && data.every((item: any) => 
+                    typeof item === 'object' && 
+                    'id' in item && 
+                    'title' in item
+                );
+
+                if (!isValidBackup) {
+                    alert("錯誤：檔案格式不符。請確認這是 Willwi DB 的標準備份檔 (JSON Array of Songs)。");
+                    return;
+                }
+
+                // CONFIRMATION: Critical destructive action warning
+                const confirmMsg = `【危險操作】\n\n即將匯入 ${data.length} 筆作品資料。\n這將會「清空並覆寫」目前的資料庫。\n\n確定要執行嗎？`;
+                
+                if (window.confirm(confirmMsg)) {
                     await dbService.clearAllSongs();
                     await dbService.bulkAdd(data);
+                    alert("資料庫還原成功！頁面將重新載入。");
                     window.location.reload();
                 }
+            } else {
+                alert("無法識別的 JSON 格式。");
             }
-          } catch (e) { alert("讀取同步檔失敗。"); }
-          finally { setIsProcessing(false); }
+          } catch (e) { 
+            console.error(e);
+            alert("讀取或是解析檔案失敗 (JSON Parse Error)。"); 
+          }
+          finally { 
+              setIsProcessing(false); 
+              // Reset input
+              if (fileInputRef.current) fileInputRef.current.value = '';
+          }
       };
       reader.readAsText(file);
   };
