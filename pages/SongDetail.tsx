@@ -6,12 +6,18 @@ import { generateMusicCritique } from '../services/geminiService';
 import { useTranslation } from '../context/LanguageContext';
 import { useUser } from '../context/UserContext';
 
-// Helper to convert Google Drive share links to direct audio stream links
-const convertDriveLink = (url: string) => {
+// SMART LINK CONVERTER (Duplicated logic for detail view safety)
+const convertToDirectStream = (url: string) => {
     try {
+        if (!url) return '';
+        // Google Drive
         if (url.includes('drive.google.com') && url.includes('/file/d/')) {
             const id = url.split('/file/d/')[1].split('/')[0];
             return `https://docs.google.com/uc?export=download&id=${id}`;
+        }
+        // Dropbox
+        if (url.includes('dropbox.com')) {
+            return url.replace('dl=0', 'raw=1');
         }
         return url;
     } catch (e) { return url; }
@@ -58,10 +64,10 @@ const SongDetail: React.FC = () => {
   const handleSave = async () => {
     if (song && id) {
       setIsSaving(true);
-      // Auto-convert Google Drive links before saving
+      // Auto-convert Google Drive/Dropbox links one last time before saving
       const finalForm = { ...editForm };
       if (finalForm.audioUrl) {
-          finalForm.audioUrl = convertDriveLink(finalForm.audioUrl);
+          finalForm.audioUrl = convertToDirectStream(finalForm.audioUrl);
       }
       
       if (await updateSong(id, finalForm)) { 
@@ -134,16 +140,48 @@ const SongDetail: React.FC = () => {
                                     </div>
                                 )}
                                 
-                                {song.youtubeUrl && (
-                                    <a 
-                                        href={song.youtubeUrl}
-                                        target="_blank" 
-                                        rel="noopener noreferrer"
-                                        className="w-full py-4 border border-red-600/30 text-red-500 hover:bg-red-600 hover:text-white font-black uppercase tracking-[0.2em] text-xs transition-all text-center flex items-center justify-center gap-2"
-                                    >
-                                        <span>▶ Watch on YouTube</span>
-                                    </a>
-                                )}
+                                {/* OFFICIAL STREAMING LINKS (Spotify Player & Buttons) */}
+                                <div className="grid grid-cols-1 gap-3 mt-2">
+                                    {/* Spotify Embed Player - Restored for Owner Verification */}
+                                    {spotifyEmbedId && !isEditing && (
+                                        <div className="w-full rounded overflow-hidden shadow-lg border border-[#1DB954]/30">
+                                            <iframe 
+                                                src={`https://open.spotify.com/embed/track/${spotifyEmbedId}?utm_source=generator&theme=0`} 
+                                                width="100%" 
+                                                height="80" 
+                                                frameBorder="0" 
+                                                allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture" 
+                                                loading="lazy"
+                                                title="Spotify Player"
+                                                className="bg-[#282828]"
+                                            ></iframe>
+                                        </div>
+                                    )}
+
+                                    {song.spotifyLink && !isEditing && (
+                                        <a 
+                                            href={song.spotifyLink}
+                                            target="_blank" 
+                                            rel="noopener noreferrer"
+                                            className="w-full py-3 bg-[#1DB954] text-black font-black uppercase tracking-[0.2em] text-xs transition-all text-center flex items-center justify-center gap-2 hover:brightness-110"
+                                        >
+                                            <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.66 0 12 0zm5.521 17.34c-.24.359-.66.48-1.021.24-2.82-1.74-6.36-2.101-10.561-1.141-.418.122-.779-.179-.899-.539-.12-.421.18-.78.54-.9 4.56-1.021 8.52-.6 11.64 1.32.42.18.479.659.301 1.02zm1.44-3.3c-.301.42-.841.6-1.262.3-3.239-1.98-8.159-2.58-11.939-1.38-.479.12-1.02-.12-1.14-.6-.12-.48.12-1.021.6-1.141C9.6 9.9 15 10.561 18.72 12.84c.361.181.54.78.241 1.2zm.12-3.36C15.24 8.4 8.82 8.16 5.16 9.301c-.6.179-1.2-.181-1.38-.721-.18-.601.18-1.2.72-1.381 4.26-1.26 11.28-1.02 15.721 1.621.539.3.719 1.02.419 1.56-.299.421-1.02.599-1.559.299z"/></svg>
+                                            <span>Open in App</span>
+                                        </a>
+                                    )}
+                                    
+                                    {song.youtubeUrl && !isEditing && (
+                                        <a 
+                                            href={song.youtubeUrl}
+                                            target="_blank" 
+                                            rel="noopener noreferrer"
+                                            className="w-full py-3 bg-[#FF0000] text-white font-black uppercase tracking-[0.2em] text-xs transition-all text-center flex items-center justify-center gap-2 hover:brightness-110"
+                                        >
+                                            <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M19.615 3.184c-3.604-.246-11.631-.245-15.23 0-3.897.266-4.356 2.62-4.385 8.816.029 6.185.484 8.549 4.385 8.816 3.6.245 11.626.246 15.23 0 3.897-.266 4.356-2.62 4.385-8.816-.029-6.185-.484-8.549-4.385-8.816zm-10.615 12.816v-8l8 3.993-8 4.007z"/></svg>
+                                            <span>Watch on YouTube</span>
+                                        </a>
+                                    )}
+                                </div>
                             </div>
 
                             {/* ADMIN CONTROL PANEL */}
@@ -167,13 +205,14 @@ const SongDetail: React.FC = () => {
 
                                         {song.audioUrl ? (
                                             <div>
-                                                <p className="text-[9px] text-slate-500 font-bold uppercase tracking-widest mb-1">Raw Source Audio (Admin Only)</p>
+                                                <p className="text-[9px] text-slate-500 font-bold uppercase tracking-widest mb-1">Raw Source Audio (Video Gen)</p>
                                                 <audio controls src={song.audioUrl} className="w-full h-8 block rounded bg-slate-800" />
+                                                <p className="text-[8px] text-slate-600 mt-1">* 僅供互動影片生成使用 (Private)</p>
                                             </div>
                                         ) : (
                                             <div className="bg-red-900/20 border border-red-900/50 p-3">
-                                                <p className="text-[9px] text-red-500 font-bold uppercase tracking-widest">MISSING AUDIO</p>
-                                                <p className="text-[9px] text-slate-400 mt-1">無法啟用互動。請先編輯並填入連結。</p>
+                                                <p className="text-[9px] text-red-500 font-bold uppercase tracking-widest">MISSING RAW AUDIO</p>
+                                                <p className="text-[9px] text-slate-400 mt-1">無法啟用互動功能。請填入 Dropbox 連結。</p>
                                             </div>
                                         )}
                                     </div>
@@ -183,23 +222,29 @@ const SongDetail: React.FC = () => {
                             {isEditing && (
                                 <div className="mt-6 space-y-4 bg-slate-800/50 p-4 border border-white/10">
                                     <div className="space-y-2">
-                                        <label className="text-[10px] text-brand-gold font-bold uppercase tracking-widest block">Audio Source URL (Fix Missing Audio)</label>
+                                        <label className="text-[10px] text-brand-gold font-bold uppercase tracking-widest block">Audio Source URL (For Video Gen)</label>
                                         <input 
                                             className="w-full bg-black border border-white/10 p-3 text-white text-xs font-mono focus:border-brand-gold outline-none" 
                                             value={editForm.audioUrl || ''} 
-                                            onChange={e => setEditForm({...editForm, audioUrl: e.target.value})} 
-                                            placeholder="Paste direct MP3 link or Google Drive Share Link here..." 
+                                            onChange={e => {
+                                                // Instant Convert on input
+                                                const val = e.target.value;
+                                                const converted = convertToDirectStream(val);
+                                                setEditForm({...editForm, audioUrl: converted});
+                                            }} 
+                                            placeholder="Paste Dropbox or Google Drive Share Link here..." 
                                         />
                                         <p className="text-[9px] text-slate-400">
-                                            * Tip: 您可以直接貼上 <strong>Google Drive 分享連結</strong>，系統存檔時會自動轉換為可播放格式。
+                                            * 用途：此為「互動實驗室」生成 MP4 影片專用 (Private Use Only)。<br/>
+                                            * 支援 Dropbox/Google Drive 分享連結。
                                         </p>
                                     </div>
                                     <div className="space-y-1">
-                                        <label className="text-[10px] text-slate-500 font-bold uppercase tracking-widest block">Spotify Link</label>
+                                        <label className="text-[10px] text-slate-500 font-bold uppercase tracking-widest block">Spotify Link (Embedding)</label>
                                         <input className="w-full bg-black border border-white/10 p-3 text-white text-xs font-mono" value={editForm.spotifyLink || ''} onChange={e => setEditForm({...editForm, spotifyLink: e.target.value})} placeholder="https://open.spotify.com/..." />
                                     </div>
                                     <div className="space-y-1">
-                                        <label className="text-[10px] text-slate-500 font-bold uppercase tracking-widest block">YouTube URL (For Public Listening)</label>
+                                        <label className="text-[10px] text-slate-500 font-bold uppercase tracking-widest block">YouTube URL</label>
                                         <input className="w-full bg-black border border-white/10 p-3 text-white text-xs font-mono" value={editForm.youtubeUrl || ''} onChange={e => setEditForm({...editForm, youtubeUrl: e.target.value})} placeholder="https://youtube.com/..." />
                                     </div>
                                 </div>

@@ -48,6 +48,11 @@ const Interactive: React.FC = () => {
   const recordedChunksRef = useRef<Blob[]>([]);
   const lyricsArrayRef = useRef<string[]>([]);
   
+  // Synchronization & Animation Refs
+  const lastActionTimeRef = useRef<number>(0); // Timestamp of last user interaction (for visual pop)
+  const syncDataRef = useRef<{time: number, lineIndex: number}[]>([]); // Stores precise timing data
+  const lastClickTimeRef = useRef<number>(0); // For debounce
+  
   // Audio Context Refs (For mixing audio into video)
   const audioContextRef = useRef<AudioContext | null>(null);
   const audioSourceRef = useRef<MediaElementAudioSourceNode | null>(null);
@@ -191,6 +196,8 @@ const Interactive: React.FC = () => {
         const recorder = new MediaRecorder(combinedStream, options);
         
         recordedChunksRef.current = [];
+        syncDataRef.current = []; // Reset sync data
+        
         recorder.ondataavailable = e => {
             if (e.data.size > 0) recordedChunksRef.current.push(e.data);
         };
@@ -203,6 +210,9 @@ const Interactive: React.FC = () => {
         // 4. Start
         setMode('playing');
         setLineIndex(0); // Start at [ READY ]
+        
+        // Initial Impulse
+        lastActionTimeRef.current = performance.now();
         
         recorder.start();
         mediaRecorderRef.current = recorder;
@@ -222,6 +232,22 @@ const Interactive: React.FC = () => {
 
   const handleLineClick = () => {
       if (mode === 'playing') {
+          // Debounce check (100ms) to prevent double taps
+          const now = Date.now();
+          if (now - lastClickTimeRef.current < 100) return;
+          lastClickTimeRef.current = now;
+
+          // Record timestamp for precision analysis later
+          if (audioRef.current) {
+              syncDataRef.current.push({
+                  time: audioRef.current.currentTime,
+                  lineIndex: lineIndex + 1
+              });
+          }
+
+          // Trigger Visual Impulse (Pop Effect)
+          lastActionTimeRef.current = performance.now();
+
           // Advance lyric
           setLineIndex(prev => {
               // Don't go past the end
@@ -281,6 +307,20 @@ const Interactive: React.FC = () => {
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
 
+      // Impulse Logic (The "Pop" Effect)
+      // Calculates a scale factor based on how recently the user tapped
+      const timeSinceAction = performance.now() - lastActionTimeRef.current;
+      const impulseDuration = 300; // Animation duration in ms
+      let scaleMultiplier = 1.0;
+      
+      if (timeSinceAction < impulseDuration) {
+          // Easing function for a "pop" effect (Ease Out Quint)
+          const t = timeSinceAction / impulseDuration;
+          const factor = 1 - Math.pow(1 - t, 5); 
+          // Scale goes from 1.15 down to 1.0
+          scaleMultiplier = 1.0 + (0.15 * (1 - factor));
+      }
+
       // -- Previous Line --
       if (lineIndex > 0) {
           ctx.save();
@@ -292,16 +332,22 @@ const Interactive: React.FC = () => {
           ctx.restore();
       }
 
-      // -- Current Line --
+      // -- Current Line (With Impulse Animation) --
       ctx.save();
       const currText = lyricsArrayRef.current[lineIndex] || "";
-      ctx.shadowColor = 'rgba(0,0,0,0.8)';
-      ctx.shadowBlur = 20;
+      
+      // Add a subtle glow that pulses with the beat/interaction
+      const glowStrength = (scaleMultiplier - 1.0) * 100; // 0 to 15
+      ctx.shadowColor = `rgba(255, 255, 255, ${0.5 + (glowStrength/30)})`;
+      ctx.shadowBlur = 20 + glowStrength;
+      
       ctx.fillStyle = '#ffffff';
       
-      // Dynamic scaling for current line based on length
-      const fontSize = currText.length > 20 ? 48 : 60;
-      ctx.font = `900 ${fontSize}px Montserrat`;
+      // Dynamic scaling for current line based on length AND impulse
+      const baseFontSize = currText.length > 20 ? 48 : 60;
+      const finalFontSize = baseFontSize * scaleMultiplier;
+      
+      ctx.font = `900 ${finalFontSize}px Montserrat`;
       
       ctx.fillText(currText, w/2, centerY);
       ctx.restore();
@@ -374,12 +420,18 @@ const Interactive: React.FC = () => {
   };
 
   const downloadCertificate = () => {
+    // Include Sync Data in the archive
     const archiveData = {
         title: selectedSong?.title,
         creator: listenerName || "Anonymous",
         timestamp: new Date().toISOString(),
         note: "This document certifies that the user has completed a handcrafted lyric synchronization session on Willwi DB.",
-        platform: "Willwi Official Interactive Platform"
+        platform: "Willwi Official Interactive Platform",
+        syncStats: {
+            totalLines: lyricsArrayRef.current.length,
+            duration: audioRef.current?.duration || 0,
+            tapEvents: syncDataRef.current
+        }
     };
     const jsonBlob = new Blob([JSON.stringify(archiveData, null, 2)], { type: 'application/json' });
     const jsonUrl = URL.createObjectURL(jsonBlob);

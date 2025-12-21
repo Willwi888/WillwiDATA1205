@@ -7,23 +7,23 @@ import { getWillwiReleases, getCoverArtUrl, getReleaseGroupDetails, MBReleaseGro
 import { useTranslation } from '../context/LanguageContext';
 import { useUser } from '../context/UserContext';
 
-const cleanGoogleRedirect = (url: string) => {
+// SMART LINK CONVERTER
+const convertToDirectStream = (url: string) => {
     try {
-        if (url.includes('google.com/url')) {
-            const urlObj = new URL(url);
-            const q = urlObj.searchParams.get('q');
-            if (q) return decodeURIComponent(q);
-        }
-        return url;
-    } catch (e) { return url; }
-};
-
-const convertDriveLink = (url: string) => {
-    try {
+        if (!url) return '';
+        
+        // 1. Google Drive (Share Link -> Export Link)
         if (url.includes('drive.google.com') && url.includes('/file/d/')) {
             const id = url.split('/file/d/')[1].split('/')[0];
             return `https://docs.google.com/uc?export=download&id=${id}`;
         }
+        
+        // 2. Dropbox (Share Link -> Raw Link)
+        // Changes 'dl=0' to 'raw=1' for direct streaming
+        if (url.includes('dropbox.com')) {
+            return url.replace('dl=0', 'raw=1');
+        }
+
         return url;
     } catch (e) { return url; }
 };
@@ -123,8 +123,10 @@ const AddSong: React.FC = () => {
       setFormData(prev => ({ ...prev, [name]: checked }));
     } else {
       let finalValue = value;
-      if (name === 'coverUrl') finalValue = cleanGoogleRedirect(value);
-      if (name === 'audioUrl' && value.includes('drive.google.com')) finalValue = convertDriveLink(value);
+      // Auto-convert Audio URL immediately on change/paste
+      if (name === 'audioUrl') {
+          finalValue = convertToDirectStream(value);
+      }
       setFormData(prev => ({ ...prev, [name]: finalValue }));
     }
   };
@@ -168,7 +170,9 @@ const AddSong: React.FC = () => {
         spotifyId: track.id,
         spotifyLink: track.external_urls.spotify,
         releaseCategory: ReleaseCategory.Single,
-        releaseCompany: 'Willwi Music'
+        releaseCompany: 'Willwi Music',
+        // Try to use preview_url as fallback if available, though strict interactive needs full song
+        audioUrl: track.preview_url || prev.audioUrl
     }));
     setTrackResults([]);
   };
@@ -380,10 +384,18 @@ const AddSong: React.FC = () => {
         </div>
 
         <div className="space-y-2">
-             <label className="text-[10px] text-slate-500 font-black uppercase tracking-widest">Media Links (Audio Source is Priority)</label>
+             <label className="text-[10px] text-brand-gold font-black uppercase tracking-widest">
+                 Audio Source URL (MP3/WAV/AAC)
+             </label>
              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                    <input name="audioUrl" className="w-full bg-slate-900 border border-white/10 px-4 py-3 text-white text-xs focus:border-brand-accent outline-none font-mono" value={formData.audioUrl} onChange={handleChange} placeholder="Audio Source URL (MP3/Drive)" />
+                    <input 
+                        name="audioUrl" 
+                        className="w-full bg-slate-800 border border-brand-gold/30 px-4 py-3 text-brand-gold text-xs focus:border-brand-gold outline-none font-mono placeholder-slate-600" 
+                        value={formData.audioUrl} 
+                        onChange={handleChange} 
+                        placeholder="Paste Google Drive or Dropbox Share Link here..." 
+                    />
                     {formData.audioUrl && (
                         <div className="bg-black/50 p-2 border border-white/10 flex items-center gap-2">
                             <span className="text-[9px] text-brand-gold font-bold uppercase tracking-widest">Verify Source:</span>
@@ -394,6 +406,9 @@ const AddSong: React.FC = () => {
                 <input name="youtubeUrl" className="bg-slate-900 border border-white/10 px-4 py-3 text-white text-xs focus:border-brand-accent outline-none font-mono h-[42px]" value={formData.youtubeUrl} onChange={handleChange} placeholder="YouTube URL (Public)" />
                 <input name="spotifyLink" className="bg-slate-900 border border-white/10 px-4 py-3 text-white text-xs focus:border-brand-accent outline-none font-mono h-[42px]" value={formData.spotifyLink} onChange={handleChange} placeholder="Spotify URL" />
              </div>
+             <p className="text-[9px] text-slate-400 mt-1">
+                 * 智慧轉換：支援 <strong>Dropbox (dl=0)</strong> 與 <strong>Google Drive</strong> 分享連結，貼上後系統自動修正為串流格式。
+             </p>
         </div>
         
         <div className="space-y-2">
