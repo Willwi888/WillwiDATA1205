@@ -6,11 +6,16 @@ import { dbService } from '../services/db';
 import { Song, Language, ProjectType } from '../types';
 import { searchSpotifyTracks, SpotifyTrack } from '../services/spotifyService';
 
+type Tab = 'dashboard' | 'catalog' | 'import' | 'settings';
+
 const AdminDashboard: React.FC = () => {
   const { songs, updateSong, addSong, deleteSong } = useData();
   const { isAdmin, enableAdmin, logoutAdmin, getAllUsers, getAllTransactions } = useUser();
   const navigate = useNavigate();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  
+  // UI State
+  const [activeTab, setActiveTab] = useState<Tab>('dashboard');
   const [isProcessing, setIsProcessing] = useState(false);
   const [passwordInput, setPasswordInput] = useState('');
   const [loginError, setLoginError] = useState('');
@@ -26,6 +31,9 @@ const AdminDashboard: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [isSearching, setIsSearching] = useState(false);
   const [trackResults, setTrackResults] = useState<SpotifyTrack[]>([]);
+
+  // Catalog Filter
+  const [catalogFilter, setCatalogFilter] = useState('');
 
   // Global Brand Configuration
   const [platformConfig, setPlatformConfig] = useState({
@@ -65,7 +73,7 @@ const AdminDashboard: React.FC = () => {
           upc: track.album.external_ids?.upc,
           spotifyLink: track.external_urls.spotify,
           isEditorPick: false,
-          isInteractiveActive: false, // Default to false
+          isInteractiveActive: false,
           youtubeUrl: '',
           audioUrl: ''
       };
@@ -73,6 +81,7 @@ const AdminDashboard: React.FC = () => {
           alert(`《${track.name}》已同步至作品庫。`);
           setTrackResults([]);
           setSearchQuery('');
+          setActiveTab('catalog'); // Switch to catalog to see result
       }
   };
 
@@ -126,27 +135,9 @@ const AdminDashboard: React.FC = () => {
 
             const data = JSON.parse(jsonStr);
             
-            // Scenario 1: Interactive Studio Archive (Single Object Sync)
-            if (data.id && (data.id.startsWith('PROD-') || data.id.startsWith('archive-'))) {
-                const existing = songs.find(s => s.title === data.title);
-                if (existing) {
-                    if (window.confirm(`檢測到聽眾對《${data.title}》的參與數據，是否合併至現有作品？`)) {
-                        await updateSong(existing.id, {
-                            description: data.description || existing.description, 
-                            credits: `${existing.credits || ''}\n[聽眾參與: ${data.listener_info?.name || '匿名'}]`
-                        });
-                        alert("聽眾數據同步成功！(User Session Merged)");
-                    }
-                } else {
-                    alert("找不到對應歌曲，無法同步。");
-                }
-            } 
-            // Scenario 2: Full Database Backup (Array of Songs)
-            else if (Array.isArray(data)) {
+            if (Array.isArray(data)) {
                 const isValidBackup = data.length > 0 && data.every((item: any) => 
-                    typeof item === 'object' && 
-                    'id' in item && 
-                    'title' in item
+                    typeof item === 'object' && 'id' in item && 'title' in item
                 );
 
                 if (!isValidBackup) {
@@ -154,9 +145,7 @@ const AdminDashboard: React.FC = () => {
                     return;
                 }
 
-                const confirmMsg = `【危險操作】\n\n即將匯入 ${data.length} 筆作品資料。\n這將會「清空並覆寫」目前的資料庫。\n\n確定要執行嗎？`;
-                
-                if (window.confirm(confirmMsg)) {
+                if (window.confirm(`【危險操作】\n\n即將匯入 ${data.length} 筆作品資料。\n這將會「清空並覆寫」目前的資料庫。\n\n確定要執行嗎？`)) {
                     await dbService.clearAllSongs();
                     await dbService.bulkAdd(data);
                     alert("資料庫還原成功！頁面將重新載入。");
@@ -177,21 +166,6 @@ const AdminDashboard: React.FC = () => {
       reader.readAsText(file);
   };
 
-  // Helper to extract Spotify ID for embedding
-  const getSpotifyEmbedId = (link?: string, id?: string) => {
-      if (id) return id;
-      if (!link) return null;
-      try {
-          const url = new URL(link);
-          const parts = url.pathname.split('/');
-          const trackIndex = parts.indexOf('track');
-          if (trackIndex !== -1 && parts[trackIndex + 1]) {
-              return parts[trackIndex + 1];
-          }
-      } catch (e) { return null; }
-      return null;
-  };
-
   if (!isAdmin) {
       return (
           <div className="min-h-[60vh] flex items-center justify-center px-4">
@@ -207,183 +181,266 @@ const AdminDashboard: React.FC = () => {
       );
   }
 
+  const filteredSongs = songs.filter(s => 
+      s.title.toLowerCase().includes(catalogFilter.toLowerCase()) || 
+      (s.isrc && s.isrc.includes(catalogFilter))
+  );
+
   return (
     <div className="max-w-7xl mx-auto px-6 py-12 animate-fade-in pb-40">
-      <div className="flex justify-between items-center mb-12 border-b border-white/5 pb-8">
+      
+      {/* HEADER */}
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-10 gap-4">
           <div>
-            <h1 className="text-4xl font-black text-white uppercase tracking-tighter">Command Center</h1>
-            <p className="text-slate-500 text-[10px] font-bold uppercase tracking-[0.4em] mt-2">Manage Assets & Financials</p>
+            <h1 className="text-4xl font-black text-white uppercase tracking-tighter">Admin Console</h1>
+            <p className="text-slate-500 text-[10px] font-bold uppercase tracking-[0.4em] mt-2">Willwi Music Database Manager</p>
           </div>
-          <button onClick={logoutAdmin} className="text-[10px] font-bold text-red-500 border border-red-900/40 px-6 py-2 hover:bg-red-500 hover:text-white transition-all uppercase tracking-widest">
-              Log Out / 登出
-          </button>
+          <div className="flex gap-4">
+            <button onClick={() => navigate('/add')} className="px-6 py-3 bg-brand-accent text-slate-950 text-[10px] font-black uppercase tracking-widest rounded hover:bg-white transition-all">
+                + New Song
+            </button>
+            <button onClick={logoutAdmin} className="px-6 py-3 border border-red-900/40 text-red-500 text-[10px] font-black uppercase tracking-widest rounded hover:bg-red-900/20 transition-all">
+                Log Out
+            </button>
+          </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
-        
-        {/* LEFT COLUMN: STATS & TOOLS */}
-        <div className="lg:col-span-4 space-y-10">
-            {/* FINANCIAL STATS */}
-            <div className="bg-slate-900 border border-white/10 rounded-xl overflow-hidden shadow-2xl">
-                 <div className="bg-white/5 px-8 py-6 border-b border-white/5">
-                     <h2 className="text-xs font-black text-brand-gold uppercase tracking-[0.3em]">Performance Data</h2>
-                 </div>
-                 <div className="p-8 grid grid-cols-1 gap-8">
-                      <div>
-                          <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest mb-1">Total Participants / 總參與人數</p>
-                          <p className="text-4xl font-black text-white font-mono">{stats.totalUsers}</p>
-                      </div>
-                      <div className="grid grid-cols-2 gap-4 pt-6 border-t border-white/5">
-                          <div>
-                              <p className="text-[9px] text-slate-500 font-bold uppercase tracking-widest mb-1">Donation (Thermal)</p>
-                              <p className="text-xl font-black text-white font-mono">NT$ {stats.incomeDonation.toLocaleString()}</p>
-                          </div>
-                          <div>
-                              <p className="text-[9px] text-slate-500 font-bold uppercase tracking-widest mb-1">Production (Lyrics)</p>
-                              <p className="text-xl font-black text-brand-accent font-mono">NT$ {stats.incomeProduction.toLocaleString()}</p>
-                          </div>
-                      </div>
-                      <div className="pt-6 border-t border-white/5">
-                           <p className="text-[9px] text-slate-500 font-bold uppercase tracking-widest mb-1">Total Revenue</p>
-                           <p className="text-2xl font-black text-white font-mono">NT$ {(stats.incomeDonation + stats.incomeProduction).toLocaleString()}</p>
-                      </div>
-                 </div>
-            </div>
-
-            {/* SEARCH & IMPORT */}
-            <div className="bg-slate-900 p-8 border border-white/10 rounded-xl shadow-2xl">
-                 <h2 className="text-xs font-black text-brand-accent mb-6 uppercase tracking-[0.3em]">作品檢索同步 (Spotify)</h2>
-                 <div className="flex gap-2 mb-6">
-                    <input type="text" placeholder="輸入關鍵字..." className="flex-1 bg-black border border-white/10 rounded px-4 py-3 text-white text-xs outline-none" value={searchQuery} onChange={e => setSearchQuery(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleSearch()} />
-                    <button onClick={handleSearch} className="px-4 py-3 bg-brand-accent text-slate-950 text-[10px] font-black uppercase tracking-widest rounded">{isSearching ? '...' : '搜尋'}</button>
-                 </div>
-                 <div className="space-y-3 max-h-[250px] overflow-y-auto custom-scrollbar pr-2">
-                     {trackResults.map(t => (
-                         <div key={t.id} onClick={() => handleSpotifyImport(t)} className="flex items-center gap-4 p-3 bg-white/5 hover:bg-white/10 border border-white/5 cursor-pointer transition-all rounded">
-                             <img src={t.album.images[2]?.url} className="w-8 h-8 rounded" alt="" />
-                             <div className="flex-1 overflow-hidden">
-                                 <div className="text-white text-[10px] font-bold truncate">{t.name}</div>
-                                 <div className="text-slate-500 text-[9px] truncate">{t.album.name}</div>
-                             </div>
-                             <div className="text-brand-accent text-[8px] font-black">IMPORT</div>
-                         </div>
-                     ))}
-                 </div>
-            </div>
-
-            {/* GLOBAL CONFIG & BACKUP */}
-            <div className="bg-slate-900 p-8 border border-white/5 rounded-xl shadow-2xl">
-                <h2 className="text-xs font-black text-slate-400 mb-8 uppercase tracking-[0.3em]">System Config</h2>
-                <div className="space-y-6">
-                    <div>
-                         <label className="block text-[9px] text-slate-500 mb-2 uppercase font-bold tracking-widest">Home Video ID</label>
-                         <input className="w-full bg-black border border-white/10 p-3 text-white text-xs font-mono" placeholder="YouTube ID" value={platformConfig.youtubeFeaturedUrl} onChange={e => setPlatformConfig({...platformConfig, youtubeFeaturedUrl: e.target.value})} />
-                    </div>
-                    <button onClick={savePlatformConfig} className="w-full py-4 bg-white/10 text-white font-black text-[10px] uppercase tracking-widest hover:bg-white hover:text-black transition-all">
-                        Update Config (更新設定)
-                    </button>
-                    
-                    <div className="pt-6 border-t border-white/10 space-y-4">
-                        <div className="bg-brand-gold/10 p-4 border border-brand-gold/20">
-                            <p className="text-[9px] text-brand-gold mb-3 font-bold uppercase tracking-widest">Database Backup</p>
-                            <button onClick={downloadFullBackup} className="w-full py-3 bg-brand-gold text-slate-900 font-black text-[10px] uppercase tracking-widest hover:bg-white transition-all mb-3">
-                                下載完整備份 (Backup JSON)
-                            </button>
-                            <button onClick={() => fileInputRef.current?.click()} className="w-full py-3 border border-brand-gold/30 text-brand-gold font-black text-[10px] uppercase tracking-widest hover:bg-brand-gold hover:text-black transition-all">
-                                還原資料庫 (Restore DB)
-                            </button>
-                            <input ref={fileInputRef} type="file" className="hidden" accept=".json" onChange={handleImportFile} />
-                        </div>
-                        <div className="text-[9px] text-slate-600 leading-relaxed text-center space-y-1">
-                            <p>⚠️ 上線前建議：</p>
-                            <p>1. 完成所有歌曲資料輸入。</p>
-                            <p>2. 點擊「下載完整備份」保存至您的電腦。</p>
-                            <p>3. 若更換裝置或瀏覽器，可使用還原功能。</p>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        {/* RIGHT COLUMN: CATALOG LIST */}
-        <div className="lg:col-span-8 space-y-10">
-            <div className="bg-slate-900/50 border border-white/5 rounded-xl overflow-hidden shadow-2xl">
-                <div className="px-8 py-6 bg-white/5 border-b border-white/5 flex justify-between items-center">
-                    <h2 className="text-xs font-black text-white uppercase tracking-[0.3em]">Catalog Management</h2>
-                    <span className="text-[10px] text-slate-500 font-mono">TRACKS: {songs.length}</span>
-                </div>
-                <div className="overflow-x-auto">
-                    <table className="w-full text-left border-collapse">
-                        <thead className="bg-white/5">
-                            <tr>
-                                <th className="p-4 text-[9px] font-black text-slate-500 uppercase tracking-widest">Asset</th>
-                                <th className="p-4 text-[9px] font-black text-slate-500 uppercase tracking-widest">Interactive Status</th>
-                                <th className="p-4 text-[9px] font-black text-slate-500 uppercase tracking-widest">Data Status</th>
-                                <th className="p-4 text-[9px] font-black text-slate-500 uppercase tracking-widest text-right">Action</th>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-white/5">
-                            {songs.map(song => {
-                                return (
-                                <tr key={song.id} className="hover:bg-white/5 transition-colors">
-                                    <td className="p-4 flex items-center gap-4 min-w-[200px]">
-                                        <div className="relative w-10 h-10 group cursor-pointer" onClick={() => navigate(`/song/${song.id}`)}>
-                                            <img src={song.coverUrl} className="w-full h-full object-cover border border-white/10" alt="" />
-                                            <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity text-[8px] font-bold">EDIT</div>
-                                        </div>
-                                        <div>
-                                            <div className="text-white text-xs font-bold">{song.title}</div>
-                                            <div className="text-slate-500 text-[9px]">{song.isrc || 'NO_ISRC'}</div>
-                                        </div>
-                                    </td>
-                                    
-                                    {/* INTERACTIVE TOGGLE */}
-                                    <td className="p-4">
-                                        <div className="flex flex-col gap-2">
-                                            <button 
-                                                onClick={() => handleToggleInteractive(song)}
-                                                className={`flex items-center gap-2 px-3 py-1.5 rounded-full border transition-all ${song.isInteractiveActive ? 'bg-emerald-900/30 border-emerald-500/50' : 'bg-slate-800 border-slate-700'}`}
-                                            >
-                                                <div className={`w-2 h-2 rounded-full ${song.isInteractiveActive ? 'bg-emerald-500 animate-pulse' : 'bg-slate-500'}`}></div>
-                                                <span className={`text-[9px] font-bold uppercase tracking-widest ${song.isInteractiveActive ? 'text-emerald-400' : 'text-slate-500'}`}>
-                                                    {song.isInteractiveActive ? 'ACTIVE (開啟)' : 'CLOSED (關閉)'}
-                                                </span>
-                                            </button>
-                                            {song.isInteractiveActive && !song.audioUrl && (
-                                                <span className="text-[8px] text-red-500 font-bold block ml-1">Error: Missing Audio</span>
-                                            )}
-                                        </div>
-                                    </td>
-
-                                    <td className="p-4">
-                                        <div className="flex flex-col gap-1">
-                                            {song.audioUrl ? (
-                                                <span className="text-[9px] text-slate-400 font-mono">Audio: OK</span>
-                                            ) : (
-                                                <span className="text-[9px] text-red-500 font-mono">Audio: MISSING</span>
-                                            )}
-                                            {song.lyrics ? (
-                                                <span className="text-[9px] text-slate-400 font-mono">Lyrics: OK</span>
-                                            ) : (
-                                                <span className="text-[9px] text-slate-600 font-mono">Lyrics: NO</span>
-                                            )}
-                                        </div>
-                                    </td>
-                                    <td className="p-4 text-right">
-                                        <div className="flex justify-end gap-2">
-                                            <button onClick={() => navigate(`/song/${song.id}`)} className="text-[9px] border border-white/10 px-3 py-1 hover:bg-white hover:text-black transition-all font-bold">EDIT</button>
-                                            <button onClick={() => { if(window.confirm('Delete this track?')) deleteSong(song.id); }} className="text-[9px] border border-red-900/30 text-red-500 px-3 py-1 hover:bg-red-500 hover:text-white transition-all font-bold">DEL</button>
-                                        </div>
-                                    </td>
-                                </tr>
-                                )
-                            })}
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
+      {/* TABS NAVIGATION */}
+      <div className="flex overflow-x-auto border-b border-white/10 mb-10 gap-8">
+          {[
+              { id: 'dashboard', label: 'Dashboard' },
+              { id: 'catalog', label: 'Catalog Manager' },
+              { id: 'import', label: 'Smart Import' },
+              { id: 'settings', label: 'System Settings' }
+          ].map(tab => (
+              <button 
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id as Tab)}
+                  className={`pb-4 text-[10px] font-black uppercase tracking-[0.2em] transition-all border-b-2 whitespace-nowrap ${activeTab === tab.id ? 'border-brand-gold text-white' : 'border-transparent text-slate-500 hover:text-slate-300'}`}
+              >
+                  {tab.label}
+              </button>
+          ))}
       </div>
+
+      {/* --- TAB CONTENT --- */}
+
+      {/* 1. DASHBOARD OVERVIEW */}
+      {activeTab === 'dashboard' && (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 animate-fade-in">
+              <div className="bg-slate-900 border border-white/10 p-8 rounded-xl relative overflow-hidden group">
+                  <div className="absolute right-[-20px] top-[-20px] w-32 h-32 bg-brand-gold/5 rounded-full blur-2xl group-hover:bg-brand-gold/10 transition-all"></div>
+                  <h3 className="text-[10px] text-slate-500 font-bold uppercase tracking-widest mb-2">Total Participants</h3>
+                  <p className="text-5xl font-black text-white font-mono">{stats.totalUsers}</p>
+                  <p className="text-[9px] text-slate-600 mt-4 uppercase tracking-widest">Registered Users</p>
+              </div>
+
+              <div className="bg-slate-900 border border-white/10 p-8 rounded-xl relative overflow-hidden group">
+                  <div className="absolute right-[-20px] top-[-20px] w-32 h-32 bg-brand-accent/5 rounded-full blur-2xl group-hover:bg-brand-accent/10 transition-all"></div>
+                  <h3 className="text-[10px] text-slate-500 font-bold uppercase tracking-widest mb-2">Production Revenue</h3>
+                  <p className="text-5xl font-black text-brand-accent font-mono">NT$ {stats.incomeProduction.toLocaleString()}</p>
+                  <p className="text-[9px] text-slate-600 mt-4 uppercase tracking-widest">Interactive Sessions</p>
+              </div>
+
+              <div className="bg-slate-900 border border-white/10 p-8 rounded-xl relative overflow-hidden group">
+                  <div className="absolute right-[-20px] top-[-20px] w-32 h-32 bg-orange-500/5 rounded-full blur-2xl group-hover:bg-orange-500/10 transition-all"></div>
+                  <h3 className="text-[10px] text-slate-500 font-bold uppercase tracking-widest mb-2">Thermal Support</h3>
+                  <p className="text-5xl font-black text-orange-400 font-mono">NT$ {stats.incomeDonation.toLocaleString()}</p>
+                  <p className="text-[9px] text-slate-600 mt-4 uppercase tracking-widest">Pure Donations</p>
+              </div>
+          </div>
+      )}
+
+      {/* 2. CATALOG MANAGER */}
+      {activeTab === 'catalog' && (
+          <div className="animate-fade-in space-y-6">
+              <div className="flex gap-4">
+                  <input 
+                      type="text" 
+                      placeholder="Filter by Title or ISRC..." 
+                      className="flex-1 bg-slate-900 border border-white/10 px-6 py-4 text-white text-xs outline-none focus:border-white/30 font-mono uppercase" 
+                      value={catalogFilter} 
+                      onChange={e => setCatalogFilter(e.target.value)} 
+                  />
+                  <div className="bg-slate-900 border border-white/10 px-6 py-4 text-white text-xs font-mono uppercase">
+                      Total: {songs.length}
+                  </div>
+              </div>
+
+              <div className="bg-slate-900 border border-white/5 rounded-xl overflow-hidden shadow-2xl">
+                  <table className="w-full text-left border-collapse">
+                      <thead className="bg-black/50 border-b border-white/10">
+                          <tr>
+                              <th className="p-6 text-[9px] font-black text-slate-500 uppercase tracking-widest">Release Info</th>
+                              <th className="p-6 text-[9px] font-black text-slate-500 uppercase tracking-widest text-center">Interactive</th>
+                              <th className="p-6 text-[9px] font-black text-slate-500 uppercase tracking-widest text-center">Assets Check</th>
+                              <th className="p-6 text-[9px] font-black text-slate-500 uppercase tracking-widest text-right">Actions</th>
+                          </tr>
+                      </thead>
+                      <tbody className="divide-y divide-white/5">
+                          {filteredSongs.map(song => (
+                              <tr key={song.id} className="hover:bg-white/[0.02] transition-colors group">
+                                  <td className="p-6">
+                                      <div className="flex items-center gap-6">
+                                          <div className="w-16 h-16 bg-slate-800 flex-shrink-0 relative overflow-hidden rounded shadow-lg border border-white/5 group-hover:border-white/20 transition-all">
+                                              <img src={song.coverUrl} className="w-full h-full object-cover" alt="" />
+                                          </div>
+                                          <div>
+                                              <div className="text-white font-black text-sm mb-1">{song.title}</div>
+                                              <div className="flex flex-col gap-0.5">
+                                                  <span className="text-[9px] text-slate-500 font-mono tracking-wider">{song.isrc || 'NO ISRC'}</span>
+                                                  <span className="text-[9px] text-slate-600 tracking-wider">{song.releaseDate}</span>
+                                              </div>
+                                          </div>
+                                      </div>
+                                  </td>
+                                  
+                                  <td className="p-6 text-center">
+                                      <button 
+                                          onClick={() => handleToggleInteractive(song)}
+                                          className={`inline-flex flex-col items-center justify-center w-32 py-2 rounded border transition-all ${song.isInteractiveActive ? 'bg-emerald-900/10 border-emerald-500/30' : 'bg-slate-800/50 border-white/5'}`}
+                                      >
+                                          <div className={`w-2 h-2 rounded-full mb-1.5 ${song.isInteractiveActive ? 'bg-emerald-400 animate-pulse' : 'bg-slate-600'}`}></div>
+                                          <span className={`text-[8px] font-black uppercase tracking-widest ${song.isInteractiveActive ? 'text-emerald-400' : 'text-slate-500'}`}>
+                                              {song.isInteractiveActive ? 'Active' : 'Closed'}
+                                          </span>
+                                      </button>
+                                  </td>
+
+                                  <td className="p-6">
+                                      <div className="flex justify-center gap-2">
+                                          <span className={`px-2 py-1 text-[8px] font-bold border rounded uppercase ${song.audioUrl ? 'border-brand-accent/30 text-brand-accent' : 'border-red-900 text-red-700'}`}>
+                                              {song.audioUrl ? 'Audio OK' : 'No Audio'}
+                                          </span>
+                                          <span className={`px-2 py-1 text-[8px] font-bold border rounded uppercase ${song.lyrics ? 'border-brand-gold/30 text-brand-gold' : 'border-slate-700 text-slate-600'}`}>
+                                              {song.lyrics ? 'Lyrics OK' : 'No Text'}
+                                          </span>
+                                      </div>
+                                  </td>
+
+                                  <td className="p-6 text-right">
+                                      <div className="flex justify-end gap-3">
+                                          <button onClick={() => navigate(`/song/${song.id}`)} className="text-[9px] font-black uppercase tracking-widest text-white border border-white/10 px-4 py-2 hover:bg-white hover:text-black transition-all rounded">
+                                              Edit
+                                          </button>
+                                          <button onClick={() => { if(window.confirm(`Delete "${song.title}"?`)) deleteSong(song.id); }} className="text-[9px] font-black uppercase tracking-widest text-red-500 border border-red-900/30 px-4 py-2 hover:bg-red-500 hover:text-white transition-all rounded">
+                                              Del
+                                          </button>
+                                      </div>
+                                  </td>
+                              </tr>
+                          ))}
+                      </tbody>
+                  </table>
+              </div>
+          </div>
+      )}
+
+      {/* 3. IMPORT CENTER */}
+      {activeTab === 'import' && (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-10 animate-fade-in">
+              <div className="bg-slate-900 border border-white/10 p-10 rounded-xl">
+                  <h3 className="text-xl font-black text-white uppercase tracking-tighter mb-6">Spotify Quick Import</h3>
+                  <div className="space-y-4">
+                      <div className="flex gap-2">
+                          <input 
+                              type="text" 
+                              placeholder="Search Spotify Tracks..." 
+                              className="w-full bg-black border border-white/10 px-4 py-4 text-white text-xs outline-none focus:border-brand-accent"
+                              value={searchQuery}
+                              onChange={e => setSearchQuery(e.target.value)}
+                              onKeyDown={e => e.key === 'Enter' && handleSearch()}
+                          />
+                          <button onClick={handleSearch} disabled={isSearching} className="px-6 bg-brand-accent text-slate-900 font-black text-[10px] uppercase tracking-widest">
+                              {isSearching ? '...' : 'Search'}
+                          </button>
+                      </div>
+                      
+                      <div className="max-h-[400px] overflow-y-auto custom-scrollbar space-y-2 mt-4">
+                          {trackResults.map(t => (
+                              <div key={t.id} className="flex items-center gap-4 p-3 border border-white/5 hover:bg-white/5 transition-all cursor-pointer group" onClick={() => handleSpotifyImport(t)}>
+                                  <img src={t.album.images[2]?.url} className="w-10 h-10 shadow-sm" alt="" />
+                                  <div className="flex-1 min-w-0">
+                                      <div className="text-white text-xs font-bold truncate">{t.name}</div>
+                                      <div className="text-slate-500 text-[9px] truncate">{t.album.name} • {t.album.release_date}</div>
+                                  </div>
+                                  <span className="text-[8px] font-black text-brand-accent border border-brand-accent/50 px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity">IMPORT</span>
+                              </div>
+                          ))}
+                          {trackResults.length === 0 && !isSearching && searchQuery && (
+                              <p className="text-center text-slate-600 text-[10px] py-4">No results found.</p>
+                          )}
+                      </div>
+                  </div>
+              </div>
+
+              <div className="bg-slate-900 border border-white/10 p-10 rounded-xl flex flex-col justify-center items-center text-center">
+                   <div className="w-16 h-16 rounded-full bg-slate-800 flex items-center justify-center mb-6 text-2xl">⚡️</div>
+                   <h3 className="text-xl font-black text-white uppercase tracking-tighter mb-2">Smart Full Import</h3>
+                   <p className="text-slate-500 text-xs mb-8 max-w-xs leading-loose">
+                       Need to add details manually or import from YouTube/MusicBrainz? Use the advanced editor.
+                   </p>
+                   <button onClick={() => navigate('/add')} className="px-8 py-4 border border-white/20 text-white font-black text-[10px] uppercase tracking-widest hover:bg-white hover:text-black transition-all rounded">
+                       Open Advanced Editor
+                   </button>
+              </div>
+          </div>
+      )}
+
+      {/* 4. SYSTEM SETTINGS */}
+      {activeTab === 'settings' && (
+          <div className="max-w-3xl mx-auto animate-fade-in space-y-10">
+              
+              <div className="bg-slate-900 border border-white/10 p-10 rounded-xl">
+                  <h3 className="text-sm font-black text-brand-gold uppercase tracking-[0.3em] mb-8">Global Configuration</h3>
+                  <div className="space-y-6">
+                      <div className="space-y-2">
+                           <label className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">Home Featured Video (YouTube ID)</label>
+                           <input 
+                               className="w-full bg-black border border-white/10 p-4 text-white text-xs font-mono focus:border-white/30 outline-none" 
+                               value={platformConfig.youtubeFeaturedUrl} 
+                               onChange={e => setPlatformConfig({...platformConfig, youtubeFeaturedUrl: e.target.value})}
+                               placeholder="e.g. dQw4w9WgXcQ"
+                           />
+                      </div>
+                      <div className="space-y-2">
+                           <label className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">Default Copyright Holder</label>
+                           <input 
+                               className="w-full bg-black border border-white/10 p-4 text-white text-xs font-mono focus:border-white/30 outline-none" 
+                               value={platformConfig.defaultCompany} 
+                               onChange={e => setPlatformConfig({...platformConfig, defaultCompany: e.target.value})}
+                           />
+                      </div>
+                      <button onClick={savePlatformConfig} className="w-full py-4 bg-white text-black font-black text-[10px] uppercase tracking-widest hover:bg-slate-200 transition-all rounded">
+                          Save Configuration
+                      </button>
+                  </div>
+              </div>
+
+              <div className="bg-slate-900 border border-white/10 p-10 rounded-xl">
+                  <h3 className="text-sm font-black text-red-500 uppercase tracking-[0.3em] mb-8">Database Maintenance</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <div className="p-6 bg-black/40 border border-white/5 rounded">
+                          <h4 className="text-white text-xs font-bold mb-2">Backup</h4>
+                          <p className="text-[9px] text-slate-500 mb-6 leading-relaxed">Download a complete JSON snapshot of your current database.</p>
+                          <button onClick={downloadFullBackup} className="w-full py-3 bg-slate-800 text-white font-black text-[9px] uppercase tracking-widest hover:bg-brand-gold hover:text-black transition-all rounded">
+                              Download JSON
+                          </button>
+                      </div>
+                      <div className="p-6 bg-black/40 border border-white/5 rounded">
+                          <h4 className="text-white text-xs font-bold mb-2">Restore</h4>
+                          <p className="text-[9px] text-slate-500 mb-6 leading-relaxed">Overwrite current database with a backup file. <span className="text-red-500">Irreversible.</span></p>
+                          <button onClick={() => fileInputRef.current?.click()} className="w-full py-3 border border-red-900/40 text-red-500 font-black text-[9px] uppercase tracking-widest hover:bg-red-900 hover:text-white transition-all rounded">
+                              Upload & Restore
+                          </button>
+                          <input ref={fileInputRef} type="file" className="hidden" accept=".json" onChange={handleImportFile} />
+                      </div>
+                  </div>
+              </div>
+
+          </div>
+      )}
+
     </div>
   );
 };
