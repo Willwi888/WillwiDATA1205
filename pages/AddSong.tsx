@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useData } from '../context/DataContext';
 import { Language, ProjectType, ReleaseCategory, Song } from '../types';
@@ -52,6 +52,10 @@ const AddSong: React.FC = () => {
 
   const [searchError, setSearchError] = useState('');
   const [isSaving, setIsSaving] = useState(false);
+  
+  // Preview Player State
+  const audioPreviewRef = useRef<HTMLAudioElement | null>(null);
+  const [playingPreviewId, setPlayingPreviewId] = useState<string | null>(null);
 
   const [formData, setFormData] = useState<Partial<Song>>({
     title: '',
@@ -76,6 +80,22 @@ const AddSong: React.FC = () => {
       e.preventDefault();
       if (passwordInput === '8520') { enableAdmin(); setLoginError(''); }
       else { setLoginError('Invalid Access Code'); }
+  };
+
+  const playPreview = (url: string | null | undefined, id: string) => {
+      if (!url) return;
+      if (audioPreviewRef.current) {
+          audioPreviewRef.current.pause();
+          if (playingPreviewId === id) {
+              setPlayingPreviewId(null);
+              return;
+          }
+      }
+      const audio = new Audio(url);
+      audioPreviewRef.current = audio;
+      setPlayingPreviewId(id);
+      audio.play().catch(e => console.error("Preview play failed", e));
+      audio.onended = () => setPlayingPreviewId(null);
   };
 
   if (!isAdmin) {
@@ -255,13 +275,22 @@ const AddSong: React.FC = () => {
         {/* RESULTS AREA */}
         <div className="mt-4 space-y-2 max-h-60 overflow-y-auto custom-scrollbar">
             {trackResults.map(t => (
-                <div key={t.id} onClick={() => selectTrackForForm(t)} className="flex items-center gap-3 p-2 hover:bg-white/5 cursor-pointer border border-transparent hover:border-white/10">
-                    <img src={t.album.images[2]?.url} className="w-8 h-8" alt="" />
-                    <div className="flex-1 min-w-0">
+                <div key={t.id} className="flex items-center gap-3 p-2 hover:bg-white/5 border border-transparent hover:border-white/10 group">
+                    <img src={t.album.images[2]?.url} className="w-8 h-8 cursor-pointer" onClick={() => selectTrackForForm(t)} alt="" />
+                    <div className="flex-1 min-w-0 cursor-pointer" onClick={() => selectTrackForForm(t)}>
                         <div className="text-white text-xs font-bold truncate">{t.name}</div>
                         <div className="text-slate-500 text-[10px] truncate">{t.album.name}</div>
                     </div>
-                    <span className="text-[9px] text-brand-accent border border-brand-accent/50 px-2 py-0.5">SELECT</span>
+                    
+                    {t.preview_url && (
+                        <button onClick={() => playPreview(t.preview_url, t.id)} className={`w-6 h-6 flex items-center justify-center rounded-full border border-white/20 ${playingPreviewId === t.id ? 'bg-brand-gold text-black animate-pulse' : 'text-white hover:bg-white/20'}`}>
+                            {playingPreviewId === t.id ? '■' : '▶'}
+                        </button>
+                    )}
+                    
+                    <button onClick={() => selectTrackForForm(t)} className="text-[9px] bg-brand-accent/10 text-brand-accent border border-brand-accent/50 px-3 py-1 hover:bg-brand-accent hover:text-black transition-all font-bold">
+                        IMPORT
+                    </button>
                 </div>
             ))}
             
@@ -348,11 +377,19 @@ const AddSong: React.FC = () => {
         </div>
 
         <div className="space-y-2">
-             <label className="text-[10px] text-slate-500 font-black uppercase tracking-widest">Media Links</label>
+             <label className="text-[10px] text-slate-500 font-black uppercase tracking-widest">Media Links (Audio Source is Priority)</label>
              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <input name="audioUrl" className="bg-slate-900 border border-white/10 px-4 py-3 text-white text-xs focus:border-brand-accent outline-none font-mono" value={formData.audioUrl} onChange={handleChange} placeholder="Audio Source URL (MP3/Drive)" />
-                <input name="youtubeUrl" className="bg-slate-900 border border-white/10 px-4 py-3 text-white text-xs focus:border-brand-accent outline-none font-mono" value={formData.youtubeUrl} onChange={handleChange} placeholder="YouTube URL" />
-                <input name="spotifyLink" className="bg-slate-900 border border-white/10 px-4 py-3 text-white text-xs focus:border-brand-accent outline-none font-mono" value={formData.spotifyLink} onChange={handleChange} placeholder="Spotify URL" />
+                <div className="space-y-2">
+                    <input name="audioUrl" className="w-full bg-slate-900 border border-white/10 px-4 py-3 text-white text-xs focus:border-brand-accent outline-none font-mono" value={formData.audioUrl} onChange={handleChange} placeholder="Audio Source URL (MP3/Drive)" />
+                    {formData.audioUrl && (
+                        <div className="bg-black/50 p-2 border border-white/10 flex items-center gap-2">
+                            <span className="text-[9px] text-brand-gold font-bold uppercase tracking-widest">Verify Source:</span>
+                            <audio controls src={formData.audioUrl} className="h-6 w-full max-w-[200px]" style={{borderRadius: 0}} />
+                        </div>
+                    )}
+                </div>
+                <input name="youtubeUrl" className="bg-slate-900 border border-white/10 px-4 py-3 text-white text-xs focus:border-brand-accent outline-none font-mono h-[42px]" value={formData.youtubeUrl} onChange={handleChange} placeholder="YouTube URL" />
+                <input name="spotifyLink" className="bg-slate-900 border border-white/10 px-4 py-3 text-white text-xs focus:border-brand-accent outline-none font-mono h-[42px]" value={formData.spotifyLink} onChange={handleChange} placeholder="Spotify URL" />
              </div>
         </div>
         

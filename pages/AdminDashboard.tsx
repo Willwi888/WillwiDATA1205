@@ -297,7 +297,7 @@ const AdminDashboard: React.FC = () => {
                         <thead className="bg-white/5">
                             <tr>
                                 <th className="p-4 text-[9px] font-black text-slate-500 uppercase tracking-widest">Asset</th>
-                                <th className="p-4 text-[9px] font-black text-slate-500 uppercase tracking-widest">Audio (Admin)</th>
+                                <th className="p-4 text-[9px] font-black text-slate-500 uppercase tracking-widest">Source Audio (Monitor)</th>
                                 <th className="p-4 text-[9px] font-black text-slate-500 uppercase tracking-widest">Status</th>
                                 <th className="p-4 text-[9px] font-black text-slate-500 uppercase tracking-widest text-right">Action</th>
                             </tr>
@@ -308,25 +308,43 @@ const AdminDashboard: React.FC = () => {
                                 return (
                                 <tr key={song.id} className="hover:bg-white/5 transition-colors">
                                     <td className="p-4 flex items-center gap-4 min-w-[200px]">
-                                        <img src={song.coverUrl} className="w-10 h-10 object-cover border border-white/10" alt="" />
+                                        <div className="relative w-10 h-10 group cursor-pointer" onClick={() => navigate(`/song/${song.id}`)}>
+                                            <img src={song.coverUrl} className="w-full h-full object-cover border border-white/10" alt="" />
+                                            <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity text-[8px] font-bold">EDIT</div>
+                                        </div>
                                         <div>
                                             <div className="text-white text-xs font-bold">{song.title}</div>
                                             <div className="text-slate-500 text-[9px]">{song.isrc || 'NO_ISRC'}</div>
                                         </div>
                                     </td>
                                     <td className="p-4 min-w-[250px]">
-                                        {spotifyEmbedId ? (
-                                            <iframe 
-                                                src={`https://open.spotify.com/embed/track/${spotifyEmbedId}?utm_source=generator&theme=0`} 
-                                                width="100%" 
-                                                height="80" 
-                                                frameBorder="0" 
-                                                allow="clipboard-write; encrypted-media; fullscreen; picture-in-picture" 
-                                                loading="lazy"
-                                                className="rounded opacity-70 hover:opacity-100 transition-opacity"
-                                            ></iframe>
+                                        {song.audioUrl ? (
+                                            <div className="flex flex-col gap-1">
+                                                <div className="flex items-center gap-2 mb-1">
+                                                     <div className="w-1.5 h-1.5 rounded-full bg-brand-gold animate-pulse"></div>
+                                                     <span className="text-[8px] text-brand-gold font-bold uppercase tracking-widest">Raw Source</span>
+                                                </div>
+                                                <audio 
+                                                    controls 
+                                                    src={song.audioUrl} 
+                                                    className="w-full h-8 block rounded-sm bg-slate-800 border border-white/10" 
+                                                    style={{borderRadius: '4px'}}
+                                                />
+                                            </div>
+                                        ) : spotifyEmbedId ? (
+                                            <div className="opacity-80 hover:opacity-100 transition-opacity">
+                                                 <iframe 
+                                                    src={`https://open.spotify.com/embed/track/${spotifyEmbedId}?utm_source=generator&theme=0`} 
+                                                    width="100%" 
+                                                    height="80" 
+                                                    frameBorder="0" 
+                                                    allow="clipboard-write; encrypted-media; fullscreen; picture-in-picture" 
+                                                    loading="lazy"
+                                                    className="rounded border border-white/10"
+                                                ></iframe>
+                                            </div>
                                         ) : (
-                                            <span className="text-[8px] text-slate-600 font-mono uppercase">NO SPOTIFY SOURCE</span>
+                                            <span className="text-[8px] text-slate-600 font-mono uppercase bg-black/20 px-2 py-1 rounded">NO AUDIO SOURCE</span>
                                         )}
                                     </td>
                                     <td className="p-4">

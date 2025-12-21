@@ -94,29 +94,50 @@ const SongDetail: React.FC = () => {
                                 <span className="text-slate-500 text-[10px] font-bold uppercase tracking-[0.3em]">{song.releaseDate}</span>
                             </div>
 
-                            {/* Spotify Link: Admin Only Embed Player */}
-                            {isAdmin && spotifyEmbedId && !isEditing && (
-                                <div className="mt-8 w-full max-w-md">
-                                    <div className="flex items-center gap-2 mb-3">
-                                        <div className="w-2 h-2 rounded-full bg-[#1DB954] animate-pulse"></div>
-                                        <p className="text-[10px] text-[#1DB954] font-black uppercase tracking-widest">Admin Player</p>
+                            {/* ADMIN MEDIA MONITOR */}
+                            {isAdmin && !isEditing && (
+                                <div className="mt-8 w-full max-w-md bg-black/40 border border-white/10 p-4 rounded-lg">
+                                    <div className="flex items-center gap-2 mb-3 border-b border-white/5 pb-2">
+                                        <div className="w-2 h-2 rounded-full bg-brand-gold animate-pulse"></div>
+                                        <p className="text-[10px] text-brand-gold font-black uppercase tracking-widest">Admin Media Monitor</p>
                                     </div>
-                                    <iframe 
-                                        src={`https://open.spotify.com/embed/track/${spotifyEmbedId}?utm_source=generator&theme=0`} 
-                                        width="100%" 
-                                        height="152" 
-                                        frameBorder="0" 
-                                        allow="clipboard-write; encrypted-media; fullscreen; picture-in-picture" 
-                                        loading="lazy"
-                                        className="rounded-lg shadow-2xl border border-white/10 bg-black"
-                                    ></iframe>
+                                    
+                                    <div className="space-y-4">
+                                        {song.audioUrl && (
+                                            <div>
+                                                <p className="text-[9px] text-slate-500 font-bold uppercase tracking-widest mb-1">Raw Source Audio</p>
+                                                <audio controls src={song.audioUrl} className="w-full h-8 block rounded bg-slate-800" />
+                                            </div>
+                                        )}
+                                        
+                                        {spotifyEmbedId && (
+                                            <div>
+                                                <p className="text-[9px] text-slate-500 font-bold uppercase tracking-widest mb-1">Spotify Release</p>
+                                                <iframe 
+                                                    src={`https://open.spotify.com/embed/track/${spotifyEmbedId}?utm_source=generator&theme=0`} 
+                                                    width="100%" 
+                                                    height="80" 
+                                                    frameBorder="0" 
+                                                    allow="clipboard-write; encrypted-media; fullscreen; picture-in-picture" 
+                                                    loading="lazy"
+                                                    className="rounded bg-black opacity-80 hover:opacity-100 transition-opacity"
+                                                ></iframe>
+                                            </div>
+                                        )}
+                                    </div>
                                 </div>
                             )}
 
                             {isEditing && (
-                                <div className="mt-6 space-y-2">
-                                    <label className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">Spotify Link</label>
-                                    <input className="w-full bg-black border border-white/10 p-3 text-white text-xs font-mono" value={editForm.spotifyLink || ''} onChange={e => setEditForm({...editForm, spotifyLink: e.target.value})} placeholder="https://open.spotify.com/..." />
+                                <div className="mt-6 space-y-4">
+                                    <div>
+                                        <label className="text-[10px] text-slate-500 font-bold uppercase tracking-widest block mb-1">Audio Source URL</label>
+                                        <input className="w-full bg-black border border-white/10 p-3 text-white text-xs font-mono" value={editForm.audioUrl || ''} onChange={e => setEditForm({...editForm, audioUrl: e.target.value})} placeholder="https://..." />
+                                    </div>
+                                    <div>
+                                        <label className="text-[10px] text-slate-500 font-bold uppercase tracking-widest block mb-1">Spotify Link</label>
+                                        <input className="w-full bg-black border border-white/10 p-3 text-white text-xs font-mono" value={editForm.spotifyLink || ''} onChange={e => setEditForm({...editForm, spotifyLink: e.target.value})} placeholder="https://open.spotify.com/..." />
+                                    </div>
                                 </div>
                             )}
                         </div>

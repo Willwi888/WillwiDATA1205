@@ -23,6 +23,7 @@ export interface SpotifyTrack {
   external_urls: { spotify: string };
   uri: string;
   track_number?: number;
+  preview_url?: string | null; // Added preview url
 }
 
 export interface SpotifyAlbum {
