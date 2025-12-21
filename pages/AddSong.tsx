@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useData } from '../context/DataContext';
 import { Language, ProjectType, ReleaseCategory, Song } from '../types';
-import { searchSpotifyTracks, searchSpotifyAlbums, getSpotifyAlbumTracks, SpotifyTrack, SpotifyAlbum } from '../services/spotifyService';
+import { searchSpotifyTracks, searchSpotifyAlbums, getSpotifyAlbum, SpotifyTrack, SpotifyAlbum } from '../services/spotifyService';
 import { getWillwiReleases, getCoverArtUrl, getReleaseGroupDetails, MBReleaseGroup, MBTrack, MBImportData } from '../services/musicbrainzService';
 import { useTranslation } from '../context/LanguageContext';
 import { useUser } from '../context/UserContext';
@@ -11,19 +11,13 @@ import { useUser } from '../context/UserContext';
 const convertToDirectStream = (url: string) => {
     try {
         if (!url) return '';
-        
-        // 1. Google Drive (Share Link -> Export Link)
         if (url.includes('drive.google.com') && url.includes('/file/d/')) {
             const id = url.split('/file/d/')[1].split('/')[0];
             return `https://docs.google.com/uc?export=download&id=${id}`;
         }
-        
-        // 2. Dropbox (Share Link -> Raw Link)
-        // Changes 'dl=0' to 'raw=1' for direct streaming
         if (url.includes('dropbox.com')) {
             return url.replace('dl=0', 'raw=1');
         }
-
         return url;
     } catch (e) { return url; }
 };
@@ -36,15 +30,13 @@ const AddSong: React.FC = () => {
 
   const [passwordInput, setPasswordInput] = useState('');
   const [loginError, setLoginError] = useState('');
-  const [importMode, setImportMode] = useState<'single' | 'album' | 'mb'>('single');
+  const [importMode, setImportMode] = useState<'single' | 'album' | 'mb' | 'youtube'>('youtube'); 
   const [searchQuery, setSearchQuery] = useState('');
   const [isSearching, setIsSearching] = useState(false);
   
-  // Spotify Results
   const [trackResults, setTrackResults] = useState<SpotifyTrack[]>([]);
   const [albumResults, setAlbumResults] = useState<SpotifyAlbum[]>([]);
   
-  // MusicBrainz Results
   const [mbResults, setMbResults] = useState<MBReleaseGroup[]>([]);
   const [selectedMBGroup, setSelectedMBGroup] = useState<MBReleaseGroup | null>(null);
   const [mbImportData, setMbImportData] = useState<MBImportData | null>(null);
@@ -53,7 +45,6 @@ const AddSong: React.FC = () => {
   const [searchError, setSearchError] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   
-  // Preview Player State
   const audioPreviewRef = useRef<HTMLAudioElement | null>(null);
   const [playingPreviewId, setPlayingPreviewId] = useState<string | null>(null);
 
@@ -64,15 +55,20 @@ const AddSong: React.FC = () => {
     projectType: ProjectType.Indie,
     releaseCategory: ReleaseCategory.Single,
     releaseCompany: '',
+    publisher: '', // NEW
     releaseDate: new Date().toISOString().split('T')[0],
     isEditorPick: false,
-    isInteractiveActive: false, // Default is OFF
+    isInteractiveActive: false,
     coverUrl: '', 
     coverOverlayText: '',
     lyrics: '',
     description: '',
     credits: '',
-    spotifyLink: '', 
+    spotifyLink: '',
+    appleMusicLink: '',
+    youtubeMusicUrl: '',
+    musixmatchUrl: '', // NEW
+    smartLink: '', 
     musicBrainzId: '',
     audioUrl: '',
     youtubeUrl: '',
@@ -123,7 +119,6 @@ const AddSong: React.FC = () => {
       setFormData(prev => ({ ...prev, [name]: checked }));
     } else {
       let finalValue = value;
-      // Auto-convert Audio URL immediately on change/paste
       if (name === 'audioUrl') {
           finalValue = convertToDirectStream(value);
       }
@@ -131,11 +126,93 @@ const AddSong: React.FC = () => {
     }
   };
 
+  const detectLanguage = (text: string): Language => {
+      if (/[\u3040-\u30ff]/.test(text)) return Language.Japanese;
+      if (/[\uac00-\ud7af]/.test(text)) return Language.Korean;
+      if (/[\u4e00-\u9fa5]/.test(text)) return Language.Mandarin;
+      return Language.English;
+  };
+
+  const extractYoutubeId = (url: string) => {
+    const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/;
+    const match = url.match(regExp);
+    return (match && match[2].length === 11) ? match[2] : null;
+  };
+
+  const handleYoutubeImport = async () => {
+      const id = extractYoutubeId(searchQuery);
+      if (!id) {
+          setSearchError('Invalid YouTube URL format.');
+          return;
+      }
+      setIsSearching(true);
+      setSearchError('');
+      try {
+          const thumbnailUrl = `https://img.youtube.com/vi/${id}/maxresdefault.jpg`;
+          let title = '';
+          try {
+             const res = await fetch(`https://noembed.com/embed?url=https://www.youtube.com/watch?v=${id}`);
+             const data = await res.json();
+             if (data.title) title = data.title;
+          } catch (e) { console.log('oEmbed failed'); }
+
+          let updates: Partial<Song> = {
+              title: title || formData.title,
+              youtubeUrl: searchQuery,
+              coverUrl: thumbnailUrl,
+              projectType: ProjectType.Indie,
+              releaseCompany: 'Willwi Music'
+          };
+
+          if (title) {
+              try {
+                  const spotifyResults = await searchSpotifyTracks(`${title} artist:Willwi`);
+                  if (spotifyResults.length > 0) {
+                      const match = spotifyResults[0];
+                      const albumDetails = await getSpotifyAlbum(match.album.id);
+                      let cat = ReleaseCategory.Single;
+                      if (albumDetails) {
+                          if (albumDetails.album_type === 'album') cat = ReleaseCategory.Album;
+                          else if (albumDetails.total_tracks > 3) cat = ReleaseCategory.EP;
+                      }
+                      const lang = detectLanguage(match.name);
+                      updates = {
+                          ...updates,
+                          isrc: match.external_ids?.isrc || '',
+                          spotifyLink: match.external_urls?.spotify || '',
+                          spotifyId: match.id,
+                          upc: albumDetails?.external_ids?.upc || albumDetails?.external_ids?.ean || '',
+                          releaseCompany: albumDetails?.label || albumDetails?.copyrights?.[0]?.text || 'Willwi Music',
+                          publisher: albumDetails?.copyrights?.find(c => c.type === 'C')?.text || '', // Try to guess Publisher from Copyright C
+                          releaseDate: albumDetails?.release_date || match.album.release_date,
+                          releaseCategory: cat,
+                          language: lang
+                      };
+                      alert(`YouTube Import Success!\n\nAuto-matched with Spotify Metadata.`);
+                  } else {
+                      alert("YouTube Import Success! (No matching Spotify metadata found)");
+                  }
+              } catch (err) {
+                  console.error("Smart Fill Error", err);
+                  alert("YouTube Import Success! (Metadata sync skipped)");
+              }
+          }
+          setFormData(prev => ({ ...prev, ...updates }));
+      } catch (e) {
+          setSearchError('Import failed.');
+      } finally {
+          setIsSearching(false);
+      }
+  };
+
   const handleSearch = async () => {
     setTrackResults([]); setAlbumResults([]); setMbResults([]); setSelectedMBGroup(null);
     setSearchError('');
+    if (importMode === 'youtube') {
+        handleYoutubeImport();
+        return;
+    }
     setIsSearching(true);
-
     try {
         if (importMode === 'mb') {
             const results = await getWillwiReleases();
@@ -158,45 +235,59 @@ const AddSong: React.FC = () => {
     finally { setIsSearching(false); }
   };
 
-  // SPOTIFY SELECTION
-  const selectTrackForForm = (track: SpotifyTrack) => {
+  const selectTrackForForm = async (track: SpotifyTrack) => {
+    const albumDetails = await getSpotifyAlbum(track.album.id);
+    let cat = ReleaseCategory.Single;
+    let label = 'Willwi Music';
+    let publisher = '';
+    let upc = '';
+
+    if (albumDetails) {
+         if (albumDetails.album_type === 'album') cat = ReleaseCategory.Album;
+         else if (albumDetails.total_tracks > 3) cat = ReleaseCategory.EP;
+         label = albumDetails.label || label;
+         publisher = albumDetails.copyrights?.find(c => c.type === 'C')?.text || '';
+         upc = albumDetails.external_ids?.upc || albumDetails.external_ids?.ean || '';
+    }
+
     setFormData(prev => ({
         ...prev,
         title: track.name,
         releaseDate: track.album.release_date,
         coverUrl: track.album.images[0]?.url || '',
         isrc: track.external_ids.isrc || '',
-        upc: track.album.external_ids?.upc || '',
+        upc: upc || track.album.external_ids?.upc || '',
         spotifyId: track.id,
         spotifyLink: track.external_urls.spotify,
-        releaseCategory: ReleaseCategory.Single,
-        releaseCompany: 'Willwi Music',
-        // Try to use preview_url as fallback if available, though strict interactive needs full song
+        releaseCategory: cat,
+        releaseCompany: label,
+        publisher: publisher,
+        language: detectLanguage(track.name),
         audioUrl: track.preview_url || prev.audioUrl
     }));
     setTrackResults([]);
   };
   
   const selectAlbumForForm = async (album: SpotifyAlbum) => {
+      const details = await getSpotifyAlbum(album.id);
       setFormData(prev => ({
         ...prev,
         releaseDate: album.release_date,
         coverUrl: album.images[0]?.url || '',
         releaseCategory: ReleaseCategory.Album,
-        releaseCompany: 'Willwi Music'
+        releaseCompany: details?.label || 'Willwi Music',
+        publisher: details?.copyrights?.find(c => c.type === 'C')?.text || '',
+        upc: details?.external_ids?.upc || details?.external_ids?.ean || ''
       }));
       setAlbumResults([]);
       alert("Album metadata loaded. Please enter track details manually.");
   };
 
-  // MUSICBRAINZ SELECTION
   const handleSelectMBGroup = async (group: MBReleaseGroup) => {
       setSelectedMBGroup(group);
       setMbImportData(null);
-      
       const cover = await getCoverArtUrl(group.id);
       setMbCoverUrl(cover || '');
-      
       const details = await getReleaseGroupDetails(group.id, group['primary-type']);
       setMbImportData(details);
   };
@@ -210,7 +301,8 @@ const AddSong: React.FC = () => {
           coverUrl: mbCoverUrl,
           releaseCategory: mbImportData.category,
           releaseCompany: mbImportData.releaseCompany,
-          musicBrainzId: track.id
+          musicBrainzId: track.id,
+          language: detectLanguage(track.title)
       }));
       setMbResults([]);
       setSelectedMBGroup(null);
@@ -230,6 +322,7 @@ const AddSong: React.FC = () => {
       projectType: formData.projectType as ProjectType,
       releaseCategory: formData.releaseCategory as ReleaseCategory,
       releaseCompany: formData.releaseCompany || '',
+      publisher: formData.publisher || '', // Save Publisher
       releaseDate: formData.releaseDate || new Date().toISOString().split('T')[0],
       isEditorPick: !!formData.isEditorPick,
       isInteractiveActive: !!formData.isInteractiveActive,
@@ -237,10 +330,11 @@ const AddSong: React.FC = () => {
       upc: formData.upc,
       spotifyId: formData.spotifyId,
       youtubeUrl: formData.youtubeUrl,
-      musixmatchUrl: formData.musixmatchUrl,
+      musixmatchUrl: formData.musixmatchUrl || '', // Save Musixmatch
       youtubeMusicUrl: formData.youtubeMusicUrl,
       spotifyLink: formData.spotifyLink,
       appleMusicLink: formData.appleMusicLink,
+      smartLink: formData.smartLink,
       audioUrl: formData.audioUrl,
       lyrics: formData.lyrics,
       description: formData.description,
@@ -255,8 +349,9 @@ const AddSong: React.FC = () => {
       <div className="flex flex-col md:flex-row justify-between items-center mb-10 gap-4">
           <h2 className="text-3xl font-black text-white uppercase tracking-tighter">{t('form_title_add')}</h2>
           <div className="bg-slate-800 p-1 rounded flex border border-slate-700">
-              <button onClick={() => setImportMode('single')} className={`px-4 py-2 rounded text-[10px] font-black uppercase tracking-widest transition-all ${importMode === 'single' ? 'bg-brand-accent text-slate-900 shadow' : 'text-slate-500 hover:text-white'}`}>Spotify Single</button>
-              <button onClick={() => setImportMode('album')} className={`px-4 py-2 rounded text-[10px] font-black uppercase tracking-widest transition-all ${importMode === 'album' ? 'bg-brand-accent text-slate-900 shadow' : 'text-slate-500 hover:text-white'}`}>Spotify Album</button>
+              <button onClick={() => setImportMode('youtube')} className={`px-4 py-2 rounded text-[10px] font-black uppercase tracking-widest transition-all ${importMode === 'youtube' ? 'bg-[#FF0000] text-white shadow' : 'text-slate-500 hover:text-white'}`}>YouTube</button>
+              <button onClick={() => setImportMode('single')} className={`px-4 py-2 rounded text-[10px] font-black uppercase tracking-widest transition-all ${importMode === 'single' ? 'bg-brand-accent text-slate-900 shadow' : 'text-slate-500 hover:text-white'}`}>Spotify</button>
+              <button onClick={() => setImportMode('album')} className={`px-4 py-2 rounded text-[10px] font-black uppercase tracking-widest transition-all ${importMode === 'album' ? 'bg-brand-accent text-slate-900 shadow' : 'text-slate-500 hover:text-white'}`}>Album</button>
               <button onClick={() => setImportMode('mb')} className={`px-4 py-2 rounded text-[10px] font-black uppercase tracking-widest transition-all ${importMode === 'mb' ? 'bg-brand-gold text-slate-900 shadow' : 'text-slate-500 hover:text-white'}`}>MusicBrainz</button>
           </div>
       </div>
@@ -265,19 +360,22 @@ const AddSong: React.FC = () => {
         <div className="flex gap-4">
             {importMode !== 'mb' && (
                 <input 
-                    className="flex-1 bg-black border border-white/10 px-4 py-3 text-white text-xs outline-none focus:border-white/30" 
-                    placeholder="Search Spotify..." 
+                    className="flex-1 bg-black border border-white/10 px-4 py-3 text-white text-xs outline-none focus:border-white/30 font-mono" 
+                    placeholder={importMode === 'youtube' ? "Paste YouTube Video Link here (for Auto-Import)..." : "Search Spotify..."}
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
                 />
             )}
             <button onClick={handleSearch} disabled={isSearching} className="px-6 bg-white/10 text-white font-black text-[10px] uppercase tracking-widest hover:bg-white hover:text-black transition-all">
-                {isSearching ? 'Scanning...' : importMode === 'mb' ? 'Scan Releases' : 'Search'}
+                {isSearching ? 'Processing...' : importMode === 'mb' ? 'Scan Releases' : (importMode === 'youtube' ? 'Smart Import' : 'Search')}
             </button>
         </div>
         
         {searchError && <p className="text-red-500 text-xs mt-3">{searchError}</p>}
+        {importMode === 'youtube' && !isSearching && !formData.coverUrl && (
+             <p className="text-[9px] text-slate-500 mt-3 pl-1">* 智慧匯入功能：貼上 YouTube 連結後，系統將自動比對 Spotify 數據庫，嘗試補全 ISRC、UPC、廠牌與發行日期。</p>
+        )}
 
         {/* RESULTS AREA */}
         <div className="mt-4 space-y-2 max-h-60 overflow-y-auto custom-scrollbar">
@@ -288,19 +386,14 @@ const AddSong: React.FC = () => {
                         <div className="text-white text-xs font-bold truncate">{t.name}</div>
                         <div className="text-slate-500 text-[10px] truncate">{t.album.name}</div>
                     </div>
-                    
                     {t.preview_url && (
                         <button onClick={() => playPreview(t.preview_url, t.id)} className={`w-6 h-6 flex items-center justify-center rounded-full border border-white/20 ${playingPreviewId === t.id ? 'bg-brand-gold text-black animate-pulse' : 'text-white hover:bg-white/20'}`}>
                             {playingPreviewId === t.id ? '■' : '▶'}
                         </button>
                     )}
-                    
-                    <button onClick={() => selectTrackForForm(t)} className="text-[9px] bg-brand-accent/10 text-brand-accent border border-brand-accent/50 px-3 py-1 hover:bg-brand-accent hover:text-black transition-all font-bold">
-                        IMPORT
-                    </button>
+                    <button onClick={() => selectTrackForForm(t)} className="text-[9px] bg-brand-accent/10 text-brand-accent border border-brand-accent/50 px-3 py-1 hover:bg-brand-accent hover:text-black transition-all font-bold">IMPORT</button>
                 </div>
             ))}
-            
             {albumResults.map(a => (
                 <div key={a.id} onClick={() => selectAlbumForForm(a)} className="flex items-center gap-3 p-2 hover:bg-white/5 cursor-pointer border border-transparent hover:border-white/10">
                     <img src={a.images[2]?.url} className="w-8 h-8" alt="" />
@@ -311,7 +404,6 @@ const AddSong: React.FC = () => {
                     <span className="text-[9px] text-brand-accent border border-brand-accent/50 px-2 py-0.5">USE METADATA</span>
                 </div>
             ))}
-
             {mbResults.map(g => (
                 <div key={g.id} onClick={() => handleSelectMBGroup(g)} className={`p-3 border border-white/5 cursor-pointer transition-all ${selectedMBGroup?.id === g.id ? 'bg-brand-gold/10 border-brand-gold' : 'hover:bg-white/5'}`}>
                     <div className="text-white text-xs font-bold">{g.title}</div>
@@ -322,8 +414,6 @@ const AddSong: React.FC = () => {
                 </div>
             ))}
         </div>
-
-        {/* MB DRILLDOWN */}
         {selectedMBGroup && mbImportData && (
             <div className="mt-4 pt-4 border-t border-white/10">
                  <h4 className="text-[10px] text-brand-gold font-black uppercase tracking-widest mb-3">Select Track from {selectedMBGroup.title}</h4>
@@ -382,33 +472,47 @@ const AddSong: React.FC = () => {
                  {formData.coverUrl && <img src={formData.coverUrl} className="w-10 h-10 object-cover border border-white/20" alt="" />}
              </div>
         </div>
-
+        
+        {/* PLATFORM LINKS SECTION - EXPANDED */}
         <div className="space-y-2">
              <label className="text-[10px] text-brand-gold font-black uppercase tracking-widest">
-                 Audio Source URL (MP3/WAV/AAC)
+                 Platform Links (Streaming & Sales)
              </label>
              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                    <input 
-                        name="audioUrl" 
-                        className="w-full bg-slate-800 border border-brand-gold/30 px-4 py-3 text-brand-gold text-xs focus:border-brand-gold outline-none font-mono placeholder-slate-600" 
-                        value={formData.audioUrl} 
-                        onChange={handleChange} 
-                        placeholder="Paste Google Drive or Dropbox Share Link here..." 
-                    />
-                    {formData.audioUrl && (
-                        <div className="bg-black/50 p-2 border border-white/10 flex items-center gap-2">
-                            <span className="text-[9px] text-brand-gold font-bold uppercase tracking-widest">Verify Source:</span>
-                            <audio controls src={formData.audioUrl} className="h-6 w-full max-w-[200px]" style={{borderRadius: 0}} />
-                        </div>
-                    )}
+                <input name="youtubeUrl" className="bg-slate-900 border border-white/10 px-4 py-3 text-white text-xs focus:border-brand-accent outline-none font-mono" value={formData.youtubeUrl} onChange={handleChange} placeholder="YouTube Video URL" />
+                <input name="spotifyLink" className="bg-slate-900 border border-white/10 px-4 py-3 text-white text-xs focus:border-brand-accent outline-none font-mono" value={formData.spotifyLink} onChange={handleChange} placeholder="Spotify Track/Album URL" />
+                
+                <input name="appleMusicLink" className="bg-slate-900 border border-white/10 px-4 py-3 text-white text-xs focus:border-brand-accent outline-none font-mono" value={formData.appleMusicLink} onChange={handleChange} placeholder="Apple Music URL" />
+                <input name="youtubeMusicUrl" className="bg-slate-900 border border-white/10 px-4 py-3 text-white text-xs focus:border-brand-accent outline-none font-mono" value={formData.youtubeMusicUrl} onChange={handleChange} placeholder="YouTube Music URL" />
+                
+                {/* NEW: MUSIXMATCH */}
+                <input name="musixmatchUrl" className="bg-slate-900 border border-white/10 px-4 py-3 text-white text-xs focus:border-brand-accent outline-none font-mono" value={formData.musixmatchUrl} onChange={handleChange} placeholder="Musixmatch URL" />
+
+                <div className="md:col-span-2">
+                    <input name="smartLink" className="w-full bg-slate-900 border border-white/10 px-4 py-3 text-white text-xs focus:border-brand-gold outline-none font-mono" value={formData.smartLink} onChange={handleChange} placeholder="Smart Link / Universal Link (e.g., Linkfire, Linktree, Fanlink)" />
                 </div>
-                <input name="youtubeUrl" className="bg-slate-900 border border-white/10 px-4 py-3 text-white text-xs focus:border-brand-accent outline-none font-mono h-[42px]" value={formData.youtubeUrl} onChange={handleChange} placeholder="YouTube URL (Public)" />
-                <input name="spotifyLink" className="bg-slate-900 border border-white/10 px-4 py-3 text-white text-xs focus:border-brand-accent outline-none font-mono h-[42px]" value={formData.spotifyLink} onChange={handleChange} placeholder="Spotify URL" />
              </div>
-             <p className="text-[9px] text-slate-400 mt-1">
-                 * 智慧轉換：支援 <strong>Dropbox (dl=0)</strong> 與 <strong>Google Drive</strong> 分享連結，貼上後系統自動修正為串流格式。
-             </p>
+        </div>
+
+        <div className="space-y-2">
+             <label className="text-[10px] text-brand-accent font-black uppercase tracking-widest">
+                 Raw Audio Source (Private - For Generation)
+             </label>
+             <div className="space-y-2">
+                 <input 
+                    name="audioUrl" 
+                    className="w-full bg-slate-800 border border-brand-accent/30 px-4 py-3 text-brand-accent text-xs focus:border-brand-accent outline-none font-mono placeholder-slate-600" 
+                    value={formData.audioUrl} 
+                    onChange={handleChange} 
+                    placeholder="Paste Google Drive or Dropbox Share Link here..." 
+                 />
+                 {formData.audioUrl && (
+                    <div className="bg-black/50 p-2 border border-white/10 flex items-center gap-2">
+                        <span className="text-[9px] text-brand-accent font-bold uppercase tracking-widest">Verify Source:</span>
+                        <audio controls src={formData.audioUrl} className="h-6 w-full max-w-[200px]" style={{borderRadius: 0}} />
+                    </div>
+                 )}
+             </div>
         </div>
         
         <div className="space-y-2">
@@ -417,7 +521,9 @@ const AddSong: React.FC = () => {
                 <input name="isrc" className="bg-slate-900 border border-white/10 px-4 py-3 text-white text-xs focus:border-brand-accent outline-none font-mono" value={formData.isrc} onChange={handleChange} placeholder="ISRC" />
                 <input name="upc" className="bg-slate-900 border border-white/10 px-4 py-3 text-white text-xs focus:border-brand-accent outline-none font-mono" value={formData.upc} onChange={handleChange} placeholder="UPC" />
                 <input name="releaseCompany" className="bg-slate-900 border border-white/10 px-4 py-3 text-white text-xs focus:border-brand-accent outline-none" value={formData.releaseCompany} onChange={handleChange} placeholder="Label / Company" />
-                <div className="flex flex-col gap-2">
+                <input name="publisher" className="bg-slate-900 border border-white/10 px-4 py-3 text-white text-xs focus:border-brand-accent outline-none" value={formData.publisher} onChange={handleChange} placeholder="Publisher (詞曲版權)" />
+                
+                <div className="col-span-2 flex flex-col gap-2">
                     <div className="flex items-center px-4 bg-slate-900 border border-white/10 h-[42px]">
                         <label className="flex items-center gap-2 cursor-pointer">
                             <input type="checkbox" name="isEditorPick" checked={formData.isEditorPick} onChange={handleChange} />

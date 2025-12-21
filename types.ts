@@ -27,16 +27,17 @@ export interface Song {
   title: string;
   versionLabel?: string; 
   coverUrl: string;
-  coverOverlayText?: string; // NEW: Stylized text for visual generation (e.g., "HEART BREAK")
+  coverOverlayText?: string; 
   language: Language;
   projectType: ProjectType;
   releaseCategory?: ReleaseCategory;
-  releaseCompany?: string;
+  releaseCompany?: string; // Label (錄音著作)
+  publisher?: string; // NEW: Publisher (詞曲版權/歌詞發行商)
   releaseDate: string;
   isEditorPick: boolean;
   
   // Feature Flags
-  isInteractiveActive?: boolean; // NEW: Controls if the song is available in Interactive Studio
+  isInteractiveActive?: boolean; 
   
   // Metadata
   isrc?: string;
@@ -46,10 +47,11 @@ export interface Song {
   
   // External Links
   youtubeUrl?: string;
-  musixmatchUrl?: string;
+  musixmatchUrl?: string; // For Lyrics Link
   youtubeMusicUrl?: string;
   spotifyLink?: string;
   appleMusicLink?: string;
+  smartLink?: string; 
   
   // Audio Source
   audioUrl?: string;
@@ -60,7 +62,6 @@ export interface Song {
   credits?: string;
 }
 
-// Added SongContextType to match the implementation in context/DataContext.tsx
 export interface SongContextType {
   songs: Song[];
   addSong: (song: Song) => Promise<boolean>;

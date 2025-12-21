@@ -14,6 +14,7 @@ export interface SpotifyTrack {
   name: string;
   artists: { name: string }[];
   album: {
+    id: string; // Ensure ID is available
     name: string;
     release_date: string;
     images: { url: string }[];
@@ -23,7 +24,7 @@ export interface SpotifyTrack {
   external_urls: { spotify: string };
   uri: string;
   track_number?: number;
-  preview_url?: string | null; // Added preview url
+  preview_url?: string | null;
 }
 
 export interface SpotifyAlbum {
@@ -34,6 +35,10 @@ export interface SpotifyAlbum {
   total_tracks: number;
   images: { url: string }[];
   external_urls: { spotify: string };
+  label?: string; // New
+  external_ids?: { upc?: string; ean?: string }; // New
+  album_type?: 'album' | 'single' | 'compilation'; // New
+  copyrights?: { text: string; type: string }[]; // New
 }
 
 export const getSpotifyToken = async () => {
@@ -110,6 +115,23 @@ export const searchSpotifyAlbums = async (query: string): Promise<SpotifyAlbum[]
   } catch (error) {
     console.error("Spotify Album Search Error:", error);
     return [];
+  }
+};
+
+export const getSpotifyAlbum = async (albumId: string): Promise<SpotifyAlbum | null> => {
+  const token = await getSpotifyToken();
+  if (!token) return null;
+
+  try {
+    const response = await fetch(`https://api.spotify.com/v1/albums/${albumId}`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+
+    if (!response.ok) return null;
+    return await response.json();
+  } catch (error) {
+    console.error("Get Spotify Album Error:", error);
+    return null;
   }
 };
 

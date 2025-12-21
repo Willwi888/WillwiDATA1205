@@ -142,7 +142,7 @@ const SongDetail: React.FC = () => {
                                 
                                 {/* OFFICIAL STREAMING LINKS (Spotify Player & Buttons) */}
                                 <div className="grid grid-cols-1 gap-3 mt-2">
-                                    {/* Spotify Embed Player - Restored for Owner Verification */}
+                                    {/* Spotify Embed Player */}
                                     {spotifyEmbedId && !isEditing && (
                                         <div className="w-full rounded overflow-hidden shadow-lg border border-[#1DB954]/30">
                                             <iframe 
@@ -158,6 +158,19 @@ const SongDetail: React.FC = () => {
                                         </div>
                                     )}
 
+                                    {/* Smart Link / Universal Link (Top Priority) */}
+                                    {song.smartLink && !isEditing && (
+                                        <a 
+                                            href={song.smartLink}
+                                            target="_blank" 
+                                            rel="noopener noreferrer"
+                                            className="w-full py-3 bg-white text-black font-black uppercase tracking-[0.2em] text-xs transition-all text-center flex items-center justify-center gap-2 hover:bg-brand-accent hover:text-black"
+                                        >
+                                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9" /></svg>
+                                            <span>All Platforms / Smart Link</span>
+                                        </a>
+                                    )}
+
                                     {song.spotifyLink && !isEditing && (
                                         <a 
                                             href={song.spotifyLink}
@@ -166,19 +179,43 @@ const SongDetail: React.FC = () => {
                                             className="w-full py-3 bg-[#1DB954] text-black font-black uppercase tracking-[0.2em] text-xs transition-all text-center flex items-center justify-center gap-2 hover:brightness-110"
                                         >
                                             <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.66 0 12 0zm5.521 17.34c-.24.359-.66.48-1.021.24-2.82-1.74-6.36-2.101-10.561-1.141-.418.122-.779-.179-.899-.539-.12-.421.18-.78.54-.9 4.56-1.021 8.52-.6 11.64 1.32.42.18.479.659.301 1.02zm1.44-3.3c-.301.42-.841.6-1.262.3-3.239-1.98-8.159-2.58-11.939-1.38-.479.12-1.02-.12-1.14-.6-.12-.48.12-1.021.6-1.141C9.6 9.9 15 10.561 18.72 12.84c.361.181.54.78.241 1.2zm.12-3.36C15.24 8.4 8.82 8.16 5.16 9.301c-.6.179-1.2-.181-1.38-.721-.18-.601.18-1.2.72-1.381 4.26-1.26 11.28-1.02 15.721 1.621.539.3.719 1.02.419 1.56-.299.421-1.02.599-1.559.299z"/></svg>
-                                            <span>Open in App</span>
+                                            <span>Spotify</span>
+                                        </a>
+                                    )}
+
+                                    {song.appleMusicLink && !isEditing && (
+                                        <a 
+                                            href={song.appleMusicLink}
+                                            target="_blank" 
+                                            rel="noopener noreferrer"
+                                            className="w-full py-3 bg-[#FA243C] text-white font-black uppercase tracking-[0.2em] text-xs transition-all text-center flex items-center justify-center gap-2 hover:brightness-110"
+                                        >
+                                            <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M22.534 5.922l-1.637-1.166a1.272 1.272 0 00-.65-.181c-.265 0-.522.09-.724.254l-6.195 5.068-1.047-.857 5.619-4.597a1.274 1.274 0 00.468-.991c0-.704-.572-1.277-1.275-1.277a1.27 1.27 0 00-.735.234L6.99 9.076a3.843 3.843 0 00-1.206 1.487L.67 22.316l1.796.82 4.276-8.913a.639.639 0 01.576-.363h.005a.634.634 0 01.571.373l1.838 3.829a.638.638 0 001.149-.553L9.366 14.4l3.078 6.41a.637.637 0 001.15-.552l-2.73-5.69 2.056-1.683a.637.637 0 00-.806-.985l-1.921 1.573-.836-1.742 4.492-3.676 7.427 6.075a.638.638 0 00.806-.985l-8.632-7.062 9.079-7.426.007-.006z"/></svg>
+                                            <span>Apple Music</span>
                                         </a>
                                     )}
                                     
+                                    {song.youtubeMusicUrl && !isEditing && (
+                                        <a 
+                                            href={song.youtubeMusicUrl}
+                                            target="_blank" 
+                                            rel="noopener noreferrer"
+                                            className="w-full py-3 bg-[#FF0000] text-white font-black uppercase tracking-[0.2em] text-xs transition-all text-center flex items-center justify-center gap-2 hover:brightness-110"
+                                        >
+                                            <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M12 0C5.376 0 0 5.376 0 12s5.376 12 12 12 12-5.376 12-12S18.624 0 12 0zm0 18.24c-3.446 0-6.24-2.794-6.24-6.24S8.554 5.76 12 5.76s6.24 2.794 6.24 6.24-2.794 6.24-6.24 6.24zM12 7.2a4.8 4.8 0 100 9.6 4.8 4.8 0 000-9.6z"/><circle cx="12" cy="12" r="3.12"/></svg>
+                                            <span>YouTube Music</span>
+                                        </a>
+                                    )}
+
                                     {song.youtubeUrl && !isEditing && (
                                         <a 
                                             href={song.youtubeUrl}
                                             target="_blank" 
                                             rel="noopener noreferrer"
-                                            className="w-full py-3 bg-[#FF0000] text-white font-black uppercase tracking-[0.2em] text-xs transition-all text-center flex items-center justify-center gap-2 hover:brightness-110"
+                                            className="w-full py-3 bg-black border border-white/20 text-white font-black uppercase tracking-[0.2em] text-xs transition-all text-center flex items-center justify-center gap-2 hover:border-white"
                                         >
                                             <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M19.615 3.184c-3.604-.246-11.631-.245-15.23 0-3.897.266-4.356 2.62-4.385 8.816.029 6.185.484 8.549 4.385 8.816 3.6.245 11.626.246 15.23 0 3.897-.266 4.356-2.62 4.385-8.816-.029-6.185-.484-8.549-4.385-8.816zm-10.615 12.816v-8l8 3.993-8 4.007z"/></svg>
-                                            <span>Watch on YouTube</span>
+                                            <span>Watch MV</span>
                                         </a>
                                     )}
                                 </div>
@@ -240,12 +277,37 @@ const SongDetail: React.FC = () => {
                                         </p>
                                     </div>
                                     <div className="space-y-1">
-                                        <label className="text-[10px] text-slate-500 font-bold uppercase tracking-widest block">Spotify Link (Embedding)</label>
+                                        <label className="text-[10px] text-slate-500 font-bold uppercase tracking-widest block">Release Company (Label)</label>
+                                        <input className="w-full bg-black border border-white/10 p-3 text-white text-xs font-mono" value={editForm.releaseCompany || ''} onChange={e => setEditForm({...editForm, releaseCompany: e.target.value})} placeholder="Label..." />
+                                    </div>
+                                    {/* NEW: Publisher Field */}
+                                    <div className="space-y-1">
+                                        <label className="text-[10px] text-slate-500 font-bold uppercase tracking-widest block">Publisher (詞曲版權)</label>
+                                        <input className="w-full bg-black border border-white/10 p-3 text-white text-xs font-mono" value={editForm.publisher || ''} onChange={e => setEditForm({...editForm, publisher: e.target.value})} placeholder="Publisher Name..." />
+                                    </div>
+
+                                    <div className="space-y-1">
+                                        <label className="text-[10px] text-slate-500 font-bold uppercase tracking-widest block">Spotify Link</label>
                                         <input className="w-full bg-black border border-white/10 p-3 text-white text-xs font-mono" value={editForm.spotifyLink || ''} onChange={e => setEditForm({...editForm, spotifyLink: e.target.value})} placeholder="https://open.spotify.com/..." />
                                     </div>
                                     <div className="space-y-1">
                                         <label className="text-[10px] text-slate-500 font-bold uppercase tracking-widest block">YouTube URL</label>
                                         <input className="w-full bg-black border border-white/10 p-3 text-white text-xs font-mono" value={editForm.youtubeUrl || ''} onChange={e => setEditForm({...editForm, youtubeUrl: e.target.value})} placeholder="https://youtube.com/..." />
+                                    </div>
+                                    <div className="space-y-1">
+                                        <label className="text-[10px] text-slate-500 font-bold uppercase tracking-widest block">Apple Music Link</label>
+                                        <input className="w-full bg-black border border-white/10 p-3 text-white text-xs font-mono" value={editForm.appleMusicLink || ''} onChange={e => setEditForm({...editForm, appleMusicLink: e.target.value})} placeholder="https://music.apple.com/..." />
+                                    </div>
+                                    
+                                    {/* NEW: Musixmatch Field */}
+                                    <div className="space-y-1">
+                                        <label className="text-[10px] text-slate-500 font-bold uppercase tracking-widest block">Musixmatch Link</label>
+                                        <input className="w-full bg-black border border-white/10 p-3 text-white text-xs font-mono" value={editForm.musixmatchUrl || ''} onChange={e => setEditForm({...editForm, musixmatchUrl: e.target.value})} placeholder="https://www.musixmatch.com/..." />
+                                    </div>
+                                    
+                                    <div className="space-y-1">
+                                        <label className="text-[10px] text-brand-gold font-bold uppercase tracking-widest block">Smart Link (Universal)</label>
+                                        <input className="w-full bg-black border border-white/10 p-3 text-white text-xs font-mono" value={editForm.smartLink || ''} onChange={e => setEditForm({...editForm, smartLink: e.target.value})} placeholder="Linktree, Linkfire, Fanlink..." />
                                     </div>
                                 </div>
                             )}
@@ -270,7 +332,7 @@ const SongDetail: React.FC = () => {
 
                     {isAdmin && (
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-8 mt-12 pt-12 border-t border-white/5">
-                            {['isrc', 'upc', 'spotifyId', 'releaseCompany'].map(field => (
+                            {['isrc', 'upc', 'spotifyId', 'releaseCompany', 'publisher'].map(field => (
                                 <div key={field}>
                                     <span className="text-[9px] text-slate-600 uppercase tracking-[0.4em] block mb-2">{field}</span>
                                     <span className="font-mono text-[11px] text-slate-400 uppercase">{(song as any)[field] || 'UNDEFINED'}</span>
