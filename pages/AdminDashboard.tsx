@@ -89,7 +89,17 @@ const AdminDashboard: React.FC = () => {
         title: platformConfig.homeTitle,
         youtubeUrl: platformConfig.youtubeFeaturedUrl
     }));
-    alert("全局品牌設定已更新。"); 
+    alert("全局品牌設定已更新 (Global Config Saved)。"); 
+  };
+
+  const downloadFullBackup = async () => {
+      const allSongs = await dbService.getAllSongs();
+      const blob = new Blob([JSON.stringify(allSongs, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `WILLWI_FULL_DB_BACKUP_${new Date().toISOString().split('T')[0]}.json`;
+      a.click();
   };
 
   const handleImportFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -107,7 +117,6 @@ const AdminDashboard: React.FC = () => {
             const data = JSON.parse(jsonStr);
             
             // Scenario 1: Interactive Studio Archive (Single Object Sync)
-            // This allows merging user-generated content back into the official song record
             if (data.id && (data.id.startsWith('PROD-') || data.id.startsWith('archive-'))) {
                 const existing = songs.find(s => s.title === data.title);
                 if (existing) {
@@ -116,7 +125,7 @@ const AdminDashboard: React.FC = () => {
                             description: data.description || existing.description, 
                             credits: `${existing.credits || ''}\n[聽眾參與: ${data.listener_info?.name || '匿名'}]`
                         });
-                        alert("聽眾數據同步成功！");
+                        alert("聽眾數據同步成功！(User Session Merged)");
                     }
                 } else {
                     alert("找不到對應歌曲，無法同步。");
@@ -124,7 +133,6 @@ const AdminDashboard: React.FC = () => {
             } 
             // Scenario 2: Full Database Backup (Array of Songs)
             else if (Array.isArray(data)) {
-                // VALIDATION: Check if items look like valid Song objects
                 const isValidBackup = data.length > 0 && data.every((item: any) => 
                     typeof item === 'object' && 
                     'id' in item && 
@@ -132,11 +140,10 @@ const AdminDashboard: React.FC = () => {
                 );
 
                 if (!isValidBackup) {
-                    alert("錯誤：檔案格式不符。請確認這是 Willwi DB 的標準備份檔 (JSON Array of Songs)。");
+                    alert("錯誤：檔案格式不符。請確認這是 Willwi DB 的標準備份檔 (JSON Array)。");
                     return;
                 }
 
-                // CONFIRMATION: Critical destructive action warning
                 const confirmMsg = `【危險操作】\n\n即將匯入 ${data.length} 筆作品資料。\n這將會「清空並覆寫」目前的資料庫。\n\n確定要執行嗎？`;
                 
                 if (window.confirm(confirmMsg)) {
@@ -154,7 +161,6 @@ const AdminDashboard: React.FC = () => {
           }
           finally { 
               setIsProcessing(false); 
-              // Reset input
               if (fileInputRef.current) fileInputRef.current.value = '';
           }
       };
@@ -255,31 +261,35 @@ const AdminDashboard: React.FC = () => {
                  </div>
             </div>
 
-            {/* GLOBAL IDENTITY */}
+            {/* GLOBAL CONFIG & BACKUP */}
             <div className="bg-slate-900 p-8 border border-white/5 rounded-xl shadow-2xl">
-                <h2 className="text-xs font-black text-slate-400 mb-8 uppercase tracking-[0.3em]">Global Config</h2>
+                <h2 className="text-xs font-black text-slate-400 mb-8 uppercase tracking-[0.3em]">System Config</h2>
                 <div className="space-y-6">
                     <div>
-                        <label className="block text-[9px] text-slate-500 mb-2 uppercase font-bold tracking-widest">預設發行公司</label>
-                        <input className="w-full bg-black border border-white/10 p-3 text-white text-xs" value={platformConfig.defaultCompany} onChange={e => setPlatformConfig({...platformConfig, defaultCompany: e.target.value})} />
+                         <label className="block text-[9px] text-slate-500 mb-2 uppercase font-bold tracking-widest">Home Video ID</label>
+                         <input className="w-full bg-black border border-white/10 p-3 text-white text-xs font-mono" placeholder="YouTube ID" value={platformConfig.youtubeFeaturedUrl} onChange={e => setPlatformConfig({...platformConfig, youtubeFeaturedUrl: e.target.value})} />
                     </div>
-                    <div>
-                        <label className="block text-[9px] text-slate-500 mb-2 uppercase font-bold tracking-widest">預設專案類型</label>
-                        <select className="w-full bg-black border border-white/10 p-3 text-white text-xs" value={platformConfig.defaultProject} onChange={e => setPlatformConfig({...platformConfig, defaultProject: e.target.value as ProjectType})}>
-                             {Object.values(ProjectType).map(p => <option key={p} value={p}>{p}</option>)}
-                        </select>
-                    </div>
-                    <div>
-                         <label className="block text-[9px] text-slate-500 mb-2 uppercase font-bold tracking-widest">首頁 Youtube 影片 ID</label>
-                         <input className="w-full bg-black border border-white/10 p-3 text-white text-xs" placeholder="e.g. dQw4w9WgXcQ" value={platformConfig.youtubeFeaturedUrl} onChange={e => setPlatformConfig({...platformConfig, youtubeFeaturedUrl: e.target.value})} />
-                    </div>
-                    <button onClick={savePlatformConfig} className="w-full py-4 bg-white/10 text-white font-black text-[10px] uppercase tracking-widest hover:bg-white hover:text-black transition-all">更新設定</button>
+                    <button onClick={savePlatformConfig} className="w-full py-4 bg-white/10 text-white font-black text-[10px] uppercase tracking-widest hover:bg-white hover:text-black transition-all">
+                        Update Config (更新設定)
+                    </button>
                     
-                    <div className="pt-6 border-t border-white/10">
-                        <button onClick={() => fileInputRef.current?.click()} className="w-full py-4 border border-white/10 text-slate-500 font-black text-[10px] uppercase tracking-widest hover:text-white hover:border-white transition-all">
-                            匯入備份 (JSON)
-                        </button>
-                        <input ref={fileInputRef} type="file" className="hidden" accept=".json" onChange={handleImportFile} />
+                    <div className="pt-6 border-t border-white/10 space-y-4">
+                        <div className="bg-brand-gold/10 p-4 border border-brand-gold/20">
+                            <p className="text-[9px] text-brand-gold mb-3 font-bold uppercase tracking-widest">Database Backup</p>
+                            <button onClick={downloadFullBackup} className="w-full py-3 bg-brand-gold text-slate-900 font-black text-[10px] uppercase tracking-widest hover:bg-white transition-all mb-3">
+                                下載完整備份 (Backup JSON)
+                            </button>
+                            <button onClick={() => fileInputRef.current?.click()} className="w-full py-3 border border-brand-gold/30 text-brand-gold font-black text-[10px] uppercase tracking-widest hover:bg-brand-gold hover:text-black transition-all">
+                                還原資料庫 (Restore DB)
+                            </button>
+                            <input ref={fileInputRef} type="file" className="hidden" accept=".json" onChange={handleImportFile} />
+                        </div>
+                        <div className="text-[9px] text-slate-600 leading-relaxed text-center space-y-1">
+                            <p>⚠️ 上線前建議：</p>
+                            <p>1. 完成所有歌曲資料輸入。</p>
+                            <p>2. 點擊「下載完整備份」保存至您的電腦。</p>
+                            <p>3. 若更換裝置或瀏覽器，可使用還原功能。</p>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -289,7 +299,7 @@ const AdminDashboard: React.FC = () => {
         <div className="lg:col-span-8 space-y-10">
             <div className="bg-slate-900/50 border border-white/5 rounded-xl overflow-hidden shadow-2xl">
                 <div className="px-8 py-6 bg-white/5 border-b border-white/5 flex justify-between items-center">
-                    <h2 className="text-xs font-black text-white uppercase tracking-[0.3em]">目錄作品管理</h2>
+                    <h2 className="text-xs font-black text-white uppercase tracking-[0.3em]">Catalog Management</h2>
                     <span className="text-[10px] text-slate-500 font-mono">TRACKS: {songs.length}</span>
                 </div>
                 <div className="overflow-x-auto">
@@ -324,53 +334,35 @@ const AdminDashboard: React.FC = () => {
                                                      <div className="w-1.5 h-1.5 rounded-full bg-brand-gold animate-pulse"></div>
                                                      <span className="text-[8px] text-brand-gold font-bold uppercase tracking-widest">Raw Source</span>
                                                 </div>
-                                                <audio 
-                                                    controls 
-                                                    src={song.audioUrl} 
-                                                    className="w-full h-8 block rounded-sm bg-slate-800 border border-white/10" 
-                                                    style={{borderRadius: '4px'}}
-                                                />
-                                            </div>
-                                        ) : spotifyEmbedId ? (
-                                            <div className="opacity-80 hover:opacity-100 transition-opacity">
-                                                 <iframe 
-                                                    src={`https://open.spotify.com/embed/track/${spotifyEmbedId}?utm_source=generator&theme=0`} 
-                                                    width="100%" 
-                                                    height="80" 
-                                                    frameBorder="0" 
-                                                    allow="clipboard-write; encrypted-media; fullscreen; picture-in-picture" 
-                                                    loading="lazy"
-                                                    className="rounded border border-white/10"
-                                                ></iframe>
+                                                <audio controls src={song.audioUrl} className="w-full h-6 block rounded bg-slate-800" />
                                             </div>
                                         ) : (
-                                            <span className="text-[8px] text-slate-600 font-mono uppercase bg-black/20 px-2 py-1 rounded">NO AUDIO SOURCE</span>
+                                            <span className="text-[9px] text-red-500 font-bold uppercase tracking-widest border border-red-900/50 px-2 py-1">Missing Audio</span>
                                         )}
                                     </td>
                                     <td className="p-4">
-                                        <span className={`px-2 py-1 text-[8px] font-black uppercase tracking-widest rounded ${song.isEditorPick ? 'bg-brand-accent text-black' : 'bg-slate-800 text-slate-500'}`}>
-                                            {song.isEditorPick ? 'Featured' : 'Standard'}
-                                        </span>
+                                        <div className="flex flex-col gap-1">
+                                            {song.lyrics ? (
+                                                <span className="text-[9px] text-emerald-500 font-bold uppercase tracking-widest">● Lyrics OK</span>
+                                            ) : (
+                                                <span className="text-[9px] text-slate-600 font-bold uppercase tracking-widest">○ No Lyrics</span>
+                                            )}
+                                        </div>
                                     </td>
-                                    <td className="p-4 text-right space-x-2 whitespace-nowrap">
-                                        <button onClick={() => navigate(`/song/${song.id}`)} className="text-[9px] bg-white text-black px-3 py-1 hover:bg-brand-gold uppercase font-bold tracking-widest transition-colors rounded">
-                                            Edit
-                                        </button>
-                                        <button onClick={() => updateSong(song.id, { isEditorPick: !song.isEditorPick })} className="text-[9px] text-slate-500 hover:text-white uppercase font-bold tracking-widest">
-                                            {song.isEditorPick ? 'Unfeat' : 'Feat'}
-                                        </button>
-                                        <button onClick={() => { if(window.confirm('Delete this track?')) deleteSong(song.id); }} className="text-[9px] text-red-900 hover:text-red-500 uppercase font-bold tracking-widest">
-                                            Del
-                                        </button>
+                                    <td className="p-4 text-right">
+                                        <div className="flex justify-end gap-2">
+                                            <button onClick={() => navigate(`/song/${song.id}`)} className="text-[9px] border border-white/10 px-3 py-1 hover:bg-white hover:text-black transition-all font-bold">EDIT</button>
+                                            <button onClick={() => { if(window.confirm('Delete this track?')) deleteSong(song.id); }} className="text-[9px] border border-red-900/30 text-red-500 px-3 py-1 hover:bg-red-500 hover:text-white transition-all font-bold">DEL</button>
+                                        </div>
                                     </td>
                                 </tr>
-                            )})}
+                                )
+                            })}
                         </tbody>
                     </table>
                 </div>
             </div>
         </div>
-
       </div>
     </div>
   );

@@ -31,7 +31,6 @@ const Interactive: React.FC = () => {
   const [studioError, setStudioError] = useState('');
 
   // Veo State
-  // REMOVED: isVeoUnlocked, veoPass (Direct access for admins now)
   const [veoPrompt, setVeoPrompt] = useState('');
   const [generatedVideo, setGeneratedVideo] = useState<string | null>(null);
   const [isGeneratingVideo, setIsGeneratingVideo] = useState(false);
@@ -79,7 +78,7 @@ const Interactive: React.FC = () => {
 
   const handleStudioUnlock = (e: React.FormEvent) => {
       e.preventDefault();
-      // 在此處設定後台給予的密碼，例如 'willwi2024'
+      // 在此處設定後台給予的密碼
       if (studioPass.toLowerCase() === 'willwi' || isAdmin) {
           setMode('studio-welcome');
           setStudioError('');
@@ -334,7 +333,6 @@ const Interactive: React.FC = () => {
         alert("未偵測到錄製數據。");
     } else {
         const mimeType = mediaRecorderRef.current?.mimeType || 'video/mp4';
-        // Force .mp4 extension for compatibility, even if browser generates webm/h264
         const blob = new Blob(recordedChunksRef.current, { type: mimeType });
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
@@ -439,7 +437,7 @@ const Interactive: React.FC = () => {
             </div>
         )}
 
-        {/* --- MODE: INTRO (Updated Copy) --- */}
+        {/* --- MODE: INTRO (Updated with Disclaimer) --- */}
         {mode === 'intro' && (
             <div className="max-w-2xl w-full text-center animate-fade-in space-y-12">
                 <div>
@@ -449,12 +447,13 @@ const Interactive: React.FC = () => {
                         是一次創作在場的紀錄
                     </h2>
                     <p className="text-slate-400 text-sm leading-loose tracking-widest font-light">
-                        此頁面的金額，並非購買任何商品或內容。<br/>
-                        這是一種參與創作的行為。<br/><br/>
-                        透過參與自己親手製作一支<br/>
-                        Willwi 純手工歌詞動態影片<br/><br/>
-                        該影片不附帶任何使用權、授權，<br/>
-                        僅提供私人觀看連結保存。
+                        特別強調 本平台所提供之內容<br/>
+                        並非購買歌曲、歌詞或任何數位商品<br/>
+                        亦不涉及著作權授權、轉讓或下載行為<br/><br/>
+                        相關費用係用於支持創作者投入之人工時間<br/>
+                        包含手工歌詞對位與創作引導之參與過程<br/><br/>
+                        如僅需聆聽音樂<br/>
+                        請至各大音樂平台收聽
                     </p>
                 </div>
                 
@@ -473,12 +472,11 @@ const Interactive: React.FC = () => {
                     <h3 className="text-xl font-black uppercase tracking-tighter mb-2">Access Ticket</h3>
                     <p className="text-[10px] font-bold uppercase tracking-[0.3em] text-slate-400 mb-8">Single Session</p>
                     
-                    {/* QR Code Hidden as requested */}
                     <div className="text-center w-full py-10">
                         <span className="block text-[10px] font-bold uppercase tracking-widest text-slate-500">Entry Fee</span>
                         <span className="block text-5xl font-black tracking-tighter mt-2 mb-8">NT$ 320</span>
                         
-                        {/* PAYPAL ONLY */}
+                        {/* PAYPAL PRODUCTION LINK */}
                         <a href="https://www.paypal.com/ncp/payment/CBZDTGT76KQY2" target="_blank" rel="noopener noreferrer" className="block w-full py-4 bg-[#003087] text-white font-bold text-xs uppercase tracking-[0.2em] shadow-lg hover:bg-[#00256b] transition-all transform hover:-translate-y-1">
                             Pay via PayPal
                         </a>
@@ -492,7 +490,6 @@ const Interactive: React.FC = () => {
                 <div className="w-full md:w-1/2 bg-slate-950 p-12 flex flex-col justify-center">
                     <h4 className="text-white font-black uppercase tracking-[0.2em] mb-6">Enter Access Code</h4>
                     
-                    {/* Disclaimer Box */}
                     <div className="mb-8 p-4 border border-brand-gold/20 bg-brand-gold/5 text-[10px] text-brand-gold/80 leading-loose">
                         點擊付款，即表示你理解並同意：<br/>
                         ・這不是商品販售<br/>
@@ -517,7 +514,7 @@ const Interactive: React.FC = () => {
             </div>
         )}
 
-        {/* --- MODE: STUDIO WELCOME (Updated Copy) --- */}
+        {/* --- MODE: STUDIO WELCOME --- */}
         {mode === 'studio-welcome' && (
             <div className="max-w-2xl w-full text-center animate-fade-in py-20">
                 <div className="mb-12">
@@ -704,7 +701,7 @@ const Interactive: React.FC = () => {
                         <div className="flex flex-col items-center mb-10 space-y-6">
                             <div className="flex justify-center">
                                 <div className="text-center group cursor-default">
-                                    <span className="block text-[10px] text-slate-500 uppercase font-bold mb-2 group-hover:text-brand-accent transition-colors">Single Collection (一部)</span>
+                                    <span className="block text-[10px] text-slate-500 uppercase font-bold mb-2 group-hover:text-brand-accent transition-colors">專屬歌詞動態影片創作支持 (Single Collection)</span>
                                     <span className="text-3xl font-serif text-white italic">NT$ 2,800</span>
                                 </div>
                             </div>
@@ -712,6 +709,7 @@ const Interactive: React.FC = () => {
 
                         {/* Call to Action */}
                         <div className="flex flex-col items-center space-y-6">
+                            {/* CLOUD CINEMA PAYPAL LINK */}
                             <a 
                                 href="https://www.paypal.com/ncp/payment/CD27A99GZHXV4" 
                                 target="_blank" 
@@ -772,11 +770,10 @@ const Interactive: React.FC = () => {
                 <div className="w-full md:w-1/2 bg-white p-12 flex flex-col items-center justify-center text-slate-900">
                     <p className="text-[10px] font-bold uppercase tracking-[0.3em] text-slate-400 mb-8">Flexible Amount</p>
                     
-                    {/* QR Hidden */}
                     <div className="w-full text-center py-10">
                         <span className="text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-6 block">Support via PayPal</span>
 
-                        {/* PAYPAL ADDITION */}
+                        {/* PURE SUPPORT PAYPAL LINK */}
                         <a href="https://www.paypal.com/ncp/payment/PNLV2V3PP47ZN" target="_blank" rel="noopener noreferrer" className="block w-full py-5 bg-[#003087] text-white font-bold text-xs uppercase tracking-[0.2em] text-center shadow-lg hover:bg-[#00256b] transition-all transform hover:-translate-y-1">
                             Pay via PayPal
                         </a>
@@ -818,11 +815,6 @@ const Interactive: React.FC = () => {
         {/* --- PERSISTENT ELEMENTS --- */}
         {selectedSong && (
             <>
-                {/* 
-                   KEY CHANGE: 
-                   Canvas and Audio must persist in the DOM to avoid breaking MediaRecorder streams.
-                   We toggle visibility via CSS opacity/pointer-events instead of unmounting.
-                */}
                 {selectedSong.audioUrl && (
                     <audio 
                         ref={audioRef} 

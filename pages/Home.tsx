@@ -70,10 +70,10 @@ const Home: React.FC = () => {
             <div className="flex flex-col items-center text-center space-y-6 group relative z-10">
                 <div className="w-16 h-16 bg-slate-900 border border-white/20 rounded-full flex items-center justify-center text-xl font-black text-slate-500 group-hover:border-brand-gold group-hover:text-brand-gold transition-all shadow-lg">01</div>
                 <div>
-                    <h4 className="text-white font-black uppercase tracking-widest mb-3 text-sm">Select & Explore</h4>
+                    <h4 className="text-white font-black uppercase tracking-widest mb-3 text-sm">SELECT & EXPLORE</h4>
                     <p className="text-[10px] text-slate-400 leading-loose uppercase tracking-widest">
-                        前往資料庫 (Database)<br/>
-                        瀏覽並選擇您喜愛的作品
+                        走進作品資料庫（DATABASE）<br/>
+                        慢慢選一首此刻屬於你的歌
                     </p>
                 </div>
             </div>
@@ -82,10 +82,10 @@ const Home: React.FC = () => {
             <div className="flex flex-col items-center text-center space-y-6 group relative z-10">
                 <div className="w-16 h-16 bg-slate-900 border border-white/20 rounded-full flex items-center justify-center text-xl font-black text-slate-500 group-hover:border-brand-gold group-hover:text-brand-gold transition-all shadow-lg">02</div>
                 <div>
-                    <h4 className="text-white font-black uppercase tracking-widest mb-3 text-sm">Handcraft Sync</h4>
+                    <h4 className="text-white font-black uppercase tracking-widest mb-3 text-sm">HANDCRAFT SYNC</h4>
                     <p className="text-[10px] text-slate-400 leading-loose uppercase tracking-widest">
-                        進入互動實驗室 (Interactive)<br/>
-                        親手完成歌詞與音樂的對齊製作
+                        進入互動實驗室（INTERACTIVE）<br/>
+                        用雙手完成歌詞與音樂的對齊
                     </p>
                 </div>
             </div>
@@ -94,10 +94,10 @@ const Home: React.FC = () => {
             <div className="flex flex-col items-center text-center space-y-6 group relative z-10">
                 <div className="w-16 h-16 bg-slate-900 border border-white/20 rounded-full flex items-center justify-center text-xl font-black text-slate-500 group-hover:border-brand-gold group-hover:text-brand-gold transition-all shadow-lg">03</div>
                 <div>
-                    <h4 className="text-white font-black uppercase tracking-widest mb-3 text-sm">Support & Keep</h4>
+                    <h4 className="text-white font-black uppercase tracking-widest mb-3 text-sm">SUPPORT & KEEP</h4>
                     <p className="text-[10px] text-slate-400 leading-loose uppercase tracking-widest">
-                        支持創作並下載 (Download)<br/>
-                        獲得屬於您的專屬 MV 紀錄
+                        支持創作並獲得（ACCESS）<br/>
+                        留下你參與過的那一刻
                     </p>
                 </div>
             </div>
