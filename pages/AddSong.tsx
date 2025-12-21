@@ -142,28 +142,48 @@ const AddSong: React.FC = () => {
       return Language.English;
   };
 
-  const extractYoutubeId = (url: string) => {
-    const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/;
-    const match = url.match(regExp);
-    return (match && match[2].length === 11) ? match[2] : null;
+  const extractYoutubeInfo = (url: string) => {
+    // 1. Video Check
+    const videoReg = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/;
+    const videoMatch = url.match(videoReg);
+    if (videoMatch && videoMatch[2].length === 11) {
+        return { id: videoMatch[2], type: 'video' };
+    }
+    
+    // 2. Playlist Check (Album Playlists)
+    const listReg = /[?&]list=([^#&?]+)/;
+    const listMatch = url.match(listReg);
+    if (listMatch) {
+        return { id: listMatch[1], type: 'playlist' };
+    }
+
+    return null;
   };
 
   const handleYoutubeImport = async () => {
-      const id = extractYoutubeId(searchQuery);
-      if (!id) {
+      const ytInfo = extractYoutubeInfo(searchQuery);
+      if (!ytInfo) {
           setSearchError('Invalid YouTube URL format.');
           return;
       }
       setIsSearching(true);
       setSearchError('');
       try {
-          const thumbnailUrl = `https://img.youtube.com/vi/${id}/maxresdefault.jpg`;
           let title = '';
+          let thumbnailUrl = '';
+          
           try {
-             const res = await fetch(`https://noembed.com/embed?url=https://www.youtube.com/watch?v=${id}`);
+             // Use full URL for oEmbed to handle playlists correctly
+             const res = await fetch(`https://noembed.com/embed?url=${encodeURIComponent(searchQuery)}`);
              const data = await res.json();
              if (data.title) title = data.title;
+             if (data.thumbnail_url) thumbnailUrl = data.thumbnail_url;
           } catch (e) { console.log('oEmbed failed'); }
+
+          // Fallback thumbnail for video if oEmbed misses (Playlists often don't have this simple pattern)
+          if (!thumbnailUrl && ytInfo.type === 'video') {
+               thumbnailUrl = `https://img.youtube.com/vi/${ytInfo.id}/maxresdefault.jpg`;
+          }
 
           let updates: Partial<Song> = {
               title: title || formData.title,
