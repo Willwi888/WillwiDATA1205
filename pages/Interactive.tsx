@@ -31,8 +31,7 @@ const Interactive: React.FC = () => {
   const [studioError, setStudioError] = useState('');
 
   // Veo State
-  const [veoPass, setVeoPass] = useState('');
-  const [isVeoUnlocked, setIsVeoUnlocked] = useState(false);
+  // REMOVED: isVeoUnlocked, veoPass (Direct access for admins now)
   const [veoPrompt, setVeoPrompt] = useState('');
   const [generatedVideo, setGeneratedVideo] = useState<string | null>(null);
   const [isGeneratingVideo, setIsGeneratingVideo] = useState(false);
@@ -363,12 +362,6 @@ const Interactive: React.FC = () => {
   };
 
   // --- Veo Admin Functions ---
-  const handleVeoUnlock = (e: React.FormEvent) => {
-      e.preventDefault();
-      if (veoPass === '20261212') setIsVeoUnlocked(true);
-      else alert("權限拒絕");
-  };
-
   const generateVeoVideo = async () => {
     if (!veoPrompt.trim()) return;
     if (!(await (window as any).aistudio.hasSelectedApiKey())) { await (window as any).aistudio.openSelectKey(); return; }
@@ -811,30 +804,19 @@ const Interactive: React.FC = () => {
             </div>
         )}
 
-        {/* --- MODE: VEO LAB --- */}
+        {/* --- MODE: VEO LAB (NO PASSWORD) --- */}
         {isAdmin && mode === 'veo-lab' && (
              <div className="flex flex-col items-center w-full max-w-3xl mx-auto animate-fade-in">
-                {!isVeoUnlocked ? (
-                    <div className="w-full bg-slate-900/80 p-12 border border-red-600 text-center relative overflow-hidden">
-                        <div className="absolute top-0 left-0 w-full h-1 bg-red-600 animate-pulse"></div>
-                        <h3 className="text-2xl font-black text-white uppercase tracking-widest mb-6">Admin Verification</h3>
-                        <form onSubmit={handleVeoUnlock} className="space-y-6 max-w-xs mx-auto">
-                            <input type="password" placeholder="CODE" className="w-full bg-black border border-red-900/50 p-4 text-center text-white tracking-[0.5em] outline-none" value={veoPass} onChange={e => setVeoPass(e.target.value)} />
-                            <button className="w-full py-4 bg-red-900/20 text-red-500 font-black uppercase text-xs tracking-widest">Unlock</button>
-                        </form>
+                <div className="w-full bg-slate-900 p-10 border border-brand-accent/20">
+                    <h3 className="text-sm font-black text-brand-accent uppercase tracking-[0.3em] mb-8">AI Cinematic Generation (Veo)</h3>
+                    <div className="flex gap-4 mb-6">
+                            <button onClick={() => setVideoModel('fast')} className={`px-4 py-2 text-[9px] font-black uppercase tracking-widest border ${videoModel === 'fast' ? 'bg-brand-accent text-black' : 'text-slate-500'}`}>Fast</button>
+                            <button onClick={() => setVideoModel('hq')} className={`px-4 py-2 text-[9px] font-black uppercase tracking-widest border ${videoModel === 'hq' ? 'bg-brand-accent text-black' : 'text-slate-500'}`}>HQ ($$$)</button>
                     </div>
-                ) : (
-                    <div className="w-full bg-slate-900 p-10 border border-brand-accent/20">
-                        <h3 className="text-sm font-black text-brand-accent uppercase tracking-[0.3em] mb-8">AI Cinematic Generation (Veo)</h3>
-                        <div className="flex gap-4 mb-6">
-                             <button onClick={() => setVideoModel('fast')} className={`px-4 py-2 text-[9px] font-black uppercase tracking-widest border ${videoModel === 'fast' ? 'bg-brand-accent text-black' : 'text-slate-500'}`}>Fast</button>
-                             <button onClick={() => setVideoModel('hq')} className={`px-4 py-2 text-[9px] font-black uppercase tracking-widest border ${videoModel === 'hq' ? 'bg-brand-accent text-black' : 'text-slate-500'}`}>HQ ($$$)</button>
-                        </div>
-                        <textarea placeholder="Prompt..." className="w-full bg-black border border-white/10 p-6 text-white text-sm min-h-[150px] outline-none focus:border-brand-accent" value={veoPrompt} onChange={e => setVeoPrompt(e.target.value)} />
-                        <button onClick={generateVeoVideo} disabled={isGeneratingVideo || !veoPrompt.trim()} className="mt-8 w-full py-6 bg-brand-accent text-slate-950 font-black uppercase tracking-[0.5em] text-xs hover:bg-white">{isGeneratingVideo ? 'Generating...' : 'Generate (Cost Apply)'}</button>
-                        {generatedVideo && <div className="mt-8"><video src={generatedVideo} controls className="w-full aspect-video" /></div>}
-                    </div>
-                )}
+                    <textarea placeholder="Prompt..." className="w-full bg-black border border-white/10 p-6 text-white text-sm min-h-[150px] outline-none focus:border-brand-accent" value={veoPrompt} onChange={e => setVeoPrompt(e.target.value)} />
+                    <button onClick={generateVeoVideo} disabled={isGeneratingVideo || !veoPrompt.trim()} className="mt-8 w-full py-6 bg-brand-accent text-slate-950 font-black uppercase tracking-[0.5em] text-xs hover:bg-white">{isGeneratingVideo ? 'Generating...' : 'Generate (Cost Apply)'}</button>
+                    {generatedVideo && <div className="mt-8"><video src={generatedVideo} controls className="w-full aspect-video" /></div>}
+                </div>
             </div>
         )}
 

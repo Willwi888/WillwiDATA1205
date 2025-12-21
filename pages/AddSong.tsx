@@ -74,7 +74,7 @@ const AddSong: React.FC = () => {
 
   const handleAdminLogin = (e: React.FormEvent) => {
       e.preventDefault();
-      if (passwordInput === '8888' || passwordInput === 'eloveg2026') { enableAdmin(); setLoginError(''); }
+      if (passwordInput === '8520') { enableAdmin(); setLoginError(''); }
       else { setLoginError('Invalid Access Code'); }
   };
 
