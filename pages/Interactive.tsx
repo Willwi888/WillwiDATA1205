@@ -3,6 +3,7 @@ import { useUser } from '../context/UserContext';
 import { useData } from '../context/DataContext';
 import { Song } from '../types';
 import { GoogleGenAI } from "@google/genai";
+import { useLocation } from 'react-router-dom';
 
 // 狀態定義
 type InteractionMode = 
@@ -21,10 +22,12 @@ type InteractionMode =
 
 const Interactive: React.FC = () => {
   const { user, isAdmin } = useUser();
-  const { songs } = useData();
+  const { songs, getSong } = useData();
+  const location = useLocation();
   
   const [mode, setMode] = useState<InteractionMode>('menu');
   const [selectedSong, setSelectedSong] = useState<Song | null>(null);
+  const [preSelectedSongId, setPreSelectedSongId] = useState<string | null>(null);
   
   // Studio Gate State
   const [studioPass, setStudioPass] = useState('');
@@ -60,6 +63,17 @@ const Interactive: React.FC = () => {
   // Animation Ref
   const animationFrameRef = useRef<number>(0);
 
+  // --- Handshake from Database Selection ---
+  useEffect(() => {
+      // Check if we arrived here with a selected song from Database page
+      if (location.state && location.state.targetSongId) {
+          setPreSelectedSongId(location.state.targetSongId);
+          // If we have a song, we can technically skip to Intro/Gate immediately
+          // but let's allow the user to see the menu first, or maybe jump to Intro
+          setMode('intro');
+      }
+  }, [location.state]);
+
   // --- Keyboard Interaction ---
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -80,8 +94,21 @@ const Interactive: React.FC = () => {
       e.preventDefault();
       // 在此處設定後台給予的密碼
       if (studioPass.toLowerCase() === 'willwi' || isAdmin) {
-          setMode('studio-welcome');
           setStudioError('');
+          
+          // CRITICAL FLOW UPDATE:
+          // If a song was pre-selected from Database, skip "Welcome" and "Select" -> Go straight to "Tool Start"
+          if (preSelectedSongId) {
+              const targetSong = getSong(preSelectedSongId);
+              if (targetSong) {
+                  handleSelectSong(targetSong); // This sets mode to 'tool-start'
+              } else {
+                  alert("Pre-selected song not found. Redirecting to library.");
+                  setMode('select');
+              }
+          } else {
+              setMode('studio-welcome');
+          }
       } else {
           setStudioError('代碼錯誤。請確認您已付款並收到確認信。');
       }
@@ -328,35 +355,40 @@ const Interactive: React.FC = () => {
       }
   };
 
-  const downloadProductionPackage = () => {
+  const downloadVideo = () => {
     if (recordedChunksRef.current.length === 0) {
-        alert("未偵測到錄製數據。");
-    } else {
-        const mimeType = mediaRecorderRef.current?.mimeType || 'video/mp4';
-        const blob = new Blob(recordedChunksRef.current, { type: mimeType });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `WILLWI_HANDCRAFTED_${selectedSong?.title || 'DEMO'}.mp4`;
-        a.click();
+        alert("未偵測到錄製數據，可能是錄製失敗或瀏覽器不支援。");
+        return;
     }
-    
-    // JSON Archive
+    const mimeType = mediaRecorderRef.current?.mimeType || 'video/mp4';
+    const blob = new Blob(recordedChunksRef.current, { type: mimeType });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `WILLWI_HANDCRAFTED_${selectedSong?.title || 'DEMO'}.mp4`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
+  const downloadCertificate = () => {
     const archiveData = {
         title: selectedSong?.title,
-        creator_note: "User Handcrafted Session",
+        creator: listenerName || "Anonymous",
         timestamp: new Date().toISOString(),
-        listener_info: {
-            name: listenerName,
-            id: user?.email || 'anonymous'
-        }
+        note: "This document certifies that the user has completed a handcrafted lyric synchronization session on Willwi DB.",
+        platform: "Willwi Official Interactive Platform"
     };
     const jsonBlob = new Blob([JSON.stringify(archiveData, null, 2)], { type: 'application/json' });
     const jsonUrl = URL.createObjectURL(jsonBlob);
-    const aj = document.createElement('a');
-    aj.href = jsonUrl;
-    aj.download = `WILLWI_LOG_${selectedSong?.title || 'DEMO'}.json`;
-    aj.click();
+    const a = document.createElement('a');
+    a.href = jsonUrl;
+    a.download = `WILLWI_CERTIFICATE_${selectedSong?.title || 'DEMO'}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(jsonUrl);
   };
 
   // --- Veo Admin Functions ---
@@ -495,6 +527,11 @@ const Interactive: React.FC = () => {
                         ・這不是商品販售<br/>
                         ・不包含任何授權或權利轉移<br/>
                         ・此為一次性的創作參與紀錄
+                        {preSelectedSongId && (
+                            <span className="block mt-4 text-brand-gold font-bold">
+                                * 已選擇作品，通過後直接開始。
+                            </span>
+                        )}
                     </div>
 
                     <form onSubmit={handleStudioUnlock} className="space-y-4">
@@ -615,22 +652,37 @@ const Interactive: React.FC = () => {
                 <p className="text-slate-500 text-[10px] font-bold uppercase tracking-[0.4em] mb-12">Session Completed</p>
                 
                 {/* 1. STANDARD DOWNLOAD AREA */}
-                <div className="bg-slate-900/80 p-10 border border-white/10 mb-16 backdrop-blur-sm">
+                <div className="bg-slate-900/80 p-10 border border-white/10 mb-16 backdrop-blur-sm shadow-2xl">
+                    <div className="bg-yellow-900/20 border border-yellow-700/30 p-4 mb-8 text-center">
+                        <p className="text-brand-gold text-xs font-bold uppercase tracking-widest animate-pulse">
+                            ⚠️ 重要：檔案由瀏覽器即時生成，離開此頁面後將無法找回。
+                        </p>
+                    </div>
+
                     <p className="text-slate-300 text-sm leading-loose tracking-widest font-light mb-8">
                         這支影片，是為這次參與留下的創作紀錄。<br/>
-                        它不代表任何權利，也不構成內容授權或轉讓。<br/>
-                        謝謝你曾經在這首歌裡。
+                        請立即下載您的作品與數位證書。<br/>
                     </p>
+                    
                     <div className="flex flex-col gap-4 max-w-md mx-auto">
                         <input 
-                            placeholder="輸入您的名字 (作為紀錄)" 
+                            placeholder="輸入您的名字 (簽署證書用)" 
                             className="w-full bg-black border border-white/20 p-4 text-center text-white text-xs uppercase tracking-widest outline-none focus:border-brand-gold"
                             value={listenerName}
                             onChange={e => setListenerName(e.target.value)}
                         />
-                        <button onClick={downloadProductionPackage} className="w-full py-5 bg-white text-slate-950 font-black text-xs uppercase tracking-[0.3em] hover:bg-brand-gold transition-all">
-                            下載成果 (MP4 Video)
-                        </button>
+                        
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+                            <button onClick={downloadVideo} className="w-full py-4 bg-white text-slate-950 font-black text-[10px] uppercase tracking-widest hover:bg-brand-gold transition-all shadow-lg">
+                                儲存影片 (Save MP4)
+                            </button>
+                            <button onClick={downloadCertificate} className="w-full py-4 border border-white/20 text-white font-black text-[10px] uppercase tracking-widest hover:bg-white hover:text-black transition-all">
+                                領取證書 (Get Cert)
+                            </button>
+                        </div>
+                        <p className="text-[9px] text-slate-500 mt-2">
+                            * 檔案將直接下載至您的裝置 (Downloads Folder)。
+                        </p>
                     </div>
                 </div>
 
