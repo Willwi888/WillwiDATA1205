@@ -22,6 +22,15 @@ const convertToDirectStream = (url: string) => {
     } catch (e) { return url; }
 };
 
+const DEFAULT_CREDITS = `Main Artist : Willwi 陳威兒
+Composer : Tsung Yu Chen
+Lyricist : Tsung Yu Chen
+Arranger : Willwi
+Producer : Will Chen
+Recording | Mixing | Mastering : Will Chen
+Studio : Willwi Studio, Taipei
+Label : Willwi Music`;
+
 const AddSong: React.FC = () => {
   const navigate = useNavigate();
   const { addSong } = useData();
@@ -54,8 +63,8 @@ const AddSong: React.FC = () => {
     language: Language.Mandarin,
     projectType: ProjectType.Indie,
     releaseCategory: ReleaseCategory.Single,
-    releaseCompany: '',
-    publisher: '', // NEW
+    releaseCompany: 'Willwi Music', // Default Fixed
+    publisher: 'Willwi Music', // Default Fixed
     releaseDate: new Date().toISOString().split('T')[0],
     isEditorPick: false,
     isInteractiveActive: false,
@@ -63,11 +72,11 @@ const AddSong: React.FC = () => {
     coverOverlayText: '',
     lyrics: '',
     description: '',
-    credits: '',
+    credits: DEFAULT_CREDITS, // Default Fixed
     spotifyLink: '',
     appleMusicLink: '',
     youtubeMusicUrl: '',
-    musixmatchUrl: '', // NEW
+    musixmatchUrl: '', 
     smartLink: '', 
     musicBrainzId: '',
     audioUrl: '',
@@ -161,7 +170,6 @@ const AddSong: React.FC = () => {
               youtubeUrl: searchQuery,
               coverUrl: thumbnailUrl,
               projectType: ProjectType.Indie,
-              releaseCompany: 'Willwi Music'
           };
 
           if (title) {
@@ -183,7 +191,7 @@ const AddSong: React.FC = () => {
                           spotifyId: match.id,
                           upc: albumDetails?.external_ids?.upc || albumDetails?.external_ids?.ean || '',
                           releaseCompany: albumDetails?.label || albumDetails?.copyrights?.[0]?.text || 'Willwi Music',
-                          publisher: albumDetails?.copyrights?.find(c => c.type === 'C')?.text || '', // Try to guess Publisher from Copyright C
+                          publisher: albumDetails?.copyrights?.find(c => c.type === 'C')?.text || 'Willwi Music', 
                           releaseDate: albumDetails?.release_date || match.album.release_date,
                           releaseCategory: cat,
                           language: lang
@@ -239,14 +247,14 @@ const AddSong: React.FC = () => {
     const albumDetails = await getSpotifyAlbum(track.album.id);
     let cat = ReleaseCategory.Single;
     let label = 'Willwi Music';
-    let publisher = '';
+    let publisher = 'Willwi Music';
     let upc = '';
 
     if (albumDetails) {
          if (albumDetails.album_type === 'album') cat = ReleaseCategory.Album;
          else if (albumDetails.total_tracks > 3) cat = ReleaseCategory.EP;
          label = albumDetails.label || label;
-         publisher = albumDetails.copyrights?.find(c => c.type === 'C')?.text || '';
+         publisher = albumDetails.copyrights?.find(c => c.type === 'C')?.text || publisher;
          upc = albumDetails.external_ids?.upc || albumDetails.external_ids?.ean || '';
     }
 
@@ -276,7 +284,7 @@ const AddSong: React.FC = () => {
         coverUrl: album.images[0]?.url || '',
         releaseCategory: ReleaseCategory.Album,
         releaseCompany: details?.label || 'Willwi Music',
-        publisher: details?.copyrights?.find(c => c.type === 'C')?.text || '',
+        publisher: details?.copyrights?.find(c => c.type === 'C')?.text || 'Willwi Music',
         upc: details?.external_ids?.upc || details?.external_ids?.ean || ''
       }));
       setAlbumResults([]);

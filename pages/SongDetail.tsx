@@ -314,32 +314,16 @@ const SongDetail: React.FC = () => {
                         </div>
 
                         {isAdmin && (
-                            <div className="flex flex-col gap-3">
-                                {isEditing ? (
-                                    <>
-                                        <button onClick={handleSave} className="px-6 py-3 bg-brand-accent text-slate-900 font-black text-[10px] uppercase tracking-widest hover:bg-white transition-all shadow-lg">Save Changes</button>
-                                        <button onClick={() => setIsEditing(false)} className="px-6 py-3 border border-white/10 text-white font-black text-[10px] uppercase tracking-widest">Cancel</button>
-                                    </>
-                                ) : (
-                                    <>
-                                        <button onClick={() => setIsEditing(true)} className="px-6 py-3 border border-white/10 text-white font-black text-[10px] uppercase tracking-widest hover:bg-white hover:text-black transition-all">Edit Data</button>
-                                        <button onClick={() => deleteSong(id!).then(() => navigate('/database'))} className="px-6 py-3 border border-red-900/30 text-red-500 font-black text-[10px] uppercase tracking-widest hover:bg-red-500 hover:text-white transition-all">Remove</button>
-                                    </>
-                                )}
+                            <div className="grid grid-cols-2 md:grid-cols-4 gap-8 mt-12 pt-12 border-t border-white/5">
+                                {['isrc', 'upc', 'spotifyId', 'releaseCompany', 'publisher'].map(field => (
+                                    <div key={field}>
+                                        <span className="text-[9px] text-slate-600 uppercase tracking-[0.4em] block mb-2">{field}</span>
+                                        <span className="font-mono text-[11px] text-slate-400 uppercase">{(song as any)[field] || 'UNDEFINED'}</span>
+                                    </div>
+                                ))}
                             </div>
                         )}
                     </div>
-
-                    {isAdmin && (
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-8 mt-12 pt-12 border-t border-white/5">
-                            {['isrc', 'upc', 'spotifyId', 'releaseCompany', 'publisher'].map(field => (
-                                <div key={field}>
-                                    <span className="text-[9px] text-slate-600 uppercase tracking-[0.4em] block mb-2">{field}</span>
-                                    <span className="font-mono text-[11px] text-slate-400 uppercase">{(song as any)[field] || 'UNDEFINED'}</span>
-                                </div>
-                            ))}
-                        </div>
-                    )}
                 </div>
             </div>
         </div>
@@ -370,7 +354,15 @@ const SongDetail: React.FC = () => {
             <div className="space-y-8">
                 <div className="bg-slate-900 p-8 border border-white/5">
                     <h3 className="text-[10px] font-black text-white uppercase tracking-[0.4em] mb-6">Credits</h3>
-                    <div className="text-[10px] text-slate-500 font-mono leading-loose uppercase tracking-wider">{song.credits || "Production team undisclosed."}</div>
+                    <div className="text-[10px] text-slate-500 font-mono leading-loose uppercase tracking-wider whitespace-pre-line">
+                        {song.credits || "Production team undisclosed."}
+                    </div>
+                    
+                    {/* Automated Copyright Footer */}
+                    <div className="mt-8 pt-8 border-t border-white/5 text-[9px] text-slate-600 font-mono leading-relaxed space-y-1">
+                        <p>℗ {new Date(song.releaseDate).getFullYear()} {song.releaseCompany || 'Willwi Music'}</p>
+                        <p>© {new Date(song.releaseDate).getFullYear()} {song.publisher || song.releaseCompany || 'Willwi Music'}</p>
+                    </div>
                 </div>
             </div>
         </div>
