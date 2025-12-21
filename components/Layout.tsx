@@ -96,8 +96,11 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
 
             <div className="hidden md:flex items-center">
               <div className="ml-10 flex items-center space-x-10 text-sm uppercase drop-shadow-md font-semibold">
+                {/* Updated Navigation Order: Home -> Interactive -> Database */}
                 <Link to={isEmbed ? "/?embed=true" : "/"} className={isActive('/')}>{t('nav_home')}</Link>
+                <Link to={isEmbed ? "/interactive?embed=true" : "/interactive"} className={isActive('/interactive')}>{t('nav_interactive')}</Link>
                 <Link to={isEmbed ? "/database?embed=true" : "/database"} className={isActive('/database')}>{t('nav_catalog')}</Link>
+                
                 {isAdmin && (
                     <>
                         <Link to={isEmbed ? "/add?embed=true" : "/add"} className="text-slate-300 hover:text-brand-accent transition-colors font-bold tracking-wider">
@@ -106,7 +109,6 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
                         <Link to="/admin" className={isActive('/admin')}>Manager</Link>
                     </>
                 )}
-                <Link to={isEmbed ? "/interactive?embed=true" : "/interactive"} className={isActive('/interactive')}>{t('nav_interactive')}</Link>
               </div>
             </div>
 
@@ -172,7 +174,9 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
           <div className="md:hidden bg-slate-900/95 backdrop-blur-xl border-t border-slate-800 absolute w-full left-0 top-full shadow-2xl animate-fade-in-down">
             <div className="px-2 pt-2 pb-3 space-y-1 sm:px-3">
               <Link to="/" onClick={() => setIsMenuOpen(false)} className={mobileLinkClass('/')}>{t('nav_home')}</Link>
+              <Link to="/interactive" onClick={() => setIsMenuOpen(false)} className={mobileLinkClass('/interactive')}>{t('nav_interactive')}</Link>
               <Link to="/database" onClick={() => setIsMenuOpen(false)} className={mobileLinkClass('/database')}>{t('nav_catalog')}</Link>
+              
               {isAdmin && (
                   <>
                     <Link to="/add" onClick={() => setIsMenuOpen(false)} className={mobileLinkClass('/add')}>{t('nav_add')}</Link>
@@ -180,7 +184,6 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
                     <button onClick={handleExitAdmin} className="w-full text-left px-3 py-3 text-lg font-medium text-red-500 border-l-2 border-transparent">Exit Admin</button>
                   </>
               )}
-              <Link to="/interactive" onClick={() => setIsMenuOpen(false)} className={mobileLinkClass('/interactive')}>{t('nav_interactive')}</Link>
             </div>
           </div>
         )}

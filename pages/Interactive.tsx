@@ -29,10 +29,6 @@ const Interactive: React.FC = () => {
   const [selectedSong, setSelectedSong] = useState<Song | null>(null);
   const [preSelectedSongId, setPreSelectedSongId] = useState<string | null>(null);
   
-  // Studio Gate State
-  const [studioPass, setStudioPass] = useState('');
-  const [studioError, setStudioError] = useState('');
-
   // Veo State
   const [veoPrompt, setVeoPrompt] = useState('');
   const [generatedVideo, setGeneratedVideo] = useState<string | null>(null);
@@ -63,14 +59,21 @@ const Interactive: React.FC = () => {
   // Animation Ref
   const animationFrameRef = useRef<number>(0);
 
-  // --- Handshake from Database Selection ---
+  // --- Handshake from Database Selection OR Home Page ---
   useEffect(() => {
-      // Check if we arrived here with a selected song from Database page
+      // 1. Check if we arrived here with a selected song from Database page
       if (location.state && location.state.targetSongId) {
           setPreSelectedSongId(location.state.targetSongId);
-          // If we have a song, we can technically skip to Intro/Gate immediately
-          // but let's allow the user to see the menu first, or maybe jump to Intro
-          setMode('intro');
+          setMode('intro'); // Start standard flow
+      }
+      
+      // 2. Check if we arrived here from Home Page columns with a specific mode
+      if (location.state && location.state.initialMode) {
+          const initMode = location.state.initialMode as InteractionMode;
+          // Only allow valid start modes to prevent breaking the state
+          if (['intro', 'cloud-cinema', 'pure-support'].includes(initMode)) {
+              setMode(initMode);
+          }
       }
   }, [location.state]);
 
@@ -90,27 +93,20 @@ const Interactive: React.FC = () => {
 
   // --- Handlers ---
 
-  const handleStudioUnlock = (e: React.FormEvent) => {
-      e.preventDefault();
-      // 在此處設定後台給予的密碼
-      if (studioPass.toLowerCase() === 'willwi' || isAdmin) {
-          setStudioError('');
-          
-          // CRITICAL FLOW UPDATE:
-          // If a song was pre-selected from Database, skip "Welcome" and "Select" -> Go straight to "Tool Start"
-          if (preSelectedSongId) {
-              const targetSong = getSong(preSelectedSongId);
-              if (targetSong) {
-                  handleSelectSong(targetSong); // This sets mode to 'tool-start'
-              } else {
-                  alert("Pre-selected song not found. Redirecting to library.");
-                  setMode('select');
-              }
+  const handleEnterStudio = () => {
+      // SIMPLIFIED FLOW: No password check. Immediate entry.
+      
+      // If a song was pre-selected from Database, skip "Welcome" and "Select" -> Go straight to "Tool Start"
+      if (preSelectedSongId) {
+          const targetSong = getSong(preSelectedSongId);
+          if (targetSong) {
+              handleSelectSong(targetSong); // This sets mode to 'tool-start'
           } else {
-              setMode('studio-welcome');
+              alert("Pre-selected song not found. Redirecting to library.");
+              setMode('select');
           }
       } else {
-          setStudioError('代碼錯誤。請確認您已付款並收到確認信。');
+          setMode('studio-welcome');
       }
   };
 
@@ -497,7 +493,7 @@ const Interactive: React.FC = () => {
             </div>
         )}
 
-        {/* --- MODE: GATE (Updated: Hidden QR, PayPal Only) --- */}
+        {/* --- MODE: GATE (Updated: Direct Payment & Enter) --- */}
         {mode === 'gate' && (
             <div className="max-w-4xl w-full flex flex-col md:flex-row bg-slate-900 border border-white/10 shadow-2xl animate-fade-in">
                 <div className="w-full md:w-1/2 bg-white p-12 flex flex-col items-center justify-center text-slate-900">
@@ -513,14 +509,13 @@ const Interactive: React.FC = () => {
                             Pay via PayPal
                         </a>
                         <p className="mt-4 text-[9px] text-slate-500 leading-relaxed">
-                            付款後請將單據 Email 至 <br/>
-                            <span className="font-bold">will@willwi.com</span> <br/>
-                            我們將以人工方式回傳通行碼 (Code)
+                            付款完成後，請直接點擊右側按鈕進入。<br/>
+                            無需等待回傳。
                         </p>
                     </div>
                 </div>
                 <div className="w-full md:w-1/2 bg-slate-950 p-12 flex flex-col justify-center">
-                    <h4 className="text-white font-black uppercase tracking-[0.2em] mb-6">Enter Access Code</h4>
+                    <h4 className="text-white font-black uppercase tracking-[0.2em] mb-6">Ready to Enter</h4>
                     
                     <div className="mb-8 p-4 border border-brand-gold/20 bg-brand-gold/5 text-[10px] text-brand-gold/80 leading-loose">
                         點擊付款，即表示你理解並同意：<br/>
@@ -534,19 +529,17 @@ const Interactive: React.FC = () => {
                         )}
                     </div>
 
-                    <form onSubmit={handleStudioUnlock} className="space-y-4">
-                        <input 
-                            type="password" 
-                            placeholder="CODE" 
-                            className="w-full bg-black border border-white/20 p-4 text-center text-white tracking-[0.3em] text-sm outline-none focus:border-brand-gold transition-colors"
-                            value={studioPass}
-                            onChange={e => setStudioPass(e.target.value)}
-                        />
-                        {studioError && <p className="text-red-500 text-[10px] uppercase font-bold tracking-widest">{studioError}</p>}
-                        <button className="w-full py-4 bg-brand-gold text-slate-900 font-black uppercase tracking-[0.3em] text-[10px] hover:bg-white transition-all">
-                            Verify & Enter
+                    <div className="space-y-4">
+                        <button 
+                            onClick={handleEnterStudio}
+                            className="w-full py-5 bg-brand-gold text-slate-900 font-black uppercase tracking-[0.3em] text-[10px] hover:bg-white transition-all shadow-[0_0_30px_rgba(251,191,36,0.3)] animate-pulse"
+                        >
+                            我已付款，進入創作 (START)
                         </button>
-                    </form>
+                        <p className="text-[9px] text-slate-600 text-center uppercase tracking-widest">
+                            * By clicking, you confirm the support.
+                        </p>
+                    </div>
                 </div>
             </div>
         )}

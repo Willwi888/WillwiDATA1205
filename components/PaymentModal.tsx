@@ -45,7 +45,7 @@ const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose }) => {
           } else {
               recordDonation(totalAmount);
           }
-          alert("已收到您的支持資訊。系統將進行人工驗證。(Verification Pending)");
+          alert("已確認您的支持資訊。感謝您的參與！ (Access Granted)");
           onClose();
       }
   };
@@ -137,8 +137,8 @@ const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose }) => {
                             </button>
                             
                             <p className="text-[9px] text-slate-500 leading-relaxed max-w-xs mx-auto">
-                                * 暫不支援自動發碼。<br/>
-                                付款後請 Email 至 will@willwi.com 索取 Code。
+                                * 支付完成後，請點擊下方按鈕確認。<br/>
+                                (After payment, verify below to start.)
                             </p>
                         </div>
                     </div>
@@ -147,7 +147,7 @@ const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose }) => {
                         onClick={handleManualConfirm}
                         className={`w-full py-5 border text-[11px] font-black uppercase tracking-[0.4em] transition-all ${isFormValid ? 'border-white/10 text-slate-400 hover:bg-white hover:text-black' : 'border-red-900/30 text-red-800 cursor-not-allowed'}`}
                     >
-                        {isFormValid ? "我已完成付款 (Notify Admin)" : "Fill Identity to Confirm"}
+                        {isFormValid ? "我已完成付款，確認進入 (Verify & Enter)" : "Fill Identity to Confirm"}
                     </button>
                 </div>
             </div>
