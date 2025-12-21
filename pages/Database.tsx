@@ -67,6 +67,13 @@ const Database: React.FC = () => {
   const handleStartSession = () => {
       if (selectedIds.size !== 1) return;
       const songId = Array.from(selectedIds)[0];
+      const selectedSong = songs.find(s => s.id === songId);
+      
+      if (!selectedSong?.isInteractiveActive) {
+          alert("此作品的互動創作功能尚未開放 (Interactive Mode is Closed)。");
+          return;
+      }
+      
       // Navigate to Interactive Mode with the selected song ID in state
       navigate('/interactive', { state: { targetSongId: songId } });
   };
@@ -215,7 +222,7 @@ const Database: React.FC = () => {
                   
                   {/* Listener Action: Start Creative Session (Only when 1 song selected) */}
                   {selectedIds.size === 1 && (
-                      <button onClick={handleStartSession} className="px-8 py-3 bg-brand-gold text-slate-950 font-black text-[10px] uppercase tracking-widest hover:bg-white transition-all shadow-lg animate-pulse">
+                      <button onClick={handleStartSession} className="px-8 py-3 bg-brand-gold text-slate-900 font-black text-[10px] uppercase tracking-widest hover:bg-white transition-all shadow-lg animate-pulse">
                           Start Interactive Session (前往創作)
                       </button>
                   )}

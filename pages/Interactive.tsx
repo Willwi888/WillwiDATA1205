@@ -100,7 +100,12 @@ const Interactive: React.FC = () => {
       if (preSelectedSongId) {
           const targetSong = getSong(preSelectedSongId);
           if (targetSong) {
-              handleSelectSong(targetSong); // This sets mode to 'tool-start'
+              if (!targetSong.isInteractiveActive) {
+                  alert("此作品互動功能目前未開放。");
+                  setMode('select');
+              } else {
+                  handleSelectSong(targetSong); // This sets mode to 'tool-start'
+              }
           } else {
               alert("Pre-selected song not found. Redirecting to library.");
               setMode('select');
@@ -562,23 +567,41 @@ const Interactive: React.FC = () => {
             </div>
         )}
 
-        {/* --- MODE: SELECT --- */}
+        {/* --- MODE: SELECT (FILTERED: ONLY ACTIVE SONGS) --- */}
         {mode === 'select' && (
             <div className="w-full animate-fade-in">
                 <h3 className="text-center text-sm font-black text-brand-gold uppercase tracking-[0.4em] mb-12">Select Material</h3>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-6 w-full">
-                    {songs.map(s => (
-                        <div key={s.id} onClick={() => handleSelectSong(s)} className="bg-slate-900/40 p-6 border border-white/5 hover:border-brand-gold cursor-pointer transition-all group">
-                            <div className="overflow-hidden mb-4 aspect-square bg-slate-800">
-                                <img src={s.coverUrl} className="w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all duration-700 opacity-60 group-hover:opacity-100" alt="" />
+                    {songs.filter(s => s.isInteractiveActive).length === 0 ? (
+                         <div className="col-span-full text-center py-20 border border-white/10 bg-slate-900/50">
+                             <p className="text-slate-500 text-xs uppercase tracking-widest">No active sessions available at the moment.</p>
+                             <p className="text-slate-600 text-[9px] uppercase tracking-widest mt-2">目前沒有開放互動的曲目</p>
+                         </div>
+                    ) : (
+                        songs.filter(s => s.isInteractiveActive).map(s => (
+                            <div key={s.id} onClick={() => handleSelectSong(s)} className="bg-slate-900/40 p-6 border border-white/5 hover:border-brand-gold cursor-pointer transition-all group">
+                                <div className="overflow-hidden mb-4 aspect-square bg-slate-800">
+                                    <img src={s.coverUrl} className="w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all duration-700 opacity-60 group-hover:opacity-100" alt="" />
+                                </div>
+                                <h4 className="text-[10px] font-black text-white uppercase tracking-widest truncate">{s.title}</h4>
+                                <p className="text-[9px] text-brand-gold mt-2 uppercase tracking-widest opacity-0 group-hover:opacity-100 transition-opacity">
+                                    START SESSION &gt;
+                                </p>
                             </div>
-                            <h4 className="text-[10px] font-black text-white uppercase tracking-widest truncate">{s.title}</h4>
-                            <p className="text-[9px] text-slate-500 mt-2 uppercase tracking-widest opacity-0 group-hover:opacity-100 transition-opacity">
-                                載入素材...
-                            </p>
-                        </div>
-                    ))}
+                        ))
+                    )}
                 </div>
+                {/* Optional: Show Coming Soon list */}
+                {songs.filter(s => !s.isInteractiveActive).length > 0 && (
+                     <div className="mt-20 pt-10 border-t border-white/5">
+                         <h4 className="text-center text-[10px] text-slate-600 font-bold uppercase tracking-[0.3em] mb-8">Coming Soon (Coming Sessions)</h4>
+                         <div className="flex flex-wrap justify-center gap-4">
+                             {songs.filter(s => !s.isInteractiveActive).map(s => (
+                                 <span key={s.id} className="text-[9px] text-slate-700 bg-slate-900 px-3 py-1 border border-white/5">{s.title}</span>
+                             ))}
+                         </div>
+                     </div>
+                )}
             </div>
         )}
 

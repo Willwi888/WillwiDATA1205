@@ -66,6 +66,7 @@ const AddSong: React.FC = () => {
     releaseCompany: '',
     releaseDate: new Date().toISOString().split('T')[0],
     isEditorPick: false,
+    isInteractiveActive: false, // Default is OFF
     coverUrl: '', 
     coverOverlayText: '',
     lyrics: '',
@@ -74,6 +75,7 @@ const AddSong: React.FC = () => {
     spotifyLink: '', 
     musicBrainzId: '',
     audioUrl: '',
+    youtubeUrl: '',
   });
 
   const handleAdminLogin = (e: React.FormEvent) => {
@@ -226,6 +228,7 @@ const AddSong: React.FC = () => {
       releaseCompany: formData.releaseCompany || '',
       releaseDate: formData.releaseDate || new Date().toISOString().split('T')[0],
       isEditorPick: !!formData.isEditorPick,
+      isInteractiveActive: !!formData.isInteractiveActive,
       isrc: formData.isrc,
       upc: formData.upc,
       spotifyId: formData.spotifyId,
@@ -388,7 +391,7 @@ const AddSong: React.FC = () => {
                         </div>
                     )}
                 </div>
-                <input name="youtubeUrl" className="bg-slate-900 border border-white/10 px-4 py-3 text-white text-xs focus:border-brand-accent outline-none font-mono h-[42px]" value={formData.youtubeUrl} onChange={handleChange} placeholder="YouTube URL" />
+                <input name="youtubeUrl" className="bg-slate-900 border border-white/10 px-4 py-3 text-white text-xs focus:border-brand-accent outline-none font-mono h-[42px]" value={formData.youtubeUrl} onChange={handleChange} placeholder="YouTube URL (Public)" />
                 <input name="spotifyLink" className="bg-slate-900 border border-white/10 px-4 py-3 text-white text-xs focus:border-brand-accent outline-none font-mono h-[42px]" value={formData.spotifyLink} onChange={handleChange} placeholder="Spotify URL" />
              </div>
         </div>
@@ -399,11 +402,19 @@ const AddSong: React.FC = () => {
                 <input name="isrc" className="bg-slate-900 border border-white/10 px-4 py-3 text-white text-xs focus:border-brand-accent outline-none font-mono" value={formData.isrc} onChange={handleChange} placeholder="ISRC" />
                 <input name="upc" className="bg-slate-900 border border-white/10 px-4 py-3 text-white text-xs focus:border-brand-accent outline-none font-mono" value={formData.upc} onChange={handleChange} placeholder="UPC" />
                 <input name="releaseCompany" className="bg-slate-900 border border-white/10 px-4 py-3 text-white text-xs focus:border-brand-accent outline-none" value={formData.releaseCompany} onChange={handleChange} placeholder="Label / Company" />
-                <div className="flex items-center px-4 bg-slate-900 border border-white/10">
-                     <label className="flex items-center gap-2 cursor-pointer">
-                         <input type="checkbox" name="isEditorPick" checked={formData.isEditorPick} onChange={handleChange} />
-                         <span className="text-[10px] text-white font-bold uppercase">Editor Pick</span>
-                     </label>
+                <div className="flex flex-col gap-2">
+                    <div className="flex items-center px-4 bg-slate-900 border border-white/10 h-[42px]">
+                        <label className="flex items-center gap-2 cursor-pointer">
+                            <input type="checkbox" name="isEditorPick" checked={formData.isEditorPick} onChange={handleChange} />
+                            <span className="text-[10px] text-white font-bold uppercase">Editor Pick</span>
+                        </label>
+                    </div>
+                    <div className="flex items-center px-4 bg-slate-900 border border-white/10 h-[42px]">
+                        <label className="flex items-center gap-2 cursor-pointer">
+                            <input type="checkbox" name="isInteractiveActive" checked={formData.isInteractiveActive} onChange={handleChange} />
+                            <span className="text-[10px] text-brand-gold font-bold uppercase">Interactive ON</span>
+                        </label>
+                    </div>
                 </div>
              </div>
         </div>

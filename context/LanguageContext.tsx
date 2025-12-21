@@ -12,7 +12,7 @@ const TRANSLATIONS = {
     footer_rights: "Willwi Music. All rights reserved.",
     
     // Hero Generic
-    hero_title: "WILLWI.",
+    hero_title: "WILLWI",
     hero_subtitle: "OFFICIAL PLATFORM // PARTICIPATION & SUPPORT",
     hero_desc: "This is not a streaming service. This is an interactive base for supporting Willwi's creation.",
     common_verified: "Official Verified",
@@ -86,7 +86,7 @@ const TRANSLATIONS = {
     footer_rights: "Willwi Music. 版權所有",
 
     // Hero Generic
-    hero_title: "WILLWI.",
+    hero_title: "WILLWI",
     hero_subtitle: "官方平台 // 參與 ＆ 支持",
     hero_desc: "這不是串流平台。這是支持 Willwi 創作的互動基地。",
     common_verified: "官方認證",

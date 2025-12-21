@@ -6,6 +6,17 @@ import { generateMusicCritique } from '../services/geminiService';
 import { useTranslation } from '../context/LanguageContext';
 import { useUser } from '../context/UserContext';
 
+// Helper to convert Google Drive share links to direct audio stream links
+const convertDriveLink = (url: string) => {
+    try {
+        if (url.includes('drive.google.com') && url.includes('/file/d/')) {
+            const id = url.split('/file/d/')[1].split('/')[0];
+            return `https://docs.google.com/uc?export=download&id=${id}`;
+        }
+        return url;
+    } catch (e) { return url; }
+};
+
 const SongDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -47,7 +58,16 @@ const SongDetail: React.FC = () => {
   const handleSave = async () => {
     if (song && id) {
       setIsSaving(true);
-      if (await updateSong(id, editForm)) { setSong({ ...song, ...editForm } as Song); setIsEditing(false); }
+      // Auto-convert Google Drive links before saving
+      const finalForm = { ...editForm };
+      if (finalForm.audioUrl) {
+          finalForm.audioUrl = convertDriveLink(finalForm.audioUrl);
+      }
+      
+      if (await updateSong(id, finalForm)) { 
+          setSong({ ...song, ...finalForm } as Song); 
+          setIsEditing(false); 
+      }
       setIsSaving(false);
     }
   };
@@ -56,6 +76,11 @@ const SongDetail: React.FC = () => {
     setLoadingAi(true);
     setAiReview(await generateMusicCritique(song));
     setLoadingAi(false);
+  };
+
+  const handleStartInteractive = () => {
+      if (!song.isInteractiveActive) return;
+      navigate('/interactive', { state: { targetSongId: song.id } });
   };
 
   const spotifyEmbedId = getSpotifyEmbedId(song.spotifyLink, song.spotifyId);
@@ -94,34 +119,61 @@ const SongDetail: React.FC = () => {
                                 <span className="text-slate-500 text-[10px] font-bold uppercase tracking-[0.3em]">{song.releaseDate}</span>
                             </div>
 
-                            {/* ADMIN MEDIA MONITOR */}
+                            {/* USER ACTIONS: INTERACTIVE BUTTON */}
+                            <div className="mt-10 flex flex-col gap-4 max-w-sm">
+                                {song.isInteractiveActive ? (
+                                    <button 
+                                        onClick={handleStartInteractive}
+                                        className="w-full py-4 bg-brand-gold text-slate-900 font-black uppercase tracking-[0.3em] text-xs hover:bg-white transition-all shadow-lg animate-pulse"
+                                    >
+                                        進入互動實驗室 (Start Session)
+                                    </button>
+                                ) : (
+                                    <div className="w-full py-4 border border-white/10 text-slate-500 font-bold uppercase tracking-[0.2em] text-[10px] text-center bg-black/20">
+                                        互動製作尚未開放 (Closed)
+                                    </div>
+                                )}
+                                
+                                {song.youtubeUrl && (
+                                    <a 
+                                        href={song.youtubeUrl}
+                                        target="_blank" 
+                                        rel="noopener noreferrer"
+                                        className="w-full py-4 border border-red-600/30 text-red-500 hover:bg-red-600 hover:text-white font-black uppercase tracking-[0.2em] text-xs transition-all text-center flex items-center justify-center gap-2"
+                                    >
+                                        <span>▶ Watch on YouTube</span>
+                                    </a>
+                                )}
+                            </div>
+
+                            {/* ADMIN CONTROL PANEL */}
                             {isAdmin && !isEditing && (
                                 <div className="mt-8 w-full max-w-md bg-black/40 border border-white/10 p-4 rounded-lg">
                                     <div className="flex items-center gap-2 mb-3 border-b border-white/5 pb-2">
                                         <div className="w-2 h-2 rounded-full bg-brand-gold animate-pulse"></div>
-                                        <p className="text-[10px] text-brand-gold font-black uppercase tracking-widest">Admin Media Monitor</p>
+                                        <p className="text-[10px] text-brand-gold font-black uppercase tracking-widest">Admin Control Panel</p>
                                     </div>
                                     
                                     <div className="space-y-4">
-                                        {song.audioUrl && (
+                                        <div className="flex items-center justify-between">
+                                            <span className="text-[10px] text-white uppercase tracking-widest">Interactive Status</span>
+                                            <button 
+                                                onClick={() => updateSong(song.id, { isInteractiveActive: !song.isInteractiveActive })}
+                                                className={`px-3 py-1 text-[9px] font-bold uppercase tracking-widest rounded transition-all ${song.isInteractiveActive ? 'bg-emerald-500 text-black' : 'bg-slate-700 text-slate-400'}`}
+                                            >
+                                                {song.isInteractiveActive ? 'Active (ON)' : 'Inactive (OFF)'}
+                                            </button>
+                                        </div>
+
+                                        {song.audioUrl ? (
                                             <div>
-                                                <p className="text-[9px] text-slate-500 font-bold uppercase tracking-widest mb-1">Raw Source Audio</p>
+                                                <p className="text-[9px] text-slate-500 font-bold uppercase tracking-widest mb-1">Raw Source Audio (Admin Only)</p>
                                                 <audio controls src={song.audioUrl} className="w-full h-8 block rounded bg-slate-800" />
                                             </div>
-                                        )}
-                                        
-                                        {spotifyEmbedId && (
-                                            <div>
-                                                <p className="text-[9px] text-slate-500 font-bold uppercase tracking-widest mb-1">Spotify Release</p>
-                                                <iframe 
-                                                    src={`https://open.spotify.com/embed/track/${spotifyEmbedId}?utm_source=generator&theme=0`} 
-                                                    width="100%" 
-                                                    height="80" 
-                                                    frameBorder="0" 
-                                                    allow="clipboard-write; encrypted-media; fullscreen; picture-in-picture" 
-                                                    loading="lazy"
-                                                    className="rounded bg-black opacity-80 hover:opacity-100 transition-opacity"
-                                                ></iframe>
+                                        ) : (
+                                            <div className="bg-red-900/20 border border-red-900/50 p-3">
+                                                <p className="text-[9px] text-red-500 font-bold uppercase tracking-widest">MISSING AUDIO</p>
+                                                <p className="text-[9px] text-slate-400 mt-1">無法啟用互動。請先編輯並填入連結。</p>
                                             </div>
                                         )}
                                     </div>
@@ -129,14 +181,26 @@ const SongDetail: React.FC = () => {
                             )}
 
                             {isEditing && (
-                                <div className="mt-6 space-y-4">
-                                    <div>
-                                        <label className="text-[10px] text-slate-500 font-bold uppercase tracking-widest block mb-1">Audio Source URL</label>
-                                        <input className="w-full bg-black border border-white/10 p-3 text-white text-xs font-mono" value={editForm.audioUrl || ''} onChange={e => setEditForm({...editForm, audioUrl: e.target.value})} placeholder="https://..." />
+                                <div className="mt-6 space-y-4 bg-slate-800/50 p-4 border border-white/10">
+                                    <div className="space-y-2">
+                                        <label className="text-[10px] text-brand-gold font-bold uppercase tracking-widest block">Audio Source URL (Fix Missing Audio)</label>
+                                        <input 
+                                            className="w-full bg-black border border-white/10 p-3 text-white text-xs font-mono focus:border-brand-gold outline-none" 
+                                            value={editForm.audioUrl || ''} 
+                                            onChange={e => setEditForm({...editForm, audioUrl: e.target.value})} 
+                                            placeholder="Paste direct MP3 link or Google Drive Share Link here..." 
+                                        />
+                                        <p className="text-[9px] text-slate-400">
+                                            * Tip: 您可以直接貼上 <strong>Google Drive 分享連結</strong>，系統存檔時會自動轉換為可播放格式。
+                                        </p>
                                     </div>
-                                    <div>
-                                        <label className="text-[10px] text-slate-500 font-bold uppercase tracking-widest block mb-1">Spotify Link</label>
+                                    <div className="space-y-1">
+                                        <label className="text-[10px] text-slate-500 font-bold uppercase tracking-widest block">Spotify Link</label>
                                         <input className="w-full bg-black border border-white/10 p-3 text-white text-xs font-mono" value={editForm.spotifyLink || ''} onChange={e => setEditForm({...editForm, spotifyLink: e.target.value})} placeholder="https://open.spotify.com/..." />
+                                    </div>
+                                    <div className="space-y-1">
+                                        <label className="text-[10px] text-slate-500 font-bold uppercase tracking-widest block">YouTube URL (For Public Listening)</label>
+                                        <input className="w-full bg-black border border-white/10 p-3 text-white text-xs font-mono" value={editForm.youtubeUrl || ''} onChange={e => setEditForm({...editForm, youtubeUrl: e.target.value})} placeholder="https://youtube.com/..." />
                                     </div>
                                 </div>
                             )}
@@ -146,7 +210,7 @@ const SongDetail: React.FC = () => {
                             <div className="flex flex-col gap-3">
                                 {isEditing ? (
                                     <>
-                                        <button onClick={handleSave} className="px-6 py-3 bg-white text-black font-black text-[10px] uppercase tracking-widest">Save</button>
+                                        <button onClick={handleSave} className="px-6 py-3 bg-brand-accent text-slate-900 font-black text-[10px] uppercase tracking-widest hover:bg-white transition-all shadow-lg">Save Changes</button>
                                         <button onClick={() => setIsEditing(false)} className="px-6 py-3 border border-white/10 text-white font-black text-[10px] uppercase tracking-widest">Cancel</button>
                                     </>
                                 ) : (

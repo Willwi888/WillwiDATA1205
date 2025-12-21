@@ -35,6 +35,9 @@ export interface Song {
   releaseDate: string;
   isEditorPick: boolean;
   
+  // Feature Flags
+  isInteractiveActive?: boolean; // NEW: Controls if the song is available in Interactive Studio
+  
   // Metadata
   isrc?: string;
   upc?: string;

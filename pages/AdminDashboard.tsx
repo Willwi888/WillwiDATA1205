@@ -65,6 +65,7 @@ const AdminDashboard: React.FC = () => {
           upc: track.album.external_ids?.upc,
           spotifyLink: track.external_urls.spotify,
           isEditorPick: false,
+          isInteractiveActive: false, // Default to false
           youtubeUrl: '',
           audioUrl: ''
       };
@@ -73,6 +74,15 @@ const AdminDashboard: React.FC = () => {
           setTrackResults([]);
           setSearchQuery('');
       }
+  };
+
+  const handleToggleInteractive = async (song: Song) => {
+      if (!song.audioUrl && !song.isInteractiveActive) {
+          alert("無法啟用：此作品尚未設定音源 (Missing Audio)。請先編輯並加入 MP3 連結。");
+          return;
+      }
+      const newValue = !song.isInteractiveActive;
+      await updateSong(song.id, { isInteractiveActive: newValue });
   };
 
   const handleSearch = async () => {
@@ -307,14 +317,13 @@ const AdminDashboard: React.FC = () => {
                         <thead className="bg-white/5">
                             <tr>
                                 <th className="p-4 text-[9px] font-black text-slate-500 uppercase tracking-widest">Asset</th>
-                                <th className="p-4 text-[9px] font-black text-slate-500 uppercase tracking-widest">Source Audio (Monitor)</th>
-                                <th className="p-4 text-[9px] font-black text-slate-500 uppercase tracking-widest">Status</th>
+                                <th className="p-4 text-[9px] font-black text-slate-500 uppercase tracking-widest">Interactive Status</th>
+                                <th className="p-4 text-[9px] font-black text-slate-500 uppercase tracking-widest">Data Status</th>
                                 <th className="p-4 text-[9px] font-black text-slate-500 uppercase tracking-widest text-right">Action</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-white/5">
                             {songs.map(song => {
-                                const spotifyEmbedId = getSpotifyEmbedId(song.spotifyLink, song.spotifyId);
                                 return (
                                 <tr key={song.id} className="hover:bg-white/5 transition-colors">
                                     <td className="p-4 flex items-center gap-4 min-w-[200px]">
@@ -327,25 +336,36 @@ const AdminDashboard: React.FC = () => {
                                             <div className="text-slate-500 text-[9px]">{song.isrc || 'NO_ISRC'}</div>
                                         </div>
                                     </td>
-                                    <td className="p-4 min-w-[250px]">
-                                        {song.audioUrl ? (
-                                            <div className="flex flex-col gap-1">
-                                                <div className="flex items-center gap-2 mb-1">
-                                                     <div className="w-1.5 h-1.5 rounded-full bg-brand-gold animate-pulse"></div>
-                                                     <span className="text-[8px] text-brand-gold font-bold uppercase tracking-widest">Raw Source</span>
-                                                </div>
-                                                <audio controls src={song.audioUrl} className="w-full h-6 block rounded bg-slate-800" />
-                                            </div>
-                                        ) : (
-                                            <span className="text-[9px] text-red-500 font-bold uppercase tracking-widest border border-red-900/50 px-2 py-1">Missing Audio</span>
-                                        )}
+                                    
+                                    {/* INTERACTIVE TOGGLE */}
+                                    <td className="p-4">
+                                        <div className="flex flex-col gap-2">
+                                            <button 
+                                                onClick={() => handleToggleInteractive(song)}
+                                                className={`flex items-center gap-2 px-3 py-1.5 rounded-full border transition-all ${song.isInteractiveActive ? 'bg-emerald-900/30 border-emerald-500/50' : 'bg-slate-800 border-slate-700'}`}
+                                            >
+                                                <div className={`w-2 h-2 rounded-full ${song.isInteractiveActive ? 'bg-emerald-500 animate-pulse' : 'bg-slate-500'}`}></div>
+                                                <span className={`text-[9px] font-bold uppercase tracking-widest ${song.isInteractiveActive ? 'text-emerald-400' : 'text-slate-500'}`}>
+                                                    {song.isInteractiveActive ? 'ACTIVE (開啟)' : 'CLOSED (關閉)'}
+                                                </span>
+                                            </button>
+                                            {song.isInteractiveActive && !song.audioUrl && (
+                                                <span className="text-[8px] text-red-500 font-bold block ml-1">Error: Missing Audio</span>
+                                            )}
+                                        </div>
                                     </td>
+
                                     <td className="p-4">
                                         <div className="flex flex-col gap-1">
-                                            {song.lyrics ? (
-                                                <span className="text-[9px] text-emerald-500 font-bold uppercase tracking-widest">● Lyrics OK</span>
+                                            {song.audioUrl ? (
+                                                <span className="text-[9px] text-slate-400 font-mono">Audio: OK</span>
                                             ) : (
-                                                <span className="text-[9px] text-slate-600 font-bold uppercase tracking-widest">○ No Lyrics</span>
+                                                <span className="text-[9px] text-red-500 font-mono">Audio: MISSING</span>
+                                            )}
+                                            {song.lyrics ? (
+                                                <span className="text-[9px] text-slate-400 font-mono">Lyrics: OK</span>
+                                            ) : (
+                                                <span className="text-[9px] text-slate-600 font-mono">Lyrics: NO</span>
                                             )}
                                         </div>
                                     </td>
