@@ -53,7 +53,9 @@ const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose }) => {
   const handlePayPal = () => {
     if (!isFormValid) return alert("請先填寫您的基本資訊 (Please complete identity).");
     login(name, email);
-    window.open(supportMode === 'production' ? 'https://paypal.me/Willwichen/320TWD' : 'https://paypal.me/Willwichen', '_blank');
+    // Updated link for Pure Support based on user request (PNLV2V3PP47ZN)
+    // Production link remains CBZDTGT76KQY2
+    window.open(supportMode === 'production' ? 'https://www.paypal.com/ncp/payment/CBZDTGT76KQY2' : 'https://www.paypal.com/ncp/payment/PNLV2V3PP47ZN', '_blank');
   };
 
   return (

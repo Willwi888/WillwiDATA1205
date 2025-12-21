@@ -479,7 +479,7 @@ const Interactive: React.FC = () => {
                         <span className="block text-5xl font-black tracking-tighter mt-2 mb-8">NT$ 320</span>
                         
                         {/* PAYPAL ONLY */}
-                        <a href="https://paypal.me/Willwichen/320TWD" target="_blank" rel="noopener noreferrer" className="block w-full py-4 bg-[#003087] text-white font-bold text-xs uppercase tracking-[0.2em] shadow-lg hover:bg-[#00256b] transition-all transform hover:-translate-y-1">
+                        <a href="https://www.paypal.com/ncp/payment/CBZDTGT76KQY2" target="_blank" rel="noopener noreferrer" className="block w-full py-4 bg-[#003087] text-white font-bold text-xs uppercase tracking-[0.2em] shadow-lg hover:bg-[#00256b] transition-all transform hover:-translate-y-1">
                             Pay via PayPal
                         </a>
                         <p className="mt-4 text-[9px] text-slate-500 leading-relaxed">
@@ -702,15 +702,10 @@ const Interactive: React.FC = () => {
 
                         {/* Pricing */}
                         <div className="flex flex-col items-center mb-10 space-y-6">
-                            <div className="flex flex-col md:flex-row justify-center gap-8 md:gap-16">
+                            <div className="flex justify-center">
                                 <div className="text-center group cursor-default">
                                     <span className="block text-[10px] text-slate-500 uppercase font-bold mb-2 group-hover:text-brand-accent transition-colors">Single Collection (一部)</span>
                                     <span className="text-3xl font-serif text-white italic">NT$ 2,800</span>
-                                </div>
-                                <div className="w-px bg-white/10 hidden md:block"></div>
-                                <div className="text-center group cursor-default">
-                                    <span className="block text-[10px] text-slate-500 uppercase font-bold mb-2 group-hover:text-brand-accent transition-colors">Double Collection (兩部)</span>
-                                    <span className="text-3xl font-serif text-white italic">NT$ 5,000</span>
                                 </div>
                             </div>
                         </div>
@@ -718,7 +713,7 @@ const Interactive: React.FC = () => {
                         {/* Call to Action */}
                         <div className="flex flex-col items-center space-y-6">
                             <a 
-                                href="https://paypal.me/Willwichen" 
+                                href="https://www.paypal.com/ncp/payment/CD27A99GZHXV4" 
                                 target="_blank" 
                                 rel="noopener noreferrer"
                                 className="group relative inline-flex items-center gap-4 px-10 py-4 bg-[#003087] text-white font-bold text-xs uppercase tracking-[0.2em] hover:bg-[#00256b] transition-all overflow-hidden shadow-lg hover:shadow-blue-900/30 rounded-sm"
@@ -782,7 +777,7 @@ const Interactive: React.FC = () => {
                         <span className="text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-6 block">Support via PayPal</span>
 
                         {/* PAYPAL ADDITION */}
-                        <a href="https://paypal.me/Willwichen" target="_blank" rel="noopener noreferrer" className="block w-full py-5 bg-[#003087] text-white font-bold text-xs uppercase tracking-[0.2em] text-center shadow-lg hover:bg-[#00256b] transition-all transform hover:-translate-y-1">
+                        <a href="https://www.paypal.com/ncp/payment/PNLV2V3PP47ZN" target="_blank" rel="noopener noreferrer" className="block w-full py-5 bg-[#003087] text-white font-bold text-xs uppercase tracking-[0.2em] text-center shadow-lg hover:bg-[#00256b] transition-all transform hover:-translate-y-1">
                             Pay via PayPal
                         </a>
                     </div>
