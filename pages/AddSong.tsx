@@ -439,7 +439,8 @@ const AddSong: React.FC = () => {
       audioUrl: formData.audioUrl,
       lyrics: formData.lyrics,
       description: formData.description,
-      credits: formData.credits
+      credits: formData.credits,
+      musicBrainzId: formData.musicBrainzId // ADDED THIS
     };
     if (await addSong(newSong)) navigate('/database');
     else { alert(t('msg_save_error')); setIsSaving(false); }
@@ -626,6 +627,7 @@ const AddSong: React.FC = () => {
                 <input name="upc" className="bg-slate-900 border border-white/10 px-4 py-3 text-white text-xs focus:border-brand-accent outline-none font-mono" value={formData.upc} onChange={handleChange} placeholder="UPC" />
                 <input name="releaseCompany" className="bg-slate-900 border border-white/10 px-4 py-3 text-white text-xs focus:border-brand-accent outline-none" value={formData.releaseCompany} onChange={handleChange} placeholder="Label / Company" />
                 <input name="publisher" className="bg-slate-900 border border-white/10 px-4 py-3 text-white text-xs focus:border-brand-accent outline-none" value={formData.publisher} onChange={handleChange} placeholder="Publisher (詞曲版權)" />
+                <input name="musicBrainzId" className="bg-slate-900 border border-white/10 px-4 py-3 text-white text-xs focus:border-brand-accent outline-none font-mono md:col-span-2" value={formData.musicBrainzId} onChange={handleChange} placeholder="MusicBrainz ID" />
                 
                 <div className="col-span-2 flex flex-col gap-2">
                     <div className="flex items-center px-4 bg-slate-900 border border-white/10 h-[42px]">

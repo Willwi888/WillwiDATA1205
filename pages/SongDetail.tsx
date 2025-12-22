@@ -188,7 +188,6 @@ const SongDetail: React.FC = () => {
                                         </div>
                                     )}
 
-                                    {/* Smart Link / Universal Link (Top Priority) */}
                                     {song.smartLink && !isEditing && (
                                         <a 
                                             href={song.smartLink}
@@ -343,13 +342,23 @@ const SongDetail: React.FC = () => {
                                         <label className="text-[10px] text-slate-500 font-bold uppercase tracking-widest block">Release Company (Label)</label>
                                         <input className="w-full bg-black border border-white/10 p-3 text-white text-xs font-mono" value={editForm.releaseCompany || ''} onChange={e => setEditForm({...editForm, releaseCompany: e.target.value})} placeholder="Label..." />
                                     </div>
-                                    {/* NEW: Publisher Field */}
                                     <div className="space-y-1">
                                         <label className="text-[10px] text-slate-500 font-bold uppercase tracking-widest block">Publisher (詞曲版權)</label>
                                         <input className="w-full bg-black border border-white/10 p-3 text-white text-xs font-mono" value={editForm.publisher || ''} onChange={e => setEditForm({...editForm, publisher: e.target.value})} placeholder="Publisher Name..." />
                                     </div>
 
-                                    {/* NEW: MusicBrainz ID Field */}
+                                    {/* ADDED ISRC & UPC INPUTS */}
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div className="space-y-1">
+                                            <label className="text-[10px] text-slate-500 font-bold uppercase tracking-widest block">ISRC</label>
+                                            <input className="w-full bg-black border border-white/10 p-3 text-white text-xs font-mono" value={editForm.isrc || ''} onChange={e => setEditForm({...editForm, isrc: e.target.value})} placeholder="ISRC..." />
+                                        </div>
+                                        <div className="space-y-1">
+                                            <label className="text-[10px] text-slate-500 font-bold uppercase tracking-widest block">UPC</label>
+                                            <input className="w-full bg-black border border-white/10 p-3 text-white text-xs font-mono" value={editForm.upc || ''} onChange={e => setEditForm({...editForm, upc: e.target.value})} placeholder="UPC..." />
+                                        </div>
+                                    </div>
+
                                     <div className="space-y-1">
                                         <label className="text-[10px] text-slate-500 font-bold uppercase tracking-widest block">MusicBrainz ID</label>
                                         <input className="w-full bg-black border border-white/10 p-3 text-white text-xs font-mono" value={editForm.musicBrainzId || ''} onChange={e => setEditForm({...editForm, musicBrainzId: e.target.value})} placeholder="MBID..." />
@@ -367,8 +376,6 @@ const SongDetail: React.FC = () => {
                                         <label className="text-[10px] text-slate-500 font-bold uppercase tracking-widest block">Apple Music Link</label>
                                         <input className="w-full bg-black border border-white/10 p-3 text-white text-xs font-mono" value={editForm.appleMusicLink || ''} onChange={e => setEditForm({...editForm, appleMusicLink: e.target.value})} placeholder="https://music.apple.com/..." />
                                     </div>
-                                    
-                                    {/* NEW: Musixmatch Field */}
                                     <div className="space-y-1">
                                         <label className="text-[10px] text-slate-500 font-bold uppercase tracking-widest block">Musixmatch Link</label>
                                         <input className="w-full bg-black border border-white/10 p-3 text-white text-xs font-mono" value={editForm.musixmatchUrl || ''} onChange={e => setEditForm({...editForm, musixmatchUrl: e.target.value})} placeholder="https://www.musixmatch.com/..." />
@@ -379,7 +386,6 @@ const SongDetail: React.FC = () => {
                                         <input className="w-full bg-black border border-white/10 p-3 text-white text-xs font-mono" value={editForm.smartLink || ''} onChange={e => setEditForm({...editForm, smartLink: e.target.value})} placeholder="Linktree, Linkfire, Fanlink..." />
                                     </div>
 
-                                    {/* --- DELETE BUTTON RESTORED --- */}
                                     <div className="pt-6 mt-6 border-t border-white/10 flex justify-between items-center">
                                         <button onClick={handleDelete} className="text-red-500 hover:text-white border border-red-900/50 hover:bg-red-900/50 px-4 py-3 text-[10px] font-black uppercase tracking-widest transition-all rounded">
                                             DELETE SONG (刪除作品)
@@ -430,23 +436,53 @@ const SongDetail: React.FC = () => {
                             </button>
                         )}
                     </div>
-                    <div className="text-slate-400 text-sm font-light leading-relaxed whitespace-pre-line tracking-wide">
-                        {song.description || "Historical data not available."}
-                    </div>
+                    {/* EDITABLE DESCRIPTION */}
+                    {isEditing ? (
+                        <textarea 
+                            className="w-full h-60 bg-black border border-white/10 p-4 text-white text-sm leading-relaxed outline-none focus:border-brand-gold"
+                            value={editForm.description || ''}
+                            onChange={e => setEditForm({...editForm, description: e.target.value})}
+                            placeholder="Enter description..."
+                        />
+                    ) : (
+                        <div className="text-slate-400 text-sm font-light leading-relaxed whitespace-pre-line tracking-wide">
+                            {song.description || "Historical data not available."}
+                        </div>
+                    )}
                     {/* Only show AI review if it exists (Admin generated) */}
                     {aiReview && <div className="mt-8 p-6 bg-white/5 border-l-2 border-brand-gold text-xs text-slate-300 leading-loose italic">{aiReview}</div>}
                 </div>
                 <div className="bg-slate-900/50 p-10 border border-white/5">
                     <h3 className="text-sm font-black text-white uppercase tracking-[0.4em] mb-8">Lyric Archive</h3>
-                    <div className="font-mono text-xs text-slate-500 whitespace-pre-line leading-loose tracking-[0.1em] border-l border-white/5 pl-8">{song.lyrics || "No transcripts found."}</div>
+                    {/* EDITABLE LYRICS */}
+                    {isEditing ? (
+                        <textarea 
+                            className="w-full h-80 bg-black border border-white/10 p-4 text-white text-xs font-mono leading-relaxed outline-none focus:border-brand-gold"
+                            value={editForm.lyrics || ''}
+                            onChange={e => setEditForm({...editForm, lyrics: e.target.value})}
+                            placeholder="Paste lyrics here..."
+                        />
+                    ) : (
+                        <div className="font-mono text-xs text-slate-500 whitespace-pre-line leading-loose tracking-[0.1em] border-l border-white/5 pl-8">{song.lyrics || "No transcripts found."}</div>
+                    )}
                 </div>
             </div>
             <div className="space-y-8">
                 <div className="bg-slate-900 p-8 border border-white/5">
                     <h3 className="text-[10px] font-black text-white uppercase tracking-[0.4em] mb-6">Credits</h3>
-                    <div className="text-[10px] text-slate-500 font-mono leading-loose uppercase tracking-wider whitespace-pre-line">
-                        {song.credits || "Production team undisclosed."}
-                    </div>
+                    {/* EDITABLE CREDITS */}
+                    {isEditing ? (
+                         <textarea 
+                            className="w-full h-60 bg-black border border-white/10 p-4 text-white text-xs font-mono leading-relaxed outline-none focus:border-brand-gold"
+                            value={editForm.credits || ''}
+                            onChange={e => setEditForm({...editForm, credits: e.target.value})}
+                            placeholder="Credits..."
+                        />
+                    ) : (
+                        <div className="text-[10px] text-slate-500 font-mono leading-loose uppercase tracking-wider whitespace-pre-line">
+                            {song.credits || "Production team undisclosed."}
+                        </div>
+                    )}
                     
                     {/* Automated Copyright Footer */}
                     <div className="mt-8 pt-8 border-t border-white/5 text-[9px] text-slate-600 font-mono leading-relaxed space-y-1">
