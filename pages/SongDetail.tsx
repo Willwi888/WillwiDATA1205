@@ -61,6 +61,14 @@ const SongDetail: React.FC = () => {
       return null;
   };
 
+  // Helper to extract YouTube ID for embedding
+  const getYoutubeEmbedId = (url?: string) => {
+      if (!url) return null;
+      const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/;
+      const match = url.match(regExp);
+      return (match && match[2].length === 11) ? match[2] : null;
+  };
+
   const handleSave = async () => {
     if (song && id) {
       setIsSaving(true);
@@ -104,6 +112,7 @@ const SongDetail: React.FC = () => {
   };
 
   const spotifyEmbedId = getSpotifyEmbedId(song.spotifyLink, song.spotifyId);
+  const youtubeEmbedId = getYoutubeEmbedId(song.youtubeUrl);
   const isInstrumental = song.language === Language.Instrumental;
 
   // MusicBrainz Logic
@@ -172,6 +181,22 @@ const SongDetail: React.FC = () => {
                                 
                                 {/* OFFICIAL STREAMING LINKS (Spotify Player & Buttons) */}
                                 <div className="grid grid-cols-1 gap-3 mt-2">
+                                    
+                                    {/* YouTube Embed Player */}
+                                    {youtubeEmbedId && !isEditing && (
+                                        <div className="w-full aspect-video rounded overflow-hidden shadow-lg border border-white/10 mb-2">
+                                            <iframe 
+                                                width="100%" 
+                                                height="100%" 
+                                                src={`https://www.youtube.com/embed/${youtubeEmbedId}`}
+                                                title="YouTube video player" 
+                                                frameBorder="0" 
+                                                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" 
+                                                allowFullScreen
+                                            ></iframe>
+                                        </div>
+                                    )}
+
                                     {/* Spotify Embed Player */}
                                     {spotifyEmbedId && !isEditing && (
                                         <div className="w-full rounded overflow-hidden shadow-lg border border-[#1DB954]/30">
