@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useUser } from '../context/UserContext';
 import { useData } from '../context/DataContext';
-import { Song } from '../types';
+import { Song, Language } from '../types';
 import { GoogleGenAI } from "@google/genai";
 import { useLocation } from 'react-router-dom';
 
@@ -121,8 +121,19 @@ const Interactive: React.FC = () => {
   };
 
   const handleSelectSong = (song: Song) => {
+    // 1. Instrumental Check
+    if (song.language === Language.Instrumental) {
+        alert("此為純音樂作品 (Instrumental)，無歌詞可供互動。請選擇其他歌曲。");
+        return;
+    }
+    
+    // 2. Lyrics Check
+    if (!song.lyrics) { 
+        alert("此歌曲尚未建立歌詞文本，無法進行練習。"); 
+        return; 
+    }
+
     setSelectedSong(song);
-    if (!song.lyrics) { alert("此歌曲尚未建立歌詞文本，無法進行練習。"); return; }
     
     // Prepare Lyrics
     const rawLines = song.lyrics.split('\n').map(l => l.trim()).filter(l => l.length > 0);
@@ -636,9 +647,15 @@ const Interactive: React.FC = () => {
                                     <img src={s.coverUrl} className="w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all duration-700 opacity-60 group-hover:opacity-100" alt="" />
                                 </div>
                                 <h4 className="text-[10px] font-black text-white uppercase tracking-widest truncate">{s.title}</h4>
-                                <p className="text-[9px] text-brand-gold mt-2 uppercase tracking-widest opacity-0 group-hover:opacity-100 transition-opacity">
-                                    START SESSION &gt;
-                                </p>
+                                <div className="flex flex-col gap-1 mt-2">
+                                    {s.language === Language.Instrumental ? (
+                                        <span className="text-[8px] text-slate-500 bg-black/40 px-2 py-0.5 self-start uppercase tracking-widest">Instrumental</span>
+                                    ) : (
+                                        <p className="text-[9px] text-brand-gold uppercase tracking-widest opacity-0 group-hover:opacity-100 transition-opacity">
+                                            START SESSION &gt;
+                                        </p>
+                                    )}
+                                </div>
                             </div>
                         ))
                     )}

@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useData } from '../context/DataContext';
 import { Language, ProjectType, ReleaseCategory, Song } from '../types';
-import { searchSpotifyTracks, searchSpotifyAlbums, getSpotifyAlbum, SpotifyTrack, SpotifyAlbum } from '../services/spotifyService';
+import { searchSpotifyTracks, searchSpotifyAlbums, getSpotifyAlbum, getSpotifyAlbumTracks, SpotifyTrack, SpotifyAlbum } from '../services/spotifyService';
 import { getWillwiReleases, getCoverArtUrl, getReleaseGroupDetails, MBReleaseGroup, MBTrack, MBImportData } from '../services/musicbrainzService';
 import { useTranslation } from '../context/LanguageContext';
 import { useUser } from '../context/UserContext';
@@ -33,7 +33,7 @@ Label : Willwi Music`;
 
 const AddSong: React.FC = () => {
   const navigate = useNavigate();
-  const { addSong } = useData();
+  const { addSong, bulkAddSongs } = useData();
   const { t } = useTranslation();
   const { isAdmin, enableAdmin } = useUser();
 
@@ -143,18 +143,20 @@ const AddSong: React.FC = () => {
   };
 
   const extractYoutubeInfo = (url: string) => {
-    // 1. Video Check
+    const trimmedUrl = url.trim();
+    
+    // 1. Video Check (v=ID or embed/ID or youtu.be/ID)
     const videoReg = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/;
-    const videoMatch = url.match(videoReg);
+    const videoMatch = trimmedUrl.match(videoReg);
     if (videoMatch && videoMatch[2].length === 11) {
-        return { id: videoMatch[2], type: 'video' };
+        return { id: videoMatch[2], type: 'video', originalUrl: trimmedUrl };
     }
     
-    // 2. Playlist Check (Album Playlists)
+    // 2. Playlist Check (list=ID)
     const listReg = /[?&]list=([^#&?]+)/;
-    const listMatch = url.match(listReg);
+    const listMatch = trimmedUrl.match(listReg);
     if (listMatch) {
-        return { id: listMatch[1], type: 'playlist' };
+        return { id: listMatch[1], type: 'playlist', originalUrl: trimmedUrl };
     }
 
     return null;
@@ -174,22 +176,24 @@ const AddSong: React.FC = () => {
           
           try {
              // Use full URL for oEmbed to handle playlists correctly
-             const res = await fetch(`https://noembed.com/embed?url=${encodeURIComponent(searchQuery)}`);
+             const res = await fetch(`https://noembed.com/embed?url=${encodeURIComponent(ytInfo.originalUrl)}`);
              const data = await res.json();
              if (data.title) title = data.title;
              if (data.thumbnail_url) thumbnailUrl = data.thumbnail_url;
-          } catch (e) { console.log('oEmbed failed'); }
+          } catch (e) { console.log('oEmbed failed', e); }
 
-          // Fallback thumbnail for video if oEmbed misses (Playlists often don't have this simple pattern)
+          // Fallback thumbnail for video if oEmbed misses
           if (!thumbnailUrl && ytInfo.type === 'video') {
                thumbnailUrl = `https://img.youtube.com/vi/${ytInfo.id}/maxresdefault.jpg`;
           }
 
           let updates: Partial<Song> = {
               title: title || formData.title,
-              youtubeUrl: searchQuery,
+              youtubeUrl: ytInfo.type === 'video' ? ytInfo.originalUrl : '',
               coverUrl: thumbnailUrl,
               projectType: ProjectType.Indie,
+              // Force Publisher to match Willwi Music regardless of imports
+              publisher: 'Willwi Music'
           };
 
           if (title) {
@@ -211,7 +215,7 @@ const AddSong: React.FC = () => {
                           spotifyId: match.id,
                           upc: albumDetails?.external_ids?.upc || albumDetails?.external_ids?.ean || '',
                           releaseCompany: albumDetails?.label || albumDetails?.copyrights?.[0]?.text || 'Willwi Music',
-                          publisher: albumDetails?.copyrights?.find(c => c.type === 'C')?.text || 'Willwi Music', 
+                          publisher: 'Willwi Music', // Force overwrite even if Spotify has something else, as per user request
                           releaseDate: albumDetails?.release_date || match.album.release_date,
                           releaseCategory: cat,
                           language: lang
@@ -274,7 +278,9 @@ const AddSong: React.FC = () => {
          if (albumDetails.album_type === 'album') cat = ReleaseCategory.Album;
          else if (albumDetails.total_tracks > 3) cat = ReleaseCategory.EP;
          label = albumDetails.label || label;
-         publisher = albumDetails.copyrights?.find(c => c.type === 'C')?.text || publisher;
+         // publisher = albumDetails.copyrights?.find(c => c.type === 'C')?.text || publisher;
+         // Override publisher to always be Willwi Music as requested
+         publisher = 'Willwi Music';
          upc = albumDetails.external_ids?.upc || albumDetails.external_ids?.ean || '';
     }
 
@@ -297,18 +303,84 @@ const AddSong: React.FC = () => {
   };
   
   const selectAlbumForForm = async (album: SpotifyAlbum) => {
-      const details = await getSpotifyAlbum(album.id);
-      setFormData(prev => ({
-        ...prev,
-        releaseDate: album.release_date,
-        coverUrl: album.images[0]?.url || '',
-        releaseCategory: ReleaseCategory.Album,
-        releaseCompany: details?.label || 'Willwi Music',
-        publisher: details?.copyrights?.find(c => c.type === 'C')?.text || 'Willwi Music',
-        upc: details?.external_ids?.upc || details?.external_ids?.ean || ''
-      }));
-      setAlbumResults([]);
-      alert("Album metadata loaded. Please enter track details manually.");
+      // Prompt user for Bulk Action
+      const isBulk = window.confirm(`【批次匯入確認】\n\n您選擇了專輯《${album.name}》。\n\n[確定]：自動將整張專輯的所有曲目匯入資料庫 (Batch Import)。\n[取消]：僅將專輯資訊填入目前的單曲表單 (Single Fill)。`);
+
+      if (isBulk) {
+          setIsSearching(true);
+          try {
+              const details = await getSpotifyAlbum(album.id);
+              const tracks = await getSpotifyAlbumTracks(album.id);
+              
+              if (tracks.length === 0) {
+                  throw new Error("No tracks found in album.");
+              }
+
+              // Common Metadata
+              const publisher = 'Willwi Music'; 
+              const releaseCompany = details?.label || details?.copyrights?.[0]?.text || 'Willwi Music';
+              const upc = details?.external_ids?.upc || details?.external_ids?.ean || '';
+              const releaseDate = details?.release_date || album.release_date;
+              const coverUrl = album.images[0]?.url || '';
+              
+              let category = ReleaseCategory.Album;
+              if (details?.album_type === 'single') category = ReleaseCategory.Single;
+              else if (details && details.total_tracks <= 6) category = ReleaseCategory.EP;
+
+              const newSongs: Song[] = tracks.map((t, idx) => ({
+                    id: Date.now().toString() + Math.random().toString(36).substr(2, 5) + idx,
+                    title: t.name,
+                    versionLabel: '',
+                    coverUrl: coverUrl,
+                    language: detectLanguage(t.name),
+                    projectType: ProjectType.Indie,
+                    releaseCategory: category,
+                    releaseCompany: releaseCompany,
+                    publisher: publisher,
+                    releaseDate: releaseDate,
+                    isEditorPick: false,
+                    isInteractiveActive: false,
+                    isrc: t.external_ids?.isrc || '',
+                    upc: upc,
+                    spotifyId: t.id,
+                    spotifyLink: t.external_urls?.spotify || '',
+                    credits: DEFAULT_CREDITS,
+                    description: `Included in ${album.name}`,
+                    // Empty lyrics/audio for now
+                    lyrics: '',
+                    audioUrl: ''
+              }));
+
+              const success = await bulkAddSongs(newSongs);
+              if (success) {
+                  alert(`成功匯入整張專輯！\n共 ${newSongs.length} 首歌曲已建立。`);
+                  navigate('/database');
+              } else {
+                  throw new Error("Database Write Error");
+              }
+
+          } catch(e) {
+              console.error("Bulk Import Error", e);
+              alert("批次匯入失敗。請稍後再試。");
+          } finally {
+              setIsSearching(false);
+          }
+
+      } else {
+          // ORIGINAL SINGLE FILL LOGIC
+          const details = await getSpotifyAlbum(album.id);
+          setFormData(prev => ({
+            ...prev,
+            releaseDate: album.release_date,
+            coverUrl: album.images[0]?.url || '',
+            releaseCategory: ReleaseCategory.Album,
+            releaseCompany: details?.label || 'Willwi Music',
+            publisher: 'Willwi Music', // Force Default
+            upc: details?.external_ids?.upc || details?.external_ids?.ean || ''
+          }));
+          setAlbumResults([]);
+          alert("已載入專輯基本資訊。請手動輸入歌曲名稱。");
+      }
   };
 
   const handleSelectMBGroup = async (group: MBReleaseGroup) => {
@@ -329,6 +401,7 @@ const AddSong: React.FC = () => {
           coverUrl: mbCoverUrl,
           releaseCategory: mbImportData.category,
           releaseCompany: mbImportData.releaseCompany,
+          publisher: 'Willwi Music', // Force Default
           musicBrainzId: track.id,
           language: detectLanguage(track.title)
       }));
@@ -350,7 +423,7 @@ const AddSong: React.FC = () => {
       projectType: formData.projectType as ProjectType,
       releaseCategory: formData.releaseCategory as ReleaseCategory,
       releaseCompany: formData.releaseCompany || '',
-      publisher: formData.publisher || '', // Save Publisher
+      publisher: formData.publisher || 'Willwi Music', // Ensure save
       releaseDate: formData.releaseDate || new Date().toISOString().split('T')[0],
       isEditorPick: !!formData.isEditorPick,
       isInteractiveActive: !!formData.isInteractiveActive,
@@ -378,8 +451,8 @@ const AddSong: React.FC = () => {
           <h2 className="text-3xl font-black text-white uppercase tracking-tighter">{t('form_title_add')}</h2>
           <div className="bg-slate-800 p-1 rounded flex border border-slate-700">
               <button onClick={() => setImportMode('youtube')} className={`px-4 py-2 rounded text-[10px] font-black uppercase tracking-widest transition-all ${importMode === 'youtube' ? 'bg-[#FF0000] text-white shadow' : 'text-slate-500 hover:text-white'}`}>YouTube</button>
-              <button onClick={() => setImportMode('single')} className={`px-4 py-2 rounded text-[10px] font-black uppercase tracking-widest transition-all ${importMode === 'single' ? 'bg-brand-accent text-slate-900 shadow' : 'text-slate-500 hover:text-white'}`}>Spotify</button>
-              <button onClick={() => setImportMode('album')} className={`px-4 py-2 rounded text-[10px] font-black uppercase tracking-widest transition-all ${importMode === 'album' ? 'bg-brand-accent text-slate-900 shadow' : 'text-slate-500 hover:text-white'}`}>Album</button>
+              <button onClick={() => setImportMode('single')} className={`px-4 py-2 rounded text-[10px] font-black uppercase tracking-widest transition-all ${importMode === 'single' ? 'bg-brand-accent text-slate-900 shadow' : 'text-slate-500 hover:text-white'}`}>Spotify (Single)</button>
+              <button onClick={() => setImportMode('album')} className={`px-4 py-2 rounded text-[10px] font-black uppercase tracking-widest transition-all ${importMode === 'album' ? 'bg-brand-accent text-slate-900 shadow' : 'text-slate-500 hover:text-white'}`}>Spotify (Album)</button>
               <button onClick={() => setImportMode('mb')} className={`px-4 py-2 rounded text-[10px] font-black uppercase tracking-widest transition-all ${importMode === 'mb' ? 'bg-brand-gold text-slate-900 shadow' : 'text-slate-500 hover:text-white'}`}>MusicBrainz</button>
           </div>
       </div>
@@ -389,7 +462,7 @@ const AddSong: React.FC = () => {
             {importMode !== 'mb' && (
                 <input 
                     className="flex-1 bg-black border border-white/10 px-4 py-3 text-white text-xs outline-none focus:border-white/30 font-mono" 
-                    placeholder={importMode === 'youtube' ? "Paste YouTube Video Link here (for Auto-Import)..." : "Search Spotify..."}
+                    placeholder={importMode === 'youtube' ? "Paste YouTube Video Link here (for Auto-Import)..." : (importMode === 'album' ? "Search Album Name..." : "Search Track Name...")}
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
@@ -403,6 +476,9 @@ const AddSong: React.FC = () => {
         {searchError && <p className="text-red-500 text-xs mt-3">{searchError}</p>}
         {importMode === 'youtube' && !isSearching && !formData.coverUrl && (
              <p className="text-[9px] text-slate-500 mt-3 pl-1">* 智慧匯入功能：貼上 YouTube 連結後，系統將自動比對 Spotify 數據庫，嘗試補全 ISRC、UPC、廠牌與發行日期。</p>
+        )}
+        {importMode === 'album' && !isSearching && (
+             <p className="text-[9px] text-brand-gold mt-3 pl-1">* 批次匯入功能：點選搜尋結果後，可選擇「匯入整張專輯」，系統將自動建立所有曲目資料。</p>
         )}
 
         {/* RESULTS AREA */}
@@ -427,9 +503,9 @@ const AddSong: React.FC = () => {
                     <img src={a.images[2]?.url} className="w-8 h-8" alt="" />
                     <div className="flex-1 min-w-0">
                         <div className="text-white text-xs font-bold truncate">{a.name}</div>
-                        <div className="text-slate-500 text-[10px] truncate">{a.release_date}</div>
+                        <div className="text-slate-500 text-[10px] truncate">{a.release_date} • {a.total_tracks} Tracks</div>
                     </div>
-                    <span className="text-[9px] text-brand-accent border border-brand-accent/50 px-2 py-0.5">USE METADATA</span>
+                    <span className="text-[9px] text-brand-accent border border-brand-accent/50 px-2 py-0.5">SELECT</span>
                 </div>
             ))}
             {mbResults.map(g => (

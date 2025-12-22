@@ -69,7 +69,8 @@ const ChatWidget: React.FC = () => {
   const remainingEnergy = MAX_MESSAGES - msgCount;
 
   return (
-    <div className="fixed bottom-8 right-8 z-50 flex flex-col items-end">
+    // Moved from bottom-8 to bottom-24 to avoid blocking footer elements
+    <div className="fixed bottom-24 right-6 z-50 flex flex-col items-end">
       
       {isOpen && (
         <div 

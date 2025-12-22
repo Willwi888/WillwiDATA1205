@@ -181,6 +181,21 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     } catch (error) { return false; }
   };
 
+  const bulkAddSongs = async (newSongs: Song[]) => {
+    try {
+        await dbService.bulkAdd(newSongs);
+        // Combine and re-sort
+        setSongs(prev => {
+            const updated = [...newSongs, ...prev];
+            return updated.sort((a, b) => new Date(b.releaseDate).getTime() - new Date(a.releaseDate).getTime());
+        });
+        return true;
+    } catch (e) {
+        console.error("Bulk Add Error", e);
+        return false;
+    }
+  };
+
   const updateSong = async (id: string, updatedSong: Partial<Song>) => {
     try {
       const existing = songs.find(s => s.id === id);
@@ -202,7 +217,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const getSong = (id: string) => songs.find(s => s.id === id);
 
   return (
-    <DataContext.Provider value={{ songs, addSong, updateSong, deleteSong, getSong }}>
+    <DataContext.Provider value={{ songs, addSong, updateSong, deleteSong, getSong, bulkAddSongs }}>
       {children}
     </DataContext.Provider>
   );

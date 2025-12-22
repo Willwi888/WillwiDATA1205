@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useData } from '../context/DataContext';
-import { Song, getLanguageColor } from '../types';
+import { Song, getLanguageColor, Language } from '../types';
 import { generateMusicCritique } from '../services/geminiService';
 import { useTranslation } from '../context/LanguageContext';
 import { useUser } from '../context/UserContext';
@@ -77,6 +77,15 @@ const SongDetail: React.FC = () => {
       setIsSaving(false);
     }
   };
+  
+  const handleDelete = async () => {
+      if (!song) return;
+      const confirmDelete = window.confirm(`【確認刪除】\n\n您確定要永久刪除《${song.title}》嗎？\n此動作無法復原。`);
+      if (confirmDelete) {
+          await deleteSong(song.id);
+          navigate('/database');
+      }
+  };
 
   const handleAiGenerate = async () => {
     setLoadingAi(true);
@@ -86,10 +95,20 @@ const SongDetail: React.FC = () => {
 
   const handleStartInteractive = () => {
       if (!song.isInteractiveActive) return;
+      // Instrumental Check
+      if (song.language === Language.Instrumental) {
+          alert("此作品為純音樂 (Instrumental)，沒有歌詞可供互動同步。");
+          return;
+      }
       navigate('/interactive', { state: { targetSongId: song.id } });
   };
 
   const spotifyEmbedId = getSpotifyEmbedId(song.spotifyLink, song.spotifyId);
+  const isInstrumental = song.language === Language.Instrumental;
+
+  // MusicBrainz Logic
+  const WILLWI_MBID = '526cc0f8-da20-4d2d-86a5-4bf841a6ba3c';
+  const musicBrainzSubmissionUrl = `https://musicbrainz.org/recording/create?artist=${WILLWI_MBID}&edit-recording.name=${encodeURIComponent(song.title)}&edit-recording.comment=Auto-submitted from Willwi DB`;
 
   return (
     <div className="animate-fade pb-32 max-w-7xl mx-auto px-6">
@@ -123,17 +142,28 @@ const SongDetail: React.FC = () => {
                             <div className="flex items-center gap-4 mt-6">
                                 <span className={`px-3 py-1 text-[10px] font-black uppercase tracking-[0.2em] text-white ${getLanguageColor(song.language)}`}>{song.language}</span>
                                 <span className="text-slate-500 text-[10px] font-bold uppercase tracking-[0.3em]">{song.releaseDate}</span>
+                                {isAdmin && !isEditing && (
+                                    <button onClick={() => setIsEditing(true)} className="text-[10px] border border-white/20 px-3 py-1 uppercase tracking-widest hover:bg-white hover:text-black transition-all">
+                                        Edit Mode
+                                    </button>
+                                )}
                             </div>
 
                             {/* USER ACTIONS: INTERACTIVE BUTTON */}
                             <div className="mt-10 flex flex-col gap-4 max-w-sm">
                                 {song.isInteractiveActive ? (
-                                    <button 
-                                        onClick={handleStartInteractive}
-                                        className="w-full py-4 bg-brand-gold text-slate-900 font-black uppercase tracking-[0.3em] text-xs hover:bg-white transition-all shadow-lg animate-pulse"
-                                    >
-                                        進入互動實驗室 (Start Session)
-                                    </button>
+                                    isInstrumental ? (
+                                        <div className="w-full py-4 border border-slate-600 text-slate-500 font-bold uppercase tracking-[0.2em] text-[10px] text-center bg-slate-900 cursor-not-allowed">
+                                            純音樂・無歌詞互動 (Instrumental)
+                                        </div>
+                                    ) : (
+                                        <button 
+                                            onClick={handleStartInteractive}
+                                            className="w-full py-4 bg-brand-gold text-slate-900 font-black uppercase tracking-[0.3em] text-xs hover:bg-white transition-all shadow-lg animate-pulse"
+                                        >
+                                            進入互動實驗室 (Start Session)
+                                        </button>
+                                    )
                                 ) : (
                                     <div className="w-full py-4 border border-white/10 text-slate-500 font-bold uppercase tracking-[0.2em] text-[10px] text-center bg-black/20">
                                         互動製作尚未開放 (Closed)
@@ -239,6 +269,21 @@ const SongDetail: React.FC = () => {
                                                 {song.isInteractiveActive ? 'Active (ON)' : 'Inactive (OFF)'}
                                             </button>
                                         </div>
+                                        
+                                        {/* MusicBrainz Submission / Link */}
+                                        <div className="flex items-center justify-between mt-2 pt-2 border-t border-white/5">
+                                            <span className="text-[10px] text-white uppercase tracking-widest">MusicBrainz</span>
+                                            <a 
+                                                href={song.musicBrainzId 
+                                                    ? `https://musicbrainz.org/recording/${song.musicBrainzId}` 
+                                                    : musicBrainzSubmissionUrl} 
+                                                target="_blank" 
+                                                rel="noopener noreferrer"
+                                                className="px-3 py-1 text-[9px] font-bold uppercase tracking-widest rounded bg-purple-900/50 text-purple-400 border border-purple-500/30 hover:bg-purple-500 hover:text-white transition-all"
+                                            >
+                                                {song.musicBrainzId ? 'View Entry' : 'Auto-Submit Data'}
+                                            </a>
+                                        </div>
 
                                         {song.audioUrl ? (
                                             <div>
@@ -276,6 +321,24 @@ const SongDetail: React.FC = () => {
                                             * 支援 Dropbox/Google Drive 分享連結。
                                         </p>
                                     </div>
+                                    
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div className="space-y-1">
+                                            <label className="text-[10px] text-slate-500 font-bold uppercase tracking-widest block">Release Category</label>
+                                            <input className="w-full bg-black border border-white/10 p-3 text-white text-xs font-mono" value={editForm.releaseCategory || ''} onChange={e => setEditForm({...editForm, releaseCategory: e.target.value as any})} placeholder="Single, EP, Album..." />
+                                        </div>
+                                        <div className="space-y-1">
+                                            <label className="text-[10px] text-slate-500 font-bold uppercase tracking-widest block">Language</label>
+                                            <select 
+                                                className="w-full bg-black border border-white/10 p-3 text-white text-xs" 
+                                                value={editForm.language} 
+                                                onChange={e => setEditForm({...editForm, language: e.target.value as Language})}
+                                            >
+                                                {Object.values(Language).map(l => <option key={l} value={l}>{l}</option>)}
+                                            </select>
+                                        </div>
+                                    </div>
+
                                     <div className="space-y-1">
                                         <label className="text-[10px] text-slate-500 font-bold uppercase tracking-widest block">Release Company (Label)</label>
                                         <input className="w-full bg-black border border-white/10 p-3 text-white text-xs font-mono" value={editForm.releaseCompany || ''} onChange={e => setEditForm({...editForm, releaseCompany: e.target.value})} placeholder="Label..." />
@@ -284,6 +347,12 @@ const SongDetail: React.FC = () => {
                                     <div className="space-y-1">
                                         <label className="text-[10px] text-slate-500 font-bold uppercase tracking-widest block">Publisher (詞曲版權)</label>
                                         <input className="w-full bg-black border border-white/10 p-3 text-white text-xs font-mono" value={editForm.publisher || ''} onChange={e => setEditForm({...editForm, publisher: e.target.value})} placeholder="Publisher Name..." />
+                                    </div>
+
+                                    {/* NEW: MusicBrainz ID Field */}
+                                    <div className="space-y-1">
+                                        <label className="text-[10px] text-slate-500 font-bold uppercase tracking-widest block">MusicBrainz ID</label>
+                                        <input className="w-full bg-black border border-white/10 p-3 text-white text-xs font-mono" value={editForm.musicBrainzId || ''} onChange={e => setEditForm({...editForm, musicBrainzId: e.target.value})} placeholder="MBID..." />
                                     </div>
 
                                     <div className="space-y-1">
@@ -309,16 +378,37 @@ const SongDetail: React.FC = () => {
                                         <label className="text-[10px] text-brand-gold font-bold uppercase tracking-widest block">Smart Link (Universal)</label>
                                         <input className="w-full bg-black border border-white/10 p-3 text-white text-xs font-mono" value={editForm.smartLink || ''} onChange={e => setEditForm({...editForm, smartLink: e.target.value})} placeholder="Linktree, Linkfire, Fanlink..." />
                                     </div>
+
+                                    {/* --- DELETE BUTTON RESTORED --- */}
+                                    <div className="pt-6 mt-6 border-t border-white/10 flex justify-between items-center">
+                                        <button onClick={handleDelete} className="text-red-500 hover:text-white border border-red-900/50 hover:bg-red-900/50 px-4 py-3 text-[10px] font-black uppercase tracking-widest transition-all rounded">
+                                            DELETE SONG (刪除作品)
+                                        </button>
+                                        <div className="flex gap-4">
+                                            <button onClick={() => setIsEditing(false)} className="text-slate-400 hover:text-white px-4 py-3 text-[10px] font-black uppercase tracking-widest">
+                                                Cancel
+                                            </button>
+                                            <button onClick={handleSave} disabled={isSaving} className="bg-brand-accent text-slate-900 px-6 py-3 text-[10px] font-black uppercase tracking-widest hover:bg-white transition-all shadow-lg">
+                                                {isSaving ? "Saving..." : "Save Changes"}
+                                            </button>
+                                        </div>
+                                    </div>
                                 </div>
                             )}
                         </div>
 
                         {isAdmin && (
                             <div className="grid grid-cols-2 md:grid-cols-4 gap-8 mt-12 pt-12 border-t border-white/5">
-                                {['isrc', 'upc', 'spotifyId', 'releaseCompany', 'publisher'].map(field => (
+                                {['isrc', 'upc', 'spotifyId', 'musicBrainzId', 'releaseCompany', 'publisher'].map(field => (
                                     <div key={field}>
-                                        <span className="text-[9px] text-slate-600 uppercase tracking-[0.4em] block mb-2">{field}</span>
-                                        <span className="font-mono text-[11px] text-slate-400 uppercase">{(song as any)[field] || 'UNDEFINED'}</span>
+                                        <span className="text-[9px] text-slate-600 uppercase tracking-[0.4em] block mb-2">{field === 'musicBrainzId' ? 'MusicBrainz ID' : field}</span>
+                                        {field === 'musicBrainzId' && (song as any)[field] ? (
+                                            <a href={`https://musicbrainz.org/recording/${(song as any)[field]}`} target="_blank" rel="noopener noreferrer" className="font-mono text-[11px] text-brand-gold hover:underline uppercase">
+                                                {(song as any)[field]} ↗
+                                            </a>
+                                        ) : (
+                                            <span className="font-mono text-[11px] text-slate-400 uppercase">{(song as any)[field] || 'UNDEFINED'}</span>
+                                        )}
                                     </div>
                                 ))}
                             </div>

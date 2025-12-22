@@ -83,11 +83,11 @@ const Home: React.FC = () => {
                     </button>
                 </div>
 
-                {/* COLUMN 3: PURE SUPPORT */}
+                {/* COLUMN 3: PURE SUPPORT (Music Sustenance) */}
                 <div onClick={() => handleNavigateToMode('pure-support')} className="group relative bg-slate-900/40 backdrop-blur-sm border border-white/10 p-8 flex flex-col items-center hover:bg-slate-900/80 hover:border-white transition-all cursor-pointer overflow-hidden transform hover:-translate-y-2 duration-300">
                     <h3 className="text-white font-black text-sm uppercase tracking-[0.3em] mb-4">{t('home_col_support_title')}</h3>
                     <p className="text-slate-400 text-[10px] uppercase tracking-widest mb-6 h-8">{t('home_col_support_desc')}</p>
-                    <div className="text-3xl font-serif italic text-slate-300 mb-6">{t('home_col_support_price')}</div>
+                    <div className="text-3xl font-black text-white mb-6">{t('home_col_support_price')}</div>
                     <ul className="text-[9px] text-slate-500 space-y-2 mb-8 text-left w-full pl-4 border-l border-white/5">
                         <li>{t('home_col_support_li1')}</li>
                         <li>{t('home_col_support_li2')}</li>

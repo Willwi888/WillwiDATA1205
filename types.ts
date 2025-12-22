@@ -68,6 +68,7 @@ export interface SongContextType {
   updateSong: (id: string, updatedSong: Partial<Song>) => Promise<boolean>;
   deleteSong: (id: string) => Promise<void>;
   getSong: (id: string) => Song | undefined;
+  bulkAddSongs: (songs: Song[]) => Promise<boolean>;
 }
 
 export const getLanguageColor = (lang: string) => {
