@@ -3,7 +3,7 @@ import { useUser } from '../context/UserContext';
 import { useData } from '../context/DataContext';
 import { Song, Language } from '../types';
 import { GoogleGenAI } from "@google/genai";
-import { useLocation } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 
 // 狀態定義
 type InteractionMode = 
@@ -21,13 +21,17 @@ type InteractionMode =
   | 'veo-lab';          // 管理員專用 AI 實驗室
 
 const Interactive: React.FC = () => {
-  const { user, isAdmin } = useUser();
+  const { user, isAdmin, addCredits, recordDonation, login } = useUser();
   const { songs, getSong } = useData();
   const location = useLocation();
+  const navigate = useNavigate();
   
   const [mode, setMode] = useState<InteractionMode>('menu');
   const [selectedSong, setSelectedSong] = useState<Song | null>(null);
   const [preSelectedSongId, setPreSelectedSongId] = useState<string | null>(null);
+  
+  // Payment Modal State
+  const [isPaymentOpen, setIsPaymentOpen] = useState(false);
   
   // Veo State
   const [veoPrompt, setVeoPrompt] = useState('');
@@ -64,8 +68,44 @@ const Interactive: React.FC = () => {
   // Animation Ref
   const animationFrameRef = useRef<number>(0);
 
-  // --- Handshake from Database Selection OR Home Page ---
+  // --- Handshake from Database Selection OR Home Page OR Payment Return ---
   useEffect(() => {
+      // 0. CHECK PAYMENT RETURN
+      // NewebPay or ECPay return
+      const params = new URLSearchParams(location.search);
+      if (params.get('payment') === 'success') {
+          const pendingTxStr = localStorage.getItem('willwi_pending_tx');
+          if (pendingTxStr) {
+              try {
+                  const tx = JSON.parse(pendingTxStr);
+                  // Verify freshness (within 10 minutes)
+                  if (Date.now() - (tx.timestamp || 0) < 600000) {
+                      // Process Transaction
+                      login(tx.name, tx.email);
+                      
+                      if (tx.type === 'production') {
+                          addCredits(tx.points || 1, true, tx.amount);
+                          alert(`【付款成功】\n已為您啟用 ${tx.points} 次創作權限。\n歡迎回到 Willwi Interactive Lab。`);
+                          setMode('studio-welcome');
+                      } else {
+                          recordDonation(tx.amount);
+                          alert(`【支持成功】\n感謝您的 NT$ ${tx.amount} 支持。\n您的心意我們收到了。`);
+                          setMode('support-thanks');
+                      }
+                      
+                      // Clear pending
+                      localStorage.removeItem('willwi_pending_tx');
+                      
+                      // Clean URL
+                      navigate('/interactive', { replace: true });
+                      return; // Stop processing other states
+                  }
+              } catch (e) {
+                  console.error("Payment Process Error", e);
+              }
+          }
+      }
+
       // 1. Check if we arrived here with a selected song from Database page
       if (location.state && location.state.targetSongId) {
           setPreSelectedSongId(location.state.targetSongId);
@@ -80,7 +120,7 @@ const Interactive: React.FC = () => {
               setMode(initMode);
           }
       }
-  }, [location.state]);
+  }, [location.state, location.search]);
 
   // --- Keyboard Interaction ---
   useEffect(() => {
@@ -99,8 +139,6 @@ const Interactive: React.FC = () => {
   // --- Handlers ---
 
   const handleEnterStudio = () => {
-      // SIMPLIFIED FLOW: No password check. Immediate entry.
-      
       // If a song was pre-selected from Database, skip "Welcome" and "Select" -> Go straight to "Tool Start"
       if (preSelectedSongId) {
           const targetSong = getSong(preSelectedSongId);
@@ -118,6 +156,13 @@ const Interactive: React.FC = () => {
       } else {
           setMode('studio-welcome');
       }
+  };
+  
+  const openPaymentModal = () => {
+      // Dynamic import to avoid circular dependencies if any
+      import('../components/PaymentModal').then(({ default: PaymentModal }) => {
+          setIsPaymentOpen(true);
+      });
   };
 
   const handleSelectSong = (song: Song) => {
@@ -477,11 +522,27 @@ const Interactive: React.FC = () => {
     } catch (error) { console.error(error); alert("生成失敗"); } finally { setIsGeneratingVideo(false); }
   };
 
+  // Import Payment Modal dynamically when needed
+  const [PaymentModal, setPaymentModal] = useState<React.FC<any> | null>(null);
+  
+  const handleOpenPayment = async (type: 'production' | 'support') => {
+      if (!PaymentModal) {
+          const mod = await import('../components/PaymentModal');
+          setPaymentModal(() => mod.default);
+      }
+      setIsPaymentOpen(true);
+  };
+
   // --- RENDER ---
 
   return (
     <div className="max-w-6xl mx-auto pt-24 px-6 pb-40 min-h-screen flex flex-col items-center">
         
+        {/* Payment Modal */}
+        {PaymentModal && (
+            <PaymentModal isOpen={isPaymentOpen} onClose={() => setIsPaymentOpen(false)} />
+        )}
+
         {/* TOP NAV */}
         {mode !== 'menu' && mode !== 'playing' && (
              <button onClick={() => setMode('menu')} className="self-start text-[10px] text-slate-500 hover:text-white uppercase tracking-widest mb-10 transition-colors">
@@ -509,7 +570,7 @@ const Interactive: React.FC = () => {
                     </button>
 
                     {/* Option 2: Pure Support */}
-                    <button onClick={() => setMode('pure-support')} className="group relative w-full py-6 bg-transparent border border-white/10 hover:border-white transition-all">
+                    <button onClick={() => handleOpenPayment('support')} className="group relative w-full py-6 bg-transparent border border-white/10 hover:border-white transition-all">
                         <div className="relative z-10 flex flex-col items-center">
                             <span className="text-white font-black text-sm uppercase tracking-[0.3em] mb-2">Pure Support</span>
                             <span className="text-[9px] text-slate-500 uppercase tracking-widest">單純支持</span>
@@ -572,10 +633,12 @@ const Interactive: React.FC = () => {
                         <span className="block text-[10px] font-bold uppercase tracking-widest text-slate-500">Entry Fee</span>
                         <span className="block text-5xl font-black tracking-tighter mt-2 mb-8">NT$ 320</span>
                         
-                        {/* PAYPAL PRODUCTION LINK */}
-                        <a href="https://www.paypal.com/ncp/payment/CBZDTGT76KQY2" target="_blank" rel="noopener noreferrer" className="block w-full py-4 bg-[#003087] text-white font-bold text-xs uppercase tracking-[0.2em] shadow-lg hover:bg-[#00256b] transition-all transform hover:-translate-y-1">
-                            Pay via PayPal
-                        </a>
+                        <button 
+                            onClick={() => handleOpenPayment('production')}
+                            className="block w-full py-4 bg-[#2b2b2b] text-white font-bold text-xs uppercase tracking-[0.2em] shadow-lg hover:bg-black transition-all transform hover:-translate-y-1"
+                        >
+                            Pay via NewebPay / Credit
+                        </button>
                         <p className="mt-4 text-[9px] text-slate-500 leading-relaxed">
                             付款完成後，請直接點擊右側按鈕進入。<br/>
                             無需等待回傳。
@@ -846,7 +909,7 @@ const Interactive: React.FC = () => {
 
                         {/* Call to Action */}
                         <div className="flex flex-col items-center space-y-6">
-                            {/* CLOUD CINEMA PAYPAL LINK */}
+                            {/* CLOUD CINEMA PAYPAL LINK (Note: ECPay currently only implemented for basic tiers) */}
                             <a 
                                 href="https://www.paypal.com/ncp/payment/CD27A99GZHXV4" 
                                 target="_blank" 
@@ -882,40 +945,6 @@ const Interactive: React.FC = () => {
                 <button onClick={() => setMode('menu')} className="mt-12 text-slate-500 hover:text-white text-[10px] uppercase tracking-widest transition-colors">
                     Return to Menu
                 </button>
-            </div>
-        )}
-
-        {/* --- MODE: PURE SUPPORT (Updated: Hidden QR, PayPal Only) --- */}
-        {mode === 'pure-support' && (
-            <div className="max-w-4xl w-full flex flex-col md:flex-row bg-slate-900 border border-white/10 shadow-2xl animate-fade-in">
-                <div className="w-full md:w-1/2 bg-slate-950 p-12 flex flex-col justify-center">
-                    <h3 className="text-2xl font-black text-white uppercase tracking-tighter mb-4">Pure Support</h3>
-                    <p className="text-slate-400 text-xs leading-loose tracking-widest mb-8">
-                        如果你只是想支持我的創作，<br/>
-                        而不是參與任何互動流程，<br/>
-                        你可以選擇在這裡完成支持。<br/><br/>
-                        <span className="text-[10px] text-slate-600">
-                        這個支持不包含：<br/>
-                        創作參與、工具使用、內容取得、成果輸出。<br/>
-                        它只是一份心意，讓我能繼續把音樂與系統好好做完。
-                        </span>
-                    </p>
-                    <button onClick={() => setMode('support-thanks')} className="mt-8 py-4 border border-white/20 text-white hover:bg-white hover:text-black transition-all text-[10px] font-black uppercase tracking-[0.2em]">
-                        我已完成支持 (Confirm)
-                    </button>
-                </div>
-                <div className="w-full md:w-1/2 bg-white p-12 flex flex-col items-center justify-center text-slate-900">
-                    <p className="text-[10px] font-bold uppercase tracking-[0.3em] text-slate-400 mb-8">Flexible Amount</p>
-                    
-                    <div className="w-full text-center py-10">
-                        <span className="text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-6 block">Support via PayPal</span>
-
-                        {/* PURE SUPPORT PAYPAL LINK */}
-                        <a href="https://www.paypal.com/ncp/payment/PNLV2V3PP47ZN" target="_blank" rel="noopener noreferrer" className="block w-full py-5 bg-[#003087] text-white font-bold text-xs uppercase tracking-[0.2em] text-center shadow-lg hover:bg-[#00256b] transition-all transform hover:-translate-y-1">
-                            Pay via PayPal
-                        </a>
-                    </div>
-                </div>
             </div>
         )}
 

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useUser } from '../context/UserContext';
 import { useTranslation } from '../context/LanguageContext';
+import { submitNewebPayForm } from '../services/newebPayService';
 
 interface PaymentModalProps {
   isOpen: boolean;
@@ -10,7 +11,7 @@ interface PaymentModalProps {
 const UNIT_PRICE = 320;
 
 const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose }) => {
-  const { user, login, addCredits, recordDonation } = useUser();
+  const { user, login } = useUser();
   const { t } = useTranslation();
   
   const [name, setName] = useState(user?.name || '');
@@ -19,6 +20,7 @@ const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose }) => {
   const [customAmount, setCustomAmount] = useState<number>(100);
   const [pointCount, setPointCount] = useState<number>(1);
   const [isInfoLocked, setIsInfoLocked] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
 
   useEffect(() => {
     if (user?.name && user?.email) {
@@ -33,30 +35,32 @@ const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose }) => {
   const totalAmount = supportMode === 'production' ? pointCount * UNIT_PRICE : customAmount;
   const isFormValid = name.trim().length > 0 && email.includes('@') && totalAmount > 0;
 
-  const handleManualConfirm = () => {
-      if (!isFormValid) return alert(t('modal_confirm_btn_invalid'));
-      
-      login(name, email);
-      
-      const confirmMsg = supportMode === 'production' 
-        ? `【${t('modal_confirm_btn')}】\nNT$ ${totalAmount}\n\n${name} -> ${pointCount} ${t('modal_session_unit')}`
-        : `【${t('modal_tab_support')}】\nNT$ ${totalAmount}`;
-
-      if (window.confirm(confirmMsg)) {
-          if (supportMode === 'production') {
-              addCredits(pointCount, true, totalAmount);
-          } else {
-              recordDonation(totalAmount);
-          }
-          alert(t('common_result') || "Success");
-          onClose();
-      }
-  };
-
-  const handlePayPal = () => {
+  const handlePayment = async () => {
     if (!isFormValid) return alert(t('modal_confirm_btn_invalid'));
+    
+    // Update user info in context
     login(name, email);
-    window.open(supportMode === 'production' ? 'https://www.paypal.com/ncp/payment/CBZDTGT76KQY2' : 'https://www.paypal.com/ncp/payment/PNLV2V3PP47ZN', '_blank');
+    
+    setIsProcessing(true);
+    
+    const itemDesc = supportMode === 'production' 
+        ? `Willwi Interactive Session x ${pointCount}` 
+        : `Willwi Music Support`;
+    
+    // Prepare data to be recovered after redirect
+    const extraData = {
+        type: supportMode,
+        amount: totalAmount,
+        points: pointCount,
+        name,
+        email,
+        timestamp: Date.now()
+    };
+
+    // Call NewebPay Service
+    await submitNewebPayForm(totalAmount, itemDesc, email, extraData);
+    
+    // Note: The page will redirect
   };
 
   return (
@@ -114,88 +118,94 @@ const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose }) => {
             </button>
         </div>
 
-        {/* Payment Area - Always Visible */}
+        {/* Payment Area */}
         <div className="flex flex-col md:flex-row opacity-100">
             <div className="flex-1 p-10 bg-slate-900/10">
                 <div className="flex items-center justify-between mb-8">
                     <span className="text-[10px] font-black text-white uppercase tracking-[0.3em]">{t('modal_payment_header')}</span>
-                    <span className="text-[10px] font-mono text-slate-500 uppercase tracking-widest">{t('modal_payment_sub')}</span>
+                    <span className="text-[10px] font-mono text-slate-500 uppercase tracking-widest">NewebPay (藍新金流)</span>
                 </div>
 
                 <div className="space-y-8">
-                    {/* PAYPAL ONLY INSTRUCTION */}
-                    <div className="bg-white p-8 rounded-sm flex flex-col items-center shadow-inner">
-                        <div className="w-full text-center py-6">
-                            <h4 className="text-slate-900 font-black text-lg uppercase tracking-tight mb-2">{t('modal_paypal_title')}</h4>
-                            <p className="text-slate-500 text-[10px] font-bold uppercase tracking-widest mb-6">{t('modal_paypal_desc')}</p>
-                            <span className="text-3xl font-black text-slate-900 block mb-6">NT$ {totalAmount}</span>
-                            
-                            <button 
-                                onClick={handlePayPal}
-                                className="w-full py-4 bg-[#003087] text-white font-black text-[12px] uppercase tracking-[0.2em] shadow-lg hover:bg-[#00256b] transition-all transform active:scale-95 mb-4"
-                            >
-                                {t('modal_paypal_btn')}
-                            </button>
-                            
-                            <p className="text-[9px] text-slate-500 leading-relaxed max-w-xs mx-auto">
-                                * {t('modal_paypal_note')}
-                            </p>
+                    {/* NEWEBPAY SECTION */}
+                    <div className="bg-white p-8 rounded-sm flex flex-col items-center shadow-xl">
+                        <div className="w-16 h-16 bg-blue-50 rounded-full flex items-center justify-center mb-6 border border-blue-100">
+                             {/* NewebPay Blue Icon Style */}
+                            <svg className="w-8 h-8 text-blue-600" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/></svg>
                         </div>
+                        <h4 className="text-slate-900 font-black uppercase tracking-widest text-sm mb-2">Secure Checkout</h4>
+                        <p className="text-[10px] text-slate-500 text-center mb-6">
+                            信用卡 / ATM / 超商代碼<br/>
+                            藍新金流 安全支付
+                        </p>
+                        <button 
+                            onClick={handlePayment}
+                            disabled={!isFormValid || isProcessing}
+                            className={`w-full py-4 font-black text-xs uppercase tracking-[0.2em] transition-all shadow-lg ${isFormValid && !isProcessing ? 'bg-blue-600 text-white hover:bg-blue-700 hover:shadow-blue-900/20' : 'bg-slate-200 text-slate-400 cursor-not-allowed'}`}
+                        >
+                            {isProcessing ? 'Redirecting...' : `Pay NT$ ${totalAmount.toLocaleString()}`}
+                        </button>
                     </div>
-
-                    <button 
-                        onClick={handleManualConfirm}
-                        className={`w-full py-5 border text-[11px] font-black uppercase tracking-[0.4em] transition-all ${isFormValid ? 'border-white/10 text-slate-400 hover:bg-white hover:text-black' : 'border-red-900/30 text-red-800 cursor-not-allowed'}`}
-                    >
-                        {isFormValid ? t('modal_confirm_btn') : t('modal_confirm_btn_invalid')}
-                    </button>
+                    
+                    <div className="flex justify-center gap-4 opacity-50">
+                        <div className="h-6 w-10 bg-slate-800 rounded flex items-center justify-center text-[8px] font-bold text-white">VISA</div>
+                        <div className="h-6 w-10 bg-slate-800 rounded flex items-center justify-center text-[8px] font-bold text-white">MC</div>
+                        <div className="h-6 w-10 bg-slate-800 rounded flex items-center justify-center text-[8px] font-bold text-white">JCB</div>
+                    </div>
                 </div>
             </div>
 
-            <div className="w-full md:w-80 bg-black/40 p-10 flex flex-col border-l border-white/5">
-                <div className="mb-10">
-                    <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-6">{t('modal_contribution_title')}</h4>
+            <div className="w-full md:w-80 bg-black/40 border-l border-white/5 p-10 flex flex-col justify-between">
+                <div>
+                    <span className="block text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] mb-6">{t('modal_contribution_title')}</span>
+                    
                     {supportMode === 'production' ? (
-                        <div className="flex flex-col gap-2">
-                             <p className="text-[10px] text-slate-400 mb-4 leading-relaxed">
-                                 {t('modal_interactive_desc')}
-                             </p>
-                            {[1, 2, 5, 10].map(cnt => (
-                                <button 
-                                    key={cnt}
-                                    onClick={() => setPointCount(cnt)}
-                                    className={`py-3 px-4 border text-[10px] font-black transition-all ${pointCount === cnt ? 'border-brand-gold text-brand-gold bg-brand-gold/5' : 'border-white/5 text-slate-600 hover:text-white'}`}
-                                >
-                                    {cnt} {t('modal_session_unit')}
-                                </button>
-                            ))}
+                        <div className="space-y-6">
+                            <div className="flex justify-between items-end border-b border-white/10 pb-4">
+                                <span className="text-[10px] text-slate-400 uppercase tracking-widest">Sessions</span>
+                                <div className="flex items-center gap-4">
+                                    <button onClick={() => setPointCount(Math.max(1, pointCount - 1))} className="text-white hover:text-brand-gold text-lg">-</button>
+                                    <span className="text-xl font-mono text-brand-gold">{pointCount}</span>
+                                    <button onClick={() => setPointCount(pointCount + 1)} className="text-white hover:text-brand-gold text-lg">+</button>
+                                </div>
+                            </div>
+                            <p className="text-[10px] text-slate-500 leading-loose">
+                                {t('modal_interactive_desc')}
+                            </p>
                         </div>
                     ) : (
-                        <div className="space-y-4">
-                            <p className="text-[10px] text-orange-400 mb-4 leading-relaxed">
-                                 {t('modal_support_desc')}
-                             </p>
-                             <div className="relative">
-                                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 font-bold">NT$</span>
-                                <input 
-                                    type="number" 
-                                    className="w-full bg-white/5 border border-white/10 p-4 pl-12 text-white font-black text-lg outline-none focus:border-orange-500 transition-all" 
-                                    value={customAmount}
-                                    onChange={(e) => setCustomAmount(Math.max(0, Number(e.target.value)))}
-                                />
-                             </div>
-                             <p className="text-[9px] text-slate-600 text-center">* {t('modal_custom_amount_hint')}</p>
+                        <div className="space-y-6">
+                            <div className="space-y-2">
+                                <label className="text-[9px] text-slate-400 uppercase tracking-widest">{t('modal_custom_amount_label')}</label>
+                                <div className="relative">
+                                    <span className="absolute left-3 top-3 text-slate-500 text-xs">NT$</span>
+                                    <input 
+                                        type="number" 
+                                        className="w-full bg-slate-900 border border-white/10 pl-10 pr-4 py-3 text-white text-sm font-mono focus:border-orange-500 outline-none"
+                                        value={customAmount}
+                                        onChange={(e) => setCustomAmount(Number(e.target.value))}
+                                        min={10}
+                                    />
+                                </div>
+                                <p className="text-[9px] text-slate-600">{t('modal_custom_amount_hint')}</p>
+                            </div>
+                            <p className="text-[10px] text-slate-500 leading-loose">
+                                {t('modal_support_desc')}
+                            </p>
                         </div>
                     )}
                 </div>
 
-                <div className="mt-auto pt-10 border-t border-white/5 space-y-4 text-center">
-                    <p className="text-[9px] text-slate-600 leading-loose">
-                        {t('modal_footer_thanks')}
-                    </p>
+                <div className="mt-10 pt-6 border-t border-white/5">
+                    <div className="flex justify-between items-center mb-2">
+                        <span className="text-[10px] text-slate-400 uppercase tracking-widest">Total</span>
+                        <span className="text-2xl font-black text-white">NT$ {totalAmount.toLocaleString()}</span>
+                    </div>
+                    <p className="text-[9px] text-slate-600 text-right">{t('modal_footer_thanks')}</p>
                 </div>
             </div>
         </div>
+
       </div>
     </div>
   );
