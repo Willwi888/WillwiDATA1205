@@ -32,6 +32,7 @@ const Interactive: React.FC = () => {
   
   // Payment Modal State
   const [isPaymentOpen, setIsPaymentOpen] = useState(false);
+  const [paymentInitialTab, setPaymentInitialTab] = useState<'production' | 'support'>('production');
   
   // Veo State
   const [veoPrompt, setVeoPrompt] = useState('');
@@ -158,11 +159,16 @@ const Interactive: React.FC = () => {
       }
   };
   
-  const openPaymentModal = () => {
-      // Dynamic import to avoid circular dependencies if any
-      import('../components/PaymentModal').then(({ default: PaymentModal }) => {
-          setIsPaymentOpen(true);
-      });
+  // Import Payment Modal dynamically when needed
+  const [PaymentModal, setPaymentModal] = useState<React.FC<any> | null>(null);
+  
+  const handleOpenPayment = async (type: 'production' | 'support') => {
+      setPaymentInitialTab(type);
+      if (!PaymentModal) {
+          const mod = await import('../components/PaymentModal');
+          setPaymentModal(() => mod.default);
+      }
+      setIsPaymentOpen(true);
   };
 
   const handleSelectSong = (song: Song) => {
@@ -522,17 +528,6 @@ const Interactive: React.FC = () => {
     } catch (error) { console.error(error); alert("生成失敗"); } finally { setIsGeneratingVideo(false); }
   };
 
-  // Import Payment Modal dynamically when needed
-  const [PaymentModal, setPaymentModal] = useState<React.FC<any> | null>(null);
-  
-  const handleOpenPayment = async (type: 'production' | 'support') => {
-      if (!PaymentModal) {
-          const mod = await import('../components/PaymentModal');
-          setPaymentModal(() => mod.default);
-      }
-      setIsPaymentOpen(true);
-  };
-
   // --- RENDER ---
 
   return (
@@ -540,7 +535,11 @@ const Interactive: React.FC = () => {
         
         {/* Payment Modal */}
         {PaymentModal && (
-            <PaymentModal isOpen={isPaymentOpen} onClose={() => setIsPaymentOpen(false)} />
+            <PaymentModal 
+                isOpen={isPaymentOpen} 
+                onClose={() => setIsPaymentOpen(false)} 
+                initialMode={paymentInitialTab} 
+            />
         )}
 
         {/* TOP NAV */}
@@ -619,6 +618,51 @@ const Interactive: React.FC = () => {
                         參與創作 (NT$ 320)
                     </button>
                 </div>
+            </div>
+        )}
+
+        {/* --- MODE: PURE SUPPORT (NEW CONTENT) --- */}
+        {mode === 'pure-support' && (
+            <div className="max-w-2xl w-full text-center animate-fade-in py-20">
+                <div className="mb-12">
+                    <h3 className="text-brand-gold text-xs font-black uppercase tracking-[0.5em] mb-4">Music Sustenance</h3>
+                    <h2 className="text-4xl font-black text-white uppercase tracking-tighter mb-8">音樂食糧 (Support)</h2>
+                    <div className="w-24 h-1 bg-brand-gold mx-auto mb-12"></div>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8 text-left max-w-lg mx-auto mb-12">
+                        <div className="bg-slate-900/50 p-6 border border-white/10">
+                            <div className="text-3xl font-black text-white mb-2">NT$ 100</div>
+                            <div className="text-[10px] text-slate-500 uppercase tracking-widest mb-4">Basic Support</div>
+                            <p className="text-xs text-slate-300 leading-relaxed">
+                                贊助 Willwi 一頓便當錢。<br/>
+                                讓創作的力氣延續下去。
+                            </p>
+                        </div>
+                        <div className="bg-slate-900/50 p-6 border border-white/10 flex flex-col justify-center">
+                            <ul className="space-y-3">
+                                <li className="flex items-center gap-3 text-xs text-slate-300">
+                                    <span className="text-brand-gold">✓</span> 自由贊助金額
+                                </li>
+                                <li className="flex items-center gap-3 text-xs text-slate-300">
+                                    <span className="text-brand-gold">✓</span> 留言給創作者
+                                </li>
+                                <li className="flex items-center gap-3 text-xs text-slate-300">
+                                    <span className="text-brand-gold">✓</span> 純粹的支持心意
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    <button 
+                        onClick={() => handleOpenPayment('support')}
+                        className="px-12 py-5 bg-brand-gold text-slate-950 font-black text-xs uppercase tracking-[0.3em] hover:bg-white transition-all shadow-[0_0_30px_rgba(251,191,36,0.3)]"
+                    >
+                        前往支持 (Support Now)
+                    </button>
+                </div>
+                <button onClick={() => setMode('menu')} className="text-slate-500 hover:text-white text-[10px] uppercase tracking-widest transition-colors">
+                    Return to Menu
+                </button>
             </div>
         )}
 

@@ -7,6 +7,7 @@ import { submitNewebPayForm } from '../services/newebPayService';
 interface PaymentModalProps {
   isOpen: boolean;
   onClose: () => void;
+  initialMode?: 'production' | 'support';
 }
 
 const UNIT_PRICE = 320;
@@ -16,13 +17,13 @@ const PAYPAL_LINK = "https://www.paypal.com/ncp/payment/PNLV2V3PP47ZN";
 
 type GatewayType = 'ecpay' | 'newebpay' | 'paypal' | 'linepay' | 'bank';
 
-const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose }) => {
+const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, initialMode = 'production' }) => {
   const { user, login } = useUser();
   const { t } = useTranslation();
   
   const [name, setName] = useState(user?.name || '');
   const [email, setEmail] = useState(user?.email || '');
-  const [supportMode, setSupportMode] = useState<'production' | 'support'>('production');
+  const [supportMode, setSupportMode] = useState<'production' | 'support'>(initialMode);
   const [customAmount, setCustomAmount] = useState<number>(100);
   const [pointCount, setPointCount] = useState<number>(1);
   const [gateway, setGateway] = useState<GatewayType>('ecpay');
@@ -37,6 +38,13 @@ const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose }) => {
     }
   }, [user]);
 
+  // Sync mode when modal opens
+  useEffect(() => {
+      if (isOpen) {
+          setSupportMode(initialMode);
+      }
+  }, [isOpen, initialMode]);
+
   if (!isOpen) return null;
 
   const totalAmount = supportMode === 'production' ? pointCount * UNIT_PRICE : customAmount;
@@ -50,9 +58,10 @@ const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose }) => {
     
     setIsProcessing(true);
     
+    // Updated Item Names to sound less commercial and more "Process" oriented
     const itemName = supportMode === 'production' 
-        ? `Willwi Interactive Session x ${pointCount}` 
-        : `Willwi Music Support`;
+        ? `Willwi Creative Process Participation x ${pointCount}` 
+        : `Willwi Thermal Support (Music Sustenance)`;
     
     // Prepare data to be recovered after redirect
     const extraData = {
@@ -68,7 +77,7 @@ const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose }) => {
     try {
         if (gateway === 'ecpay') {
             // ECPay (綠界)
-            await submitECPayForm(totalAmount, itemName, "Willwi Creative Support", extraData);
+            await submitECPayForm(totalAmount, itemName, "Creative Support", extraData);
         } else if (gateway === 'newebpay') {
             // NewebPay (藍新)
             await submitNewebPayForm(totalAmount, itemName, email, extraData);
@@ -245,7 +254,7 @@ const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose }) => {
                             </span>
                         </div>
                         <div className="text-right">
-                            <span className="block text-[10px] text-slate-400 uppercase tracking-widest mb-1">Amount</span>
+                            <span className="block text-[10px] text-slate-400 uppercase tracking-widest mb-1">Total Support</span>
                             <span className="text-2xl font-black text-slate-900">NT$ {totalAmount.toLocaleString()}</span>
                         </div>
                     </div>
@@ -263,14 +272,15 @@ const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose }) => {
                         {isProcessing ? (
                             <>
                                 <svg className="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
-                                <span>Redirecting...</span>
+                                <span>Processing...</span>
                             </>
                         ) : (
-                            <span>PAY NOW 結帳</span>
+                            <span>CONFIRM SUPPORT 確認支持</span>
                         )}
                     </button>
                     <p className="text-[9px] text-slate-400 text-center mt-3">
-                        Secure connection encrypted. You will be redirected to complete payment.
+                        * 此款項為支持創作之用途，非商品販售交易。<br/>
+                        (Funds are for creative support, not product sales.)
                     </p>
                 </div>
             </div>
@@ -292,16 +302,17 @@ const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose }) => {
                             </div>
                             <div className="space-y-2">
                                 <div className="flex justify-between text-[10px] text-slate-500">
-                                    <span>Unit Price</span>
+                                    <span>Support / Unit</span>
                                     <span>NT$ {UNIT_PRICE}</span>
                                 </div>
                                 <div className="flex justify-between text-[10px] text-slate-500">
-                                    <span>Subtotal</span>
+                                    <span>Total Support</span>
                                     <span>NT$ {(pointCount * UNIT_PRICE).toLocaleString()}</span>
                                 </div>
                             </div>
                             <p className="text-[10px] text-slate-500 leading-loose border-t border-white/5 pt-4">
-                                {t('modal_interactive_desc')}
+                                您正在預約使用「互動實驗室」的創作權限。這份支持將用於支付系統資源與維護成本。
+                                <br/><span className="text-[9px] opacity-70 block mt-1">(Reservation of creative time and interactive system resources.)</span>
                             </p>
                         </div>
                     ) : (
@@ -320,8 +331,28 @@ const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose }) => {
                                 </div>
                                 <p className="text-[9px] text-slate-600">{t('modal_custom_amount_hint')}</p>
                             </div>
+                            
+                            {/* ADDED CONTENT: LIST OF BENEFITS (Previously Missing) */}
+                            <div className="py-4 border-t border-white/5 border-b border-white/5 my-4">
+                               <ul className="space-y-3">
+                                   <li className="flex items-center gap-3 text-[10px] text-slate-400">
+                                       <span className="w-1 h-1 bg-orange-500 rounded-full"></span>
+                                       {t('home_col_support_li1')}
+                                   </li>
+                                   <li className="flex items-center gap-3 text-[10px] text-slate-400">
+                                       <span className="w-1 h-1 bg-orange-500 rounded-full"></span>
+                                       {t('home_col_support_li2')}
+                                   </li>
+                                   <li className="flex items-center gap-3 text-[10px] text-slate-400">
+                                       <span className="w-1 h-1 bg-orange-500 rounded-full"></span>
+                                       {t('home_col_support_li3')}
+                                   </li>
+                               </ul>
+                           </div>
+
                             <p className="text-[10px] text-slate-500 leading-loose">
-                                {t('modal_support_desc')}
+                                這是一份給創作者的「熱能支持」(Thermal Support)。讓 Willwi 有力氣繼續做音樂。
+                                <br/><span className="text-[9px] opacity-70 block mt-1">(Providing thermal energy for the artist's daily life and creation.)</span>
                             </p>
                         </div>
                     )}

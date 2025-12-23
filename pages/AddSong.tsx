@@ -32,6 +32,16 @@ Recording | Mixing | Mastering : Will Chen
 Studio : Willwi Studio, Taipei
 Label : Willwi Music`;
 
+// Interface for Gemini Parsed Data
+interface AIScrapedAlbum {
+    artist: string;
+    title: string;
+    releaseDate: string;
+    coverUrl: string;
+    description?: string;
+    tracks: { title: string; lyrics?: string }[];
+}
+
 const AddSong: React.FC = () => {
   const navigate = useNavigate();
   const { addSong, bulkAddSongs } = useData();
@@ -40,7 +50,7 @@ const AddSong: React.FC = () => {
 
   const [passwordInput, setPasswordInput] = useState('');
   const [loginError, setLoginError] = useState('');
-  const [importMode, setImportMode] = useState<'single' | 'album' | 'mb' | 'youtube'>('youtube'); 
+  const [importMode, setImportMode] = useState<'single' | 'album' | 'mb' | 'youtube' | 'hyperfollow'>('hyperfollow'); // Default to HyperFollow based on user request
   const [searchQuery, setSearchQuery] = useState('');
   const [isSearching, setIsSearching] = useState(false);
   
@@ -51,6 +61,9 @@ const AddSong: React.FC = () => {
   const [selectedMBGroup, setSelectedMBGroup] = useState<MBReleaseGroup | null>(null);
   const [mbImportData, setMbImportData] = useState<MBImportData | null>(null);
   const [mbCoverUrl, setMbCoverUrl] = useState<string>('');
+
+  // AI Scraped Result
+  const [aiScrapedAlbum, setAiScrapedAlbum] = useState<AIScrapedAlbum | null>(null);
 
   const [searchError, setSearchError] = useState('');
   const [isSaving, setIsSaving] = useState(false);
@@ -143,23 +156,140 @@ const AddSong: React.FC = () => {
       return Language.English;
   };
 
+  const handleHyperFollowImport = async () => {
+      if (!searchQuery.includes('http')) {
+          setSearchError('Please enter a valid URL (e.g., https://distrokid.com/hyperfollow/...)');
+          return;
+      }
+      
+      setIsSearching(true);
+      setSearchError('');
+      setAiScrapedAlbum(null);
+
+      try {
+          const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+          
+          // Use Gemini 2.5 Flash with Google Search to "read" the link
+          const response = await ai.models.generateContent({
+              model: 'gemini-2.5-flash',
+              contents: `Analyze the music album at this link: ${searchQuery}.
+              I need you to extract the Album Title, Artist Name, Release Date, and Cover Image URL.
+              ALSO, list ALL track titles in the album.
+              If you can find the lyrics for the tracks, include them, otherwise leave lyrics string empty.
+              
+              Return a JSON object strictly following this schema.`,
+              config: {
+                  tools: [{ googleSearch: {} }],
+                  responseMimeType: "application/json",
+                  responseSchema: {
+                      type: Type.OBJECT,
+                      properties: {
+                          artist: { type: Type.STRING },
+                          title: { type: Type.STRING },
+                          releaseDate: { type: Type.STRING, description: "YYYY-MM-DD format if possible" },
+                          coverUrl: { type: Type.STRING },
+                          description: { type: Type.STRING },
+                          tracks: {
+                              type: Type.ARRAY,
+                              items: {
+                                  type: Type.OBJECT,
+                                  properties: {
+                                      title: { type: Type.STRING },
+                                      lyrics: { type: Type.STRING }
+                                  }
+                              }
+                          }
+                      }
+                  }
+              }
+          });
+
+          const data = JSON.parse(response.text) as AIScrapedAlbum;
+          if (data && data.title) {
+              setAiScrapedAlbum(data);
+          } else {
+              setSearchError("AI could not extract album data. Please try again or check the link.");
+          }
+
+      } catch (e) {
+          console.error("HyperFollow Import Error", e);
+          setSearchError("Failed to parse link. Gemini API Error.");
+      } finally {
+          setIsSearching(false);
+      }
+  };
+
+  const handleImportAiAlbum = async (album: AIScrapedAlbum) => {
+      // Prompt for Batch vs Single
+      const isBatch = album.tracks.length > 1 && window.confirm(`【HyperFollow 匯入確認】\n\n偵測到專輯《${album.title}》共有 ${album.tracks.length} 首曲目。\n\n[確定]：批次建立 ${album.tracks.length} 首新作品 (Batch Create)。\n[取消]：僅填入當前表單 (Single Fill)。`);
+
+      const commonData = {
+          releaseDate: album.releaseDate || new Date().toISOString().split('T')[0],
+          coverUrl: album.coverUrl || '',
+          releaseCategory: album.tracks.length > 3 ? (album.tracks.length > 6 ? ReleaseCategory.Album : ReleaseCategory.EP) : ReleaseCategory.Single,
+          releaseCompany: 'Willwi Music',
+          publisher: 'Willwi Music',
+          description: album.description || '',
+          smartLink: searchQuery, // Save the hyperfollow link here
+      };
+
+      if (isBatch) {
+          setIsSearching(true);
+          try {
+              const newSongs: Song[] = album.tracks.map((t, idx) => ({
+                  id: Date.now().toString() + Math.random().toString(36).substr(2, 5) + idx,
+                  title: t.title,
+                  versionLabel: '',
+                  language: detectLanguage(t.title),
+                  projectType: ProjectType.Indie,
+                  isEditorPick: false,
+                  isInteractiveActive: false,
+                  lyrics: t.lyrics || '',
+                  credits: DEFAULT_CREDITS,
+                  audioUrl: '',
+                  // Spread common data
+                  ...commonData
+              }));
+
+              const success = await bulkAddSongs(newSongs);
+              if (success) {
+                  alert(`成功匯入專輯！\n共 ${newSongs.length} 首歌曲已建立。`);
+                  navigate('/database');
+              } else {
+                  throw new Error("Database Write Error");
+              }
+          } catch (e) {
+              alert("批次匯入失敗。");
+          } finally {
+              setIsSearching(false);
+          }
+      } else {
+          // Single Fill
+          setFormData(prev => ({
+              ...prev,
+              title: album.title,
+              ...commonData,
+              // If tracks exist, maybe put first track title? Or keep album title?
+              // Usually HyperFollow link is for a release. If Single, Title matches.
+              lyrics: album.tracks[0]?.lyrics || ''
+          }));
+          setAiScrapedAlbum(null);
+          alert("已填入專輯資訊。");
+      }
+  };
+
   const extractYoutubeInfo = (url: string) => {
     const trimmedUrl = url.trim();
-    
-    // 1. Video Check (v=ID or embed/ID or youtu.be/ID)
     const videoReg = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/;
     const videoMatch = trimmedUrl.match(videoReg);
     if (videoMatch && videoMatch[2].length === 11) {
         return { id: videoMatch[2], type: 'video', originalUrl: trimmedUrl };
     }
-    
-    // 2. Playlist Check (list=ID)
     const listReg = /[?&]list=([^#&?]+)/;
     const listMatch = trimmedUrl.match(listReg);
     if (listMatch) {
         return { id: listMatch[1], type: 'playlist', originalUrl: trimmedUrl };
     }
-
     return null;
   };
 
@@ -176,14 +306,12 @@ const AddSong: React.FC = () => {
           let thumbnailUrl = '';
           
           try {
-             // Use full URL for oEmbed to handle playlists correctly
              const res = await fetch(`https://noembed.com/embed?url=${encodeURIComponent(ytInfo.originalUrl)}`);
              const data = await res.json();
              if (data.title) title = data.title;
              if (data.thumbnail_url) thumbnailUrl = data.thumbnail_url;
           } catch (e) { console.log('oEmbed failed', e); }
 
-          // Fallback thumbnail for video if oEmbed misses
           if (!thumbnailUrl && ytInfo.type === 'video') {
                thumbnailUrl = `https://img.youtube.com/vi/${ytInfo.id}/maxresdefault.jpg`;
           }
@@ -193,7 +321,6 @@ const AddSong: React.FC = () => {
               youtubeUrl: ytInfo.type === 'video' ? ytInfo.originalUrl : '',
               coverUrl: thumbnailUrl,
               projectType: ProjectType.Indie,
-              // Force Publisher to match Willwi Music regardless of imports
               publisher: 'Willwi Music'
           };
 
@@ -201,32 +328,17 @@ const AddSong: React.FC = () => {
               let searchTitle = title;
               let searchArtist = 'Willwi';
 
-              // Try to clean title using Gemini for better search results
               try {
                   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
                   const response = await ai.models.generateContent({
                       model: 'gemini-3-flash-preview',
-                      contents: `Extract clean Song Title and Artist from this YouTube title: "${title}". 
-                      Return JSON with keys "title" and "artist".
-                      Remove "Official Video", "Lyrics", "MV" etc.
-                      If artist is missing or implied to be the channel owner, assume "Willwi".`,
-                      config: {
-                          responseMimeType: "application/json",
-                          responseSchema: {
-                              type: Type.OBJECT,
-                              properties: {
-                                  title: { type: Type.STRING },
-                                  artist: { type: Type.STRING }
-                              }
-                          }
-                      }
+                      contents: `Extract clean Song Title and Artist from this YouTube title: "${title}". Return JSON { "title": string, "artist": string }.`,
+                      config: { responseMimeType: "application/json", responseSchema: { type: Type.OBJECT, properties: { title: { type: Type.STRING }, artist: { type: Type.STRING } } } }
                   });
                   const parsed = JSON.parse(response.text);
                   if (parsed.title) searchTitle = parsed.title;
                   if (parsed.artist) searchArtist = parsed.artist;
               } catch (e) {
-                  console.warn("Gemini parsing failed, using simple fallback", e);
-                  // Fallback: simple regex or just use full title
                   const parts = title.split('-');
                   if (parts.length > 1) {
                       searchArtist = parts[0].trim();
@@ -236,7 +348,6 @@ const AddSong: React.FC = () => {
                   }
               }
 
-              // Update title in form immediately to cleaned version
               updates.title = searchTitle;
 
               try {
@@ -249,28 +360,21 @@ const AddSong: React.FC = () => {
                           if (albumDetails.album_type === 'album') cat = ReleaseCategory.Album;
                           else if (albumDetails.total_tracks > 3) cat = ReleaseCategory.EP;
                       }
-                      const lang = detectLanguage(match.name);
                       updates = {
                           ...updates,
-                          title: match.name, // Use Official Spotify Title
+                          title: match.name,
                           isrc: match.external_ids?.isrc || '',
                           spotifyLink: match.external_urls?.spotify || '',
                           spotifyId: match.id,
                           upc: albumDetails?.external_ids?.upc || albumDetails?.external_ids?.ean || '',
-                          releaseCompany: albumDetails?.label || albumDetails?.copyrights?.[0]?.text || 'Willwi Music',
-                          publisher: 'Willwi Music', // Force overwrite even if Spotify has something else, as per user request
+                          releaseCompany: albumDetails?.label || 'Willwi Music',
+                          publisher: 'Willwi Music',
                           releaseDate: albumDetails?.release_date || match.album.release_date,
                           releaseCategory: cat,
-                          language: lang
+                          language: detectLanguage(match.name)
                       };
-                      alert(`YouTube Import Success!\nMatched with: ${match.name} by ${match.artists.map(a=>a.name).join(', ')}`);
-                  } else {
-                      alert("YouTube Import Success! (No Spotify match found, using detected info)");
                   }
-              } catch (err) {
-                  console.error("Smart Fill Error", err);
-                  alert("YouTube Import Success! (Metadata sync skipped)");
-              }
+              } catch (err) {}
           }
           setFormData(prev => ({ ...prev, ...updates }));
       } catch (e) {
@@ -281,12 +385,19 @@ const AddSong: React.FC = () => {
   };
 
   const handleSearch = async () => {
-    setTrackResults([]); setAlbumResults([]); setMbResults([]); setSelectedMBGroup(null);
+    setTrackResults([]); setAlbumResults([]); setMbResults([]); setSelectedMBGroup(null); setAiScrapedAlbum(null);
     setSearchError('');
+    
+    if (importMode === 'hyperfollow') {
+        handleHyperFollowImport();
+        return;
+    }
+    
     if (importMode === 'youtube') {
         handleYoutubeImport();
         return;
     }
+
     setIsSearching(true);
     try {
         if (importMode === 'mb') {
@@ -321,9 +432,6 @@ const AddSong: React.FC = () => {
          if (albumDetails.album_type === 'album') cat = ReleaseCategory.Album;
          else if (albumDetails.total_tracks > 3) cat = ReleaseCategory.EP;
          label = albumDetails.label || label;
-         // publisher = albumDetails.copyrights?.find(c => c.type === 'C')?.text || publisher;
-         // Override publisher to always be Willwi Music as requested
-         publisher = 'Willwi Music';
          upc = albumDetails.external_ids?.upc || albumDetails.external_ids?.ean || '';
     }
 
@@ -346,7 +454,6 @@ const AddSong: React.FC = () => {
   };
   
   const selectAlbumForForm = async (album: SpotifyAlbum) => {
-      // Prompt user for Bulk Action
       const isBulk = window.confirm(`【批次匯入確認】\n\n您選擇了專輯《${album.name}》。\n\n[確定]：自動將整張專輯的所有曲目匯入資料庫 (Batch Import)。\n[取消]：僅將專輯資訊填入目前的單曲表單 (Single Fill)。`);
 
       if (isBulk) {
@@ -354,14 +461,10 @@ const AddSong: React.FC = () => {
           try {
               const details = await getSpotifyAlbum(album.id);
               const tracks = await getSpotifyAlbumTracks(album.id);
-              
-              if (tracks.length === 0) {
-                  throw new Error("No tracks found in album.");
-              }
+              if (tracks.length === 0) throw new Error("No tracks found.");
 
-              // Common Metadata
               const publisher = 'Willwi Music'; 
-              const releaseCompany = details?.label || details?.copyrights?.[0]?.text || 'Willwi Music';
+              const releaseCompany = details?.label || 'Willwi Music';
               const upc = details?.external_ids?.upc || details?.external_ids?.ean || '';
               const releaseDate = details?.release_date || album.release_date;
               const coverUrl = album.images[0]?.url || '';
@@ -389,7 +492,6 @@ const AddSong: React.FC = () => {
                     spotifyLink: t.external_urls?.spotify || '',
                     credits: DEFAULT_CREDITS,
                     description: `Included in ${album.name}`,
-                    // Empty lyrics/audio for now
                     lyrics: '',
                     audioUrl: ''
               }));
@@ -398,19 +500,11 @@ const AddSong: React.FC = () => {
               if (success) {
                   alert(`成功匯入整張專輯！\n共 ${newSongs.length} 首歌曲已建立。`);
                   navigate('/database');
-              } else {
-                  throw new Error("Database Write Error");
-              }
-
+              } else { throw new Error("Database Write Error"); }
           } catch(e) {
-              console.error("Bulk Import Error", e);
-              alert("批次匯入失敗。請稍後再試。");
-          } finally {
-              setIsSearching(false);
-          }
-
+              alert("批次匯入失敗。");
+          } finally { setIsSearching(false); }
       } else {
-          // ORIGINAL SINGLE FILL LOGIC
           const details = await getSpotifyAlbum(album.id);
           setFormData(prev => ({
             ...prev,
@@ -418,11 +512,11 @@ const AddSong: React.FC = () => {
             coverUrl: album.images[0]?.url || '',
             releaseCategory: ReleaseCategory.Album,
             releaseCompany: details?.label || 'Willwi Music',
-            publisher: 'Willwi Music', // Force Default
+            publisher: 'Willwi Music', 
             upc: details?.external_ids?.upc || details?.external_ids?.ean || ''
           }));
           setAlbumResults([]);
-          alert("已載入專輯基本資訊。請手動輸入歌曲名稱。");
+          alert("已載入專輯基本資訊。");
       }
   };
 
@@ -444,7 +538,7 @@ const AddSong: React.FC = () => {
           coverUrl: mbCoverUrl,
           releaseCategory: mbImportData.category,
           releaseCompany: mbImportData.releaseCompany,
-          publisher: 'Willwi Music', // Force Default
+          publisher: 'Willwi Music',
           musicBrainzId: track.id,
           language: detectLanguage(track.title)
       }));
@@ -466,7 +560,7 @@ const AddSong: React.FC = () => {
       projectType: formData.projectType as ProjectType,
       releaseCategory: formData.releaseCategory as ReleaseCategory,
       releaseCompany: formData.releaseCompany || '',
-      publisher: formData.publisher || 'Willwi Music', // Ensure save
+      publisher: formData.publisher || 'Willwi Music',
       releaseDate: formData.releaseDate || new Date().toISOString().split('T')[0],
       isEditorPick: !!formData.isEditorPick,
       isInteractiveActive: !!formData.isInteractiveActive,
@@ -474,7 +568,7 @@ const AddSong: React.FC = () => {
       upc: formData.upc,
       spotifyId: formData.spotifyId,
       youtubeUrl: formData.youtubeUrl,
-      musixmatchUrl: formData.musixmatchUrl || '', // Save Musixmatch
+      musixmatchUrl: formData.musixmatchUrl || '',
       youtubeMusicUrl: formData.youtubeMusicUrl,
       spotifyLink: formData.spotifyLink,
       appleMusicLink: formData.appleMusicLink,
@@ -483,7 +577,7 @@ const AddSong: React.FC = () => {
       lyrics: formData.lyrics,
       description: formData.description,
       credits: formData.credits,
-      musicBrainzId: formData.musicBrainzId // ADDED THIS
+      musicBrainzId: formData.musicBrainzId
     };
     if (await addSong(newSong)) navigate('/database');
     else { alert(t('msg_save_error')); setIsSaving(false); }
@@ -493,11 +587,12 @@ const AddSong: React.FC = () => {
     <div className="max-w-4xl mx-auto pb-12 px-6">
       <div className="flex flex-col md:flex-row justify-between items-center mb-10 gap-4">
           <h2 className="text-3xl font-black text-white uppercase tracking-tighter">{t('form_title_add')}</h2>
-          <div className="bg-slate-800 p-1 rounded flex border border-slate-700">
-              <button onClick={() => setImportMode('youtube')} className={`px-4 py-2 rounded text-[10px] font-black uppercase tracking-widest transition-all ${importMode === 'youtube' ? 'bg-[#FF0000] text-white shadow' : 'text-slate-500 hover:text-white'}`}>YouTube</button>
-              <button onClick={() => setImportMode('single')} className={`px-4 py-2 rounded text-[10px] font-black uppercase tracking-widest transition-all ${importMode === 'single' ? 'bg-brand-accent text-slate-900 shadow' : 'text-slate-500 hover:text-white'}`}>Spotify (Single)</button>
-              <button onClick={() => setImportMode('album')} className={`px-4 py-2 rounded text-[10px] font-black uppercase tracking-widest transition-all ${importMode === 'album' ? 'bg-brand-accent text-slate-900 shadow' : 'text-slate-500 hover:text-white'}`}>Spotify (Album)</button>
-              <button onClick={() => setImportMode('mb')} className={`px-4 py-2 rounded text-[10px] font-black uppercase tracking-widest transition-all ${importMode === 'mb' ? 'bg-brand-gold text-slate-900 shadow' : 'text-slate-500 hover:text-white'}`}>MusicBrainz</button>
+          <div className="bg-slate-800 p-1 rounded flex border border-slate-700 overflow-x-auto max-w-full">
+              <button onClick={() => setImportMode('hyperfollow')} className={`px-4 py-2 rounded text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap ${importMode === 'hyperfollow' ? 'bg-white text-black shadow' : 'text-slate-500 hover:text-white'}`}>HyperFollow</button>
+              <button onClick={() => setImportMode('youtube')} className={`px-4 py-2 rounded text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap ${importMode === 'youtube' ? 'bg-[#FF0000] text-white shadow' : 'text-slate-500 hover:text-white'}`}>YouTube</button>
+              <button onClick={() => setImportMode('single')} className={`px-4 py-2 rounded text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap ${importMode === 'single' ? 'bg-brand-accent text-slate-900 shadow' : 'text-slate-500 hover:text-white'}`}>Spotify (Single)</button>
+              <button onClick={() => setImportMode('album')} className={`px-4 py-2 rounded text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap ${importMode === 'album' ? 'bg-brand-accent text-slate-900 shadow' : 'text-slate-500 hover:text-white'}`}>Spotify (Album)</button>
+              <button onClick={() => setImportMode('mb')} className={`px-4 py-2 rounded text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap ${importMode === 'mb' ? 'bg-brand-gold text-slate-900 shadow' : 'text-slate-500 hover:text-white'}`}>MusicBrainz</button>
           </div>
       </div>
 
@@ -506,27 +601,44 @@ const AddSong: React.FC = () => {
             {importMode !== 'mb' && (
                 <input 
                     className="flex-1 bg-black border border-white/10 px-4 py-3 text-white text-xs outline-none focus:border-white/30 font-mono" 
-                    placeholder={importMode === 'youtube' ? "Paste YouTube Video Link here (for Auto-Import)..." : (importMode === 'album' ? "Search Album Name..." : "Search Track Name...")}
+                    placeholder={
+                        importMode === 'hyperfollow' ? "Paste DistroKid HyperFollow URL (https://distrokid.com/hyperfollow/...)" :
+                        importMode === 'youtube' ? "Paste YouTube Video Link here..." : 
+                        (importMode === 'album' ? "Search Album Name..." : "Search Track Name...")
+                    }
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
                 />
             )}
-            <button onClick={handleSearch} disabled={isSearching} className="px-6 bg-white/10 text-white font-black text-[10px] uppercase tracking-widest hover:bg-white hover:text-black transition-all">
-                {isSearching ? 'Processing...' : importMode === 'mb' ? 'Scan Releases' : (importMode === 'youtube' ? 'Smart Import' : 'Search')}
+            <button onClick={handleSearch} disabled={isSearching} className="px-6 bg-white/10 text-white font-black text-[10px] uppercase tracking-widest hover:bg-white hover:text-black transition-all whitespace-nowrap">
+                {isSearching ? 'Processing...' : importMode === 'mb' ? 'Scan Releases' : (importMode === 'youtube' || importMode === 'hyperfollow' ? 'Smart Import' : 'Search')}
             </button>
         </div>
         
         {searchError && <p className="text-red-500 text-xs mt-3">{searchError}</p>}
-        {importMode === 'youtube' && !isSearching && !formData.coverUrl && (
-             <p className="text-[9px] text-slate-500 mt-3 pl-1">* 智慧匯入功能：貼上 YouTube 連結後，系統將自動比對 Spotify 數據庫，嘗試補全 ISRC、UPC、廠牌與發行日期。</p>
+        {importMode === 'hyperfollow' && !isSearching && !aiScrapedAlbum && (
+             <p className="text-[9px] text-brand-gold mt-3 pl-1">* Smart Parse: 使用 AI 讀取頁面資訊，自動抓取專輯封面、曲目與發行日。(Powered by Gemini Search)</p>
         )}
-        {importMode === 'album' && !isSearching && (
-             <p className="text-[9px] text-brand-gold mt-3 pl-1">* 批次匯入功能：點選搜尋結果後，可選擇「匯入整張專輯」，系統將自動建立所有曲目資料。</p>
+        {importMode === 'youtube' && !isSearching && !formData.coverUrl && (
+             <p className="text-[9px] text-slate-500 mt-3 pl-1">* Smart Import: 自動比對 YouTube 標題與 Spotify 數據庫。</p>
         )}
 
         {/* RESULTS AREA */}
         <div className="mt-4 space-y-2 max-h-60 overflow-y-auto custom-scrollbar">
+            {/* HYPERFOLLOW AI RESULT */}
+            {aiScrapedAlbum && (
+                <div onClick={() => handleImportAiAlbum(aiScrapedAlbum)} className="flex items-start gap-4 p-4 bg-brand-gold/10 border border-brand-gold cursor-pointer hover:bg-brand-gold/20 transition-all">
+                    <img src={aiScrapedAlbum.coverUrl} className="w-16 h-16 object-cover border border-white/10" alt="Cover" />
+                    <div>
+                        <div className="text-brand-gold text-sm font-black uppercase tracking-widest">{aiScrapedAlbum.title}</div>
+                        <div className="text-white text-xs font-bold mt-1">{aiScrapedAlbum.artist}</div>
+                        <div className="text-slate-400 text-[10px] mt-1">{aiScrapedAlbum.releaseDate} • {aiScrapedAlbum.tracks.length} Tracks Detected</div>
+                        <div className="mt-2 text-[9px] bg-brand-gold text-black px-2 py-1 inline-block font-bold rounded">CLICK TO IMPORT</div>
+                    </div>
+                </div>
+            )}
+
             {trackResults.map(t => (
                 <div key={t.id} className="flex items-center gap-3 p-2 hover:bg-white/5 border border-transparent hover:border-white/10 group">
                     <img src={t.album.images[2]?.url} className="w-8 h-8 cursor-pointer" onClick={() => selectTrackForForm(t)} alt="" />
