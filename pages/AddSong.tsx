@@ -6,6 +6,7 @@ import { searchSpotifyTracks, searchSpotifyAlbums, getSpotifyAlbum, getSpotifyAl
 import { getWillwiReleases, getCoverArtUrl, getReleaseGroupDetails, MBReleaseGroup, MBTrack, MBImportData } from '../services/musicbrainzService';
 import { useTranslation } from '../context/LanguageContext';
 import { useUser } from '../context/UserContext';
+import { GoogleGenAI, Type } from "@google/genai";
 
 // SMART LINK CONVERTER
 const convertToDirectStream = (url: string) => {
@@ -197,8 +198,49 @@ const AddSong: React.FC = () => {
           };
 
           if (title) {
+              let searchTitle = title;
+              let searchArtist = 'Willwi';
+
+              // Try to clean title using Gemini for better search results
               try {
-                  const spotifyResults = await searchSpotifyTracks(`${title} artist:Willwi`);
+                  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+                  const response = await ai.models.generateContent({
+                      model: 'gemini-3-flash-preview',
+                      contents: `Extract clean Song Title and Artist from this YouTube title: "${title}". 
+                      Return JSON with keys "title" and "artist".
+                      Remove "Official Video", "Lyrics", "MV" etc.
+                      If artist is missing or implied to be the channel owner, assume "Willwi".`,
+                      config: {
+                          responseMimeType: "application/json",
+                          responseSchema: {
+                              type: Type.OBJECT,
+                              properties: {
+                                  title: { type: Type.STRING },
+                                  artist: { type: Type.STRING }
+                              }
+                          }
+                      }
+                  });
+                  const parsed = JSON.parse(response.text);
+                  if (parsed.title) searchTitle = parsed.title;
+                  if (parsed.artist) searchArtist = parsed.artist;
+              } catch (e) {
+                  console.warn("Gemini parsing failed, using simple fallback", e);
+                  // Fallback: simple regex or just use full title
+                  const parts = title.split('-');
+                  if (parts.length > 1) {
+                      searchArtist = parts[0].trim();
+                      searchTitle = parts[1].replace(/\[.*?\]|\(.*?\)/g, '').trim();
+                  } else {
+                      searchTitle = title.replace(/\[.*?\]|\(.*?\)/g, '').trim();
+                  }
+              }
+
+              // Update title in form immediately to cleaned version
+              updates.title = searchTitle;
+
+              try {
+                  const spotifyResults = await searchSpotifyTracks(`${searchTitle} artist:${searchArtist}`);
                   if (spotifyResults.length > 0) {
                       const match = spotifyResults[0];
                       const albumDetails = await getSpotifyAlbum(match.album.id);
@@ -210,6 +252,7 @@ const AddSong: React.FC = () => {
                       const lang = detectLanguage(match.name);
                       updates = {
                           ...updates,
+                          title: match.name, // Use Official Spotify Title
                           isrc: match.external_ids?.isrc || '',
                           spotifyLink: match.external_urls?.spotify || '',
                           spotifyId: match.id,
@@ -220,9 +263,9 @@ const AddSong: React.FC = () => {
                           releaseCategory: cat,
                           language: lang
                       };
-                      alert(`YouTube Import Success!\n\nAuto-matched with Spotify Metadata.`);
+                      alert(`YouTube Import Success!\nMatched with: ${match.name} by ${match.artists.map(a=>a.name).join(', ')}`);
                   } else {
-                      alert("YouTube Import Success! (No matching Spotify metadata found)");
+                      alert("YouTube Import Success! (No Spotify match found, using detected info)");
                   }
               } catch (err) {
                   console.error("Smart Fill Error", err);
