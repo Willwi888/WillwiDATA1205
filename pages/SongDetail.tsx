@@ -259,6 +259,7 @@ const SongDetail: React.FC = () => {
   const navigate = useNavigate();
   const { getSong, updateSong, deleteSong } = useData(); 
   const { isAdmin } = useUser(); 
+  const { t } = useTranslation();
   
   const [song, setSong] = useState<Song | undefined>(undefined);
   const [isEditing, setIsEditing] = useState(false);
@@ -352,8 +353,10 @@ const SongDetail: React.FC = () => {
   const youtubeEmbedId = getYoutubeEmbedId(song.youtubeUrl);
   const isInstrumental = song.language === Language.Instrumental;
 
-  // MusicBrainz Logic
+  // MusicBrainz Logic & Constants
   const WILLWI_MBID = '526cc0f8-da20-4d2d-86a5-4bf841a6ba3c';
+  const MUSIXMATCH_ROSTER_URL = 'https://pro.musixmatch.com/roster/artist/64081678';
+  
   const musicBrainzSubmissionUrl = `https://musicbrainz.org/recording/create?artist=${WILLWI_MBID}&edit-recording.name=${encodeURIComponent(song.title)}&edit-recording.comment=Auto-submitted from Willwi DB`;
 
   return (
@@ -364,7 +367,7 @@ const SongDetail: React.FC = () => {
             <ImmersivePlayer song={song} onClose={() => setShowLyricsPlayer(false)} />
         )}
 
-        <div className="mb-6"><Link to="/database" className="text-[10px] text-slate-500 hover:text-white uppercase tracking-widest">← Back to Catalog</Link></div>
+        <div className="mb-6"><Link to="/database" className="text-[10px] text-slate-500 hover:text-white uppercase tracking-widest">{t('detail_back_link')}</Link></div>
         
         <div className="bg-slate-900 border border-white/5 relative overflow-hidden">
             <div className="absolute inset-0 bg-cover bg-center opacity-10 blur-2xl" style={{ backgroundImage: `url(${song.coverUrl})` }}></div>
@@ -410,7 +413,7 @@ const SongDetail: React.FC = () => {
                                     <div className="w-8 h-8 rounded-full bg-brand-gold flex items-center justify-center text-black shadow-[0_0_15px_rgba(251,191,36,0.5)] group-hover:shadow-none transition-all">
                                         <svg className="w-4 h-4 ml-0.5" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 14H9V8h2v8zm4 0h-2V8h2v8z" /></svg>
                                     </div>
-                                    <span className="text-[10px] font-black uppercase tracking-[0.2em]">Immersive Lyrics / 歌詞模式</span>
+                                    <span className="text-[10px] font-black uppercase tracking-[0.2em]">{t('detail_btn_immersive')}</span>
                                 </button>
 
                                 {/* SMART LINK BUTTON (PRIMARY PUBLIC LINK) */}
@@ -421,7 +424,7 @@ const SongDetail: React.FC = () => {
                                         rel="noopener noreferrer"
                                         className="group flex items-center gap-3 px-6 py-3 bg-white text-black font-black uppercase tracking-[0.2em] text-[10px] transition-all rounded-full hover:scale-105 shadow-[0_0_20px_rgba(255,255,255,0.4)]"
                                     >
-                                        <span>ALL PLATFORMS (HyperFollow)</span>
+                                        <span>{t('detail_btn_smartlink')}</span>
                                         <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" /></svg>
                                     </a>
                                 )}
@@ -431,19 +434,19 @@ const SongDetail: React.FC = () => {
                                 {song.isInteractiveActive ? (
                                     (isInstrumental || !song.lyrics) ? (
                                         <div className="w-full py-4 border border-slate-600 text-slate-500 font-bold uppercase tracking-[0.2em] text-[10px] text-center bg-slate-900 cursor-not-allowed">
-                                            純音樂・無歌詞互動 (Instrumental)
+                                            {t('detail_status_instrumental')}
                                         </div>
                                     ) : (
                                         <button 
                                             onClick={handleStartInteractive}
                                             className="w-full py-4 bg-brand-gold text-slate-900 font-black uppercase tracking-[0.3em] text-xs hover:bg-white transition-all shadow-lg animate-pulse"
                                         >
-                                            進入互動實驗室 (Start Session)
+                                            {t('detail_btn_start_session')}
                                         </button>
                                     )
                                 ) : (
                                     <div className="w-full py-4 border border-white/10 text-slate-500 font-bold uppercase tracking-[0.2em] text-[10px] text-center bg-black/20">
-                                        互動製作尚未開放 (Closed)
+                                        {t('detail_status_closed')}
                                     </div>
                                 )}
                                 
@@ -511,7 +514,7 @@ const SongDetail: React.FC = () => {
                                         <div className="flex items-center justify-between">
                                             <span className="text-[10px] text-white uppercase tracking-widest">Lyrics Sync</span>
                                             <a 
-                                                href={song.musixmatchUrl || 'https://pro.musixmatch.com/'} 
+                                                href={song.musixmatchUrl || MUSIXMATCH_ROSTER_URL} 
                                                 target="_blank" 
                                                 rel="noopener noreferrer"
                                                 className="px-3 py-1 text-[9px] font-bold uppercase tracking-widest rounded bg-[#ff6050]/20 text-[#ff6050] border border-[#ff6050]/50 hover:bg-[#ff6050] hover:text-white transition-all"
@@ -695,7 +698,7 @@ const SongDetail: React.FC = () => {
             <div className="lg:col-span-2 space-y-12">
                 <div className="bg-slate-900/50 p-10 border border-white/5">
                     <div className="flex items-center justify-between mb-8">
-                        <h3 className="text-sm font-black text-white uppercase tracking-[0.4em]">Context & Story</h3>
+                        <h3 className="text-sm font-black text-white uppercase tracking-[0.4em]">{t('detail_section_context')}</h3>
                         {/* AI Button - Strictly Admin Only */}
                         {isAdmin && (
                             <button onClick={handleAiGenerate} disabled={loadingAi} className="text-[9px] border border-brand-accent/30 text-brand-accent px-4 py-2 uppercase tracking-widest hover:bg-brand-accent hover:text-black transition-all">
@@ -713,14 +716,14 @@ const SongDetail: React.FC = () => {
                         />
                     ) : (
                         <div className="text-slate-400 text-sm font-light leading-relaxed whitespace-pre-line tracking-wide">
-                            {song.description || "Historical data not available."}
+                            {song.description || t('detail_empty_desc')}
                         </div>
                     )}
                     {/* Only show AI review if it exists (Admin generated) */}
                     {aiReview && isAdmin && <div className="mt-8 p-6 bg-white/5 border-l-2 border-brand-gold text-xs text-slate-300 leading-loose italic">{aiReview}</div>}
                 </div>
                 <div className="bg-slate-900/50 p-10 border border-white/5">
-                    <h3 className="text-sm font-black text-white uppercase tracking-[0.4em] mb-8">Lyric Archive</h3>
+                    <h3 className="text-sm font-black text-white uppercase tracking-[0.4em] mb-8">{t('detail_section_lyrics')}</h3>
                     {/* EDITABLE LYRICS */}
                     {isAdmin && isEditing ? (
                         <textarea 
@@ -730,13 +733,13 @@ const SongDetail: React.FC = () => {
                             placeholder="Paste lyrics here..."
                         />
                     ) : (
-                        <div className="font-mono text-xs text-slate-500 whitespace-pre-line leading-loose tracking-[0.1em] border-l border-white/5 pl-8">{song.lyrics || "No transcripts found."}</div>
+                        <div className="font-mono text-xs text-slate-500 whitespace-pre-line leading-loose tracking-[0.1em] border-l border-white/5 pl-8">{song.lyrics || t('detail_empty_lyrics')}</div>
                     )}
                 </div>
             </div>
             <div className="space-y-8">
                 <div className="bg-slate-900 p-8 border border-white/5">
-                    <h3 className="text-[10px] font-black text-white uppercase tracking-[0.4em] mb-6">Credits</h3>
+                    <h3 className="text-[10px] font-black text-white uppercase tracking-[0.4em] mb-6">{t('detail_section_credits')}</h3>
                     {/* EDITABLE CREDITS */}
                     {isAdmin && isEditing ? (
                          <textarea 
@@ -747,7 +750,7 @@ const SongDetail: React.FC = () => {
                         />
                     ) : (
                         <div className="text-[10px] text-slate-500 font-mono leading-loose uppercase tracking-wider whitespace-pre-line">
-                            {song.credits || "Production team undisclosed."}
+                            {song.credits || t('detail_empty_credits')}
                         </div>
                     )}
                     

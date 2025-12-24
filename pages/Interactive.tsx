@@ -4,6 +4,7 @@ import { useData } from '../context/DataContext';
 import { Song, Language } from '../types';
 import { GoogleGenAI } from "@google/genai";
 import { useLocation, useNavigate } from 'react-router-dom';
+import { useTranslation } from '../context/LanguageContext';
 
 // 狀態定義
 type InteractionMode = 
@@ -23,6 +24,7 @@ type InteractionMode =
 const Interactive: React.FC = () => {
   const { user, isAdmin, addCredits, recordDonation, login } = useUser();
   const { songs, getSong } = useData();
+  const { t } = useTranslation();
   const location = useLocation();
   const navigate = useNavigate();
   
@@ -493,25 +495,24 @@ const Interactive: React.FC = () => {
         {/* TOP NAV */}
         {mode !== 'menu' && mode !== 'playing' && (
              <button onClick={() => setMode('menu')} className="self-start text-[10px] text-slate-500 hover:text-white uppercase tracking-widest mb-10 transition-colors">
-                 ← Back to Menu
+                 {t('interactive_back_menu')}
              </button>
         )}
 
         {/* --- MODE: MENU --- */}
         {mode === 'menu' && (
             <div className="flex flex-col items-center text-center animate-fade-in">
-                <h2 className="text-5xl md:text-7xl font-black text-white uppercase tracking-tighter mb-8">Creative Field</h2>
-                <p className="text-slate-500 text-xs tracking-[0.4em] uppercase mb-20 max-w-xl leading-loose">
-                    這裡不是商店，而是創作實驗場。<br/>
-                    選擇你的參與方式。
+                <h2 className="text-5xl md:text-7xl font-black text-white uppercase tracking-tighter mb-8">{t('interactive_menu_title')}</h2>
+                <p className="text-slate-500 text-xs tracking-[0.4em] uppercase mb-20 max-w-xl leading-loose whitespace-pre-line">
+                    {t('interactive_menu_subtitle')}
                 </p>
                 
                 <div className="flex flex-col gap-8 w-full max-w-sm">
                     {/* Option 1: Resonance Sync */}
                     <button onClick={() => setMode('intro')} className="group relative w-full py-6 bg-slate-900 border border-white/10 hover:border-brand-gold transition-all overflow-hidden">
                         <div className="relative z-10 flex flex-col items-center">
-                            <span className="text-brand-gold font-black text-sm uppercase tracking-[0.3em] mb-2 group-hover:scale-110 transition-transform">Resonance Sync</span>
-                            <span className="text-[9px] text-slate-500 uppercase tracking-widest">手工歌詞製作</span>
+                            <span className="text-brand-gold font-black text-sm uppercase tracking-[0.3em] mb-2 group-hover:scale-110 transition-transform">{t('interactive_opt_resonance')}</span>
+                            <span className="text-[9px] text-slate-500 uppercase tracking-widest">{t('interactive_opt_resonance_sub')}</span>
                         </div>
                         <div className="absolute inset-0 bg-brand-gold/5 transform scale-x-0 group-hover:scale-x-100 transition-transform origin-left"></div>
                     </button>
@@ -519,22 +520,22 @@ const Interactive: React.FC = () => {
                     {/* Option 2: Pure Support */}
                     <button onClick={() => handleOpenPayment('support')} className="group relative w-full py-6 bg-transparent border border-white/10 hover:border-white transition-all">
                         <div className="relative z-10 flex flex-col items-center">
-                            <span className="text-white font-black text-sm uppercase tracking-[0.3em] mb-2">Pure Support</span>
-                            <span className="text-[9px] text-slate-500 uppercase tracking-widest">單純支持</span>
+                            <span className="text-white font-black text-sm uppercase tracking-[0.3em] mb-2">{t('interactive_opt_support')}</span>
+                            <span className="text-[9px] text-slate-500 uppercase tracking-widest">{t('interactive_opt_support_sub')}</span>
                         </div>
                     </button>
 
                     {/* Option 3: Cloud Cinema */}
                     <button onClick={() => setMode('cloud-cinema')} className="group relative w-full py-6 bg-gradient-to-r from-slate-900 to-black border border-white/10 hover:border-brand-accent transition-all">
                         <div className="relative z-10 flex flex-col items-center">
-                            <span className="text-brand-accent font-black text-sm uppercase tracking-[0.3em] mb-2">Cloud Cinema</span>
-                            <span className="text-[9px] text-slate-500 uppercase tracking-widest">雲端高畫質製作</span>
+                            <span className="text-brand-accent font-black text-sm uppercase tracking-[0.3em] mb-2">{t('interactive_opt_cinema')}</span>
+                            <span className="text-[9px] text-slate-500 uppercase tracking-widest">{t('interactive_opt_cinema_sub')}</span>
                         </div>
                     </button>
 
                     {isAdmin && (
                         <button onClick={() => setMode('veo-lab')} className="mt-8 py-4 border border-red-900/30 text-red-900 hover:text-red-500 hover:border-red-500 text-[9px] font-black uppercase tracking-[0.3em] transition-all">
-                            [ADMIN] AI Video Lab
+                            {t('interactive_admin_lab')}
                         </button>
                     )}
                 </div>
@@ -545,25 +546,18 @@ const Interactive: React.FC = () => {
         {mode === 'intro' && (
             <div className="max-w-2xl w-full text-center animate-fade-in space-y-12">
                 <div>
-                    <h3 className="text-brand-gold text-xs font-black uppercase tracking-[0.5em] mb-6">參與一首歌的方式</h3>
-                    <h2 className="text-2xl md:text-4xl font-black text-white uppercase tracking-tight mb-8 leading-snug">
-                        這不是購買，也不是授權<br/>
-                        是一次創作在場的紀錄
+                    <h3 className="text-brand-gold text-xs font-black uppercase tracking-[0.5em] mb-6">{t('interactive_intro_method')}</h3>
+                    <h2 className="text-2xl md:text-4xl font-black text-white uppercase tracking-tight mb-8 leading-snug whitespace-pre-line">
+                        {t('interactive_intro_title')}
                     </h2>
-                    <p className="text-slate-400 text-sm leading-loose tracking-widest font-light">
-                        特別強調 本平台所提供之內容<br/>
-                        並非購買歌曲、歌詞或任何數位商品<br/>
-                        亦不涉及著作權授權、轉讓或下載行為<br/><br/>
-                        相關費用係用於支持創作者投入之人工時間<br/>
-                        包含手工歌詞對位與創作引導之參與過程<br/><br/>
-                        如僅需聆聽音樂<br/>
-                        請至各大音樂平台收聽
+                    <p className="text-slate-400 text-sm leading-loose tracking-widest font-light whitespace-pre-line">
+                        {t('interactive_intro_desc')}
                     </p>
                 </div>
                 
                 <div className="pt-12 border-t border-white/5">
                     <button onClick={() => setMode('gate')} className="px-12 py-5 bg-brand-gold text-slate-950 font-black text-xs uppercase tracking-[0.3em] hover:bg-white transition-all shadow-[0_0_30px_rgba(251,191,36,0.3)]">
-                        參與創作 (NT$ 320)
+                        {t('interactive_btn_participate')}
                     </button>
                 </div>
             </div>
@@ -573,36 +567,32 @@ const Interactive: React.FC = () => {
         {mode === 'gate' && (
             <div className="max-w-4xl w-full flex flex-col md:flex-row bg-slate-900 border border-white/10 shadow-2xl animate-fade-in">
                 <div className="w-full md:w-1/2 bg-white p-12 flex flex-col items-center justify-center text-slate-900">
-                    <h3 className="text-xl font-black uppercase tracking-tighter mb-2">Access Ticket</h3>
-                    <p className="text-[10px] font-bold uppercase tracking-[0.3em] text-slate-400 mb-8">Single Session</p>
+                    <h3 className="text-xl font-black uppercase tracking-tighter mb-2">{t('interactive_gate_ticket')}</h3>
+                    <p className="text-[10px] font-bold uppercase tracking-[0.3em] text-slate-400 mb-8">{t('interactive_gate_session')}</p>
                     
                     <div className="text-center w-full py-10">
-                        <span className="block text-[10px] font-bold uppercase tracking-widest text-slate-500">Entry Fee</span>
+                        <span className="block text-[10px] font-bold uppercase tracking-widest text-slate-500">{t('interactive_gate_fee')}</span>
                         <span className="block text-5xl font-black tracking-tighter mt-2 mb-8">NT$ 320</span>
                         
                         <button 
                             onClick={() => handleOpenPayment('production')}
                             className="block w-full py-4 bg-[#2b2b2b] text-white font-bold text-xs uppercase tracking-[0.2em] shadow-lg hover:bg-black transition-all transform hover:-translate-y-1"
                         >
-                            Pay via NewebPay / Credit
+                            {t('interactive_gate_pay_btn')}
                         </button>
-                        <p className="mt-4 text-[9px] text-slate-500 leading-relaxed">
-                            付款完成後，請直接點擊右側按鈕進入。<br/>
-                            無需等待回傳。
+                        <p className="mt-4 text-[9px] text-slate-500 leading-relaxed whitespace-pre-line">
+                            {t('interactive_gate_pay_note')}
                         </p>
                     </div>
                 </div>
                 <div className="w-full md:w-1/2 bg-slate-950 p-12 flex flex-col justify-center">
-                    <h4 className="text-white font-black uppercase tracking-[0.2em] mb-6">Ready to Enter</h4>
+                    <h4 className="text-white font-black uppercase tracking-[0.2em] mb-6">{t('interactive_gate_ready')}</h4>
                     
                     <div className="mb-8 p-4 border border-brand-gold/20 bg-brand-gold/5 text-[10px] text-brand-gold/80 leading-loose">
-                        點擊付款，即表示你理解並同意：<br/>
-                        ・這不是商品販售<br/>
-                        ・不包含任何授權或權利轉移<br/>
-                        ・此為一次性的創作參與紀錄
+                        <p className="whitespace-pre-line">{t('interactive_gate_policy')}</p>
                         {preSelectedSongId && (
                             <span className="block mt-4 text-brand-gold font-bold">
-                                * 已選擇作品，通過後直接開始。
+                                {t('interactive_gate_selected')}
                             </span>
                         )}
                     </div>
@@ -612,10 +602,10 @@ const Interactive: React.FC = () => {
                             onClick={handleEnterStudio}
                             className="w-full py-5 bg-brand-gold text-slate-900 font-black uppercase tracking-[0.3em] text-[10px] hover:bg-white transition-all shadow-[0_0_30px_rgba(251,191,36,0.3)] animate-pulse"
                         >
-                            我已付款，進入創作 (START)
+                            {t('interactive_gate_enter_btn')}
                         </button>
                         <p className="text-[9px] text-slate-600 text-center uppercase tracking-widest">
-                            * By clicking, you confirm the support.
+                            {t('interactive_gate_confirm')}
                         </p>
                     </div>
                 </div>
@@ -627,15 +617,13 @@ const Interactive: React.FC = () => {
             <div className="max-w-2xl w-full text-center animate-fade-in py-20">
                 <div className="mb-12">
                     <div className="w-16 h-1 bg-brand-gold mx-auto mb-8"></div>
-                    <h2 className="text-3xl font-black text-white uppercase tracking-widest mb-6">實驗場已解鎖</h2>
-                    <p className="text-slate-400 text-sm leading-loose tracking-widest">
-                        謝謝你選擇參與。<br/>
-                        接下來，請您親手完成一支<br/>
-                        歌詞時間對齊影片，作為這次參與的紀錄。
+                    <h2 className="text-3xl font-black text-white uppercase tracking-widest mb-6">{t('interactive_welcome_title')}</h2>
+                    <p className="text-slate-400 text-sm leading-loose tracking-widest whitespace-pre-line">
+                        {t('interactive_welcome_desc')}
                     </p>
                 </div>
                 <button onClick={() => setMode('select')} className="px-12 py-5 border border-white/20 text-white font-black text-xs uppercase tracking-[0.3em] hover:bg-white hover:text-black transition-all">
-                    前往選曲 (Select Work)
+                    {t('interactive_btn_select')}
                 </button>
             </div>
         )}
@@ -643,11 +631,11 @@ const Interactive: React.FC = () => {
         {/* --- MODE: SELECT --- */}
         {mode === 'select' && (
             <div className="w-full animate-fade-in">
-                <h3 className="text-center text-sm font-black text-brand-gold uppercase tracking-[0.4em] mb-12">Select Material</h3>
+                <h3 className="text-center text-sm font-black text-brand-gold uppercase tracking-[0.4em] mb-12">{t('interactive_select_title')}</h3>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-6 w-full">
                     {interactiveSongs.length === 0 ? (
                          <div className="col-span-full text-center py-20 border border-white/10 bg-slate-900/50">
-                             <p className="text-slate-500 text-xs uppercase tracking-widest">No active lyric sessions available.</p>
+                             <p className="text-slate-500 text-xs uppercase tracking-widest">{t('interactive_select_empty')}</p>
                          </div>
                     ) : (
                         interactiveSongs.map(s => (
@@ -658,7 +646,7 @@ const Interactive: React.FC = () => {
                                 <h4 className="text-[10px] font-black text-white uppercase tracking-widest truncate">{s.title}</h4>
                                 <div className="flex flex-col gap-1 mt-2">
                                      <p className="text-[9px] text-brand-gold uppercase tracking-widest opacity-0 group-hover:opacity-100 transition-opacity">
-                                         START SESSION &gt;
+                                         {t('interactive_select_start')}
                                      </p>
                                 </div>
                             </div>
@@ -674,39 +662,38 @@ const Interactive: React.FC = () => {
                 <div className="w-full aspect-video bg-black border border-white/10 mb-8 relative flex items-center justify-center overflow-hidden">
                     <div className="absolute inset-0 opacity-30 bg-cover bg-center grayscale" style={{backgroundImage: `url(${selectedSong.coverUrl})`}}></div>
                     <div className="relative z-10 text-center space-y-6 bg-black/80 p-12 backdrop-blur-sm border border-white/10">
-                        <h3 className="text-xl font-black text-white uppercase tracking-[0.3em]">準備開始創作</h3>
+                        <h3 className="text-xl font-black text-white uppercase tracking-[0.3em]">{t('interactive_tool_prepare_title')}</h3>
                         <div className="text-left space-y-2 text-[10px] text-slate-400 font-mono tracking-widest border-l border-brand-gold pl-4 py-2">
-                            <p>✓ 音檔素材載入 ({selectedSong.title})</p>
-                            <p>✓ 歌詞文本載入</p>
-                            <p>✓ 手工介面就緒</p>
+                            <p>{t('interactive_tool_checklist_1')} ({selectedSong.title})</p>
+                            <p>{t('interactive_tool_checklist_2')}</p>
+                            <p>{t('interactive_tool_checklist_3')}</p>
                         </div>
-                        <p className="text-xs text-white leading-loose tracking-widest">
-                            接下來，請您親自對齊每一句歌詞。<br/>
-                            系統將同步錄製您的操作畫面。
+                        <p className="text-xs text-white leading-loose tracking-widest whitespace-pre-line">
+                            {t('interactive_tool_desc')}
                         </p>
                     </div>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8 w-full">
                     <div className="bg-slate-900 p-6 border border-white/5">
-                        <h4 className="text-brand-gold text-[10px] font-black uppercase tracking-widest mb-4">操作指引</h4>
+                        <h4 className="text-brand-gold text-[10px] font-black uppercase tracking-widest mb-4">{t('interactive_tool_guide_title')}</h4>
                         <ul className="text-[10px] text-slate-400 space-y-3 leading-relaxed list-disc list-inside">
-                            <li>點擊開始後，音樂將隨即播放。</li>
-                            <li>{isMobile ? "當您感覺歌詞該出現時，請點擊螢幕任意處。" : "當您感覺歌詞該出現時，請點擊畫面或按空白鍵/Enter。"}</li>
-                            <li>直到 [ END ] 出現，影片將自動完成並提供下載。</li>
+                            <li>{t('interactive_tool_guide_1')}</li>
+                            <li>{isMobile ? t('interactive_tool_guide_2_mobile') : t('interactive_tool_guide_2_desktop')}</li>
+                            <li>{t('interactive_tool_guide_3')}</li>
                         </ul>
                     </div>
                     <div className="flex flex-col justify-center items-center text-center p-6 border border-white/5 bg-slate-900/50">
-                        <p className="text-[10px] text-slate-500 uppercase tracking-widest mb-6">
-                            不需要追求完美，<br/>這是一段創作練習。
+                        <p className="text-[10px] text-slate-500 uppercase tracking-widest mb-6 whitespace-pre-line">
+                            {t('interactive_tool_tip')}
                         </p>
                         {isMobile && isPortrait && (
                             <p className="text-[10px] text-brand-gold mb-4 animate-pulse">
-                                ⚠️ 建議橫屏操作 (Landscape Recommended)
+                                {t('interactive_tool_mobile_hint')}
                             </p>
                         )}
                         <button onClick={startRecording} className="px-8 py-4 bg-white text-black font-black text-xs uppercase tracking-[0.3em] hover:bg-brand-gold transition-all">
-                            開始錄製 (Start Recording)
+                            {t('interactive_btn_start_record')}
                         </button>
                     </div>
                 </div>
@@ -720,20 +707,20 @@ const Interactive: React.FC = () => {
                  {/* Mobile Portrait Warning (Non-blocking) */}
                  {isMobile && isPortrait && (
                      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-white/20 text-4xl font-black rotate-90 pointer-events-none uppercase">
-                         Turn Landscape
+                         {t('interactive_recording_turn_landscape')}
                      </div>
                  )}
 
                  <div className="pointer-events-none mb-8 relative z-10">
                      <span className="bg-black/60 text-white px-6 py-3 text-[12px] uppercase tracking-widest backdrop-blur-md border border-white/20 animate-pulse font-bold shadow-2xl">
-                         {isMobile ? "TAP SCREEN TO SYNC" : "TAP or SPACEBAR to Sync"}
+                         {isMobile ? t('interactive_recording_hint_mobile') : t('interactive_recording_hint_desktop')}
                      </span>
                  </div>
                  
                  <div className="text-center pointer-events-none relative z-10">
                      <div className="flex items-center gap-2 justify-center mb-2">
                          <div className="w-3 h-3 bg-red-500 rounded-full animate-pulse"></div>
-                         <p className="text-red-500 text-[10px] font-black uppercase tracking-widest">Recording Live</p>
+                         <p className="text-red-500 text-[10px] font-black uppercase tracking-widest">{t('interactive_recording_live')}</p>
                      </div>
                  </div>
                  
@@ -749,24 +736,23 @@ const Interactive: React.FC = () => {
         {/* --- MODE: FINISHED --- */}
         {mode === 'finished' && (
             <div className="max-w-3xl w-full text-center animate-fade-in py-12">
-                <h2 className="text-4xl font-black text-white uppercase tracking-tighter mb-4">創作完成</h2>
-                <p className="text-slate-500 text-[10px] font-bold uppercase tracking-[0.4em] mb-12">Session Completed</p>
+                <h2 className="text-4xl font-black text-white uppercase tracking-tighter mb-4">{t('interactive_finished_title')}</h2>
+                <p className="text-slate-500 text-[10px] font-bold uppercase tracking-[0.4em] mb-12">{t('interactive_finished_subtitle')}</p>
                 
                 <div className="bg-slate-900/80 p-10 border border-white/10 mb-16 backdrop-blur-sm shadow-2xl">
                     <div className="bg-yellow-900/20 border border-yellow-700/30 p-4 mb-8 text-center">
                         <p className="text-brand-gold text-xs font-bold uppercase tracking-widest animate-pulse">
-                            ⚠️ 重要：檔案由瀏覽器即時生成，離開此頁面後將無法找回。
+                            {t('interactive_finished_warning')}
                         </p>
                     </div>
 
-                    <p className="text-slate-300 text-sm leading-loose tracking-widest font-light mb-8">
-                        這支影片，是為這次參與留下的創作紀錄。<br/>
-                        請立即下載您的作品與數位證書。<br/>
+                    <p className="text-slate-300 text-sm leading-loose tracking-widest font-light mb-8 whitespace-pre-line">
+                        {t('interactive_finished_desc')}
                     </p>
                     
                     <div className="flex flex-col gap-4 max-w-md mx-auto">
                         <input 
-                            placeholder="輸入您的名字 (簽署證書用)" 
+                            placeholder={t('interactive_input_name')} 
                             className="w-full bg-black border border-white/20 p-4 text-center text-white text-xs uppercase tracking-widest outline-none focus:border-brand-gold"
                             value={listenerName}
                             onChange={e => setListenerName(e.target.value)}
@@ -774,17 +760,17 @@ const Interactive: React.FC = () => {
                         
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
                             <button onClick={downloadVideo} className="w-full py-4 bg-white text-slate-950 font-black text-[10px] uppercase tracking-widest hover:bg-brand-gold transition-all shadow-lg">
-                                儲存影片 (Save MP4)
+                                {t('interactive_btn_save_video')}
                             </button>
                             <button onClick={downloadCertificate} className="w-full py-4 border border-white/20 text-white font-black text-[10px] uppercase tracking-widest hover:bg-white hover:text-black transition-all">
-                                領取證書 (Get Cert)
+                                {t('interactive_btn_get_cert')}
                             </button>
                         </div>
                     </div>
                 </div>
 
                 <button onClick={() => setMode('menu')} className="mt-8 text-slate-500 hover:text-white text-[10px] uppercase tracking-widest transition-colors">
-                    Return to Menu
+                    {t('interactive_btn_return')}
                 </button>
             </div>
         )}
@@ -826,15 +812,15 @@ const Interactive: React.FC = () => {
         {/* Note: In full implementation, ensure Cloud Cinema and Pure Support UI blocks from previous version are kept if needed. */}
         {mode === 'pure-support' && (
              <div className="text-center animate-fade-in py-20">
-                 <h2 className="text-3xl font-black text-white uppercase">Pure Support</h2>
+                 <h2 className="text-3xl font-black text-white uppercase">{t('interactive_opt_support')}</h2>
                  <button onClick={() => handleOpenPayment('support')} className="mt-8 px-8 py-4 bg-brand-gold text-black font-black uppercase tracking-widest text-xs">Support Now</button>
                  <button onClick={() => setMode('menu')} className="block mt-8 text-slate-500 text-xs uppercase tracking-widest mx-auto">Back</button>
              </div>
         )}
         {mode === 'cloud-cinema' && (
              <div className="text-center animate-fade-in py-20">
-                 <h2 className="text-3xl font-black text-white uppercase">Cloud Cinema</h2>
-                 <p className="text-slate-400 text-xs mt-4 uppercase tracking-widest">High Quality Production Service</p>
+                 <h2 className="text-3xl font-black text-white uppercase">{t('interactive_opt_cinema')}</h2>
+                 <p className="text-slate-400 text-xs mt-4 uppercase tracking-widest">{t('interactive_opt_cinema_sub')}</p>
                  <div className="mt-8 text-2xl text-white font-serif">NT$ 2,800</div>
                  <button onClick={() => handleOpenPayment('cinema')} className="mt-8 px-8 py-4 border border-brand-accent text-brand-accent hover:bg-brand-accent hover:text-black transition-all font-black uppercase tracking-widest text-xs">Purchase Access (NT$ 2,800)</button>
                  <button onClick={() => setMode('menu')} className="block mt-12 text-slate-500 text-xs uppercase tracking-widest mx-auto">Back</button>

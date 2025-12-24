@@ -96,15 +96,15 @@ const Database: React.FC = () => {
         <div>
            <h2 className="text-4xl font-black text-white tracking-tighter uppercase mb-2">{t('db_title')}</h2>
            <div className="flex items-center gap-3 text-slate-500 font-mono text-[10px] tracking-widest">
-                <span className="text-brand-gold">WILLWI CATALOG</span>
+                <span className="text-brand-gold">{t('catalog_subtitle')}</span>
                 <span>/</span>
-                <span>TOTAL TRACKS: {songs.length}</span>
+                <span>{t('catalog_stats')}: {songs.length}</span>
            </div>
         </div>
         
         <div className="flex bg-slate-900 border border-white/10 p-1">
-            <button onClick={() => setViewMode('grid')} className={`px-6 py-2 text-[10px] font-black uppercase tracking-widest transition-all ${viewMode === 'grid' ? 'bg-white text-black' : 'text-slate-500 hover:text-white'}`}>Grid</button>
-            <button onClick={() => setViewMode('table')} className={`px-6 py-2 text-[10px] font-black uppercase tracking-widest transition-all ${viewMode === 'table' ? 'bg-white text-black' : 'text-slate-500 hover:text-white'}`}>List</button>
+            <button onClick={() => setViewMode('grid')} className={`px-6 py-2 text-[10px] font-black uppercase tracking-widest transition-all ${viewMode === 'grid' ? 'bg-white text-black' : 'text-slate-500 hover:text-white'}`}>{t('catalog_view_grid')}</button>
+            <button onClick={() => setViewMode('table')} className={`px-6 py-2 text-[10px] font-black uppercase tracking-widest transition-all ${viewMode === 'table' ? 'bg-white text-black' : 'text-slate-500 hover:text-white'}`}>{t('catalog_view_list')}</button>
         </div>
       </div>
 
@@ -118,7 +118,7 @@ const Database: React.FC = () => {
         />
         <div className="w-px bg-white/10 hidden md:block"></div>
         <select className="bg-transparent text-slate-500 px-6 py-4 text-[10px] font-black uppercase tracking-widest outline-none cursor-pointer hover:text-white appearance-none" value={filterLang} onChange={(e) => setFilterLang(e.target.value)}>
-            <option value="All">All Languages</option>
+            <option value="All">{t('catalog_filter_all')}</option>
             {Object.values(Language).map(l => <option key={l} value={l}>{l}</option>)}
         </select>
       </div>
@@ -166,10 +166,10 @@ const Database: React.FC = () => {
                         <th className="px-4 py-5 w-10">
                              {/* Header Checkbox controlled by external selectAll */}
                         </th>
-                        <th className="px-4 py-5 text-left text-[9px] font-black text-slate-500 uppercase tracking-widest">Asset</th>
-                        <th className="px-4 py-5 text-left text-[9px] font-black text-slate-500 uppercase tracking-widest">Metadata</th>
-                        <th className="px-4 py-5 text-left text-[9px] font-black text-slate-500 uppercase tracking-widest hidden sm:table-cell">Release</th>
-                        <th className="px-4 py-5 text-right text-[9px] font-black text-slate-500 uppercase tracking-widest">Action</th>
+                        <th className="px-4 py-5 text-left text-[9px] font-black text-slate-500 uppercase tracking-widest">{t('catalog_col_asset')}</th>
+                        <th className="px-4 py-5 text-left text-[9px] font-black text-slate-500 uppercase tracking-widest">{t('catalog_col_metadata')}</th>
+                        <th className="px-4 py-5 text-left text-[9px] font-black text-slate-500 uppercase tracking-widest hidden sm:table-cell">{t('catalog_col_release')}</th>
+                        <th className="px-4 py-5 text-right text-[9px] font-black text-slate-500 uppercase tracking-widest">{t('catalog_col_action')}</th>
                     </tr>
                 </thead>
                 <tbody className="divide-y divide-white/5">
@@ -196,7 +196,7 @@ const Database: React.FC = () => {
                                 </div>
                             </td>
                             <td className="px-4 py-6 whitespace-nowrap text-[10px] text-slate-500 font-mono hidden sm:table-cell tracking-widest">{song.releaseDate}</td>
-                            <td className="px-4 py-6 text-right"><span className="text-slate-800 group-hover:text-white transition-colors text-[9px] font-black">VIEW</span></td>
+                            <td className="px-4 py-6 text-right"><span className="text-slate-800 group-hover:text-white transition-colors text-[9px] font-black">{t('catalog_btn_view')}</span></td>
                         </tr>
                     ))}
                 </tbody>
@@ -212,8 +212,8 @@ const Database: React.FC = () => {
                       <div className="flex items-center gap-4">
                            <div className="text-2xl font-black text-brand-gold">1</div>
                            <div className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">
-                               Track Selected<br/>
-                               <span className="text-white">Ready to create</span>
+                               {t('catalog_bar_selected_single')}<br/>
+                               <span className="text-white">{t('catalog_bar_ready')}</span>
                            </div>
                       </div>
                   )}
@@ -221,21 +221,21 @@ const Database: React.FC = () => {
                       <div className="flex items-center gap-4">
                            <div className="text-2xl font-black text-white">{selectedIds.size}</div>
                            <div className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">
-                               Tracks Selected<br/>
-                               <span className="text-slate-700">Admin Bulk Mode</span>
+                               {t('catalog_bar_selected_multi')}<br/>
+                               <span className="text-slate-700">{t('catalog_bar_admin_mode')}</span>
                            </div>
                       </div>
                   )}
               </div>
               <div className="flex items-center gap-4">
                   <button onClick={() => setSelectedIds(new Set())} className="px-6 py-3 border border-white/10 text-slate-400 hover:text-white text-[10px] font-black uppercase tracking-widest transition-all">
-                      Cancel
+                      {t('catalog_bar_cancel')}
                   </button>
                   
                   {/* Listener Action: Start Creative Session (Only when 1 song selected) */}
                   {selectedIds.size === 1 && (
                       <button onClick={handleStartSession} className="px-8 py-3 bg-brand-gold text-slate-900 font-black text-[10px] uppercase tracking-widest hover:bg-white transition-all shadow-lg animate-pulse">
-                          Start Interactive Session (前往創作)
+                          {t('catalog_bar_start')}
                       </button>
                   )}
 

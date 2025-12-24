@@ -59,6 +59,16 @@ const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, initialMod
 
   const isFormValid = name.trim().length > 0 && email.includes('@') && totalAmount > 0;
 
+  // Determine current PayPal Link
+  const getCurrentPayPalLink = () => {
+      if (supportMode === 'production') return PAYPAL_LINKS.production;
+      if (supportMode === 'cinema') return PAYPAL_LINKS.cinema;
+      return PAYPAL_LINKS.support;
+  };
+
+  // Generate QR Code URL dynamically
+  const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&color=000000&bgcolor=ffffff&margin=10&data=${encodeURIComponent(getCurrentPayPalLink())}`;
+
   const handlePayment = async () => {
     if (!isFormValid) return alert(t('modal_confirm_btn_invalid'));
     
@@ -98,13 +108,7 @@ const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, initialMod
                 ...extraData
             }));
             
-            // Select correct link based on mode
-            let targetLink = PAYPAL_LINKS.support; // Fallback
-            if (supportMode === 'production') targetLink = PAYPAL_LINKS.production;
-            else if (supportMode === 'cinema') targetLink = PAYPAL_LINKS.cinema;
-            else if (supportMode === 'support') targetLink = PAYPAL_LINKS.support;
-
-            window.location.href = targetLink;
+            window.location.href = getCurrentPayPalLink();
         } else {
             alert("此付款方式尚未開放 (Coming Soon)");
             setIsProcessing(false);
@@ -245,7 +249,7 @@ const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, initialMod
                 <div className="bg-white p-6 rounded-sm shadow-xl">
                     <div className="flex justify-between items-end mb-4">
                         <div>
-                            <span className="block text-[10px] text-slate-400 uppercase tracking-widest mb-1">Selected Gateway</span>
+                            <span className="block text-[10px] text-slate-400 uppercase tracking-widest mb-1">{t('payment_gateway_selected')}</span>
                             <span className={`text-sm font-black uppercase tracking-widest ${
                                 gateway === 'ecpay' ? 'text-green-600' : 
                                 gateway === 'newebpay' ? 'text-blue-600' :
@@ -257,11 +261,26 @@ const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, initialMod
                             </span>
                         </div>
                         <div className="text-right">
-                            <span className="block text-[10px] text-slate-400 uppercase tracking-widest mb-1">Total Support</span>
+                            <span className="block text-[10px] text-slate-400 uppercase tracking-widest mb-1">{t('payment_total')}</span>
                             <span className="text-2xl font-black text-slate-900">NT$ {totalAmount.toLocaleString()}</span>
                         </div>
                     </div>
                     
+                    {/* PAYPAL SPECIFIC: SHOW QR CODE */}
+                    {gateway === 'paypal' && (
+                        <div className="mb-6 flex flex-col items-center justify-center pt-4 border-t border-slate-100 mt-4 animate-fade-in">
+                            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mb-3">{t('payment_scan_label')}</p>
+                            <div className="p-2 bg-white border border-slate-200 shadow-inner">
+                                <img 
+                                    src={qrCodeUrl} 
+                                    alt="PayPal QR Code" 
+                                    className="w-32 h-32 md:w-40 md:h-40 object-contain" 
+                                />
+                            </div>
+                            <p className="text-[9px] text-[#003087] font-bold mt-2">{supportMode === 'production' ? 'Handcrafted' : (supportMode === 'cinema' ? 'Cinema' : 'Support')} QR</p>
+                        </div>
+                    )}
+
                     <button 
                         onClick={handlePayment}
                         disabled={!isFormValid || isProcessing}
@@ -278,12 +297,11 @@ const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, initialMod
                                 <span>Processing...</span>
                             </>
                         ) : (
-                            <span>CONFIRM SUPPORT 確認支持</span>
+                            <span>{gateway === 'paypal' ? t('payment_open_link') : t('payment_confirm')}</span>
                         )}
                     </button>
                     <p className="text-[9px] text-slate-400 text-center mt-3">
-                        * 此款項為支持創作之用途，非商品販售交易。<br/>
-                        (Funds are for creative support, not product sales.)
+                        {t('payment_disclaimer')}
                     </p>
                 </div>
             </div>
@@ -296,7 +314,7 @@ const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, initialMod
                     {supportMode === 'production' && (
                         <div className="space-y-6">
                             <div className="flex justify-between items-end border-b border-white/10 pb-4">
-                                <span className="text-[10px] text-slate-400 uppercase tracking-widest">Sessions</span>
+                                <span className="text-[10px] text-slate-400 uppercase tracking-widest">{t('payment_sessions')}</span>
                                 <div className="flex items-center gap-4">
                                     <button onClick={() => setPointCount(Math.max(1, pointCount - 1))} className="text-white hover:text-brand-gold text-lg">-</button>
                                     <span className="text-xl font-mono text-brand-gold">{pointCount}</span>
@@ -305,11 +323,11 @@ const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, initialMod
                             </div>
                             <div className="space-y-2">
                                 <div className="flex justify-between text-[10px] text-slate-500">
-                                    <span>Support / Unit</span>
+                                    <span>{t('payment_support_unit')}</span>
                                     <span>NT$ {UNIT_PRICE}</span>
                                 </div>
                                 <div className="flex justify-between text-[10px] text-slate-500">
-                                    <span>Total Support</span>
+                                    <span>{t('payment_total')}</span>
                                     <span>NT$ {totalAmount.toLocaleString()}</span>
                                 </div>
                             </div>
@@ -322,15 +340,15 @@ const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, initialMod
                     {supportMode === 'cinema' && (
                         <div className="space-y-6">
                             <div className="border border-brand-accent/30 bg-brand-accent/5 p-4 text-center">
-                                <span className="text-brand-accent text-xs font-black uppercase tracking-widest">PREMIUM TIER</span>
+                                <span className="text-brand-accent text-xs font-black uppercase tracking-widest">{t('payment_premium_tier')}</span>
                             </div>
                             <div className="space-y-2">
                                 <div className="flex justify-between text-[10px] text-slate-500">
-                                    <span>Service Fee</span>
+                                    <span>{t('payment_service_fee')}</span>
                                     <span>NT$ {CINEMA_PRICE.toLocaleString()}</span>
                                 </div>
                                 <div className="flex justify-between text-[10px] text-slate-500">
-                                    <span>Total Support</span>
+                                    <span>{t('payment_total')}</span>
                                     <span className="text-brand-accent">NT$ {CINEMA_PRICE.toLocaleString()}</span>
                                 </div>
                             </div>
