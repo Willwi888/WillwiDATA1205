@@ -70,6 +70,9 @@ const SongDetail: React.FC = () => {
   };
 
   const handleSave = async () => {
+    // Security check: Only admin can save
+    if (!isAdmin) return;
+
     if (song && id) {
       setIsSaving(true);
       // Auto-convert Google Drive/Dropbox links one last time before saving
@@ -87,7 +90,7 @@ const SongDetail: React.FC = () => {
   };
   
   const handleDelete = async () => {
-      if (!song) return;
+      if (!isAdmin || !song) return;
       const confirmDelete = window.confirm(`【確認刪除】\n\n您確定要永久刪除《${song.title}》嗎？\n此動作無法復原。`);
       if (confirmDelete) {
           await deleteSong(song.id);
@@ -96,6 +99,7 @@ const SongDetail: React.FC = () => {
   };
 
   const handleAiGenerate = async () => {
+    if (!isAdmin) return;
     setLoadingAi(true);
     setAiReview(await generateMusicCritique(song));
     setLoadingAi(false);
@@ -106,6 +110,11 @@ const SongDetail: React.FC = () => {
       // Instrumental Check
       if (song.language === Language.Instrumental) {
           alert("此作品為純音樂 (Instrumental)，沒有歌詞可供互動同步。");
+          return;
+      }
+      // No Lyrics Check
+      if (!song.lyrics || song.lyrics.trim().length === 0) {
+          alert("此作品尚未登錄歌詞，無法進行互動。");
           return;
       }
       navigate('/interactive', { state: { targetSongId: song.id } });
@@ -161,7 +170,7 @@ const SongDetail: React.FC = () => {
                             {/* USER ACTIONS: INTERACTIVE BUTTON */}
                             <div className="mt-10 flex flex-col gap-4 max-w-sm">
                                 {song.isInteractiveActive ? (
-                                    isInstrumental ? (
+                                    (isInstrumental || !song.lyrics) ? (
                                         <div className="w-full py-4 border border-slate-600 text-slate-500 font-bold uppercase tracking-[0.2em] text-[10px] text-center bg-slate-900 cursor-not-allowed">
                                             純音樂・無歌詞互動 (Instrumental)
                                         </div>
@@ -179,12 +188,13 @@ const SongDetail: React.FC = () => {
                                     </div>
                                 )}
                                 
-                                {/* OFFICIAL STREAMING LINKS (Spotify Player & Buttons) */}
+                                {/* OFFICIAL LINKS (NO EMBED PLAYERS FOR LISTENERS) */}
                                 <div className="grid grid-cols-1 gap-3 mt-2">
                                     
-                                    {/* YouTube Embed Player */}
-                                    {youtubeEmbedId && !isEditing && (
-                                        <div className="w-full aspect-video rounded overflow-hidden shadow-lg border border-white/10 mb-2">
+                                    {/* YouTube Embed Player (ADMIN ONLY) */}
+                                    {isAdmin && youtubeEmbedId && !isEditing && (
+                                        <div className="w-full aspect-video rounded overflow-hidden shadow-lg border border-white/10 mb-2 relative group">
+                                            <div className="absolute top-0 left-0 bg-red-600 text-white text-[9px] font-bold px-2 py-1 z-10 pointer-events-none">ADMIN PREVIEW</div>
                                             <iframe 
                                                 width="100%" 
                                                 height="100%" 
@@ -197,9 +207,10 @@ const SongDetail: React.FC = () => {
                                         </div>
                                     )}
 
-                                    {/* Spotify Embed Player */}
-                                    {spotifyEmbedId && !isEditing && (
-                                        <div className="w-full rounded overflow-hidden shadow-lg border border-[#1DB954]/30">
+                                    {/* Spotify Embed Player (ADMIN ONLY) */}
+                                    {isAdmin && spotifyEmbedId && !isEditing && (
+                                        <div className="w-full rounded overflow-hidden shadow-lg border border-[#1DB954]/30 relative">
+                                            <div className="absolute top-0 left-0 bg-[#1DB954] text-white text-[9px] font-bold px-2 py-1 z-10 pointer-events-none">ADMIN PREVIEW</div>
                                             <iframe 
                                                 src={`https://open.spotify.com/embed/track/${spotifyEmbedId}?utm_source=generator&theme=0`} 
                                                 width="100%" 
@@ -213,6 +224,7 @@ const SongDetail: React.FC = () => {
                                         </div>
                                     )}
 
+                                    {/* EXTERNAL LINKS - Visible to All (As Portfolio Metadata) */}
                                     {song.smartLink && !isEditing && (
                                         <a 
                                             href={song.smartLink}
@@ -275,7 +287,7 @@ const SongDetail: React.FC = () => {
                                 </div>
                             </div>
 
-                            {/* ADMIN CONTROL PANEL */}
+                            {/* ADMIN CONTROL PANEL (STRICTLY ADMIN ONLY) */}
                             {isAdmin && !isEditing && (
                                 <div className="mt-8 w-full max-w-md bg-black/40 border border-white/10 p-4 rounded-lg">
                                     <div className="flex items-center gap-2 mb-3 border-b border-white/5 pb-2">
@@ -325,7 +337,7 @@ const SongDetail: React.FC = () => {
                                 </div>
                             )}
 
-                            {isEditing && (
+                            {isAdmin && isEditing && (
                                 <div className="mt-6 space-y-4 bg-slate-800/50 p-4 border border-white/10">
                                     <div className="space-y-2">
                                         <label className="text-[10px] text-brand-gold font-bold uppercase tracking-widest block">Audio Source URL (For Video Gen)</label>
@@ -462,7 +474,7 @@ const SongDetail: React.FC = () => {
                         )}
                     </div>
                     {/* EDITABLE DESCRIPTION */}
-                    {isEditing ? (
+                    {isAdmin && isEditing ? (
                         <textarea 
                             className="w-full h-60 bg-black border border-white/10 p-4 text-white text-sm leading-relaxed outline-none focus:border-brand-gold"
                             value={editForm.description || ''}
@@ -475,12 +487,12 @@ const SongDetail: React.FC = () => {
                         </div>
                     )}
                     {/* Only show AI review if it exists (Admin generated) */}
-                    {aiReview && <div className="mt-8 p-6 bg-white/5 border-l-2 border-brand-gold text-xs text-slate-300 leading-loose italic">{aiReview}</div>}
+                    {aiReview && isAdmin && <div className="mt-8 p-6 bg-white/5 border-l-2 border-brand-gold text-xs text-slate-300 leading-loose italic">{aiReview}</div>}
                 </div>
                 <div className="bg-slate-900/50 p-10 border border-white/5">
                     <h3 className="text-sm font-black text-white uppercase tracking-[0.4em] mb-8">Lyric Archive</h3>
                     {/* EDITABLE LYRICS */}
-                    {isEditing ? (
+                    {isAdmin && isEditing ? (
                         <textarea 
                             className="w-full h-80 bg-black border border-white/10 p-4 text-white text-xs font-mono leading-relaxed outline-none focus:border-brand-gold"
                             value={editForm.lyrics || ''}
@@ -496,7 +508,7 @@ const SongDetail: React.FC = () => {
                 <div className="bg-slate-900 p-8 border border-white/5">
                     <h3 className="text-[10px] font-black text-white uppercase tracking-[0.4em] mb-6">Credits</h3>
                     {/* EDITABLE CREDITS */}
-                    {isEditing ? (
+                    {isAdmin && isEditing ? (
                          <textarea 
                             className="w-full h-60 bg-black border border-white/10 p-4 text-white text-xs font-mono leading-relaxed outline-none focus:border-brand-gold"
                             value={editForm.credits || ''}

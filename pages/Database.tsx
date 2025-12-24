@@ -69,8 +69,20 @@ const Database: React.FC = () => {
       const songId = Array.from(selectedIds)[0];
       const selectedSong = songs.find(s => s.id === songId);
       
-      if (!selectedSong?.isInteractiveActive) {
+      if (!selectedSong) return;
+
+      if (!selectedSong.isInteractiveActive) {
           alert("此作品的互動創作功能尚未開放 (Interactive Mode is Closed)。");
+          return;
+      }
+
+      if (selectedSong.language === Language.Instrumental) {
+          alert("此作品為純音樂 (Instrumental)，無法進行歌詞互動。");
+          return;
+      }
+
+      if (!selectedSong.lyrics || selectedSong.lyrics.trim().length === 0) {
+          alert("此作品尚未登錄歌詞，無法進行互動。");
           return;
       }
       

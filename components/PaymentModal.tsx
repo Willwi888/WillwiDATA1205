@@ -109,7 +109,12 @@ const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, initialMod
         {/* TOP IDENTITY SECTION */}
         <div className="p-8 bg-white/[0.02] border-b border-white/5">
             <div className="flex justify-between items-center mb-8">
-                <h3 className="text-xl font-black text-white uppercase tracking-[0.3em]">{t('modal_title')}</h3>
+                <div>
+                    <h3 className="text-xl font-black text-white uppercase tracking-[0.3em]">{t('modal_title')}</h3>
+                    <p className="text-[10px] text-brand-gold font-bold uppercase tracking-widest mt-2">
+                        {supportMode === 'production' ? t('modal_tab_interactive_sub') : t('modal_tab_support_sub')}
+                    </p>
+                </div>
                 <button onClick={onClose} className="text-slate-600 hover:text-white font-mono text-xs uppercase tracking-widest transition-colors">{t('modal_close')}</button>
             </div>
 
@@ -135,26 +140,6 @@ const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, initialMod
                     />
                 </div>
             </div>
-        </div>
-
-        {/* MODE TABS */}
-        <div className={`px-8 py-6 bg-black flex gap-4 border-b border-white/5 overflow-x-auto`}>
-            <button 
-                onClick={() => setSupportMode('production')}
-                className={`flex-1 min-w-[200px] py-4 px-6 border transition-all text-left group relative ${supportMode === 'production' ? 'border-brand-gold bg-brand-gold/5' : 'border-white/5 hover:border-white/20'}`}
-            >
-                <div className={`text-[10px] font-black uppercase tracking-widest mb-1 ${supportMode === 'production' ? 'text-brand-gold' : 'text-slate-500'}`}>{t('modal_tab_interactive')}</div>
-                <div className="text-white text-sm font-bold uppercase tracking-tight">{t('modal_tab_interactive_sub')}</div>
-                {supportMode === 'production' && <div className="absolute top-2 right-2 w-2 h-2 bg-brand-gold rounded-full shadow-[0_0_10px_#fbbf24]"></div>}
-            </button>
-            <button 
-                onClick={() => setSupportMode('support')}
-                className={`flex-1 min-w-[200px] py-4 px-6 border transition-all text-left group relative ${supportMode === 'support' ? 'border-orange-500 bg-orange-500/5' : 'border-white/5 hover:border-white/20'}`}
-            >
-                <div className={`text-[10px] font-black uppercase tracking-widest mb-1 ${supportMode === 'support' ? 'text-orange-500' : 'text-slate-500'}`}>{t('modal_tab_support')}</div>
-                <div className="text-white text-sm font-bold uppercase tracking-tight">{t('modal_tab_support_sub')}</div>
-                {supportMode === 'support' && <div className="absolute top-2 right-2 w-2 h-2 bg-orange-500 rounded-full shadow-[0_0_10px_orange]"></div>}
-            </button>
         </div>
 
         {/* MAIN CONTENT AREA */}

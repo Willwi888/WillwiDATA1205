@@ -144,8 +144,8 @@ const Interactive: React.FC = () => {
       if (preSelectedSongId) {
           const targetSong = getSong(preSelectedSongId);
           if (targetSong) {
-              if (!targetSong.isInteractiveActive) {
-                  alert("此作品互動功能目前未開放。");
+              if (!targetSong.isInteractiveActive || !targetSong.lyrics || targetSong.language === Language.Instrumental) {
+                  alert("此作品不符合互動資格（無歌詞或純音樂）。");
                   setMode('select');
               } else {
                   handleSelectSong(targetSong); // This sets mode to 'tool-start'
@@ -530,6 +530,9 @@ const Interactive: React.FC = () => {
 
   // --- RENDER ---
 
+  // Filter songs for the grid: Active AND Has Lyrics AND Not Instrumental
+  const interactiveSongs = songs.filter(s => s.isInteractiveActive && s.lyrics && s.language !== Language.Instrumental);
+
   return (
     <div className="max-w-6xl mx-auto pt-24 px-6 pb-40 min-h-screen flex flex-col items-center">
         
@@ -737,31 +740,27 @@ const Interactive: React.FC = () => {
             </div>
         )}
 
-        {/* --- MODE: SELECT (FILTERED: ONLY ACTIVE SONGS) --- */}
+        {/* --- MODE: SELECT (FILTERED: ONLY ACTIVE SONGS WITH LYRICS) --- */}
         {mode === 'select' && (
             <div className="w-full animate-fade-in">
                 <h3 className="text-center text-sm font-black text-brand-gold uppercase tracking-[0.4em] mb-12">Select Material</h3>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-6 w-full">
-                    {songs.filter(s => s.isInteractiveActive).length === 0 ? (
+                    {interactiveSongs.length === 0 ? (
                          <div className="col-span-full text-center py-20 border border-white/10 bg-slate-900/50">
-                             <p className="text-slate-500 text-xs uppercase tracking-widest">No active sessions available at the moment.</p>
-                             <p className="text-slate-600 text-[9px] uppercase tracking-widest mt-2">目前沒有開放互動的曲目</p>
+                             <p className="text-slate-500 text-xs uppercase tracking-widest">No active lyric sessions available.</p>
+                             <p className="text-slate-600 text-[9px] uppercase tracking-widest mt-2">目前沒有開放互動的歌詞曲目</p>
                          </div>
                     ) : (
-                        songs.filter(s => s.isInteractiveActive).map(s => (
+                        interactiveSongs.map(s => (
                             <div key={s.id} onClick={() => handleSelectSong(s)} className="bg-slate-900/40 p-6 border border-white/5 hover:border-brand-gold cursor-pointer transition-all group">
                                 <div className="overflow-hidden mb-4 aspect-square bg-slate-800">
                                     <img src={s.coverUrl} className="w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all duration-700 opacity-60 group-hover:opacity-100" alt="" />
                                 </div>
                                 <h4 className="text-[10px] font-black text-white uppercase tracking-widest truncate">{s.title}</h4>
                                 <div className="flex flex-col gap-1 mt-2">
-                                    {s.language === Language.Instrumental ? (
-                                        <span className="text-[8px] text-slate-500 bg-black/40 px-2 py-0.5 self-start uppercase tracking-widest">Instrumental</span>
-                                    ) : (
-                                        <p className="text-[9px] text-brand-gold uppercase tracking-widest opacity-0 group-hover:opacity-100 transition-opacity">
-                                            START SESSION &gt;
-                                        </p>
-                                    )}
+                                     <p className="text-[9px] text-brand-gold uppercase tracking-widest opacity-0 group-hover:opacity-100 transition-opacity">
+                                         START SESSION &gt;
+                                     </p>
                                 </div>
                             </div>
                         ))

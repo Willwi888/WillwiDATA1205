@@ -1,41 +1,65 @@
 import React, { useMemo } from 'react';
 
 interface SnowflakeProps {
+  id: number;
   color: string;
   size: number;
   left: string;
   duration: string;
   delay: string;
   sway: string;
+  char: string;
+  spinDuration: string;
 }
 
-const Snowflake: React.FC<SnowflakeProps> = ({ color, size, left, duration, delay, sway }) => (
+const Snowflake: React.FC<SnowflakeProps> = ({ color, size, left, duration, delay, sway, char, spinDuration }) => (
   <div
-    className="fixed top-[-10px] pointer-events-none rounded-full z-[40]"
+    className="fixed top-[-50px] pointer-events-none z-[40]"
     style={{
-      backgroundColor: color,
-      width: `${size}px`,
-      height: `${size}px`,
       left: left,
-      opacity: Math.random() * 0.7 + 0.3,
-      filter: color === '#fbbf24' ? 'blur(1px) drop-shadow(0 0 5px rgba(251, 191, 36, 0.5))' : 'blur(0.5px)',
+      color: color,
+      fontSize: `${size}px`,
+      opacity: Math.random() * 0.6 + 0.4,
+      textShadow: color === '#fbbf24' 
+        ? '0 0 8px rgba(251, 191, 36, 0.8)' 
+        : '0 0 5px rgba(255, 255, 255, 0.8)',
       animation: `fall ${duration} linear ${delay} infinite, sway ${sway} ease-in-out infinite alternate`,
+      // Ensure the font doesn't look like an emoji on some systems, force monochromatic
+      fontFamily: 'Arial, sans-serif',
+      lineHeight: 1,
     }}
-  />
+  >
+    <div style={{ animation: `spin ${spinDuration} linear infinite` }}>
+      {char}
+    </div>
+  </div>
 );
 
 const Snowfall: React.FC = () => {
   const snowflakes = useMemo(() => {
-    return Array.from({ length: 60 }).map((_, i) => {
-      const isGold = Math.random() > 0.8;
+    // Unicode snowflakes and dots for depth
+    const chars = ['❄', '❅', '❆', '•', '·']; 
+    
+    return Array.from({ length: 50 }).map((_, i) => {
+      const isGold = Math.random() > 0.95; // Rare gold flakes
+      const charIndex = Math.floor(Math.random() * chars.length);
+      const selectedChar = chars[charIndex];
+      
+      // Determine size based on character type (dots should be smaller)
+      const baseSize = selectedChar === '•' || selectedChar === '·' 
+        ? Math.random() * 5 + 5 
+        : Math.random() * 12 + 10;
+
       return {
         id: i,
-        color: isGold ? '#fbbf24' : 'white',
-        size: isGold ? Math.random() * 3 + 2 : Math.random() * 4 + 2,
+        char: selectedChar,
+        color: isGold ? '#fbbf24' : '#e2e8f0',
+        size: isGold ? baseSize * 1.2 : baseSize,
         left: `${Math.random() * 100}%`,
-        duration: `${Math.random() * 10 + 10}s`,
-        delay: `${Math.random() * 10}s`,
-        sway: `${Math.random() * 3 + 2}s`,
+        duration: `${Math.random() * 15 + 10}s`, // 10-25s fall time
+        delay: `-${Math.random() * 20}s`, // Start at random positions
+        sway: `${Math.random() * 4 + 3}s`,
+        spinDuration: `${Math.random() * 10 + 5}s`,
       };
     });
   }, []);
@@ -49,8 +73,12 @@ const Snowfall: React.FC = () => {
             100% { transform: translateY(110vh); }
           }
           @keyframes sway {
-            0% { margin-left: 0; }
-            100% { margin-left: 50px; }
+            0% { margin-left: -20px; }
+            100% { margin-left: 20px; }
+          }
+          @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
           }
         `}
       </style>
