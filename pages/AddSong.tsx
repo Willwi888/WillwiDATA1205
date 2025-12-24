@@ -80,6 +80,7 @@ const AddSong: React.FC = () => {
     youtubeMusicUrl: '',
     musixmatchUrl: '', 
     smartLink: '', 
+    distrokidManageUrl: '',
     musicBrainzId: '',
     audioUrl: '',
     youtubeUrl: '',
@@ -474,6 +475,7 @@ const AddSong: React.FC = () => {
       spotifyLink: formData.spotifyLink,
       appleMusicLink: formData.appleMusicLink,
       smartLink: formData.smartLink,
+      distrokidManageUrl: formData.distrokidManageUrl,
       audioUrl: formData.audioUrl,
       lyrics: formData.lyrics,
       description: formData.description,
@@ -633,11 +635,16 @@ const AddSong: React.FC = () => {
                 <input name="appleMusicLink" className="bg-slate-900 border border-white/10 px-4 py-3 text-white text-xs focus:border-brand-accent outline-none font-mono" value={formData.appleMusicLink} onChange={handleChange} placeholder="Apple Music URL" />
                 <input name="youtubeMusicUrl" className="bg-slate-900 border border-white/10 px-4 py-3 text-white text-xs focus:border-brand-accent outline-none font-mono" value={formData.youtubeMusicUrl} onChange={handleChange} placeholder="YouTube Music URL" />
                 
-                {/* NEW: MUSIXMATCH */}
-                <input name="musixmatchUrl" className="bg-slate-900 border border-white/10 px-4 py-3 text-white text-xs focus:border-brand-accent outline-none font-mono" value={formData.musixmatchUrl} onChange={handleChange} placeholder="Musixmatch URL" />
-
-                <div className="md:col-span-2">
-                    <input name="smartLink" className="w-full bg-slate-900 border border-white/10 px-4 py-3 text-white text-xs focus:border-brand-gold outline-none font-mono" value={formData.smartLink} onChange={handleChange} placeholder="Smart Link / Universal Link (e.g., Linkfire, Linktree, Fanlink)" />
+                <div className="md:col-span-2 space-y-4">
+                    <input name="smartLink" className="w-full bg-slate-900 border border-white/10 px-4 py-3 text-white text-xs focus:border-brand-gold outline-none font-mono" value={formData.smartLink} onChange={handleChange} placeholder="Smart Link / HyperFollow (e.g. distrokid.com/hyperfollow/...)" />
+                    
+                    {/* Private Backend Link */}
+                    <div className="relative">
+                        <input name="distrokidManageUrl" className="w-full bg-slate-900 border border-slate-700 px-4 py-3 text-slate-400 text-xs focus:border-slate-500 outline-none font-mono" value={formData.distrokidManageUrl} onChange={handleChange} placeholder="DistroKid Backend URL (Admin Only - My Music Page)" />
+                        <span className="absolute right-3 top-3 text-[9px] text-slate-600 uppercase tracking-widest">Private</span>
+                    </div>
+                    
+                    <input name="musixmatchUrl" className="w-full bg-slate-900 border border-white/10 px-4 py-3 text-white text-xs focus:border-brand-accent outline-none font-mono" value={formData.musixmatchUrl} onChange={handleChange} placeholder="Musixmatch Lyrics URL" />
                 </div>
              </div>
         </div>

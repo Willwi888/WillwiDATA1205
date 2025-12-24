@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useData } from '../context/DataContext';
 import { Song, getLanguageColor, Language } from '../types';
@@ -23,6 +23,237 @@ const convertToDirectStream = (url: string) => {
     } catch (e) { return url; }
 };
 
+// --- IMMERSIVE LYRICS PLAYER COMPONENT ---
+interface LyricsLine {
+    time: number; // in seconds
+    text: string;
+}
+
+const parseLyrics = (raw: string): { lines: LyricsLine[], hasTime: boolean } => {
+    const lines = raw.split('\n');
+    const parsed: LyricsLine[] = [];
+    const timeRegex = /\[(\d{2}):(\d{2})\.(\d{2,3})\]/;
+    let hasTime = false;
+
+    for (const line of lines) {
+        const match = line.match(timeRegex);
+        if (match) {
+            hasTime = true;
+            const min = parseInt(match[1]);
+            const sec = parseInt(match[2]);
+            const ms = parseInt(match[3]);
+            const time = min * 60 + sec + (ms / 1000);
+            const text = line.replace(timeRegex, '').trim();
+            if (text) parsed.push({ time, text });
+        } else {
+            // Fallback for non-time-synced lines, assign dummy time or keep order
+            if (line.trim()) parsed.push({ time: -1, text: line.trim() });
+        }
+    }
+
+    // If no timestamps found, just return plain lines with index as placeholder
+    if (!hasTime) {
+        return { 
+            lines: lines.map((text, i) => ({ time: i, text: text.trim() })).filter(l => l.text), 
+            hasTime: false 
+        };
+    }
+
+    return { lines: parsed, hasTime: true };
+};
+
+const ImmersivePlayer: React.FC<{ song: Song; onClose: () => void }> = ({ song, onClose }) => {
+    const audioRef = useRef<HTMLAudioElement>(null);
+    const lyricsContainerRef = useRef<HTMLDivElement>(null);
+    const [currentTime, setCurrentTime] = useState(0);
+    const [duration, setDuration] = useState(0);
+    const [isPlaying, setIsPlaying] = useState(false);
+    const [activeLineIndex, setActiveLineIndex] = useState(0);
+
+    const { lines, hasTime } = useMemo(() => parseLyrics(song.lyrics || ''), [song.lyrics]);
+
+    useEffect(() => {
+        const audio = audioRef.current;
+        if (!audio) return;
+
+        const updateTime = () => setCurrentTime(audio.currentTime);
+        const updateDuration = () => setDuration(audio.duration);
+        
+        audio.addEventListener('timeupdate', updateTime);
+        audio.addEventListener('loadedmetadata', updateDuration);
+        audio.addEventListener('play', () => setIsPlaying(true));
+        audio.addEventListener('pause', () => setIsPlaying(false));
+        audio.addEventListener('ended', () => setIsPlaying(false));
+
+        // Auto-play on open if source exists
+        if (song.audioUrl) audio.play().catch(() => {});
+
+        return () => {
+            audio.removeEventListener('timeupdate', updateTime);
+            audio.removeEventListener('loadedmetadata', updateDuration);
+        };
+    }, [song.audioUrl]);
+
+    // Sync Logic
+    useEffect(() => {
+        if (!hasTime) return;
+        // Find the current line based on time
+        const index = lines.findIndex((line, i) => {
+            const nextLine = lines[i + 1];
+            return currentTime >= line.time && (!nextLine || currentTime < nextLine.time);
+        });
+        
+        if (index !== -1 && index !== activeLineIndex) {
+            setActiveLineIndex(index);
+            // Auto Scroll
+            if (lyricsContainerRef.current) {
+                const activeEl = lyricsContainerRef.current.children[index] as HTMLElement;
+                if (activeEl) {
+                    activeEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }
+            }
+        }
+    }, [currentTime, lines, hasTime, activeLineIndex]);
+
+    const handleSeek = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const time = Number(e.target.value);
+        if (audioRef.current) audioRef.current.currentTime = time;
+        setCurrentTime(time);
+    };
+
+    const togglePlay = () => {
+        if (audioRef.current) {
+            if (isPlaying) audioRef.current.pause();
+            else audioRef.current.play();
+        }
+    };
+
+    const formatTime = (t: number) => {
+        if (isNaN(t)) return "0:00";
+        const m = Math.floor(t / 60);
+        const s = Math.floor(t % 60).toString().padStart(2, '0');
+        return `${m}:${s}`;
+    };
+
+    return (
+        <div className="fixed inset-0 z-[100] bg-slate-950 flex flex-col animate-fade-in">
+            {/* Dynamic Background */}
+            <div className="absolute inset-0 z-0 overflow-hidden">
+                <div 
+                    className="absolute inset-0 bg-cover bg-center blur-3xl opacity-40 scale-110 transition-all duration-[10s]"
+                    style={{ backgroundImage: `url(${song.coverUrl})` }}
+                ></div>
+                <div className="absolute inset-0 bg-black/60"></div>
+            </div>
+
+            {/* Header */}
+            <div className="relative z-10 flex justify-between items-center p-6">
+                <button onClick={onClose} className="w-10 h-10 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center backdrop-blur-md transition-all">
+                    <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" /></svg>
+                </button>
+                <div className="text-center">
+                    <h4 className="text-xs font-black text-white uppercase tracking-widest">{song.title}</h4>
+                    <p className="text-[10px] text-slate-400 uppercase tracking-widest">{song.releaseCompany || 'Willwi Music'}</p>
+                </div>
+                <div className="w-10"></div>
+            </div>
+
+            {/* Lyrics Area */}
+            <div className="relative z-10 flex-1 overflow-hidden flex items-center justify-center">
+                <div 
+                    ref={lyricsContainerRef}
+                    className="w-full max-w-2xl h-full overflow-y-auto custom-scrollbar px-6 py-20 text-center space-y-8"
+                    style={{ scrollBehavior: 'smooth' }}
+                >
+                    {lines.length > 0 ? lines.map((line, i) => (
+                        <p 
+                            key={i} 
+                            onClick={() => {
+                                // Click to seek (if synced)
+                                if (hasTime && audioRef.current && line.time >= 0) {
+                                    audioRef.current.currentTime = line.time;
+                                }
+                            }}
+                            className={`transition-all duration-500 cursor-pointer font-bold leading-tight ${
+                                hasTime 
+                                    ? (i === activeLineIndex ? 'text-3xl md:text-4xl text-white scale-105' : 'text-xl md:text-2xl text-white/30 hover:text-white/60 blur-[1px] hover:blur-0')
+                                    : 'text-2xl md:text-3xl text-white/80 hover:text-white my-6'
+                            }`}
+                        >
+                            {line.text}
+                        </p>
+                    )) : (
+                        <p className="text-slate-500 text-sm uppercase tracking-widest">No Lyrics Available</p>
+                    )}
+                    {/* Spacer for bottom scrolling */}
+                    <div className="h-40"></div>
+                </div>
+            </div>
+
+            {/* Player Controls */}
+            <div className="relative z-20 bg-gradient-to-t from-black via-black/80 to-transparent p-8 md:p-12">
+                <div className="max-w-3xl mx-auto space-y-6">
+                    {/* Info */}
+                    <div className="flex items-center gap-6">
+                         <img src={song.coverUrl} className="w-16 h-16 rounded-lg shadow-2xl object-cover" alt="" />
+                         <div>
+                             <h3 className="text-xl font-black text-white leading-none mb-1">{song.title}</h3>
+                             <p className="text-xs text-brand-gold uppercase tracking-widest font-bold">Willwi</p>
+                         </div>
+                    </div>
+
+                    {/* Progress */}
+                    {song.audioUrl ? (
+                        <div className="space-y-2">
+                            <input 
+                                type="range" 
+                                min={0} 
+                                max={duration || 100} 
+                                value={currentTime} 
+                                onChange={handleSeek}
+                                className="w-full h-1 bg-white/20 rounded-lg appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:bg-brand-gold [&::-webkit-slider-thumb]:rounded-full transition-all"
+                            />
+                            <div className="flex justify-between text-[10px] text-slate-400 font-mono">
+                                <span>{formatTime(currentTime)}</span>
+                                <span>{formatTime(duration)}</span>
+                            </div>
+                        </div>
+                    ) : (
+                        <div className="p-3 bg-red-900/20 border border-red-900/50 rounded text-center">
+                            <p className="text-[10px] text-red-400 uppercase tracking-widest">Audio Source Unavailable for Playback</p>
+                        </div>
+                    )}
+
+                    {/* Controls */}
+                    {song.audioUrl && (
+                        <div className="flex justify-center items-center gap-8">
+                            <button onClick={() => { if(audioRef.current) audioRef.current.currentTime -= 10 }} className="text-white/50 hover:text-white transition-all">
+                                <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12.066 11.2a1 1 0 000 1.6l5.334 4A1 1 0 0019 16V8a1 1 0 00-1.6-.8l-5.333 4zM4.066 11.2a1 1 0 000 1.6l5.334 4A1 1 0 0011 16V8a1 1 0 00-1.6-.8l-5.334 4z" /></svg>
+                            </button>
+                            <button 
+                                onClick={togglePlay}
+                                className="w-16 h-16 rounded-full bg-white text-black flex items-center justify-center hover:scale-105 transition-all shadow-[0_0_20px_rgba(255,255,255,0.3)]"
+                            >
+                                {isPlaying ? (
+                                    <svg className="w-6 h-6 ml-0.5" fill="currentColor" viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
+                                ) : (
+                                    <svg className="w-6 h-6 ml-1" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+                                )}
+                            </button>
+                            <button onClick={() => { if(audioRef.current) audioRef.current.currentTime += 10 }} className="text-white/50 hover:text-white transition-all">
+                                <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
+                            </button>
+                        </div>
+                    )}
+                </div>
+            </div>
+
+            {/* Hidden Audio Element */}
+            {song.audioUrl && <audio ref={audioRef} src={song.audioUrl} crossOrigin="anonymous" />}
+        </div>
+    );
+};
+
 const SongDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -35,6 +266,7 @@ const SongDetail: React.FC = () => {
   const [editForm, setEditForm] = useState<Partial<Song>>({});
   const [aiReview, setAiReview] = useState<string>('');
   const [loadingAi, setLoadingAi] = useState(false);
+  const [showLyricsPlayer, setShowLyricsPlayer] = useState(false); 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -70,12 +302,10 @@ const SongDetail: React.FC = () => {
   };
 
   const handleSave = async () => {
-    // Security check: Only admin can save
     if (!isAdmin) return;
 
     if (song && id) {
       setIsSaving(true);
-      // Auto-convert Google Drive/Dropbox links one last time before saving
       const finalForm = { ...editForm };
       if (finalForm.audioUrl) {
           finalForm.audioUrl = convertToDirectStream(finalForm.audioUrl);
@@ -107,12 +337,10 @@ const SongDetail: React.FC = () => {
 
   const handleStartInteractive = () => {
       if (!song.isInteractiveActive) return;
-      // Instrumental Check
       if (song.language === Language.Instrumental) {
           alert("此作品為純音樂 (Instrumental)，沒有歌詞可供互動同步。");
           return;
       }
-      // No Lyrics Check
       if (!song.lyrics || song.lyrics.trim().length === 0) {
           alert("此作品尚未登錄歌詞，無法進行互動。");
           return;
@@ -130,6 +358,12 @@ const SongDetail: React.FC = () => {
 
   return (
     <div className="animate-fade pb-32 max-w-7xl mx-auto px-6">
+        
+        {/* --- IMMERSIVE PLAYER OVERLAY --- */}
+        {showLyricsPlayer && (
+            <ImmersivePlayer song={song} onClose={() => setShowLyricsPlayer(false)} />
+        )}
+
         <div className="mb-6"><Link to="/database" className="text-[10px] text-slate-500 hover:text-white uppercase tracking-widest">← Back to Catalog</Link></div>
         
         <div className="bg-slate-900 border border-white/5 relative overflow-hidden">
@@ -167,8 +401,33 @@ const SongDetail: React.FC = () => {
                                 )}
                             </div>
 
-                            {/* USER ACTIONS: INTERACTIVE BUTTON */}
-                            <div className="mt-10 flex flex-col gap-4 max-w-sm">
+                            {/* USER ACTIONS: IMMERSIVE LYRICS & INTERACTIVE */}
+                            <div className="mt-8 flex flex-wrap gap-4">
+                                <button 
+                                    onClick={() => setShowLyricsPlayer(true)}
+                                    className="group flex items-center gap-3 px-6 py-3 bg-white/5 border border-white/10 hover:bg-white hover:text-black hover:border-white transition-all rounded-full"
+                                >
+                                    <div className="w-8 h-8 rounded-full bg-brand-gold flex items-center justify-center text-black shadow-[0_0_15px_rgba(251,191,36,0.5)] group-hover:shadow-none transition-all">
+                                        <svg className="w-4 h-4 ml-0.5" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 14H9V8h2v8zm4 0h-2V8h2v8z" /></svg>
+                                    </div>
+                                    <span className="text-[10px] font-black uppercase tracking-[0.2em]">Immersive Lyrics / 歌詞模式</span>
+                                </button>
+
+                                {/* SMART LINK BUTTON (PRIMARY PUBLIC LINK) */}
+                                {song.smartLink && !isEditing && (
+                                    <a 
+                                        href={song.smartLink}
+                                        target="_blank" 
+                                        rel="noopener noreferrer"
+                                        className="group flex items-center gap-3 px-6 py-3 bg-white text-black font-black uppercase tracking-[0.2em] text-[10px] transition-all rounded-full hover:scale-105 shadow-[0_0_20px_rgba(255,255,255,0.4)]"
+                                    >
+                                        <span>ALL PLATFORMS (HyperFollow)</span>
+                                        <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" /></svg>
+                                    </a>
+                                )}
+                            </div>
+
+                            <div className="mt-6 flex flex-col gap-4 max-w-sm">
                                 {song.isInteractiveActive ? (
                                     (isInstrumental || !song.lyrics) ? (
                                         <div className="w-full py-4 border border-slate-600 text-slate-500 font-bold uppercase tracking-[0.2em] text-[10px] text-center bg-slate-900 cursor-not-allowed">
@@ -223,67 +482,6 @@ const SongDetail: React.FC = () => {
                                             ></iframe>
                                         </div>
                                     )}
-
-                                    {/* EXTERNAL LINKS - Visible to All (As Portfolio Metadata) */}
-                                    {song.smartLink && !isEditing && (
-                                        <a 
-                                            href={song.smartLink}
-                                            target="_blank" 
-                                            rel="noopener noreferrer"
-                                            className="w-full py-3 bg-white text-black font-black uppercase tracking-[0.2em] text-xs transition-all text-center flex items-center justify-center gap-2 hover:bg-brand-accent hover:text-black"
-                                        >
-                                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9" /></svg>
-                                            <span>All Platforms / Smart Link</span>
-                                        </a>
-                                    )}
-
-                                    {song.spotifyLink && !isEditing && (
-                                        <a 
-                                            href={song.spotifyLink}
-                                            target="_blank" 
-                                            rel="noopener noreferrer"
-                                            className="w-full py-3 bg-[#1DB954] text-black font-black uppercase tracking-[0.2em] text-xs transition-all text-center flex items-center justify-center gap-2 hover:brightness-110"
-                                        >
-                                            <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.66 0 12 0zm5.521 17.34c-.24.359-.66.48-1.021.24-2.82-1.74-6.36-2.101-10.561-1.141-.418.122-.779-.179-.899-.539-.12-.421.18-.78.54-.9 4.56-1.021 8.52-.6 11.64 1.32.42.18.479.659.301 1.02zm1.44-3.3c-.301.42-.841.6-1.262.3-3.239-1.98-8.159-2.58-11.939-1.38-.479.12-1.02-.12-1.14-.6-.12-.48.12-1.021.6-1.141C9.6 9.9 15 10.561 18.72 12.84c.361.181.54.78.241 1.2zm.12-3.36C15.24 8.4 8.82 8.16 5.16 9.301c-.6.179-1.2-.181-1.38-.721-.18-.601.18-1.2.72-1.381 4.26-1.26 11.28-1.02 15.721 1.621.539.3.719 1.02.419 1.56-.299.421-1.02.599-1.559.299z"/></svg>
-                                            <span>Spotify</span>
-                                        </a>
-                                    )}
-
-                                    {song.appleMusicLink && !isEditing && (
-                                        <a 
-                                            href={song.appleMusicLink}
-                                            target="_blank" 
-                                            rel="noopener noreferrer"
-                                            className="w-full py-3 bg-[#FA243C] text-white font-black uppercase tracking-[0.2em] text-xs transition-all text-center flex items-center justify-center gap-2 hover:brightness-110"
-                                        >
-                                            <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M22.534 5.922l-1.637-1.166a1.272 1.272 0 00-.65-.181c-.265 0-.522.09-.724.254l-6.195 5.068-1.047-.857 5.619-4.597a1.274 1.274 0 00.468-.991c0-.704-.572-1.277-1.275-1.277a1.27 1.27 0 00-.735.234L6.99 9.076a3.843 3.843 0 00-1.206 1.487L.67 22.316l1.796.82 4.276-8.913a.639.639 0 01.576-.363h.005a.634.634 0 01.571.373l1.838 3.829a.638.638 0 001.149-.553L9.366 14.4l3.078 6.41a.637.637 0 001.15-.552l-2.73-5.69 2.056-1.683a.637.637 0 00-.806-.985l-1.921 1.573-.836-1.742 4.492-3.676 7.427 6.075a.638.638 0 00.806-.985l-8.632-7.062 9.079-7.426.007-.006z"/></svg>
-                                            <span>Apple Music</span>
-                                        </a>
-                                    )}
-                                    
-                                    {song.youtubeMusicUrl && !isEditing && (
-                                        <a 
-                                            href={song.youtubeMusicUrl}
-                                            target="_blank" 
-                                            rel="noopener noreferrer"
-                                            className="w-full py-3 bg-[#FF0000] text-white font-black uppercase tracking-[0.2em] text-xs transition-all text-center flex items-center justify-center gap-2 hover:brightness-110"
-                                        >
-                                            <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M12 0C5.376 0 0 5.376 0 12s5.376 12 12 12 12-5.376 12-12S18.624 0 12 0zm0 18.24c-3.446 0-6.24-2.794-6.24-6.24S8.554 5.76 12 5.76s6.24 2.794 6.24 6.24-2.794 6.24-6.24 6.24zM12 7.2a4.8 4.8 0 100 9.6 4.8 4.8 0 000-9.6z"/><circle cx="12" cy="12" r="3.12"/></svg>
-                                            <span>YouTube Music</span>
-                                        </a>
-                                    )}
-
-                                    {song.youtubeUrl && !isEditing && (
-                                        <a 
-                                            href={song.youtubeUrl}
-                                            target="_blank" 
-                                            rel="noopener noreferrer"
-                                            className="w-full py-3 bg-black border border-white/20 text-white font-black uppercase tracking-[0.2em] text-xs transition-all text-center flex items-center justify-center gap-2 hover:border-white"
-                                        >
-                                            <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M19.615 3.184c-3.604-.246-11.631-.245-15.23 0-3.897.266-4.356 2.62-4.385 8.816.029 6.185.484 8.549 4.385 8.816 3.6.245 11.626.246 15.23 0 3.897-.266 4.356-2.62 4.385-8.816-.029-6.185-.484-8.549-4.385-8.816zm-10.615 12.816v-8l8 3.993-8 4.007z"/></svg>
-                                            <span>Watch MV</span>
-                                        </a>
-                                    )}
                                 </div>
                             </div>
 
@@ -296,6 +494,32 @@ const SongDetail: React.FC = () => {
                                     </div>
                                     
                                     <div className="space-y-4">
+                                        {/* DistroKid Management Link */}
+                                        <div className="flex items-center justify-between">
+                                            <span className="text-[10px] text-white uppercase tracking-widest">Distribution</span>
+                                            <a 
+                                                href={song.distrokidManageUrl || 'https://distrokid.com/mymusic'} 
+                                                target="_blank" 
+                                                rel="noopener noreferrer"
+                                                className="px-3 py-1 text-[9px] font-bold uppercase tracking-widest rounded bg-slate-800 text-white border border-slate-600 hover:bg-white hover:text-black transition-all"
+                                            >
+                                                Manage on DistroKid
+                                            </a>
+                                        </div>
+
+                                        {/* Musixmatch Management */}
+                                        <div className="flex items-center justify-between">
+                                            <span className="text-[10px] text-white uppercase tracking-widest">Lyrics Sync</span>
+                                            <a 
+                                                href={song.musixmatchUrl || 'https://pro.musixmatch.com/'} 
+                                                target="_blank" 
+                                                rel="noopener noreferrer"
+                                                className="px-3 py-1 text-[9px] font-bold uppercase tracking-widest rounded bg-[#ff6050]/20 text-[#ff6050] border border-[#ff6050]/50 hover:bg-[#ff6050] hover:text-white transition-all"
+                                            >
+                                                Edit on Musixmatch
+                                            </a>
+                                        </div>
+
                                         <div className="flex items-center justify-between">
                                             <span className="text-[10px] text-white uppercase tracking-widest">Interactive Status</span>
                                             <button 
@@ -413,14 +637,20 @@ const SongDetail: React.FC = () => {
                                         <label className="text-[10px] text-slate-500 font-bold uppercase tracking-widest block">Apple Music Link</label>
                                         <input className="w-full bg-black border border-white/10 p-3 text-white text-xs font-mono" value={editForm.appleMusicLink || ''} onChange={e => setEditForm({...editForm, appleMusicLink: e.target.value})} placeholder="https://music.apple.com/..." />
                                     </div>
+                                    
+                                    <div className="space-y-1">
+                                        <label className="text-[10px] text-brand-gold font-bold uppercase tracking-widest block">Smart Link (Universal / HyperFollow)</label>
+                                        <input className="w-full bg-black border border-white/10 p-3 text-white text-xs font-mono" value={editForm.smartLink || ''} onChange={e => setEditForm({...editForm, smartLink: e.target.value})} placeholder="https://distrokid.com/hyperfollow/..." />
+                                    </div>
+
                                     <div className="space-y-1">
                                         <label className="text-[10px] text-slate-500 font-bold uppercase tracking-widest block">Musixmatch Link</label>
                                         <input className="w-full bg-black border border-white/10 p-3 text-white text-xs font-mono" value={editForm.musixmatchUrl || ''} onChange={e => setEditForm({...editForm, musixmatchUrl: e.target.value})} placeholder="https://www.musixmatch.com/..." />
                                     </div>
-                                    
+
                                     <div className="space-y-1">
-                                        <label className="text-[10px] text-brand-gold font-bold uppercase tracking-widest block">Smart Link (Universal)</label>
-                                        <input className="w-full bg-black border border-white/10 p-3 text-white text-xs font-mono" value={editForm.smartLink || ''} onChange={e => setEditForm({...editForm, smartLink: e.target.value})} placeholder="Linktree, Linkfire, Fanlink..." />
+                                        <label className="text-[10px] text-slate-500 font-bold uppercase tracking-widest block">DistroKid Backend URL (Admin Only)</label>
+                                        <input className="w-full bg-black border border-slate-700 p-3 text-slate-400 text-xs font-mono" value={editForm.distrokidManageUrl || ''} onChange={e => setEditForm({...editForm, distrokidManageUrl: e.target.value})} placeholder="Private Management URL..." />
                                     </div>
 
                                     <div className="pt-6 mt-6 border-t border-white/10 flex justify-between items-center">

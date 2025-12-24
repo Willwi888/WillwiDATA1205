@@ -51,7 +51,8 @@ export interface Song {
   youtubeMusicUrl?: string;
   spotifyLink?: string;
   appleMusicLink?: string;
-  smartLink?: string; 
+  smartLink?: string; // Public: HyperFollow or Linktree
+  distrokidManageUrl?: string; // Private: DistroKid Backend Link
   
   // Audio Source
   audioUrl?: string;
