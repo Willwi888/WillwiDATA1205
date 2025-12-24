@@ -21,6 +21,17 @@ type InteractionMode =
   | 'support-thanks'    // 支持感謝頁
   | 'veo-lab';          // 管理員專用 AI 實驗室
 
+// --- VISUAL SYSTEM TYPES ---
+interface Particle {
+    x: number;
+    y: number;
+    vx: number;
+    vy: number;
+    life: number;
+    size: number;
+    color: string;
+}
+
 const Interactive: React.FC = () => {
   const { user, isAdmin, addCredits, recordDonation, login } = useUser();
   const { songs, getSong } = useData();
@@ -44,9 +55,11 @@ const Interactive: React.FC = () => {
 
   // Archive Data
   const [listenerName, setListenerName] = useState(user?.name || '');
+  const [isPracticeMode, setIsPracticeMode] = useState(false); 
 
   // Refs for Game Engine
   const [lineIndex, setLineIndex] = useState(0); 
+  const [combo, setCombo] = useState(0);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const audioRef = useRef<HTMLAudioElement>(null);
   
@@ -60,10 +73,17 @@ const Interactive: React.FC = () => {
   const syncDataRef = useRef<{time: number, lineIndex: number}[]>([]); 
   const lastClickTimeRef = useRef<number>(0); 
   
-  // Audio Context Refs
+  // Visual Effects Refs
+  const particlesRef = useRef<Particle[]>([]);
+  const bgScaleRef = useRef<number>(1);
+  const textScaleRef = useRef<number>(1);
+  
+  // Audio Context Refs (For Visualizer)
   const audioContextRef = useRef<AudioContext | null>(null);
   const audioSourceRef = useRef<MediaElementAudioSourceNode | null>(null);
   const audioDestRef = useRef<MediaStreamAudioDestinationNode | null>(null);
+  const analyserRef = useRef<AnalyserNode | null>(null);
+  const dataArrayRef = useRef<Uint8Array | null>(null);
 
   // Background Image Ref
   const bgImageRef = useRef<HTMLImageElement | null>(null);
@@ -132,7 +152,8 @@ const Interactive: React.FC = () => {
         if (mode === 'playing') {
             if (e.code === 'Space' || e.code === 'Enter') {
                 e.preventDefault();
-                handleLineClick();
+                // Simulate center tap for keyboard
+                handleLineClick(undefined, true);
             }
         }
     };
@@ -146,11 +167,15 @@ const Interactive: React.FC = () => {
       if (preSelectedSongId) {
           const targetSong = getSong(preSelectedSongId);
           if (targetSong) {
-              if (!targetSong.isInteractiveActive || !targetSong.lyrics || targetSong.language === Language.Instrumental) {
-                  alert("此作品不符合互動資格（無歌詞或純音樂）。");
-                  setMode('select');
-              } else {
+              if (isAdmin) {
                   handleSelectSong(targetSong);
+              } else {
+                  if (!targetSong.isInteractiveActive || !targetSong.lyrics || targetSong.language === Language.Instrumental) {
+                      alert("此作品不符合互動資格（無歌詞或純音樂）。");
+                      setMode('select');
+                  } else {
+                      handleSelectSong(targetSong);
+                  }
               }
           } else {
               alert("找不到預選歌曲，請重新選擇。");
@@ -173,19 +198,24 @@ const Interactive: React.FC = () => {
   };
 
   const handleSelectSong = (song: Song) => {
-    if (song.language === Language.Instrumental) {
+    if (song.language === Language.Instrumental && !isAdmin) {
         alert("此為純音樂作品 (Instrumental)，無歌詞可供互動。");
         return;
     }
     if (!song.lyrics) { 
-        alert("此歌曲尚未建立歌詞文本。"); 
-        return; 
+        if (isAdmin) {
+            if(!window.confirm("【管理員警告】\n此歌曲無歌詞，進入後將顯示空白。\n確定要繼續嗎？")) return;
+        } else {
+            alert("此歌曲尚未建立歌詞文本。"); 
+            return; 
+        }
     }
 
     setSelectedSong(song);
     
     // Prepare Lyrics
-    const rawLines = song.lyrics.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+    const lyricsText = song.lyrics || "No Lyrics Available";
+    const rawLines = lyricsText.split('\n').map(l => l.trim()).filter(l => l.length > 0);
     lyricsArrayRef.current = ["[ READY ]", ...rawLines, "[ END ]"]; 
     
     // Preload Cover
@@ -206,83 +236,123 @@ const Interactive: React.FC = () => {
       if (!canvasRef.current || !audioRef.current || !selectedSong) return;
       
       try {
-        // Setup Audio Context (Required for mixing audio into video)
+        const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
         if (!audioContextRef.current) {
-            const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
             audioContextRef.current = new AudioContextClass();
         }
         const ctx = audioContextRef.current;
         if (ctx.state === 'suspended') await ctx.resume();
 
-        if (!audioSourceRef.current) {
-            const source = ctx.createMediaElementSource(audioRef.current);
-            const dest = ctx.createMediaStreamDestination();
-            source.connect(dest);
-            source.connect(ctx.destination);
-            audioSourceRef.current = source;
-            audioDestRef.current = dest;
-        }
-
-        // Stream Setup
-        const canvasStream = (canvasRef.current as any).captureStream(30);
-        const tracks = [...canvasStream.getVideoTracks()];
-        
-        if (audioDestRef.current) {
-            const audioTracks = audioDestRef.current.stream.getAudioTracks();
-            if (audioTracks.length > 0) tracks.push(audioTracks[0]);
-        }
-
-        const combinedStream = new MediaStream(tracks);
-
-        let mimeType = 'video/webm;codecs=vp9,opus';
-        if (!MediaRecorder.isTypeSupported(mimeType)) mimeType = 'video/webm'; 
-        if (MediaRecorder.isTypeSupported('video/mp4')) mimeType = 'video/mp4'; 
-
-        const recorder = new MediaRecorder(combinedStream, { 
-            mimeType, 
-            videoBitsPerSecond: 5000000 
-        });
-        
         recordedChunksRef.current = [];
         syncDataRef.current = [];
-        
-        recorder.ondataavailable = e => {
-            if (e.data.size > 0) recordedChunksRef.current.push(e.data);
-        };
-        
-        recorder.onstop = () => {
-            setMode('finished');
-            cancelAnimationFrame(animationFrameRef.current);
-        };
+        particlesRef.current = []; 
+        setIsPracticeMode(false);
+        setCombo(0); // Reset Combo
+
+        // Setup Visualizer & Recorder
+        try {
+            if (!audioSourceRef.current) {
+                const source = ctx.createMediaElementSource(audioRef.current);
+                
+                // Create Analyser
+                const analyser = ctx.createAnalyser();
+                analyser.fftSize = 256;
+                const bufferLength = analyser.frequencyBinCount;
+                const dataArray = new Uint8Array(bufferLength);
+                analyserRef.current = analyser;
+                dataArrayRef.current = dataArray;
+
+                // Create Recorder Destination
+                const dest = ctx.createMediaStreamDestination();
+                
+                // Connect Graph: Source -> Analyser -> Destination -> Master Out
+                source.connect(analyser);
+                analyser.connect(dest);
+                source.connect(ctx.destination); // For hearing
+                
+                audioSourceRef.current = source;
+                audioDestRef.current = dest;
+            }
+
+            const canvasStream = (canvasRef.current as any).captureStream(60); // 60 FPS for smoother visualizer
+            const tracks = [...canvasStream.getVideoTracks()];
+            
+            if (audioDestRef.current) {
+                const audioTracks = audioDestRef.current.stream.getAudioTracks();
+                if (audioTracks.length > 0) tracks.push(audioTracks[0]);
+            }
+
+            const combinedStream = new MediaStream(tracks);
+
+            let mimeType = 'video/webm;codecs=vp9,opus';
+            if (!MediaRecorder.isTypeSupported(mimeType)) mimeType = 'video/webm'; 
+            if (MediaRecorder.isTypeSupported('video/mp4')) mimeType = 'video/mp4'; 
+
+            const recorder = new MediaRecorder(combinedStream, { 
+                mimeType, 
+                videoBitsPerSecond: 12000000 // High bitrate for 60fps visuals
+            });
+            
+            recorder.ondataavailable = e => {
+                if (e.data.size > 0) recordedChunksRef.current.push(e.data);
+            };
+            
+            recorder.onstop = () => {
+                setMode('finished');
+                cancelAnimationFrame(animationFrameRef.current);
+            };
+
+            mediaRecorderRef.current = recorder;
+            recorder.start();
+
+        } catch (recorderError) {
+            console.warn("MediaRecorder failed, falling back to Practice Mode", recorderError);
+            setIsPracticeMode(true);
+            alert("⚠️ 瀏覽器限制：無法錄製影片，將進入「練習模式 (Practice Mode)」。\n\n您可以體驗完整對時流程，但最後無法下載 MP4。");
+        }
 
         setMode('playing');
         setLineIndex(0);
         lastActionTimeRef.current = performance.now();
         
-        recorder.start();
-        mediaRecorderRef.current = recorder;
-        
         await audioRef.current.play();
         loop();
 
       } catch (e) { 
-        console.error("Recording Start Failed:", e);
-        // Fallback for strict mobile browsers that fail MediaRecorder
-        alert("瀏覽器錄影功能受限，將進入僅播放模式 (Only Playback Mode)。");
-        setMode('playing');
-        setLineIndex(0);
-        audioRef.current.play();
-        loop();
+        console.error("Critical Start Error:", e);
+        alert("無法啟動音源。\n請檢查音檔連結是否有效 (404/CORS)，或瀏覽器是否阻擋自動播放。");
       }
   };
 
-  const handleLineClick = (e?: any) => {
-      // Prevent double firing if using both touch and click listeners
+  const spawnParticles = (x: number, y: number, comboCount: number) => {
+      const count = 30 + Math.min(comboCount, 50); // More particles for higher combo
+      
+      // Dynamic Color based on combo
+      let baseColor = '#ffffff';
+      if (comboCount > 10) baseColor = '#fbbf24'; // Gold
+      if (comboCount > 30) baseColor = '#38bdf8'; // Blue Plasma
+      
+      for (let i = 0; i < count; i++) {
+          const angle = Math.random() * Math.PI * 2;
+          const speed = Math.random() * 12 + 2;
+          particlesRef.current.push({
+              x: x,
+              y: y,
+              vx: Math.cos(angle) * speed,
+              vy: Math.sin(angle) * speed,
+              life: 1.0,
+              size: Math.random() * 5 + 1,
+              color: Math.random() > 0.5 ? baseColor : '#ffffff'
+          });
+      }
+  };
+
+  const handleLineClick = (e?: any, isKeyboard = false) => {
       if (e && e.cancelable) e.preventDefault();
 
       if (mode === 'playing') {
           const now = Date.now();
-          if (now - lastClickTimeRef.current < 80) return; // Debounce
+          if (now - lastClickTimeRef.current < 100) return; // Debounce
           lastClickTimeRef.current = now;
 
           if (audioRef.current) {
@@ -292,7 +362,32 @@ const Interactive: React.FC = () => {
               });
           }
 
+          // Game Logic
+          setCombo(prev => prev + 1);
+
+          // Visual Feedback
           lastActionTimeRef.current = performance.now();
+          bgScaleRef.current = 1.05; 
+          textScaleRef.current = 1.3; 
+
+          // Particle Spawn
+          let px = window.innerWidth / 2;
+          let py = window.innerHeight / 2;
+          
+          if (!isKeyboard && e) {
+              if (e.touches && e.touches[0]) {
+                  px = e.touches[0].clientX;
+                  py = e.touches[0].clientY;
+              } else if (e.clientX) {
+                  px = e.clientX;
+                  py = e.clientY;
+              }
+              const scaleX = 1920 / window.innerWidth;
+              const scaleY = 1080 / window.innerHeight;
+              spawnParticles(px * scaleX, py * scaleY, combo);
+          } else {
+              spawnParticles(1920 / 2, 1080 / 2, combo);
+          }
 
           setLineIndex(prev => {
               if (prev < lyricsArrayRef.current.length - 1) return prev + 1;
@@ -305,7 +400,6 @@ const Interactive: React.FC = () => {
 
   const loop = () => {
       drawFrame();
-      
       const audio = audioRef.current;
       if (audio && !audio.paused && !audio.ended) {
           animationFrameRef.current = requestAnimationFrame(loop);
@@ -325,97 +419,180 @@ const Interactive: React.FC = () => {
 
       const w = canvas.width, h = canvas.height;
       
-      // Clear
+      // 1. Clear & Background
       ctx.fillStyle = '#020617';
       ctx.fillRect(0, 0, w, h);
 
-      // Background Image
+      bgScaleRef.current = bgScaleRef.current + (1 - bgScaleRef.current) * 0.05;
+      textScaleRef.current = textScaleRef.current + (1 - textScaleRef.current) * 0.1;
+
       if (bgImageRef.current) {
           ctx.save();
-          ctx.filter = 'blur(30px) brightness(0.4)';
-          const scale = Math.max(w / bgImageRef.current.width, h / bgImageRef.current.height);
+          ctx.filter = 'blur(40px) brightness(0.4)';
+          const scale = Math.max(w / bgImageRef.current.width, h / bgImageRef.current.height) * bgScaleRef.current;
           const x = (w / 2) - (bgImageRef.current.width / 2) * scale;
           const y = (h / 2) - (bgImageRef.current.height / 2) * scale;
           ctx.drawImage(bgImageRef.current, x, y, bgImageRef.current.width * scale, bgImageRef.current.height * scale);
           ctx.restore();
       }
 
+      // 2. Audio Visualizer (Spectrum)
+      if (analyserRef.current && dataArrayRef.current) {
+          analyserRef.current.getByteFrequencyData(dataArrayRef.current);
+          const barCount = 64; // Number of bars
+          const barWidth = (w / barCount) * 1.5;
+          let x = 0;
+          
+          ctx.save();
+          // Center the visualizer
+          x = (w - (barCount * (barWidth - 5))) / 2;
+          
+          for(let i = 0; i < barCount; i++) {
+              const v = dataArrayRef.current[i]; // 0-255
+              const barHeight = (v / 255) * 400 * (bgScaleRef.current); // Scale with beat
+              
+              // Dynamic Color based on height/intensity
+              const hue = (i / barCount) * 60 + 20; // Gold to Orange spectrum
+              ctx.fillStyle = `hsla(${hue}, 100%, 50%, 0.3)`;
+              
+              // Mirror effect (Top and Bottom)
+              ctx.fillRect(x, h/2 - barHeight - 100, barWidth - 10, barHeight); 
+              ctx.fillRect(x, h/2 + 100, barWidth - 10, barHeight);
+              
+              x += barWidth - 5;
+          }
+          ctx.restore();
+      }
+
       const centerY = h / 2 - 40;
-      const lineHeight = 90;
-      
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
 
-      const timeSinceAction = performance.now() - lastActionTimeRef.current;
-      let scaleMultiplier = 1.0;
-      if (timeSinceAction < 250) {
-          const t = timeSinceAction / 250;
-          scaleMultiplier = 1.0 + (0.1 * (1 - t)); 
+      // 3. Particles
+      for (let i = particlesRef.current.length - 1; i >= 0; i--) {
+          const p = particlesRef.current[i];
+          p.x += p.vx;
+          p.y += p.vy;
+          p.life -= 0.02;
+          p.size *= 0.95;
+
+          if (p.life <= 0) {
+              particlesRef.current.splice(i, 1);
+          } else {
+              ctx.save();
+              ctx.globalAlpha = p.life;
+              ctx.fillStyle = p.color;
+              ctx.beginPath();
+              ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+              ctx.fill();
+              ctx.restore();
+          }
       }
 
-      if (lineIndex > 0) {
-          ctx.save();
-          ctx.globalAlpha = 0.3;
-          ctx.fillStyle = '#e2e8f0';
-          ctx.font = '700 36px Montserrat';
-          const prevText = lyricsArrayRef.current[lineIndex - 1];
-          ctx.fillText(prevText, w/2, centerY - lineHeight);
-          ctx.restore();
+      // 4. Cinematic Text Rendering
+      const timeSinceAction = performance.now() - lastActionTimeRef.current;
+      let entranceOffset = 0;
+      let alpha = 1;
+      
+      if (timeSinceAction < 300) {
+          const t = timeSinceAction / 300; 
+          const ease = 1 - Math.pow(1 - t, 5); 
+          entranceOffset = (1 - ease) * 80; 
+          alpha = ease;
       }
 
       ctx.save();
       const currText = lyricsArrayRef.current[lineIndex] || "";
-      // Adjust font size based on text length to prevent clipping on mobile output
-      const baseSize = currText.length > 15 ? 56 : 72; 
-      ctx.font = `900 ${baseSize * scaleMultiplier}px Montserrat`;
+      const baseSize = currText.length > 15 ? 64 : 80; // Bigger fonts
+      const finalScale = textScaleRef.current; 
       
-      ctx.shadowColor = 'rgba(255, 255, 255, 0.8)';
-      ctx.shadowBlur = (scaleMultiplier - 1) * 100 + 20; 
-      ctx.fillStyle = '#ffffff';
+      ctx.font = `900 ${baseSize * finalScale}px Montserrat`;
       
-      ctx.fillText(currText, w/2, centerY);
+      // Mega Glow
+      ctx.shadowColor = combo > 10 ? '#fbbf24' : 'rgba(255, 255, 255, 0.8)';
+      ctx.shadowBlur = (textScaleRef.current - 1) * 200 + 30; 
+      ctx.fillStyle = `rgba(255, 255, 255, ${alpha})`;
+      
+      ctx.fillText(currText, w/2, centerY + entranceOffset);
       ctx.restore();
 
-      if (lineIndex < lyricsArrayRef.current.length - 1) {
+      // 5. Context Lines (Faded)
+      if (lineIndex > 0) {
           ctx.save();
-          ctx.globalAlpha = 0.3;
+          ctx.globalAlpha = 0.15;
           ctx.fillStyle = '#e2e8f0';
-          ctx.font = '700 36px Montserrat';
-          const nextText = lyricsArrayRef.current[lineIndex + 1];
-          ctx.fillText(nextText, w/2, centerY + lineHeight);
+          ctx.font = '700 32px Montserrat';
+          const prevText = lyricsArrayRef.current[lineIndex - 1];
+          ctx.fillText(prevText, w/2, centerY - 140);
           ctx.restore();
       }
 
+      // 6. Combo Counter (Game Feel)
+      if (combo > 1) {
+          ctx.save();
+          ctx.textAlign = 'right';
+          ctx.font = '900 48px Montserrat';
+          ctx.fillStyle = 'rgba(255, 255, 255, 0.2)';
+          ctx.fillText(`${combo} HIT`, w - 50, 100);
+          ctx.restore();
+      }
+
+      // 7. Album Art & Branding
       if (bgImageRef.current) {
-          const coverSize = 200;
-          const coverY = h - coverSize - 60;
+          const coverSize = 180;
+          const coverY = h - coverSize - 80;
           
           ctx.save();
           ctx.shadowColor = 'black';
-          ctx.shadowBlur = 40;
+          ctx.shadowBlur = 30;
           ctx.fillStyle = 'white';
           ctx.fillRect((w/2) - (coverSize/2) - 4, coverY - 4, coverSize + 8, coverSize + 8);
           ctx.drawImage(bgImageRef.current, 0, 0, bgImageRef.current.width, bgImageRef.current.height, (w/2) - (coverSize/2), coverY, coverSize, coverSize);
           ctx.restore();
 
           ctx.fillStyle = '#fbbf24'; 
-          ctx.font = '900 28px Montserrat';
+          ctx.font = '900 24px Montserrat';
+          ctx.letterSpacing = '2px';
+          ctx.shadowBlur = 0;
           ctx.fillText(selectedSong.title.toUpperCase(), w/2, coverY + coverSize + 40);
           
           ctx.fillStyle = '#94a3b8';
-          ctx.font = '600 16px Montserrat';
+          ctx.font = '600 14px Montserrat';
           ctx.letterSpacing = '4px';
           ctx.fillText("WILLWI HANDCRAFTED", w/2, coverY + coverSize + 70);
       }
       
+      // 8. Progress Bar
       if (audioRef.current && audioRef.current.duration) {
           const progress = audioRef.current.currentTime / audioRef.current.duration;
           ctx.fillStyle = '#fbbf24';
-          ctx.fillRect(0, h - 8, w * progress, 8);
+          const barW = w * progress;
+          ctx.fillRect(0, h - 10, barW, 10);
+          
+          // Tip flare
+          ctx.save();
+          ctx.shadowColor = '#fbbf24';
+          ctx.shadowBlur = 30;
+          ctx.fillStyle = 'white';
+          ctx.fillRect(barW - 2, h - 20, 4, 20);
+          ctx.restore();
+      }
+      
+      if (isPracticeMode) {
+          ctx.save();
+          ctx.fillStyle = 'rgba(255, 255, 255, 0.2)';
+          ctx.font = 'bold 20px Montserrat';
+          ctx.letterSpacing = '2px';
+          ctx.fillText("PRACTICE MODE", w/2, 60);
+          ctx.restore();
       }
   };
 
   const downloadVideo = () => {
+    if (isPracticeMode) {
+        alert("練習模式下無法下載影片 (Practice Mode)。");
+        return;
+    }
     if (recordedChunksRef.current.length === 0) {
         alert("無錄製資料。");
         return;
@@ -441,6 +618,7 @@ const Interactive: React.FC = () => {
         syncStats: {
             totalLines: lyricsArrayRef.current.length,
             duration: audioRef.current?.duration || 0,
+            comboMax: combo,
             tapEvents: syncDataRef.current
         }
     };
@@ -633,12 +811,13 @@ const Interactive: React.FC = () => {
             <div className="w-full animate-fade-in">
                 <h3 className="text-center text-sm font-black text-brand-gold uppercase tracking-[0.4em] mb-12">{t('interactive_select_title')}</h3>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-6 w-full">
-                    {interactiveSongs.length === 0 ? (
+                    {/* Admin can see ALL songs to override */}
+                    {(isAdmin ? songs : interactiveSongs).length === 0 ? (
                          <div className="col-span-full text-center py-20 border border-white/10 bg-slate-900/50">
                              <p className="text-slate-500 text-xs uppercase tracking-widest">{t('interactive_select_empty')}</p>
                          </div>
                     ) : (
-                        interactiveSongs.map(s => (
+                        (isAdmin ? songs : interactiveSongs).map(s => (
                             <div key={s.id} onClick={() => handleSelectSong(s)} className="bg-slate-900/40 p-6 border border-white/5 hover:border-brand-gold cursor-pointer transition-all group">
                                 <div className="overflow-hidden mb-4 aspect-square bg-slate-800">
                                     <img src={s.coverUrl} className="w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all duration-700 opacity-60 group-hover:opacity-100" alt="" />
@@ -648,6 +827,7 @@ const Interactive: React.FC = () => {
                                      <p className="text-[9px] text-brand-gold uppercase tracking-widest opacity-0 group-hover:opacity-100 transition-opacity">
                                          {t('interactive_select_start')}
                                      </p>
+                                     {isAdmin && !s.isInteractiveActive && <span className="text-[8px] text-red-500 font-bold uppercase">CLOSED (Admin Access)</span>}
                                 </div>
                             </div>
                         ))
@@ -719,16 +899,18 @@ const Interactive: React.FC = () => {
                  
                  <div className="text-center pointer-events-none relative z-10">
                      <div className="flex items-center gap-2 justify-center mb-2">
-                         <div className="w-3 h-3 bg-red-500 rounded-full animate-pulse"></div>
-                         <p className="text-red-500 text-[10px] font-black uppercase tracking-widest">{t('interactive_recording_live')}</p>
+                         <div className={`w-3 h-3 rounded-full animate-pulse ${isPracticeMode ? 'bg-yellow-500' : 'bg-red-500'}`}></div>
+                         <p className={`${isPracticeMode ? 'text-yellow-500' : 'text-red-500'} text-[10px] font-black uppercase tracking-widest`}>
+                             {isPracticeMode ? 'Practice Mode (No Rec)' : t('interactive_recording_live')}
+                         </p>
                      </div>
                  </div>
                  
                  {/* Full Screen Touch Zone (High Performance) */}
                  <div 
-                    className="fixed inset-0 bg-transparent z-0 active:bg-white/5 transition-colors" 
-                    onClick={handleLineClick}
-                    onTouchStart={handleLineClick} // Zero latency for mobile
+                    className="fixed inset-0 bg-transparent z-0 active:bg-white/5 transition-colors cursor-crosshair" 
+                    onClick={(e) => handleLineClick(e, false)}
+                    onTouchStart={(e) => handleLineClick(e, false)} // Zero latency for mobile
                  />
             </div>
         )}
@@ -759,8 +941,12 @@ const Interactive: React.FC = () => {
                         />
                         
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
-                            <button onClick={downloadVideo} className="w-full py-4 bg-white text-slate-950 font-black text-[10px] uppercase tracking-widest hover:bg-brand-gold transition-all shadow-lg">
-                                {t('interactive_btn_save_video')}
+                            <button 
+                                onClick={downloadVideo} 
+                                disabled={isPracticeMode}
+                                className={`w-full py-4 font-black text-[10px] uppercase tracking-widest transition-all shadow-lg ${isPracticeMode ? 'bg-slate-700 text-slate-500 cursor-not-allowed' : 'bg-white text-slate-900 hover:bg-brand-gold'}`}
+                            >
+                                {isPracticeMode ? "Video Unavailable" : t('interactive_btn_save_video')}
                             </button>
                             <button onClick={downloadCertificate} className="w-full py-4 border border-white/20 text-white font-black text-[10px] uppercase tracking-widest hover:bg-white hover:text-black transition-all">
                                 {t('interactive_btn_get_cert')}

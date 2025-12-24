@@ -337,7 +337,19 @@ const SongDetail: React.FC = () => {
   };
 
   const handleStartInteractive = () => {
+      // 1. ADMIN BYPASS: Allow admin to enter even if closed or incomplete
+      if (isAdmin) {
+          if (!song.audioUrl) {
+               if(!window.confirm("【管理員警告】\n此作品缺少音檔 (Audio URL)，進入後將無法播放音樂。\n確定要強制進入測試嗎？")) return;
+          }
+          // Navigate immediately
+          navigate('/interactive', { state: { targetSongId: song.id } });
+          return;
+      }
+
+      // 2. NORMAL USER CHECKS
       if (!song.isInteractiveActive) return;
+      
       if (song.language === Language.Instrumental) {
           alert("此作品為純音樂 (Instrumental)，沒有歌詞可供互動同步。");
           return;
@@ -431,23 +443,32 @@ const SongDetail: React.FC = () => {
                             </div>
 
                             <div className="mt-6 flex flex-col gap-4 max-w-sm">
-                                {song.isInteractiveActive ? (
-                                    (isInstrumental || !song.lyrics) ? (
-                                        <div className="w-full py-4 border border-slate-600 text-slate-500 font-bold uppercase tracking-[0.2em] text-[10px] text-center bg-slate-900 cursor-not-allowed">
-                                            {t('detail_status_instrumental')}
-                                        </div>
-                                    ) : (
-                                        <button 
-                                            onClick={handleStartInteractive}
-                                            className="w-full py-4 bg-brand-gold text-slate-900 font-black uppercase tracking-[0.3em] text-xs hover:bg-white transition-all shadow-lg animate-pulse"
-                                        >
-                                            {t('detail_btn_start_session')}
-                                        </button>
-                                    )
+                                {isAdmin ? (
+                                    <button 
+                                        onClick={handleStartInteractive}
+                                        className={`w-full py-4 font-black uppercase tracking-[0.3em] text-xs transition-all shadow-lg ${song.isInteractiveActive ? 'bg-brand-gold text-slate-900 hover:bg-white' : 'bg-red-900 text-white hover:bg-red-700'}`}
+                                    >
+                                        {song.isInteractiveActive ? t('detail_btn_start_session') : 'Admin Force Start (Test)'}
+                                    </button>
                                 ) : (
-                                    <div className="w-full py-4 border border-white/10 text-slate-500 font-bold uppercase tracking-[0.2em] text-[10px] text-center bg-black/20">
-                                        {t('detail_status_closed')}
-                                    </div>
+                                    song.isInteractiveActive ? (
+                                        (isInstrumental || !song.lyrics) ? (
+                                            <div className="w-full py-4 border border-slate-600 text-slate-500 font-bold uppercase tracking-[0.2em] text-[10px] text-center bg-slate-900 cursor-not-allowed">
+                                                {t('detail_status_instrumental')}
+                                            </div>
+                                        ) : (
+                                            <button 
+                                                onClick={handleStartInteractive}
+                                                className="w-full py-4 bg-brand-gold text-slate-900 font-black uppercase tracking-[0.3em] text-xs hover:bg-white transition-all shadow-lg animate-pulse"
+                                            >
+                                                {t('detail_btn_start_session')}
+                                            </button>
+                                        )
+                                    ) : (
+                                        <div className="w-full py-4 border border-white/10 text-slate-500 font-bold uppercase tracking-[0.2em] text-[10px] text-center bg-black/20">
+                                            {t('detail_status_closed')}
+                                        </div>
+                                    )
                                 )}
                                 
                                 {/* OFFICIAL LINKS (NO EMBED PLAYERS FOR LISTENERS) */}
@@ -549,10 +570,13 @@ const SongDetail: React.FC = () => {
                                         </div>
 
                                         {song.audioUrl ? (
-                                            <div>
-                                                <p className="text-[9px] text-slate-500 font-bold uppercase tracking-widest mb-1">Raw Source Audio (Video Gen)</p>
-                                                <audio controls src={song.audioUrl} className="w-full h-8 block rounded bg-slate-800" />
-                                                <p className="text-[8px] text-slate-600 mt-1">* 僅供互動影片生成使用 (Private)</p>
+                                            <div className="mt-2 p-2 bg-slate-800/50 border border-white/5 rounded">
+                                                <div className="flex justify-between items-center mb-1">
+                                                     <p className="text-[9px] text-slate-500 font-bold uppercase tracking-widest">Raw Source Audio (Check Playback)</p>
+                                                     <span className="text-[8px] text-green-500 font-mono">READY</span>
+                                                </div>
+                                                <audio controls src={song.audioUrl} className="w-full h-8 block rounded bg-slate-900" />
+                                                <p className="text-[8px] text-slate-600 mt-1">* 若無法播放，請檢查連結是否為 Direct Link (raw=1)</p>
                                             </div>
                                         ) : (
                                             <div className="bg-red-900/20 border border-red-900/50 p-3">

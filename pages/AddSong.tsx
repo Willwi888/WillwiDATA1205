@@ -48,6 +48,12 @@ const AddSong: React.FC = () => {
   const [trackResults, setTrackResults] = useState<SpotifyTrack[]>([]);
   const [albumResults, setAlbumResults] = useState<SpotifyAlbum[]>([]);
   
+  // New: Album Batch Import State
+  const [selectedAlbumForBatch, setSelectedAlbumForBatch] = useState<SpotifyAlbum | null>(null);
+  const [batchTracks, setBatchTracks] = useState<SpotifyTrack[]>([]);
+  const [batchDropboxLink, setBatchDropboxLink] = useState('');
+  const [isProcessingBatch, setIsProcessingBatch] = useState(false);
+
   const [mbResults, setMbResults] = useState<MBReleaseGroup[]>([]);
   const [selectedMBGroup, setSelectedMBGroup] = useState<MBReleaseGroup | null>(null);
   const [mbImportData, setMbImportData] = useState<MBImportData | null>(null);
@@ -272,6 +278,7 @@ const AddSong: React.FC = () => {
   const handleSearch = async () => {
     setTrackResults([]); setAlbumResults([]); setMbResults([]); setSelectedMBGroup(null);
     setSearchError('');
+    setSelectedAlbumForBatch(null); // Clear previous selection
     
     if (importMode === 'smart') {
         handleSmartLinkImport();
@@ -286,17 +293,17 @@ const AddSong: React.FC = () => {
             setMbResults(results);
         } else if (importMode === 'spotify-search') {
             if (!searchQuery.trim()) return;
-            // Detect if user wants album or track search based on toggle? 
-            // Let's do both or default to track.
             const query = searchQuery.includes('Willwi') ? searchQuery : `${searchQuery} artist:Willwi`;
             let results = await searchSpotifyTracks(query);
             if (results.length > 0) {
                 setTrackResults(results);
-            } else {
-                let albums = await searchSpotifyAlbums(query);
-                if (albums.length > 0) setAlbumResults(albums);
-                else setSearchError('No results found.');
-            }
+            } 
+            
+            // Always fetch albums too
+            let albums = await searchSpotifyAlbums(query);
+            if (albums.length > 0) setAlbumResults(albums);
+            
+            if(results.length === 0 && albums.length === 0) setSearchError('No results found.');
         }
     } catch (err) { setSearchError('Search connection failed.'); } 
     finally { setIsSearching(false); }
@@ -351,75 +358,72 @@ const AddSong: React.FC = () => {
     }
   };
   
-  const selectAlbumForForm = async (album: SpotifyAlbum) => {
-      const isBulk = window.confirm(`【專輯匯入確認】\n\n專輯：《${album.name}》\n\n[確定]：批次建立整張專輯 (Batch Import)。\n[取消]：僅填入基本資訊 (Single Fill)。`);
-
-      if (isBulk) {
-          setIsSearching(true);
-          setProgressMsg('Processing Batch Import...');
-          try {
-              const details = await getSpotifyAlbum(album.id);
-              const tracks = await getSpotifyAlbumTracks(album.id);
-              if (tracks.length === 0) throw new Error("No tracks found.");
-
-              const publisher = 'Willwi Music'; 
-              const releaseCompany = details?.label || 'Willwi Music';
-              const upc = details?.external_ids?.upc || details?.external_ids?.ean || '';
-              const releaseDate = details?.release_date || album.release_date;
-              const coverUrl = album.images[0]?.url || '';
-              
-              let category = ReleaseCategory.Album;
-              if (details?.album_type === 'single') category = ReleaseCategory.Single;
-              else if (details && details.total_tracks <= 6) category = ReleaseCategory.EP;
-
-              const newSongs: Song[] = tracks.map((t, idx) => ({
-                    id: Date.now().toString() + Math.random().toString(36).substr(2, 5) + idx,
-                    title: t.name,
-                    versionLabel: '',
-                    coverUrl: coverUrl,
-                    language: detectLanguage(t.name),
-                    projectType: ProjectType.Indie,
-                    releaseCategory: category,
-                    releaseCompany: releaseCompany,
-                    publisher: publisher,
-                    releaseDate: releaseDate,
-                    isEditorPick: false,
-                    isInteractiveActive: false,
-                    isrc: t.external_ids?.isrc || '',
-                    upc: upc,
-                    spotifyId: t.id,
-                    spotifyLink: t.external_urls?.spotify || '',
-                    credits: DEFAULT_CREDITS,
-                    description: `Included in ${album.name}`,
-                    lyrics: '', // Bulk import skips auto-lyrics to avoid timeouts
-                    audioUrl: '',
-                    smartLink: searchQuery.includes('http') ? searchQuery : ''
-              }));
-
-              const success = await bulkAddSongs(newSongs);
-              if (success) {
-                  alert(`成功匯入！\n共 ${newSongs.length} 首歌曲已建立。\n(批次匯入未包含歌詞，請至單曲編輯頁面補充)`);
-                  navigate('/database');
-              } else { throw new Error("Database Write Error"); }
-          } catch(e) {
-              alert("批次匯入失敗。");
-          } finally { setIsSearching(false); setProgressMsg(''); }
-      } else {
-          const details = await getSpotifyAlbum(album.id);
-          setFormData(prev => ({
-            ...prev,
-            title: album.name, // Set title to album name for single fill
-            releaseDate: album.release_date,
-            coverUrl: album.images[0]?.url || '',
-            releaseCategory: ReleaseCategory.Album,
-            releaseCompany: details?.label || 'Willwi Music',
-            publisher: 'Willwi Music', 
-            upc: details?.external_ids?.upc || details?.external_ids?.ean || '',
-            smartLink: searchQuery.includes('http') ? searchQuery : ''
-          }));
-          setAlbumResults([]);
-          alert("已載入專輯基本資訊。");
+  const openBatchImportPanel = async (album: SpotifyAlbum) => {
+      setIsSearching(true);
+      setProgressMsg('Loading Album Tracks...');
+      try {
+          const tracks = await getSpotifyAlbumTracks(album.id);
+          setBatchTracks(tracks);
+          setSelectedAlbumForBatch(album);
+          setBatchDropboxLink(''); // Reset input
+      } catch (e) {
+          console.error(e);
+          setSearchError("Failed to load album tracks.");
+      } finally {
+          setIsSearching(false);
+          setProgressMsg('');
       }
+  };
+
+  const confirmBatchImport = async () => {
+      if (!selectedAlbumForBatch || batchTracks.length === 0) return;
+      
+      setIsProcessingBatch(true);
+      try {
+          const details = await getSpotifyAlbum(selectedAlbumForBatch.id);
+          const publisher = 'Willwi Music'; 
+          const releaseCompany = details?.label || 'Willwi Music';
+          const upc = details?.external_ids?.upc || details?.external_ids?.ean || '';
+          const releaseDate = details?.release_date || selectedAlbumForBatch.release_date;
+          const coverUrl = selectedAlbumForBatch.images[0]?.url || '';
+          
+          let category = ReleaseCategory.Album;
+          if (details?.album_type === 'single') category = ReleaseCategory.Single;
+          else if (details && details.total_tracks <= 6) category = ReleaseCategory.EP;
+
+          const newSongs: Song[] = batchTracks.map((t, idx) => ({
+                id: Date.now().toString() + Math.random().toString(36).substr(2, 5) + idx,
+                title: t.name,
+                versionLabel: '',
+                coverUrl: coverUrl,
+                language: detectLanguage(t.name),
+                projectType: ProjectType.Indie,
+                releaseCategory: category,
+                releaseCompany: releaseCompany,
+                publisher: publisher,
+                releaseDate: releaseDate,
+                isEditorPick: false,
+                isInteractiveActive: false,
+                isrc: t.external_ids?.isrc || '',
+                upc: upc,
+                spotifyId: t.id,
+                spotifyLink: t.external_urls?.spotify || '',
+                credits: DEFAULT_CREDITS,
+                description: `Included in ${selectedAlbumForBatch.name}\n\n[ADMIN NOTE]\nSource Folder: ${batchDropboxLink || 'N/A'}`,
+                lyrics: '', 
+                audioUrl: batchDropboxLink ? batchDropboxLink : '', // Store Dropbox link as Audio Source placeholder if provided
+                smartLink: searchQuery.includes('http') ? searchQuery : ''
+          }));
+
+          const success = await bulkAddSongs(newSongs);
+          if (success) {
+              alert(`成功匯入整張專輯！\n共 ${newSongs.length} 首歌曲已建立。\n\nDropbox 連結已儲存於備註中，請至各單曲頁面手動對應檔案。`);
+              navigate('/database');
+          } else { throw new Error("Database Write Error"); }
+      } catch(e) {
+          alert("批次匯入失敗。");
+          console.error(e);
+      } finally { setIsProcessingBatch(false); }
   };
 
   const handleSelectMBGroup = async (group: MBReleaseGroup) => {
@@ -522,48 +526,100 @@ const AddSong: React.FC = () => {
         {progressMsg && <p className="text-brand-accent text-xs mt-3 animate-pulse">{progressMsg}</p>}
         {searchError && <p className="text-white text-xs mt-3">{searchError}</p>}
         
-        {importMode === 'smart' && !isSearching && !progressMsg && (
-             <p className="text-[9px] text-slate-500 mt-3 pl-1">* AI Bridge: 自動將 HyperFollow 或其他連結轉換為 Spotify 官方數據，確保資料完整性。</p>
+        {/* BATCH IMPORT PANEL */}
+        {selectedAlbumForBatch && (
+            <div className="mt-6 p-6 bg-black border border-brand-accent/30 rounded relative animate-fade-in">
+                <button onClick={() => setSelectedAlbumForBatch(null)} className="absolute top-4 right-4 text-slate-500 hover:text-white">✕</button>
+                <div className="flex gap-4 mb-6">
+                    <img src={selectedAlbumForBatch.images[1]?.url} className="w-24 h-24 object-cover shadow-lg" alt="" />
+                    <div>
+                        <h4 className="text-xl font-black text-white">{selectedAlbumForBatch.name}</h4>
+                        <p className="text-sm text-brand-accent">{selectedAlbumForBatch.total_tracks} Tracks • {selectedAlbumForBatch.release_date}</p>
+                    </div>
+                </div>
+                
+                <div className="mb-6 max-h-40 overflow-y-auto border border-white/10">
+                    <table className="w-full text-left text-[10px]">
+                        <thead className="bg-slate-900 text-slate-500">
+                            <tr>
+                                <th className="p-2">#</th>
+                                <th className="p-2">Title</th>
+                                <th className="p-2">ISRC (If available)</th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-white/5 text-slate-300">
+                            {batchTracks.map((t, i) => (
+                                <tr key={t.id}>
+                                    <td className="p-2">{i + 1}</td>
+                                    <td className="p-2 font-bold">{t.name}</td>
+                                    <td className="p-2 font-mono">{t.external_ids?.isrc || '--'}</td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+
+                <div className="space-y-2 mb-6">
+                    <label className="text-[10px] text-brand-gold font-black uppercase tracking-widest">Global Audio Source (Dropbox Folder Link)</label>
+                    <input 
+                        className="w-full bg-slate-900 border border-brand-gold/30 p-3 text-white text-xs font-mono outline-none focus:border-brand-gold"
+                        placeholder="e.g. https://www.dropbox.com/sh/..."
+                        value={batchDropboxLink}
+                        onChange={(e) => setBatchDropboxLink(e.target.value)}
+                    />
+                    <p className="text-[9px] text-slate-500">* Paste your Dropbox folder link here. It will be saved in the notes/description for all tracks.</p>
+                </div>
+
+                <div className="flex justify-end gap-4">
+                    <button onClick={() => setSelectedAlbumForBatch(null)} className="px-6 py-3 text-slate-400 text-xs font-bold uppercase tracking-widest">Cancel</button>
+                    <button onClick={confirmBatchImport} disabled={isProcessingBatch} className="px-8 py-3 bg-brand-accent text-black font-black text-xs uppercase tracking-widest hover:bg-white transition-all">
+                        {isProcessingBatch ? "Importing..." : `Confirm Import (${batchTracks.length} Tracks)`}
+                    </button>
+                </div>
+            </div>
         )}
 
         {/* RESULTS AREA */}
-        <div className="mt-4 space-y-2 max-h-60 overflow-y-auto custom-scrollbar">
-            
-            {trackResults.map(t => (
-                <div key={t.id} className="flex items-center gap-3 p-2 hover:bg-white/5 border border-transparent hover:border-white/10 group">
-                    <img src={t.album.images[2]?.url} className="w-8 h-8 cursor-pointer" onClick={() => selectTrackForForm(t)} alt="" />
-                    <div className="flex-1 min-w-0 cursor-pointer" onClick={() => selectTrackForForm(t)}>
-                        <div className="text-white text-xs font-bold truncate">{t.name}</div>
-                        <div className="text-slate-500 text-[10px] truncate">{t.album.name}</div>
+        {!selectedAlbumForBatch && (
+            <div className="mt-4 space-y-2 max-h-60 overflow-y-auto custom-scrollbar">
+                {/* Spotify Tracks */}
+                {trackResults.map(t => (
+                    <div key={t.id} className="flex items-center gap-3 p-2 hover:bg-white/5 border border-transparent hover:border-white/10 group">
+                        <img src={t.album.images[2]?.url} className="w-8 h-8 cursor-pointer" onClick={() => selectTrackForForm(t)} alt="" />
+                        <div className="flex-1 min-w-0 cursor-pointer" onClick={() => selectTrackForForm(t)}>
+                            <div className="text-white text-xs font-bold truncate">{t.name}</div>
+                            <div className="text-slate-500 text-[10px] truncate">{t.album.name}</div>
+                        </div>
+                        <button onClick={() => selectTrackForForm(t)} className="text-[9px] bg-brand-accent/10 text-brand-accent border border-brand-accent/50 px-3 py-1 hover:bg-brand-accent hover:text-black transition-all font-bold">IMPORT</button>
                     </div>
-                    {t.preview_url && (
-                        <button onClick={() => playPreview(t.preview_url, t.id)} className={`w-6 h-6 flex items-center justify-center rounded-full border border-white/20 ${playingPreviewId === t.id ? 'bg-brand-gold text-black animate-pulse' : 'text-white hover:bg-white/20'}`}>
-                            {playingPreviewId === t.id ? '■' : '▶'}
+                ))}
+                
+                {/* Spotify Albums (With Batch Option) */}
+                {albumResults.map(a => (
+                    <div key={a.id} className="flex items-center gap-3 p-2 hover:bg-white/5 cursor-pointer border border-transparent hover:border-white/10">
+                        <img src={a.images[2]?.url} className="w-8 h-8" alt="" />
+                        <div className="flex-1 min-w-0">
+                            <div className="text-white text-xs font-bold truncate">{a.name}</div>
+                            <div className="text-slate-500 text-[10px] truncate">{a.release_date} • {a.total_tracks} Tracks</div>
+                        </div>
+                        <button onClick={() => openBatchImportPanel(a)} className="text-[9px] bg-brand-gold/10 text-brand-gold border border-brand-gold/50 px-3 py-1 hover:bg-brand-gold hover:text-black transition-all font-bold">
+                            BATCH IMPORT
                         </button>
-                    )}
-                    <button onClick={() => selectTrackForForm(t)} className="text-[9px] bg-brand-accent/10 text-brand-accent border border-brand-accent/50 px-3 py-1 hover:bg-brand-accent hover:text-black transition-all font-bold">IMPORT</button>
-                </div>
-            ))}
-            {albumResults.map(a => (
-                <div key={a.id} onClick={() => selectAlbumForForm(a)} className="flex items-center gap-3 p-2 hover:bg-white/5 cursor-pointer border border-transparent hover:border-white/10">
-                    <img src={a.images[2]?.url} className="w-8 h-8" alt="" />
-                    <div className="flex-1 min-w-0">
-                        <div className="text-white text-xs font-bold truncate">{a.name}</div>
-                        <div className="text-slate-500 text-[10px] truncate">{a.release_date} • {a.total_tracks} Tracks</div>
                     </div>
-                    <span className="text-[9px] text-brand-accent border border-brand-accent/50 px-2 py-0.5">SELECT</span>
-                </div>
-            ))}
-            {mbResults.map(g => (
-                <div key={g.id} onClick={() => handleSelectMBGroup(g)} className={`p-3 border border-white/5 cursor-pointer transition-all ${selectedMBGroup?.id === g.id ? 'bg-brand-gold/10 border-brand-gold' : 'hover:bg-white/5'}`}>
-                    <div className="text-white text-xs font-bold">{g.title}</div>
-                    <div className="flex gap-2 mt-1">
-                        <span className="text-[9px] text-slate-500 bg-black px-1 border border-white/10">{g['primary-type'] || 'Unknown'}</span>
-                        <span className="text-[9px] text-slate-500">{g['first-release-date']}</span>
+                ))}
+
+                {mbResults.map(g => (
+                    <div key={g.id} onClick={() => handleSelectMBGroup(g)} className={`p-3 border border-white/5 cursor-pointer transition-all ${selectedMBGroup?.id === g.id ? 'bg-brand-gold/10 border-brand-gold' : 'hover:bg-white/5'}`}>
+                        <div className="text-white text-xs font-bold">{g.title}</div>
+                        <div className="flex gap-2 mt-1">
+                            <span className="text-[9px] text-slate-500 bg-black px-1 border border-white/10">{g['primary-type'] || 'Unknown'}</span>
+                            <span className="text-[9px] text-slate-500">{g['first-release-date']}</span>
+                        </div>
                     </div>
-                </div>
-            ))}
-        </div>
+                ))}
+            </div>
+        )}
+        
         {selectedMBGroup && mbImportData && (
             <div className="mt-4 pt-4 border-t border-white/10">
                  <h4 className="text-[10px] text-brand-gold font-black uppercase tracking-widest mb-3">Select Track from {selectedMBGroup.title}</h4>
