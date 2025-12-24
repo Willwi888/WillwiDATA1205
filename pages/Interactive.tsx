@@ -32,7 +32,7 @@ const Interactive: React.FC = () => {
   
   // Payment Modal State
   const [isPaymentOpen, setIsPaymentOpen] = useState(false);
-  const [paymentInitialTab, setPaymentInitialTab] = useState<'production' | 'support'>('production');
+  const [paymentInitialTab, setPaymentInitialTab] = useState<'production' | 'support' | 'cinema'>('production');
   
   // Veo State
   const [veoPrompt, setVeoPrompt] = useState('');
@@ -161,7 +161,7 @@ const Interactive: React.FC = () => {
   
   const [PaymentModal, setPaymentModal] = useState<React.FC<any> | null>(null);
   
-  const handleOpenPayment = async (type: 'production' | 'support') => {
+  const handleOpenPayment = async (type: 'production' | 'support' | 'cinema') => {
       setPaymentInitialTab(type);
       if (!PaymentModal) {
           const mod = await import('../components/PaymentModal');
@@ -836,6 +836,7 @@ const Interactive: React.FC = () => {
                  <h2 className="text-3xl font-black text-white uppercase">Cloud Cinema</h2>
                  <p className="text-slate-400 text-xs mt-4 uppercase tracking-widest">High Quality Production Service</p>
                  <div className="mt-8 text-2xl text-white font-serif">NT$ 2,800</div>
+                 <button onClick={() => handleOpenPayment('cinema')} className="mt-8 px-8 py-4 border border-brand-accent text-brand-accent hover:bg-brand-accent hover:text-black transition-all font-black uppercase tracking-widest text-xs">Purchase Access (NT$ 2,800)</button>
                  <button onClick={() => setMode('menu')} className="block mt-12 text-slate-500 text-xs uppercase tracking-widest mx-auto">Back</button>
              </div>
         )}

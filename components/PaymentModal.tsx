@@ -7,13 +7,18 @@ import { submitNewebPayForm } from '../services/newebPayService';
 interface PaymentModalProps {
   isOpen: boolean;
   onClose: () => void;
-  initialMode?: 'production' | 'support';
+  initialMode?: 'production' | 'support' | 'cinema';
 }
 
 const UNIT_PRICE = 320;
+const CINEMA_PRICE = 2800;
 
-// PayPal Support Link (Fixed)
-const PAYPAL_LINK = "https://www.paypal.com/ncp/payment/PNLV2V3PP47ZN";
+// PayPal Support Links (Mapped to Tiers)
+const PAYPAL_LINKS = {
+    production: "https://www.paypal.com/ncp/payment/UZU4M39WRFN5N", // NT$ 320 - Handcrafted Lyrics
+    cinema: "https://www.paypal.com/ncp/payment/CD27A99GZHXV4",     // NT$ 2800 - Cloud Cinema
+    support: "https://www.paypal.com/ncp/payment/PNLV2V3PP47ZN"      // NT$ 100 - Instant Noodles Support
+};
 
 type GatewayType = 'ecpay' | 'newebpay' | 'paypal' | 'linepay' | 'bank';
 
@@ -23,7 +28,7 @@ const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, initialMod
   
   const [name, setName] = useState(user?.name || '');
   const [email, setEmail] = useState(user?.email || '');
-  const [supportMode, setSupportMode] = useState<'production' | 'support'>(initialMode);
+  const [supportMode, setSupportMode] = useState<'production' | 'support' | 'cinema'>(initialMode);
   const [customAmount, setCustomAmount] = useState<number>(100);
   const [pointCount, setPointCount] = useState<number>(1);
   const [gateway, setGateway] = useState<GatewayType>('ecpay');
@@ -47,7 +52,11 @@ const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, initialMod
 
   if (!isOpen) return null;
 
-  const totalAmount = supportMode === 'production' ? pointCount * UNIT_PRICE : customAmount;
+  let totalAmount = 0;
+  if (supportMode === 'production') totalAmount = pointCount * UNIT_PRICE;
+  else if (supportMode === 'cinema') totalAmount = CINEMA_PRICE;
+  else totalAmount = customAmount;
+
   const isFormValid = name.trim().length > 0 && email.includes('@') && totalAmount > 0;
 
   const handlePayment = async () => {
@@ -58,16 +67,17 @@ const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, initialMod
     
     setIsProcessing(true);
     
-    // Updated Item Names to sound less commercial and more "Process" oriented
-    const itemName = supportMode === 'production' 
-        ? `Willwi Creative Process Participation x ${pointCount}` 
-        : `Willwi Thermal Support (Music Sustenance)`;
+    // Updated Item Names
+    let itemName = "";
+    if (supportMode === 'production') itemName = `Willwi Creative Process Participation x ${pointCount}`;
+    else if (supportMode === 'cinema') itemName = `Willwi Cloud Cinema (Exclusive Video)`;
+    else itemName = `Willwi Thermal Support (Music Sustenance)`;
     
     // Prepare data to be recovered after redirect
     const extraData = {
         type: supportMode,
         amount: totalAmount,
-        points: pointCount,
+        points: supportMode === 'production' ? pointCount : 0,
         name,
         email,
         timestamp: Date.now(),
@@ -82,13 +92,19 @@ const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, initialMod
             // NewebPay (藍新)
             await submitNewebPayForm(totalAmount, itemName, email, extraData);
         } else if (gateway === 'paypal') {
-            // PayPal (Redirect)
-            // Store intent just in case, though PayPal return is harder to track without backend
+            // PayPal (Redirect with specific link)
             localStorage.setItem('willwi_pending_tx', JSON.stringify({
                 tradeNo: `PP-${Date.now()}`,
                 ...extraData
             }));
-            window.location.href = PAYPAL_LINK;
+            
+            // Select correct link based on mode
+            let targetLink = PAYPAL_LINKS.support; // Fallback
+            if (supportMode === 'production') targetLink = PAYPAL_LINKS.production;
+            else if (supportMode === 'cinema') targetLink = PAYPAL_LINKS.cinema;
+            else if (supportMode === 'support') targetLink = PAYPAL_LINKS.support;
+
+            window.location.href = targetLink;
         } else {
             alert("此付款方式尚未開放 (Coming Soon)");
             setIsProcessing(false);
@@ -112,7 +128,9 @@ const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, initialMod
                 <div>
                     <h3 className="text-xl font-black text-white uppercase tracking-[0.3em]">{t('modal_title')}</h3>
                     <p className="text-[10px] text-brand-gold font-bold uppercase tracking-widest mt-2">
-                        {supportMode === 'production' ? t('modal_tab_interactive_sub') : t('modal_tab_support_sub')}
+                        {supportMode === 'production' && t('modal_tab_interactive_sub')}
+                        {supportMode === 'cinema' && t('modal_tab_cinema_sub')}
+                        {supportMode === 'support' && t('modal_tab_support_sub')}
                     </p>
                 </div>
                 <button onClick={onClose} className="text-slate-600 hover:text-white font-mono text-xs uppercase tracking-widest transition-colors">{t('modal_close')}</button>
@@ -275,7 +293,7 @@ const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, initialMod
                 <div>
                     <span className="block text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] mb-6">{t('modal_contribution_title')}</span>
                     
-                    {supportMode === 'production' ? (
+                    {supportMode === 'production' && (
                         <div className="space-y-6">
                             <div className="flex justify-between items-end border-b border-white/10 pb-4">
                                 <span className="text-[10px] text-slate-400 uppercase tracking-widest">Sessions</span>
@@ -292,15 +310,37 @@ const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, initialMod
                                 </div>
                                 <div className="flex justify-between text-[10px] text-slate-500">
                                     <span>Total Support</span>
-                                    <span>NT$ {(pointCount * UNIT_PRICE).toLocaleString()}</span>
+                                    <span>NT$ {totalAmount.toLocaleString()}</span>
                                 </div>
                             </div>
                             <p className="text-[10px] text-slate-500 leading-loose border-t border-white/5 pt-4">
-                                您正在預約使用「互動實驗室」的創作權限。這份支持將用於支付系統資源與維護成本。
-                                <br/><span className="text-[9px] opacity-70 block mt-1">(Reservation of creative time and interactive system resources.)</span>
+                                {t('modal_interactive_desc')}
                             </p>
                         </div>
-                    ) : (
+                    )}
+
+                    {supportMode === 'cinema' && (
+                        <div className="space-y-6">
+                            <div className="border border-brand-accent/30 bg-brand-accent/5 p-4 text-center">
+                                <span className="text-brand-accent text-xs font-black uppercase tracking-widest">PREMIUM TIER</span>
+                            </div>
+                            <div className="space-y-2">
+                                <div className="flex justify-between text-[10px] text-slate-500">
+                                    <span>Service Fee</span>
+                                    <span>NT$ {CINEMA_PRICE.toLocaleString()}</span>
+                                </div>
+                                <div className="flex justify-between text-[10px] text-slate-500">
+                                    <span>Total Support</span>
+                                    <span className="text-brand-accent">NT$ {CINEMA_PRICE.toLocaleString()}</span>
+                                </div>
+                            </div>
+                            <p className="text-[10px] text-slate-500 leading-loose border-t border-white/5 pt-4">
+                                {t('modal_cinema_desc')}
+                            </p>
+                        </div>
+                    )}
+
+                    {supportMode === 'support' && (
                         <div className="space-y-6">
                             <div className="space-y-2">
                                 <label className="text-[9px] text-slate-400 uppercase tracking-widest">{t('modal_custom_amount_label')}</label>
@@ -317,7 +357,6 @@ const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, initialMod
                                 <p className="text-[9px] text-slate-600">{t('modal_custom_amount_hint')}</p>
                             </div>
                             
-                            {/* ADDED CONTENT: LIST OF BENEFITS (Previously Missing) */}
                             <div className="py-4 border-t border-white/5 border-b border-white/5 my-4">
                                <ul className="space-y-3">
                                    <li className="flex items-center gap-3 text-[10px] text-slate-400">
@@ -336,8 +375,7 @@ const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, initialMod
                            </div>
 
                             <p className="text-[10px] text-slate-500 leading-loose">
-                                這是一份給創作者的「熱能支持」(Thermal Support)。讓 Willwi 有力氣繼續做音樂。
-                                <br/><span className="text-[9px] opacity-70 block mt-1">(Providing thermal energy for the artist's daily life and creation.)</span>
+                                {t('modal_support_desc')}
                             </p>
                         </div>
                     )}
