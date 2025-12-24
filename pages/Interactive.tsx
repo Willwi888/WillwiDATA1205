@@ -110,26 +110,9 @@ const Interactive: React.FC = () => {
   useEffect(() => {
       const params = new URLSearchParams(location.search);
       if (params.get('payment') === 'success') {
-          const pendingTxStr = localStorage.getItem('willwi_pending_tx');
-          if (pendingTxStr) {
-              try {
-                  const tx = JSON.parse(pendingTxStr);
-                  if (Date.now() - (tx.timestamp || 0) < 600000) {
-                      login(tx.name, tx.email);
-                      if (tx.type === 'production') {
-                          addCredits(tx.points || 1, true, tx.amount);
-                          alert(`【付款成功】\n已為您啟用 ${tx.points} 次創作權限。\n歡迎回到 Willwi Interactive Lab。`);
-                          setMode('studio-welcome');
-                      } else {
-                          recordDonation(tx.amount);
-                          alert(`【支持成功】\n感謝您的 NT$ ${tx.amount} 支持。\n您的心意我們收到了。`);
-                          setMode('support-thanks');
-                      }
-                      localStorage.removeItem('willwi_pending_tx');
-                      navigate('/interactive', { replace: true });
-                      return;
-                  }
-              } catch (e) { console.error("Payment Process Error", e); }
+          if (location.hash.includes('source=manual_code')) {
+              navigate('/interactive', { replace: true });
+              setMode('studio-welcome');
           }
       }
 
@@ -249,29 +232,35 @@ const Interactive: React.FC = () => {
         setIsPracticeMode(false);
         setCombo(0); // Reset Combo
 
-        // Setup Visualizer & Recorder
+        // Try to setup Visualizer & Recorder
         try {
+            // NOTE: createMediaElementSource requires the audio element to have CORS enabled
+            // AND the server to serve correct headers. If this fails, we catch it and fallback.
             if (!audioSourceRef.current) {
-                const source = ctx.createMediaElementSource(audioRef.current);
-                
-                // Create Analyser
-                const analyser = ctx.createAnalyser();
-                analyser.fftSize = 256;
-                const bufferLength = analyser.frequencyBinCount;
-                const dataArray = new Uint8Array(bufferLength);
-                analyserRef.current = analyser;
-                dataArrayRef.current = dataArray;
+                try {
+                    const source = ctx.createMediaElementSource(audioRef.current);
+                    
+                    // Create Analyser
+                    const analyser = ctx.createAnalyser();
+                    analyser.fftSize = 256;
+                    const bufferLength = analyser.frequencyBinCount;
+                    const dataArray = new Uint8Array(bufferLength);
+                    analyserRef.current = analyser;
+                    dataArrayRef.current = dataArray;
 
-                // Create Recorder Destination
-                const dest = ctx.createMediaStreamDestination();
-                
-                // Connect Graph: Source -> Analyser -> Destination -> Master Out
-                source.connect(analyser);
-                analyser.connect(dest);
-                source.connect(ctx.destination); // For hearing
-                
-                audioSourceRef.current = source;
-                audioDestRef.current = dest;
+                    // Create Recorder Destination
+                    const dest = ctx.createMediaStreamDestination();
+                    
+                    // Connect Graph: Source -> Analyser -> Destination -> Master Out
+                    source.connect(analyser);
+                    analyser.connect(dest);
+                    source.connect(ctx.destination); // For hearing
+                    
+                    audioSourceRef.current = source;
+                    audioDestRef.current = dest;
+                } catch (sourceError) {
+                    throw new Error("WebAudio Source Creation Failed (Likely CORS)");
+                }
             }
 
             const canvasStream = (canvasRef.current as any).captureStream(60); // 60 FPS for smoother visualizer
@@ -306,21 +295,26 @@ const Interactive: React.FC = () => {
             recorder.start();
 
         } catch (recorderError) {
-            console.warn("MediaRecorder failed, falling back to Practice Mode", recorderError);
+            console.warn("MediaRecorder/WebAudio failed, falling back to Practice Mode", recorderError);
             setIsPracticeMode(true);
-            alert("⚠️ 瀏覽器限制：無法錄製影片，將進入「練習模式 (Practice Mode)」。\n\n您可以體驗完整對時流程，但最後無法下載 MP4。");
+            // Even if recording/visuals fail, we MUST let the user play
+            // Force audio to play normally without WebAudio graph if needed
+            audioRef.current.play().catch(e => console.error("Standard play fallback failed", e));
         }
 
         setMode('playing');
         setLineIndex(0);
         lastActionTimeRef.current = performance.now();
         
-        await audioRef.current.play();
+        // Ensure play is called if we didn't error out earlier
+        if (audioRef.current.paused) {
+            await audioRef.current.play();
+        }
         loop();
 
       } catch (e) { 
         console.error("Critical Start Error:", e);
-        alert("無法啟動音源。\n請檢查音檔連結是否有效 (404/CORS)，或瀏覽器是否阻擋自動播放。");
+        alert("無法啟動音源 (Cannot Start Audio)。\n可能原因：連結無效、跨域限制(CORS)或瀏覽器阻擋。\n\nPossible Causes: Broken Link, CORS Policy, or Browser Block.");
       }
   };
 
@@ -436,8 +430,8 @@ const Interactive: React.FC = () => {
           ctx.restore();
       }
 
-      // 2. Audio Visualizer (Spectrum)
-      if (analyserRef.current && dataArrayRef.current) {
+      // 2. Audio Visualizer (Spectrum) - Only if Analyzer exists
+      if (analyserRef.current && dataArrayRef.current && !isPracticeMode) {
           analyserRef.current.getByteFrequencyData(dataArrayRef.current);
           const barCount = 64; // Number of bars
           const barWidth = (w / barCount) * 1.5;
@@ -580,17 +574,17 @@ const Interactive: React.FC = () => {
       
       if (isPracticeMode) {
           ctx.save();
-          ctx.fillStyle = 'rgba(255, 255, 255, 0.2)';
+          ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
           ctx.font = 'bold 20px Montserrat';
           ctx.letterSpacing = '2px';
-          ctx.fillText("PRACTICE MODE", w/2, 60);
+          ctx.fillText("PRACTICE MODE (NO RECORDING)", w/2, 60);
           ctx.restore();
       }
   };
 
   const downloadVideo = () => {
     if (isPracticeMode) {
-        alert("練習模式下無法下載影片 (Practice Mode)。");
+        alert("練習模式下無法下載影片 (Practice Mode)。\n\n原因：瀏覽器或音檔限制了錄製功能。");
         return;
     }
     if (recordedChunksRef.current.length === 0) {

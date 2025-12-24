@@ -53,7 +53,7 @@ const TRANSLATIONS = {
     guide_step1_desc: "Choose your support method above\n(Interactive, Premium, or Music Sustenance)",
     
     guide_step2_title: "PROCESS PAYMENT",
-    guide_step2_desc: "Secure payment via PayPal\nEnter process immediately after completion",
+    guide_step2_desc: "Secure payment via Bank/Line\nEnter process immediately after completion",
     
     guide_step3_title: "EXPERIENCE & KEEP",
     guide_step3_desc: "Experience the process or get the result\nLeave your connection with Willwi",
@@ -91,11 +91,26 @@ const TRANSLATIONS = {
     modal_tab_support_sub: "Pure Support",
     modal_tab_support_note: "DEFAULT: NT$ 100",
     modal_payment_header: "Support Method",
-    modal_payment_sub: "PayPal Only",
+    modal_payment_sub: "Secure Payment",
+    
+    // Bank / Manual
+    modal_manual_title: "Bank Transfer / LINE",
+    modal_manual_desc: "Direct Transfer & Verification",
+    modal_bank_info: "Bank Transfer Info",
+    modal_bank_code: "Bank Code",
+    modal_bank_account: "Account",
+    modal_bank_copy: "COPY",
+    modal_line_title: "LINE Official",
+    modal_line_desc: "Scan to add friend for verification",
+    modal_manual_btn: "I Have Transferred (Start Session)",
+    modal_manual_note: "* Please screenshot your transfer and send to LINE Official for confirmation later.",
+
+    // PayPal
     modal_paypal_title: "PayPal Support",
-    modal_paypal_desc: "Secure International Transfer",
+    modal_paypal_desc: "International Transfer",
     modal_paypal_btn: "Proceed with PayPal",
     modal_paypal_note: "Contribution to support creativity",
+    
     modal_confirm_btn: "Verify & Enter",
     modal_confirm_btn_invalid: "Fill Identity to Confirm",
     modal_contribution_title: "Your Contribution",
@@ -108,9 +123,9 @@ const TRANSLATIONS = {
     modal_session_unit: "SESSION",
     
     // Payment Modal Extras
-    payment_gateway_selected: "Selected Gateway",
+    payment_gateway_selected: "Selected Method",
     payment_total: "Total Support",
-    payment_scan_label: "Scan to Pay",
+    payment_scan_label: "Scan to Pay / Transfer",
     payment_open_link: "OPEN LINK (or Scan Above)",
     payment_confirm: "CONFIRM SUPPORT",
     payment_disclaimer: "* Funds are for creative support, not product sales.",
@@ -139,7 +154,7 @@ const TRANSLATIONS = {
     interactive_gate_ticket: "Access Ticket",
     interactive_gate_session: "Single Session",
     interactive_gate_fee: "Entry Fee",
-    interactive_gate_pay_btn: "Pay via NewebPay / Credit",
+    interactive_gate_pay_btn: "Pay via Bank / Credit",
     interactive_gate_pay_note: "After payment, click the button on the right to enter.\nNo need to wait for callback.",
     interactive_gate_ready: "Ready to Enter",
     interactive_gate_policy: "By clicking payment, you understand and agree:\n・This is not a product sale\n・No license or rights transfer involved\n・This is a one-time record of creative participation",
@@ -265,7 +280,7 @@ const TRANSLATIONS = {
     guide_step1_desc: "從上方選擇您的支持方式\n(互動體驗、高畫質收藏或音樂食糧)",
     
     guide_step2_title: "安全付款",
-    guide_step2_desc: "透過 PayPal 安全付款\n完成後直接進入對應流程",
+    guide_step2_desc: "透過銀行匯款 / LINE 官方\n完成後直接進入對應流程",
     
     guide_step3_title: "體驗與收藏",
     guide_step3_desc: "體驗創作過程或獲得成品\n留下您與 Willwi 的連結",
@@ -303,11 +318,26 @@ const TRANSLATIONS = {
     modal_tab_support_sub: "純粹支持",
     modal_tab_support_note: "預設：NT$ 100",
     modal_payment_header: "支持方式",
-    modal_payment_sub: "僅限 PayPal",
+    modal_payment_sub: "匯款 / PayPal",
+    
+    // Bank / Manual
+    modal_manual_title: "銀行匯款 / LINE",
+    modal_manual_desc: "直接匯款與官方驗證",
+    modal_bank_info: "匯款資訊",
+    modal_bank_code: "銀行代碼",
+    modal_bank_account: "匯款帳號",
+    modal_bank_copy: "複製",
+    modal_line_title: "LINE 官方帳號",
+    modal_line_desc: "加入好友進行確認或直接支持",
+    modal_manual_btn: "我已匯款，開始體驗 (Start)",
+    modal_manual_note: "請務必截圖匯款畫面，稍後透過 LINE 官方帳號傳送給 Willwi 核對。",
+
+    // PayPal
     modal_paypal_title: "PayPal 支持",
     modal_paypal_desc: "跨國安全匯款",
     modal_paypal_btn: "前往 PayPal 付款",
     modal_paypal_note: "此款項為支持創作之用途 非商品交易",
+    
     modal_confirm_btn: "確認支持並進入",
     modal_confirm_btn_invalid: "請填寫身份以確認",
     modal_contribution_title: "您的貢獻",
@@ -351,7 +381,7 @@ const TRANSLATIONS = {
     interactive_gate_ticket: "Access Ticket",
     interactive_gate_session: "Single Session",
     interactive_gate_fee: "Entry Fee",
-    interactive_gate_pay_btn: "Pay via NewebPay / Credit",
+    interactive_gate_pay_btn: "Pay via Bank / Credit",
     interactive_gate_pay_note: "付款完成後，請直接點擊右側按鈕進入。\n無需等待回傳。",
     interactive_gate_ready: "Ready to Enter",
     interactive_gate_policy: "點擊付款，即表示你理解並同意：\n・這不是商品販售\n・不包含任何授權或權利轉移\n・此為一次性的創作參與紀錄",

@@ -153,7 +153,6 @@ const AdminDashboard: React.FC = () => {
       const reader = new FileReader();
       reader.onload = async (event) => {
           try {
-            // Fix: Wrap result in String() to avoid implicit symbol conversion issues in strict contexts
             const data = JSON.parse(String(event.target?.result));
             if (Array.isArray(data)) {
                 if (window.confirm(`即將匯入 ${data.length} 筆資料。\n[OK]: 清空並覆寫 (Overwrite)\n[Cancel]: 取消`)) {

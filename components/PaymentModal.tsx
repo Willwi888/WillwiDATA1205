@@ -1,8 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useUser } from '../context/UserContext';
 import { useTranslation } from '../context/LanguageContext';
-import { submitECPayForm } from '../services/ecpayService';
-import { submitNewebPayForm } from '../services/newebPayService';
 
 interface PaymentModalProps {
   isOpen: boolean;
@@ -13,17 +11,15 @@ interface PaymentModalProps {
 const UNIT_PRICE = 320;
 const CINEMA_PRICE = 2800;
 
-// PayPal Support Links (Mapped to Tiers)
-const PAYPAL_LINKS = {
-    production: "https://www.paypal.com/ncp/payment/UZU4M39WRFN5N", // NT$ 320 - Handcrafted Lyrics
-    cinema: "https://www.paypal.com/ncp/payment/CD27A99GZHXV4",     // NT$ 2800 - Cloud Cinema
-    support: "https://www.paypal.com/ncp/payment/PNLV2V3PP47ZN"      // NT$ 100 - Instant Noodles Support
+// Bank Info
+const BANK_INFO = {
+    code: "822",
+    name: "中國信託 (CTBC)",
+    account: "4405-3186-4207"
 };
 
-type GatewayType = 'ecpay' | 'newebpay' | 'paypal' | 'linepay' | 'bank';
-
 const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, initialMode = 'production' }) => {
-  const { user, login } = useUser();
+  const { user, login, addCredits, recordDonation } = useUser();
   const { t } = useTranslation();
   
   const [name, setName] = useState(user?.name || '');
@@ -31,9 +27,16 @@ const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, initialMod
   const [supportMode, setSupportMode] = useState<'production' | 'support' | 'cinema'>(initialMode);
   const [customAmount, setCustomAmount] = useState<number>(100);
   const [pointCount, setPointCount] = useState<number>(1);
-  const [gateway, setGateway] = useState<GatewayType>('ecpay');
   const [isInfoLocked, setIsInfoLocked] = useState(false);
+  
+  // Payment Step: 'qr' -> 'verify'
+  const [step, setStep] = useState<'qr' | 'verify'>('qr');
+  const [inputCode, setInputCode] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
+  const [errorMsg, setErrorMsg] = useState('');
+
+  // Loaded Images
+  const [qrImages, setQrImages] = useState({ production: '', cinema: '', support: '', line: '' });
 
   useEffect(() => {
     if (user?.name && user?.email) {
@@ -41,83 +44,81 @@ const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, initialMod
       setEmail(user.email);
       setIsInfoLocked(true);
     }
-  }, [user]);
+    // Load images from localstorage (uploaded via admin)
+    setQrImages({
+        production: localStorage.getItem('qr_production') || '',
+        cinema: localStorage.getItem('qr_cinema') || '',
+        support: localStorage.getItem('qr_support') || '',
+        line: localStorage.getItem('qr_line') || ''
+    });
+  }, [user, isOpen]);
 
-  // Sync mode when modal opens
   useEffect(() => {
       if (isOpen) {
           setSupportMode(initialMode);
+          setStep('qr');
+          setInputCode('');
+          setErrorMsg('');
       }
   }, [isOpen, initialMode]);
 
   if (!isOpen) return null;
 
   let totalAmount = 0;
-  if (supportMode === 'production') totalAmount = pointCount * UNIT_PRICE;
-  else if (supportMode === 'cinema') totalAmount = CINEMA_PRICE;
-  else totalAmount = customAmount;
+  let currentQr = qrImages.production;
+  
+  if (supportMode === 'production') {
+      totalAmount = pointCount * UNIT_PRICE;
+      currentQr = qrImages.production;
+  } else if (supportMode === 'cinema') {
+      totalAmount = CINEMA_PRICE;
+      currentQr = qrImages.cinema;
+  } else {
+      totalAmount = customAmount;
+      currentQr = qrImages.support;
+  }
+
+  // Fallback for missing images
+  if (!currentQr) currentQr = "https://placehold.co/300x300/000000/FFFFFF?text=No+QR+Uploaded";
+  const lineQr = qrImages.line || "https://placehold.co/300x300/06c755/FFFFFF?text=LINE";
 
   const isFormValid = name.trim().length > 0 && email.includes('@') && totalAmount > 0;
 
-  // Determine current PayPal Link
-  const getCurrentPayPalLink = () => {
-      if (supportMode === 'production') return PAYPAL_LINKS.production;
-      if (supportMode === 'cinema') return PAYPAL_LINKS.cinema;
-      return PAYPAL_LINKS.support;
+  const handleTransferred = () => {
+      if (!isFormValid) { alert(t('modal_confirm_btn_invalid')); return; }
+      login(name, email);
+      setStep('verify');
   };
 
-  // Generate QR Code URL dynamically
-  const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&color=000000&bgcolor=ffffff&margin=10&data=${encodeURIComponent(getCurrentPayPalLink())}`;
+  const handleVerifyCode = async () => {
+      setIsProcessing(true);
+      setErrorMsg('');
+      
+      // Simulate network check
+      await new Promise(r => setTimeout(r, 1000));
 
-  const handlePayment = async () => {
-    if (!isFormValid) return alert(t('modal_confirm_btn_invalid'));
-    
-    // Update user info in context
-    login(name, email);
-    
-    setIsProcessing(true);
-    
-    // Updated Item Names
-    let itemName = "";
-    if (supportMode === 'production') itemName = `Willwi Creative Process Participation x ${pointCount}`;
-    else if (supportMode === 'cinema') itemName = `Willwi Cloud Cinema (Exclusive Video)`;
-    else itemName = `Willwi Thermal Support (Music Sustenance)`;
-    
-    // Prepare data to be recovered after redirect
-    const extraData = {
-        type: supportMode,
-        amount: totalAmount,
-        points: supportMode === 'production' ? pointCount : 0,
-        name,
-        email,
-        timestamp: Date.now(),
-        gateway: gateway
-    };
+      const correctCode = localStorage.getItem('willwi_access_code') || '8888';
+      
+      if (inputCode === correctCode) {
+          // Success
+          if (supportMode === 'production') {
+              addCredits(pointCount, true, totalAmount);
+          } else {
+              recordDonation(totalAmount);
+          }
+          
+          const currentUrl = window.location.href.split('#')[0];
+          window.location.href = `${currentUrl}#/interactive?payment=success&source=manual_code`;
+          onClose();
+      } else {
+          setErrorMsg("通行碼錯誤 (Invalid Code)。請聯繫 LINE 客服確認。");
+          setIsProcessing(false);
+      }
+  };
 
-    try {
-        if (gateway === 'ecpay') {
-            // ECPay (綠界)
-            await submitECPayForm(totalAmount, itemName, "Creative Support", extraData);
-        } else if (gateway === 'newebpay') {
-            // NewebPay (藍新)
-            await submitNewebPayForm(totalAmount, itemName, email, extraData);
-        } else if (gateway === 'paypal') {
-            // PayPal (Redirect with specific link)
-            localStorage.setItem('willwi_pending_tx', JSON.stringify({
-                tradeNo: `PP-${Date.now()}`,
-                ...extraData
-            }));
-            
-            window.location.href = getCurrentPayPalLink();
-        } else {
-            alert("此付款方式尚未開放 (Coming Soon)");
-            setIsProcessing(false);
-        }
-    } catch (e) {
-        console.error("Payment Error", e);
-        setIsProcessing(false);
-        alert("金流串接發生錯誤，請稍後再試。");
-    }
+  const copyBankInfo = () => {
+      navigator.clipboard.writeText(BANK_INFO.account);
+      alert("帳號已複製 (Account Copied)");
   };
 
   return (
@@ -148,7 +149,7 @@ const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, initialMod
                         placeholder={t('modal_name')}
                         value={name}
                         onChange={(e) => setName(e.target.value)}
-                        disabled={isInfoLocked}
+                        disabled={isInfoLocked || step === 'verify'}
                     />
                 </div>
                 <div className="space-y-2">
@@ -158,7 +159,7 @@ const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, initialMod
                         placeholder="contact@email.com"
                         value={email}
                         onChange={(e) => setEmail(e.target.value)}
-                        disabled={isInfoLocked}
+                        disabled={isInfoLocked || step === 'verify'}
                     />
                 </div>
             </div>
@@ -167,142 +168,120 @@ const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, initialMod
         {/* MAIN CONTENT AREA */}
         <div className="flex flex-col lg:flex-row opacity-100 flex-grow">
             
-            {/* LEFT: PAYMENT GATEWAY SELECTION */}
-            <div className="flex-1 p-8 bg-slate-900/10">
+            {/* LEFT: PAYMENT DETAILS */}
+            <div className="flex-1 p-8 bg-slate-900/10 relative">
                 <div className="flex items-center justify-between mb-6">
                     <span className="text-[10px] font-black text-white uppercase tracking-[0.3em]">{t('modal_payment_header')}</span>
-                    <span className="text-[10px] font-mono text-slate-500 uppercase tracking-widest">SECURE SSL</span>
+                    <span className="text-[10px] font-mono text-emerald-500 uppercase tracking-widest">TRANSFER / LINE PAY</span>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4 mb-8">
-                    {/* ECPay Option */}
-                    <button 
-                        onClick={() => setGateway('ecpay')}
-                        className={`p-4 border text-left transition-all relative overflow-hidden ${gateway === 'ecpay' ? 'bg-green-600/10 border-green-500' : 'bg-slate-900 border-white/10 hover:border-white/30'}`}
-                    >
-                        <div className="flex items-center gap-3 mb-3">
-                            <div className={`w-4 h-4 rounded-full border flex items-center justify-center ${gateway === 'ecpay' ? 'border-green-500' : 'border-slate-600'}`}>
-                                {gateway === 'ecpay' && <div className="w-2 h-2 bg-green-500 rounded-full"></div>}
-                            </div>
-                            <span className={`text-xs font-black uppercase tracking-widest ${gateway === 'ecpay' ? 'text-white' : 'text-slate-400'}`}>ECPay 綠界</span>
-                        </div>
-                        <div className="flex gap-2 opacity-50">
-                            <div className="h-4 w-7 bg-slate-700 rounded"></div>
-                            <div className="h-4 w-7 bg-slate-700 rounded"></div>
-                        </div>
-                    </button>
-
-                    {/* NewebPay Option */}
-                    <button 
-                        onClick={() => setGateway('newebpay')}
-                        className={`p-4 border text-left transition-all relative overflow-hidden ${gateway === 'newebpay' ? 'bg-blue-600/10 border-blue-500' : 'bg-slate-900 border-white/10 hover:border-white/30'}`}
-                    >
-                        <div className="flex items-center gap-3 mb-3">
-                            <div className={`w-4 h-4 rounded-full border flex items-center justify-center ${gateway === 'newebpay' ? 'border-blue-500' : 'border-slate-600'}`}>
-                                {gateway === 'newebpay' && <div className="w-2 h-2 bg-blue-500 rounded-full"></div>}
-                            </div>
-                            <span className={`text-xs font-black uppercase tracking-widest ${gateway === 'newebpay' ? 'text-white' : 'text-slate-400'}`}>NewebPay 藍新</span>
-                        </div>
-                        <div className="flex gap-2 opacity-50">
-                            <div className="h-4 w-7 bg-slate-700 rounded"></div>
-                            <div className="h-4 w-7 bg-slate-700 rounded"></div>
-                        </div>
-                    </button>
-
-                    {/* PayPal Option (Fixed) */}
-                    <button 
-                        onClick={() => setGateway('paypal')}
-                        className={`p-4 border text-left transition-all relative overflow-hidden ${gateway === 'paypal' ? 'bg-[#003087]/20 border-[#003087]' : 'bg-slate-900 border-white/10 hover:border-white/30'}`}
-                    >
-                        <div className="flex items-center gap-3 mb-3">
-                            <div className={`w-4 h-4 rounded-full border flex items-center justify-center ${gateway === 'paypal' ? 'border-[#003087]' : 'border-slate-600'}`}>
-                                {gateway === 'paypal' && <div className="w-2 h-2 bg-[#003087] rounded-full"></div>}
-                            </div>
-                            <span className={`text-xs font-black uppercase tracking-widest ${gateway === 'paypal' ? 'text-white' : 'text-slate-400'}`}>PayPal</span>
-                        </div>
-                        <div className="flex gap-2 opacity-50">
-                            <div className="h-4 w-7 bg-slate-700 rounded"></div>
-                            <div className="h-4 w-7 bg-slate-700 rounded"></div>
-                        </div>
-                    </button>
-
-                    {/* Line Pay (Future) */}
-                    <button disabled className="p-4 border border-white/5 bg-slate-900/50 text-left opacity-50 cursor-not-allowed">
-                        <div className="flex items-center gap-3 mb-2">
-                            <div className="w-4 h-4 rounded-full border border-slate-700"></div>
-                            <span className="text-xs font-bold text-slate-500 uppercase tracking-widest">Line Pay</span>
-                        </div>
-                        <span className="text-[9px] text-slate-600 bg-black px-2 py-0.5 rounded">COMING SOON</span>
-                    </button>
-
-                    {/* Bank Transfer (Future) */}
-                    <button disabled className="p-4 border border-white/5 bg-slate-900/50 text-left opacity-50 cursor-not-allowed hidden md:block">
-                        <div className="flex items-center gap-3 mb-2">
-                            <div className="w-4 h-4 rounded-full border border-slate-700"></div>
-                            <span className="text-xs font-bold text-slate-500 uppercase tracking-widest">Bank / 匯款</span>
-                        </div>
-                        <span className="text-[9px] text-slate-600 bg-black px-2 py-0.5 rounded">COMING SOON</span>
-                    </button>
-                </div>
-
-                {/* Checkout Action */}
-                <div className="bg-white p-6 rounded-sm shadow-xl">
-                    <div className="flex justify-between items-end mb-4">
+                <div className="bg-white p-6 rounded-sm shadow-xl relative overflow-hidden min-h-[400px]">
+                    <div className="flex justify-between items-end mb-6 border-b border-slate-100 pb-4">
                         <div>
-                            <span className="block text-[10px] text-slate-400 uppercase tracking-widest mb-1">{t('payment_gateway_selected')}</span>
-                            <span className={`text-sm font-black uppercase tracking-widest ${
-                                gateway === 'ecpay' ? 'text-green-600' : 
-                                gateway === 'newebpay' ? 'text-blue-600' :
-                                gateway === 'paypal' ? 'text-[#003087]' : 'text-slate-600'
-                            }`}>
-                                {gateway === 'ecpay' ? 'ECPay (綠界科技)' : 
-                                 gateway === 'newebpay' ? 'NewebPay (藍新金流)' : 
-                                 gateway === 'paypal' ? 'PayPal (International)' : 'Unknown'}
-                            </span>
+                            <span className="block text-[10px] text-slate-400 uppercase tracking-widest mb-1">{t('payment_total')}</span>
+                            <span className="text-3xl font-black text-slate-900">NT$ {totalAmount.toLocaleString()}</span>
                         </div>
                         <div className="text-right">
-                            <span className="block text-[10px] text-slate-400 uppercase tracking-widest mb-1">{t('payment_total')}</span>
-                            <span className="text-2xl font-black text-slate-900">NT$ {totalAmount.toLocaleString()}</span>
+                            <span className="block text-[9px] text-slate-400 font-bold uppercase tracking-widest bg-slate-100 px-2 py-1 rounded">
+                                {supportMode === 'production' ? 'Interactive Ticket' : (supportMode === 'cinema' ? 'Cinema Access' : 'Donation')}
+                            </span>
                         </div>
                     </div>
                     
-                    {/* PAYPAL SPECIFIC: SHOW QR CODE */}
-                    {gateway === 'paypal' && (
-                        <div className="mb-6 flex flex-col items-center justify-center pt-4 border-t border-slate-100 mt-4 animate-fade-in">
-                            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mb-3">{t('payment_scan_label')}</p>
-                            <div className="p-2 bg-white border border-slate-200 shadow-inner">
-                                <img 
-                                    src={qrCodeUrl} 
-                                    alt="PayPal QR Code" 
-                                    className="w-32 h-32 md:w-40 md:h-40 object-contain" 
-                                />
+                    {step === 'qr' ? (
+                        <div className="animate-fade-in">
+                            {/* BANK INFO */}
+                            <div className="mb-6 bg-slate-50 border border-slate-200 p-4 rounded-sm">
+                                <div className="flex justify-between items-start mb-2">
+                                    <div>
+                                        <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest mb-1">{t('modal_bank_info')}</p>
+                                        <p className="text-sm font-bold text-slate-800">{BANK_INFO.code} {BANK_INFO.name}</p>
+                                    </div>
+                                    <div className="text-right">
+                                        <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest mb-1">{t('modal_bank_account')}</p>
+                                        <div className="flex items-center gap-2 justify-end">
+                                            <p className="text-xl font-mono font-black text-emerald-600">{BANK_INFO.account}</p>
+                                            <button onClick={copyBankInfo} className="text-[10px] bg-slate-200 px-2 py-1 rounded text-slate-600 hover:bg-slate-300 transition-colors uppercase font-bold">{t('modal_bank_copy')}</button>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
-                            <p className="text-[9px] text-[#003087] font-bold mt-2">{supportMode === 'production' ? 'Handcrafted' : (supportMode === 'cinema' ? 'Cinema' : 'Support')} QR</p>
+
+                            {/* QR CODES GRID */}
+                            <div className="grid grid-cols-2 gap-4 mb-6">
+                                {/* 1. Payment QR */}
+                                <div className="bg-white border border-slate-200 p-3 flex flex-col items-center justify-center text-center shadow-inner rounded-sm">
+                                    <p className="text-[9px] text-slate-400 font-bold uppercase tracking-widest mb-2">{t('payment_scan_label')}</p>
+                                    <img 
+                                        src={currentQr} 
+                                        alt="Payment QR" 
+                                        className="w-32 h-32 object-contain mix-blend-multiply" 
+                                    />
+                                    <p className="text-[9px] text-slate-500 font-bold mt-2 uppercase">Scan to Pay</p>
+                                </div>
+
+                                {/* 2. LINE QR */}
+                                <div className="bg-[#06c755]/10 border border-[#06c755]/30 p-3 flex flex-col items-center justify-center text-center rounded-sm">
+                                    <p className="text-[9px] text-[#06c755] font-bold uppercase tracking-widest mb-2">{t('modal_line_title')}</p>
+                                    <img 
+                                        src={lineQr} 
+                                        alt="Line QR" 
+                                        className="w-32 h-32 object-contain mix-blend-multiply" 
+                                    />
+                                    <p className="text-[9px] text-slate-600 font-bold mt-2 uppercase">Contact Admin</p>
+                                </div>
+                            </div>
+
+                            <button 
+                                onClick={handleTransferred}
+                                disabled={!isFormValid}
+                                className={`w-full py-4 font-black text-xs uppercase tracking-[0.2em] transition-all shadow-lg flex justify-center items-center gap-2
+                                    ${!isFormValid ? 'bg-slate-200 text-slate-400 cursor-not-allowed' : 'bg-emerald-600 text-white hover:bg-emerald-700 shadow-emerald-900/20'}`}
+                            >
+                                {t('modal_manual_btn')}
+                            </button>
+                            <p className="text-[9px] text-slate-400 text-center mt-3">
+                                {t('modal_manual_note')}
+                            </p>
+                        </div>
+                    ) : (
+                        <div className="animate-fade-in flex flex-col justify-center h-full py-10">
+                            <div className="text-center space-y-6">
+                                <div className="w-16 h-16 bg-brand-gold/20 text-brand-gold rounded-full flex items-center justify-center mx-auto border-2 border-brand-gold">
+                                    <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
+                                </div>
+                                <div>
+                                    <h4 className="text-lg font-black uppercase text-slate-800 tracking-widest">Verify Access</h4>
+                                    <p className="text-xs text-slate-500 mt-2 leading-relaxed">
+                                        請將匯款截圖傳送至 LINE 官方帳號。<br/>
+                                        Willwi 確認後將提供您一組 <span className="font-bold text-slate-900">通行碼 (Access Code)</span>。
+                                    </p>
+                                </div>
+                                <div className="max-w-xs mx-auto">
+                                    <input 
+                                        type="text" 
+                                        placeholder="Enter Code (e.g. 8888)" 
+                                        className="w-full text-center text-2xl font-mono border-b-2 border-slate-300 focus:border-brand-gold outline-none py-2 text-slate-900 placeholder-slate-300 tracking-[0.5em]"
+                                        value={inputCode}
+                                        onChange={(e) => setInputCode(e.target.value)}
+                                        autoFocus
+                                    />
+                                </div>
+                                {errorMsg && <p className="text-red-500 text-xs font-bold animate-pulse">{errorMsg}</p>}
+                                
+                                <div className="flex gap-4">
+                                    <button onClick={() => setStep('qr')} className="flex-1 py-3 text-slate-400 font-bold text-xs uppercase tracking-widest hover:text-slate-600">Back</button>
+                                    <button 
+                                        onClick={handleVerifyCode} 
+                                        disabled={!inputCode || isProcessing}
+                                        className={`flex-1 py-3 bg-brand-gold text-slate-900 font-black text-xs uppercase tracking-widest hover:bg-black hover:text-white transition-all shadow-lg ${isProcessing ? 'opacity-50' : ''}`}
+                                    >
+                                        {isProcessing ? 'Verifying...' : 'Unlock'}
+                                    </button>
+                                </div>
+                            </div>
                         </div>
                     )}
-
-                    <button 
-                        onClick={handlePayment}
-                        disabled={!isFormValid || isProcessing}
-                        className={`w-full py-4 font-black text-xs uppercase tracking-[0.2em] transition-all shadow-lg flex justify-center items-center gap-2
-                            ${!isFormValid || isProcessing ? 'bg-slate-200 text-slate-400 cursor-not-allowed' : 
-                              gateway === 'ecpay' ? 'bg-green-600 text-white hover:bg-green-700 shadow-green-900/20' : 
-                              gateway === 'newebpay' ? 'bg-blue-600 text-white hover:bg-blue-700 shadow-blue-900/20' :
-                              'bg-[#003087] text-white hover:bg-[#00256b] shadow-blue-900/20'
-                            }`}
-                    >
-                        {isProcessing ? (
-                            <>
-                                <svg className="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
-                                <span>Processing...</span>
-                            </>
-                        ) : (
-                            <span>{gateway === 'paypal' ? t('payment_open_link') : t('payment_confirm')}</span>
-                        )}
-                    </button>
-                    <p className="text-[9px] text-slate-400 text-center mt-3">
-                        {t('payment_disclaimer')}
-                    </p>
                 </div>
             </div>
 
