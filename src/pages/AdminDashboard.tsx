@@ -44,6 +44,7 @@ const AdminDashboard: React.FC = () => {
 
   // QR Code Images State
   const [qrImages, setQrImages] = useState({
+      global_payment: '',
       production: '',
       cinema: '',
       support: '',
@@ -57,6 +58,7 @@ const AdminDashboard: React.FC = () => {
       
       // Load QRs
       setQrImages({
+          global_payment: localStorage.getItem('qr_global_payment') || '',
           production: localStorage.getItem('qr_production') || '',
           cinema: localStorage.getItem('qr_cinema') || '',
           support: localStorage.getItem('qr_support') || '',
@@ -158,8 +160,8 @@ const AdminDashboard: React.FC = () => {
       const reader = new FileReader();
       reader.onload = async (event) => {
           try {
-            const result = String(event.target?.result);
-            if (!result || result === 'null' || result === 'undefined') return;
+            const result = event.target?.result;
+            if (typeof result !== 'string') return;
 
             const data = JSON.parse(result);
             if (Array.isArray(data)) {
@@ -254,8 +256,8 @@ const AdminDashboard: React.FC = () => {
               <div className="text-[10px] text-slate-500 font-bold uppercase tracking-widest mb-2 group-hover:text-brand-gold">Total Catalog</div>
               <div className="text-3xl font-black text-white">{songs.length} <span className="text-xs font-medium text-slate-600">Tracks</span></div>
           </div>
-          <div className="bg-slate-900 border border-white/5 p-5 rounded-xl hover:border-emerald-500 transition-all cursor-pointer border-l-4 border-l-emerald-500" onClick={() => setActiveTab('curation')}>
-              <div className="text-[10px] text-emerald-400 font-bold uppercase tracking-widest mb-2">Interactive Ready</div>
+          <div className={`bg-slate-900 border border-white/5 p-5 rounded-xl hover:border-emerald-500 transition-all cursor-pointer ${activeTab === 'curation' ? 'border-l-4 border-l-emerald-500 bg-slate-800' : ''}`} onClick={() => setActiveTab('curation')}>
+              <div className="text-[10px] text-emerald-400 font-bold uppercase tracking-widest mb-2">Interactive Control</div>
               <div className="text-3xl font-black text-emerald-400">{stats.activeSongs} <span className="text-xs font-medium text-emerald-900">Active</span></div>
           </div>
           <div className="bg-slate-900 border border-white/5 p-5 rounded-xl hover:border-red-500/30 transition-all">
@@ -279,7 +281,6 @@ const AdminDashboard: React.FC = () => {
 
       {activeTab === 'catalog' && (
           <div className="animate-fade-in space-y-4">
-              
               {/* 3. TOOLBAR (Search & Filters) */}
               <div className="bg-slate-900/50 border border-white/10 p-2 rounded-lg flex flex-col md:flex-row gap-2 sticky top-20 z-30 backdrop-blur-xl shadow-2xl">
                   <div className="flex-1 relative">
@@ -420,8 +421,8 @@ const AdminDashboard: React.FC = () => {
           <div className="max-w-5xl mx-auto animate-fade-in space-y-8">
               <div className="bg-slate-900 border border-white/10 p-8 rounded-xl">
                   <div className="mb-8">
-                      <h3 className="text-xl font-black text-emerald-400 uppercase tracking-[0.3em] mb-2">Curate Interactive Session</h3>
-                      <p className="text-slate-500 text-xs">Toggle which songs appear in the public interactive database.</p>
+                      <h3 className="text-xl font-black text-emerald-400 uppercase tracking-[0.3em] mb-2">Interactive Control Panel</h3>
+                      <p className="text-slate-500 text-xs">Curate the songs available for public selection in the Interactive Lab.</p>
                   </div>
 
                   <div className="grid grid-cols-1 gap-4">
@@ -498,15 +499,16 @@ const AdminDashboard: React.FC = () => {
                       </div>
 
                       {[
-                          { key: 'line', label: 'LINE Official Account QR', desc: 'For user verification' },
-                          { key: 'production', label: 'Interactive (Resonance) QR', desc: 'Handcrafted Lyrics (NT$ 320)' },
-                          { key: 'cinema', label: 'Cloud Cinema QR', desc: 'Premium Video (NT$ 2,800)' },
-                          { key: 'support', label: 'Support QR', desc: 'Donation / Instant Noodles' },
+                          { key: 'global_payment', label: 'Universal Payment QR (Line Pay)', desc: '★ DEFAULT for all payments (if specific one is missing)' },
+                          { key: 'line', label: 'LINE Official Account QR', desc: 'For user verification / Add Friend' },
+                          { key: 'production', label: 'Interactive (Resonance) QR', desc: 'Specific QR for NT$ 320' },
+                          { key: 'cinema', label: 'Cloud Cinema QR', desc: 'Specific QR for NT$ 2,800' },
+                          { key: 'support', label: 'Support QR', desc: 'Specific QR for Donation' },
                       ].map((item) => (
-                          <div key={item.key} className="p-6 bg-black/40 border border-white/5 rounded-xl">
+                          <div key={item.key} className={`p-6 border rounded-xl transition-all ${item.key === 'global_payment' ? 'bg-brand-gold/10 border-brand-gold/50' : 'bg-black/40 border-white/5'}`}>
                               <div className="flex justify-between items-start mb-4">
                                   <div>
-                                      <h4 className="text-white text-xs font-bold uppercase tracking-widest">{item.label}</h4>
+                                      <h4 className={`text-xs font-bold uppercase tracking-widest ${item.key === 'global_payment' ? 'text-brand-gold' : 'text-white'}`}>{item.label}</h4>
                                       <p className="text-[9px] text-slate-500 mt-1">{item.desc}</p>
                                   </div>
                                   {qrImages[item.key as keyof typeof qrImages] && <span className="text-[9px] text-green-500 font-bold">ACTIVE</span>}

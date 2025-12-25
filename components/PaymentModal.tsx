@@ -39,7 +39,7 @@ const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, initialMod
   const [errorMsg, setErrorMsg] = useState('');
 
   // Loaded Images
-  const [qrImages, setQrImages] = useState({ production: '', cinema: '', support: '', line: '' });
+  const [qrImages, setQrImages] = useState({ global_payment: '', production: '', cinema: '', support: '', line: '' });
 
   useEffect(() => {
     if (user?.name && user?.email) {
@@ -49,6 +49,7 @@ const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, initialMod
     }
     // Load images from localstorage (uploaded via admin)
     setQrImages({
+        global_payment: localStorage.getItem('qr_global_payment') || '',
         production: localStorage.getItem('qr_production') || '',
         cinema: localStorage.getItem('qr_cinema') || '',
         support: localStorage.getItem('qr_support') || '',
@@ -68,11 +69,11 @@ const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, initialMod
   if (!isOpen) return null;
 
   let totalAmount = 0;
-  let currentQr = qrImages.production;
+  let currentQr = '';
   
   if (supportMode === 'production') {
       totalAmount = pointCount * UNIT_PRICE;
-      currentQr = qrImages.production; // In Admin: "Interactive (Resonance) QR" -> Upload Line Pay QR here ideally
+      currentQr = qrImages.production; 
   } else if (supportMode === 'cinema') {
       totalAmount = CINEMA_PRICE;
       currentQr = qrImages.cinema;
@@ -81,12 +82,14 @@ const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, initialMod
       currentQr = qrImages.support;
   }
 
-  // Fallback for missing images
+  // FALLBACK: Use Universal/Global QR if specific one is missing
+  if (!currentQr && qrImages.global_payment) {
+      currentQr = qrImages.global_payment;
+  }
+
+  // Fallback for missing images entirely
   if (!currentQr) currentQr = "https://placehold.co/300x300/06c755/FFFFFF?text=LINE+PAY+QR";
   
-  // Line Official QR (for verification) - keeping as contact method
-  const lineQr = qrImages.line;
-
   const isFormValid = name.trim().length > 0 && email.includes('@') && totalAmount > 0;
 
   const handleTransferred = () => {

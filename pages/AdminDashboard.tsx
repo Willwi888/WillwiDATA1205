@@ -44,6 +44,7 @@ const AdminDashboard: React.FC = () => {
 
   // QR Code Images State
   const [qrImages, setQrImages] = useState({
+      global_payment: '',
       production: '',
       cinema: '',
       support: '',
@@ -57,6 +58,7 @@ const AdminDashboard: React.FC = () => {
       
       // Load QRs
       setQrImages({
+          global_payment: localStorage.getItem('qr_global_payment') || '',
           production: localStorage.getItem('qr_production') || '',
           cinema: localStorage.getItem('qr_cinema') || '',
           support: localStorage.getItem('qr_support') || '',
@@ -158,8 +160,8 @@ const AdminDashboard: React.FC = () => {
       const reader = new FileReader();
       reader.onload = async (event) => {
           try {
-            const result = String(event.target?.result);
-            if (!result || result === 'null' || result === 'undefined') return;
+            const result = event.target?.result;
+            if (typeof result !== 'string') return;
 
             const data = JSON.parse(result);
             if (Array.isArray(data)) {
@@ -279,7 +281,6 @@ const AdminDashboard: React.FC = () => {
 
       {activeTab === 'catalog' && (
           <div className="animate-fade-in space-y-4">
-              
               {/* 3. TOOLBAR (Search & Filters) */}
               <div className="bg-slate-900/50 border border-white/10 p-2 rounded-lg flex flex-col md:flex-row gap-2 sticky top-20 z-30 backdrop-blur-xl shadow-2xl">
                   <div className="flex-1 relative">
@@ -498,15 +499,16 @@ const AdminDashboard: React.FC = () => {
                       </div>
 
                       {[
-                          { key: 'line', label: 'LINE Official Account QR', desc: 'For user verification' },
-                          { key: 'production', label: 'Interactive (Resonance) QR', desc: 'Handcrafted Lyrics (NT$ 320)' },
-                          { key: 'cinema', label: 'Cloud Cinema QR', desc: 'Premium Video (NT$ 2,800)' },
-                          { key: 'support', label: 'Support QR', desc: 'Donation / Instant Noodles' },
+                          { key: 'global_payment', label: 'Universal Payment QR (Line Pay)', desc: '★ DEFAULT for all payments (if specific one is missing)' },
+                          { key: 'line', label: 'LINE Official Account QR', desc: 'For user verification / Add Friend' },
+                          { key: 'production', label: 'Interactive (Resonance) QR', desc: 'Specific QR for NT$ 320' },
+                          { key: 'cinema', label: 'Cloud Cinema QR', desc: 'Specific QR for NT$ 2,800' },
+                          { key: 'support', label: 'Support QR', desc: 'Specific QR for Donation' },
                       ].map((item) => (
-                          <div key={item.key} className="p-6 bg-black/40 border border-white/5 rounded-xl">
+                          <div key={item.key} className={`p-6 border rounded-xl transition-all ${item.key === 'global_payment' ? 'bg-brand-gold/10 border-brand-gold/50' : 'bg-black/40 border-white/5'}`}>
                               <div className="flex justify-between items-start mb-4">
                                   <div>
-                                      <h4 className="text-white text-xs font-bold uppercase tracking-widest">{item.label}</h4>
+                                      <h4 className={`text-xs font-bold uppercase tracking-widest ${item.key === 'global_payment' ? 'text-brand-gold' : 'text-white'}`}>{item.label}</h4>
                                       <p className="text-[9px] text-slate-500 mt-1">{item.desc}</p>
                                   </div>
                                   {qrImages[item.key as keyof typeof qrImages] && <span className="text-[9px] text-green-500 font-bold">ACTIVE</span>}
