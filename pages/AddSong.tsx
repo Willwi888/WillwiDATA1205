@@ -20,7 +20,8 @@ const convertToDirectStream = (url: string) => {
         // Dropbox
         if (url.includes('dropbox.com')) {
             let newUrl = url;
-            // Basic fix: replace dl=0 or dl=1 with raw=1
+            // Handle folder links - user shouldn't use them but if they do, we can't really convert well
+            // But for file links:
             if (newUrl.includes('dl=0')) newUrl = newUrl.replace('dl=0', 'raw=1');
             else if (newUrl.includes('dl=1')) newUrl = newUrl.replace('dl=1', 'raw=1');
             else if (!newUrl.includes('raw=1')) {
@@ -726,9 +727,10 @@ const AddSong: React.FC = () => {
                     onChange={handleChange} 
                     placeholder="Paste Dropbox Share Link (Use FILE LINK, not FOLDER)" 
                  />
+                 {/* FOLDER LINK WARNING */}
                  {formData.audioUrl?.includes('/fo/') && (
-                     <p className="text-[10px] text-red-500 font-bold uppercase tracking-widest bg-red-900/20 p-2 border border-red-900">
-                         ⚠️ Warning: You pasted a FOLDER link (/fo/). Please paste a specific FILE link.
+                     <p className="text-[10px] text-red-500 font-bold uppercase tracking-widest bg-red-900/20 p-2 border border-red-900 animate-pulse">
+                         ⚠️ Warning: You pasted a DROPBOX FOLDER link (/fo/). This will NOT work. Please open the folder and copy the link for a specific FILE.
                      </p>
                  )}
                  {formData.audioUrl && (

@@ -117,7 +117,7 @@ const AdminDashboard: React.FC = () => {
   };
 
   const handleToggleInteractive = async (song: Song, e?: React.MouseEvent) => {
-      if(e) e.stopPropagation();
+      if (e) e.stopPropagation();
       
       if (!song.audioUrl && !song.isInteractiveActive) {
           alert("無法啟用：此作品尚未設定音源 (Missing Audio Source)。\n請先進入編輯模式加入 Dropbox/GoogleDrive 「檔案」連結 (非資料夾)。");
@@ -158,7 +158,7 @@ const AdminDashboard: React.FC = () => {
       const reader = new FileReader();
       reader.onload = async (event) => {
           try {
-            const result = event.target?.result as string;
+            const result = String(event.target?.result);
             if (!result || result === 'null' || result === 'undefined') return;
 
             const data = JSON.parse(result);

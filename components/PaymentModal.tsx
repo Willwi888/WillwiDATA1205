@@ -18,6 +18,9 @@ const BANK_INFO = {
     account: "4405-3186-4207"
 };
 
+// Paypal Link (From ChatWidget config)
+const PAYPAL_LINK = "https://www.paypal.com/ncp/payment/PNLV2V3PP47ZN";
+
 const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, initialMode = 'production' }) => {
   const { user, login, addCredits, recordDonation } = useUser();
   const { t } = useTranslation();
@@ -69,7 +72,7 @@ const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, initialMod
   
   if (supportMode === 'production') {
       totalAmount = pointCount * UNIT_PRICE;
-      currentQr = qrImages.production;
+      currentQr = qrImages.production; // In Admin: "Interactive (Resonance) QR" -> Upload Line Pay QR here ideally
   } else if (supportMode === 'cinema') {
       totalAmount = CINEMA_PRICE;
       currentQr = qrImages.cinema;
@@ -79,8 +82,10 @@ const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, initialMod
   }
 
   // Fallback for missing images
-  if (!currentQr) currentQr = "https://placehold.co/300x300/000000/FFFFFF?text=No+QR+Uploaded";
-  const lineQr = qrImages.line || "https://placehold.co/300x300/06c755/FFFFFF?text=LINE";
+  if (!currentQr) currentQr = "https://placehold.co/300x300/06c755/FFFFFF?text=LINE+PAY+QR";
+  
+  // Line Official QR (for verification) - keeping as contact method
+  const lineQr = qrImages.line;
 
   const isFormValid = name.trim().length > 0 && email.includes('@') && totalAmount > 0;
 
@@ -172,7 +177,7 @@ const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, initialMod
             <div className="flex-1 p-8 bg-slate-900/10 relative">
                 <div className="flex items-center justify-between mb-6">
                     <span className="text-[10px] font-black text-white uppercase tracking-[0.3em]">{t('modal_payment_header')}</span>
-                    <span className="text-[10px] font-mono text-emerald-500 uppercase tracking-widest">TRANSFER / LINE PAY</span>
+                    <span className="text-[10px] font-mono text-emerald-500 uppercase tracking-widest">SECURE CHECKOUT</span>
                 </div>
 
                 <div className="bg-white p-6 rounded-sm shadow-xl relative overflow-hidden min-h-[400px]">
@@ -189,9 +194,10 @@ const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, initialMod
                     </div>
                     
                     {step === 'qr' ? (
-                        <div className="animate-fade-in">
-                            {/* BANK INFO */}
-                            <div className="mb-6 bg-slate-50 border border-slate-200 p-4 rounded-sm">
+                        <div className="animate-fade-in space-y-6">
+                            
+                            {/* OPTION 1: BANK TRANSFER */}
+                            <div className="bg-slate-50 border border-slate-200 p-4 rounded-sm">
                                 <div className="flex justify-between items-start mb-2">
                                     <div>
                                         <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest mb-1">{t('modal_bank_info')}</p>
@@ -207,40 +213,43 @@ const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, initialMod
                                 </div>
                             </div>
 
-                            {/* QR CODES GRID */}
-                            <div className="grid grid-cols-2 gap-4 mb-6">
-                                {/* 1. Payment QR */}
-                                <div className="bg-white border border-slate-200 p-3 flex flex-col items-center justify-center text-center shadow-inner rounded-sm">
-                                    <p className="text-[9px] text-slate-400 font-bold uppercase tracking-widest mb-2">{t('payment_scan_label')}</p>
+                            <div className="grid grid-cols-2 gap-4">
+                                {/* OPTION 2: LINE PAY QR */}
+                                <div className="bg-[#06c755]/10 border border-[#06c755]/30 p-3 flex flex-col items-center justify-center text-center rounded-sm relative group">
+                                    <div className="absolute top-2 right-2 bg-[#06c755] text-white text-[9px] font-bold px-1.5 py-0.5 rounded uppercase">Line Pay</div>
                                     <img 
                                         src={currentQr} 
-                                        alt="Payment QR" 
-                                        className="w-32 h-32 object-contain mix-blend-multiply" 
+                                        alt="Line Pay QR" 
+                                        className="w-24 h-24 object-contain mix-blend-multiply my-2" 
                                     />
-                                    <p className="text-[9px] text-slate-500 font-bold mt-2 uppercase">Scan to Pay</p>
+                                    <p className="text-[9px] text-[#06c755] font-bold uppercase tracking-widest">Scan with Line</p>
                                 </div>
 
-                                {/* 2. LINE QR */}
-                                <div className="bg-[#06c755]/10 border border-[#06c755]/30 p-3 flex flex-col items-center justify-center text-center rounded-sm">
-                                    <p className="text-[9px] text-[#06c755] font-bold uppercase tracking-widest mb-2">{t('modal_line_title')}</p>
-                                    <img 
-                                        src={lineQr} 
-                                        alt="Line QR" 
-                                        className="w-32 h-32 object-contain mix-blend-multiply" 
-                                    />
-                                    <p className="text-[9px] text-slate-600 font-bold mt-2 uppercase">Contact Admin</p>
-                                </div>
+                                {/* OPTION 3: PAYPAL */}
+                                <a 
+                                    href={PAYPAL_LINK} 
+                                    target="_blank" 
+                                    rel="noopener noreferrer"
+                                    className="bg-[#003087]/10 border border-[#003087]/30 p-3 flex flex-col items-center justify-center text-center rounded-sm hover:bg-[#003087]/20 transition-all cursor-pointer group"
+                                >
+                                    <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center mb-2 shadow-sm">
+                                        <span className="text-[#003087] font-black text-lg italic">P</span>
+                                    </div>
+                                    <p className="text-[9px] text-[#003087] font-bold uppercase tracking-widest group-hover:underline">PayPal / Credit Card</p>
+                                    <span className="text-[8px] text-slate-500 mt-1">International Support</span>
+                                </a>
                             </div>
 
                             <button 
                                 onClick={handleTransferred}
                                 disabled={!isFormValid}
-                                className={`w-full py-4 font-black text-xs uppercase tracking-[0.2em] transition-all shadow-lg flex justify-center items-center gap-2
-                                    ${!isFormValid ? 'bg-slate-200 text-slate-400 cursor-not-allowed' : 'bg-emerald-600 text-white hover:bg-emerald-700 shadow-emerald-900/20'}`}
+                                className={`w-full py-4 font-black text-xs uppercase tracking-[0.2em] transition-all shadow-lg flex justify-center items-center gap-2 mt-4
+                                    ${!isFormValid ? 'bg-slate-200 text-slate-400 cursor-not-allowed' : 'bg-slate-900 text-white hover:bg-black'}`}
                             >
                                 {t('modal_manual_btn')}
                             </button>
-                            <p className="text-[9px] text-slate-400 text-center mt-3">
+                            
+                            <p className="text-[9px] text-slate-400 text-center">
                                 {t('modal_manual_note')}
                             </p>
                         </div>
@@ -253,7 +262,7 @@ const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, initialMod
                                 <div>
                                     <h4 className="text-lg font-black uppercase text-slate-800 tracking-widest">Verify Access</h4>
                                     <p className="text-xs text-slate-500 mt-2 leading-relaxed">
-                                        請將匯款截圖傳送至 LINE 官方帳號。<br/>
+                                        請將匯款/付款截圖傳送至 LINE 官方帳號。<br/>
                                         Willwi 確認後將提供您一組 <span className="font-bold text-slate-900">通行碼 (Access Code)</span>。
                                     </p>
                                 </div>

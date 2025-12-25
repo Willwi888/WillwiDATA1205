@@ -158,7 +158,7 @@ const AdminDashboard: React.FC = () => {
       const reader = new FileReader();
       reader.onload = async (event) => {
           try {
-            const result = event.target?.result as string;
+            const result = String(event.target?.result);
             if (!result || result === 'null' || result === 'undefined') return;
 
             const data = JSON.parse(result);
