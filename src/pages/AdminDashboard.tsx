@@ -5,7 +5,7 @@ import { useUser } from '../context/UserContext';
 import { dbService } from '../services/db';
 import { Song, ProjectType, Language } from '../types';
 
-type Tab = 'catalog' | 'settings' | 'payment';
+type Tab = 'catalog' | 'settings' | 'payment' | 'curation';
 type SortKey = 'releaseDate' | 'title' | 'language';
 
 const AdminDashboard: React.FC = () => {
@@ -116,10 +116,15 @@ const AdminDashboard: React.FC = () => {
       setSelectedIds(new Set());
   };
 
-  const handleToggleInteractive = async (song: Song, e: React.MouseEvent) => {
-      e.stopPropagation();
+  const handleToggleInteractive = async (song: Song, e?: React.MouseEvent) => {
+      if (e) e.stopPropagation();
+      
       if (!song.audioUrl && !song.isInteractiveActive) {
-          alert("無法啟用：此作品尚未設定音源 (Missing Audio Source)。\n請先進入編輯模式加入 MP3 連結。");
+          alert("無法啟用：此作品尚未設定音源 (Missing Audio Source)。\n請先進入編輯模式加入 Dropbox/GoogleDrive 「檔案」連結 (非資料夾)。");
+          return;
+      }
+      if (!song.lyrics && !song.isInteractiveActive) {
+          alert("無法啟用：此作品無歌詞文本 (Missing Lyrics)。\n請先填寫歌詞。");
           return;
       }
       if (song.language === Language.Instrumental && !song.isInteractiveActive) {
@@ -153,7 +158,10 @@ const AdminDashboard: React.FC = () => {
       const reader = new FileReader();
       reader.onload = async (event) => {
           try {
-            const data = JSON.parse(String(event.target?.result));
+            const result = event.target?.result as string;
+            if (!result || result === 'null' || result === 'undefined') return;
+
+            const data = JSON.parse(result);
             if (Array.isArray(data)) {
                 if (window.confirm(`即將匯入 ${data.length} 筆資料。\n[OK]: 清空並覆寫 (Overwrite)\n[Cancel]: 取消`)) {
                     await dbService.clearAllSongs();
@@ -246,8 +254,8 @@ const AdminDashboard: React.FC = () => {
               <div className="text-[10px] text-slate-500 font-bold uppercase tracking-widest mb-2 group-hover:text-brand-gold">Total Catalog</div>
               <div className="text-3xl font-black text-white">{songs.length} <span className="text-xs font-medium text-slate-600">Tracks</span></div>
           </div>
-          <div className="bg-slate-900 border border-white/5 p-5 rounded-xl hover:border-green-500/30 transition-all">
-              <div className="text-[10px] text-slate-500 font-bold uppercase tracking-widest mb-2">Interactive Ready</div>
+          <div className="bg-slate-900 border border-white/5 p-5 rounded-xl hover:border-emerald-500 transition-all cursor-pointer border-l-4 border-l-emerald-500" onClick={() => setActiveTab('curation')}>
+              <div className="text-[10px] text-emerald-400 font-bold uppercase tracking-widest mb-2">Interactive Ready</div>
               <div className="text-3xl font-black text-emerald-400">{stats.activeSongs} <span className="text-xs font-medium text-emerald-900">Active</span></div>
           </div>
           <div className="bg-slate-900 border border-white/5 p-5 rounded-xl hover:border-red-500/30 transition-all">
@@ -407,7 +415,61 @@ const AdminDashboard: React.FC = () => {
           </div>
       )}
 
-      {/* 5. PAYMENT & QR SETTINGS (NEW) */}
+      {/* 5. SELECTION CURATION TAB (NEW) */}
+      {activeTab === 'curation' && (
+          <div className="max-w-5xl mx-auto animate-fade-in space-y-8">
+              <div className="bg-slate-900 border border-white/10 p-8 rounded-xl">
+                  <div className="mb-8">
+                      <h3 className="text-xl font-black text-emerald-400 uppercase tracking-[0.3em] mb-2">Curate Interactive Session</h3>
+                      <p className="text-slate-500 text-xs">Toggle which songs appear in the public interactive database.</p>
+                  </div>
+
+                  <div className="grid grid-cols-1 gap-4">
+                      {songs.sort((a,b) => (b.isInteractiveActive === a.isInteractiveActive) ? 0 : b.isInteractiveActive ? 1 : -1).map(song => {
+                          const hasAudio = !!song.audioUrl;
+                          const hasLyrics = !!song.lyrics;
+                          const isReady = hasAudio && hasLyrics;
+                          const isInstrumental = song.language === Language.Instrumental;
+                          
+                          return (
+                              <div key={song.id} className={`flex items-center justify-between p-4 border rounded-lg transition-all ${song.isInteractiveActive ? 'bg-emerald-900/10 border-emerald-500/30' : 'bg-black/20 border-white/5'}`}>
+                                  <div className="flex items-center gap-6">
+                                      <img src={song.coverUrl} className="w-16 h-16 object-cover rounded shadow-lg opacity-80" alt="" />
+                                      <div>
+                                          <h4 className={`text-sm font-black uppercase tracking-widest ${song.isInteractiveActive ? 'text-white' : 'text-slate-400'}`}>{song.title}</h4>
+                                          <div className="flex gap-2 mt-2">
+                                              {!hasAudio && <span className="text-[9px] bg-red-900 text-red-300 px-2 py-0.5 rounded font-bold uppercase">No Audio</span>}
+                                              {!hasLyrics && <span className="text-[9px] bg-red-900 text-red-300 px-2 py-0.5 rounded font-bold uppercase">No Lyrics</span>}
+                                              {isInstrumental && <span className="text-[9px] bg-yellow-900 text-yellow-300 px-2 py-0.5 rounded font-bold uppercase">Instrumental</span>}
+                                              {song.isInteractiveActive && <span className="text-[9px] bg-emerald-500 text-black px-2 py-0.5 rounded font-black uppercase tracking-widest shadow-lg shadow-emerald-500/20">LIVE ON SITE</span>}
+                                          </div>
+                                      </div>
+                                  </div>
+                                  
+                                  <div className="flex items-center gap-4 pr-4">
+                                      <label className="flex items-center cursor-pointer">
+                                          <div className="relative">
+                                              <input 
+                                                  type="checkbox" 
+                                                  className="sr-only" 
+                                                  checked={!!song.isInteractiveActive}
+                                                  disabled={!isReady && !song.isInteractiveActive} // Prevent enabling if broken
+                                                  onChange={() => handleToggleInteractive(song)}
+                                              />
+                                              <div className={`block w-14 h-8 rounded-full transition-colors ${song.isInteractiveActive ? 'bg-emerald-500' : 'bg-slate-700'} ${(!isReady && !song.isInteractiveActive) ? 'opacity-50 cursor-not-allowed' : ''}`}></div>
+                                              <div className={`dot absolute left-1 top-1 bg-white w-6 h-6 rounded-full transition-transform ${song.isInteractiveActive ? 'transform translate-x-6' : ''}`}></div>
+                                          </div>
+                                      </label>
+                                  </div>
+                              </div>
+                          );
+                      })}
+                  </div>
+              </div>
+          </div>
+      )}
+
+      {/* 6. PAYMENT & QR SETTINGS (NEW) */}
       {activeTab === 'payment' && (
           <div className="max-w-4xl mx-auto animate-fade-in space-y-8">
               <div className="bg-slate-900 border border-white/10 p-8 rounded-xl">
@@ -474,7 +536,7 @@ const AdminDashboard: React.FC = () => {
           </div>
       )}
 
-      {/* 6. SETTINGS TAB */}
+      {/* 7. SETTINGS TAB */}
       {activeTab === 'settings' && (
           <div className="max-w-4xl mx-auto animate-fade-in space-y-8">
               

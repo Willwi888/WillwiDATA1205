@@ -233,9 +233,8 @@ const Interactive: React.FC = () => {
         setCombo(0); // Reset Combo
 
         // Try to setup Visualizer & Recorder
+        // CRITICAL UPDATE: Try/Catch block to handle CORS/Security Errors from Google Drive
         try {
-            // NOTE: createMediaElementSource requires the audio element to have CORS enabled
-            // AND the server to serve correct headers. If this fails, we catch it and fallback.
             if (!audioSourceRef.current) {
                 try {
                     const source = ctx.createMediaElementSource(audioRef.current);
@@ -259,7 +258,7 @@ const Interactive: React.FC = () => {
                     audioSourceRef.current = source;
                     audioDestRef.current = dest;
                 } catch (sourceError) {
-                    throw new Error("WebAudio Source Creation Failed (Likely CORS)");
+                    throw new Error("WebAudio Source Creation Failed (CORS Blocked)");
                 }
             }
 
@@ -295,26 +294,30 @@ const Interactive: React.FC = () => {
             recorder.start();
 
         } catch (recorderError) {
-            console.warn("MediaRecorder/WebAudio failed, falling back to Practice Mode", recorderError);
+            console.warn("Audio Visualizer failed (likely CORS), falling back to Practice Mode.", recorderError);
             setIsPracticeMode(true);
-            // Even if recording/visuals fail, we MUST let the user play
-            // Force audio to play normally without WebAudio graph if needed
-            audioRef.current.play().catch(e => console.error("Standard play fallback failed", e));
+            alert("⚠️ 系統偵測：音訊來源安全性限制 (CORS)。\n\n已自動切換至「練習模式 (Practice Mode)」。\n您可以正常遊玩互動，但無法生成跳動頻譜與錄製影片。\n\n(若您是管理員，請改用 Dropbox 連結以解決此問題)");
         }
 
         setMode('playing');
         setLineIndex(0);
         lastActionTimeRef.current = performance.now();
         
-        // Ensure play is called if we didn't error out earlier
-        if (audioRef.current.paused) {
+        // Critical: Play audio regardless of visualizer success
+        try {
             await audioRef.current.play();
+        } catch (playError) {
+            console.error("Playback failed:", playError);
+            alert("播放失敗。請檢查連結是否有效。");
+            setMode('tool-start');
+            return;
         }
+        
         loop();
 
       } catch (e) { 
         console.error("Critical Start Error:", e);
-        alert("無法啟動音源 (Cannot Start Audio)。\n可能原因：連結無效、跨域限制(CORS)或瀏覽器阻擋。\n\nPossible Causes: Broken Link, CORS Policy, or Browser Block.");
+        alert("無法啟動引擎。\n請重新整理頁面再試一次。");
       }
   };
 
@@ -430,7 +433,7 @@ const Interactive: React.FC = () => {
           ctx.restore();
       }
 
-      // 2. Audio Visualizer (Spectrum) - Only if Analyzer exists
+      // 2. Audio Visualizer (Spectrum) - Only if Analyzer exists and NOT in Practice Mode
       if (analyserRef.current && dataArrayRef.current && !isPracticeMode) {
           analyserRef.current.getByteFrequencyData(dataArrayRef.current);
           const barCount = 64; // Number of bars
@@ -574,17 +577,18 @@ const Interactive: React.FC = () => {
       
       if (isPracticeMode) {
           ctx.save();
-          ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
+          ctx.fillStyle = 'rgba(251, 191, 36, 0.8)';
+          ctx.textAlign = 'center';
           ctx.font = 'bold 20px Montserrat';
           ctx.letterSpacing = '2px';
-          ctx.fillText("PRACTICE MODE (NO RECORDING)", w/2, 60);
+          ctx.fillText("⚠️ PRACTICE MODE (NO REC)", w/2, 60);
           ctx.restore();
       }
   };
 
   const downloadVideo = () => {
     if (isPracticeMode) {
-        alert("練習模式下無法下載影片 (Practice Mode)。\n\n原因：瀏覽器或音檔限制了錄製功能。");
+        alert("練習模式下無法下載影片 (Practice Mode)。\n\n原因：您使用的音檔來源 (如 Google Drive) 限制了跨域錄製功能。\n請使用 Dropbox 連結以啟用完整功能。");
         return;
     }
     if (recordedChunksRef.current.length === 0) {

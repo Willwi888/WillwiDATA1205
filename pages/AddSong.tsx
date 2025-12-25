@@ -12,12 +12,21 @@ import { GoogleGenAI, Type } from "@google/genai";
 const convertToDirectStream = (url: string) => {
     try {
         if (!url) return '';
+        // Google Drive
         if (url.includes('drive.google.com') && url.includes('/file/d/')) {
             const id = url.split('/file/d/')[1].split('/')[0];
             return `https://docs.google.com/uc?export=download&id=${id}`;
         }
+        // Dropbox
         if (url.includes('dropbox.com')) {
-            return url.replace('dl=0', 'raw=1');
+            let newUrl = url;
+            // Basic fix: replace dl=0 or dl=1 with raw=1
+            if (newUrl.includes('dl=0')) newUrl = newUrl.replace('dl=0', 'raw=1');
+            else if (newUrl.includes('dl=1')) newUrl = newUrl.replace('dl=1', 'raw=1');
+            else if (!newUrl.includes('raw=1')) {
+                 newUrl += (newUrl.includes('?') ? '&' : '?') + 'raw=1';
+            }
+            return newUrl;
         }
         return url;
     } catch (e) { return url; }
@@ -715,8 +724,13 @@ const AddSong: React.FC = () => {
                     className="w-full bg-slate-800 border border-brand-accent/30 px-4 py-3 text-brand-accent text-xs focus:border-brand-accent outline-none font-mono placeholder-slate-600" 
                     value={formData.audioUrl} 
                     onChange={handleChange} 
-                    placeholder="Paste Google Drive or Dropbox Share Link here..." 
+                    placeholder="Paste Dropbox Share Link (Use FILE LINK, not FOLDER)" 
                  />
+                 {formData.audioUrl?.includes('/fo/') && (
+                     <p className="text-[10px] text-red-500 font-bold uppercase tracking-widest bg-red-900/20 p-2 border border-red-900">
+                         ⚠️ Warning: You pasted a FOLDER link (/fo/). Please paste a specific FILE link.
+                     </p>
+                 )}
                  {formData.audioUrl && (
                     <div className="bg-black/50 p-2 border border-white/10 flex items-center gap-2">
                         <span className="text-[9px] text-brand-accent font-bold uppercase tracking-widest">Verify Source:</span>

@@ -17,7 +17,13 @@ const convertToDirectStream = (url: string) => {
         }
         // Dropbox
         if (url.includes('dropbox.com')) {
-            return url.replace('dl=0', 'raw=1');
+            let newUrl = url;
+            if (newUrl.includes('dl=0')) newUrl = newUrl.replace('dl=0', 'raw=1');
+            else if (newUrl.includes('dl=1')) newUrl = newUrl.replace('dl=1', 'raw=1');
+            else if (!newUrl.includes('raw=1')) {
+                 newUrl += (newUrl.includes('?') ? '&' : '?') + 'raw=1';
+            }
+            return newUrl;
         }
         return url;
     } catch (e) { return url; }
