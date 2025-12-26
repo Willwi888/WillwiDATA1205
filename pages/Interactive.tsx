@@ -200,6 +200,8 @@ const Interactive: React.FC = () => {
     }
 
     setSelectedSong(song);
+    // Reset Practice Mode when a new song is selected
+    setIsPracticeMode(false); 
     
     // Prepare Lyrics
     const lyricsText = song.lyrics || "No Lyrics Available";
@@ -234,70 +236,74 @@ const Interactive: React.FC = () => {
         recordedChunksRef.current = [];
         syncDataRef.current = [];
         particlesRef.current = []; 
-        setIsPracticeMode(false);
         setCombo(0); 
         smoothLineIndexRef.current = 0; // Reset scroll
 
         try {
-            if (!audioSourceRef.current) {
-                try {
-                    const source = ctx.createMediaElementSource(audioRef.current);
-                    
-                    const analyser = ctx.createAnalyser();
-                    analyser.fftSize = 256;
-                    const bufferLength = analyser.frequencyBinCount;
-                    const dataArray = new Uint8Array(bufferLength);
-                    analyserRef.current = analyser;
-                    dataArrayRef.current = dataArray;
+            // Only setup WebAudio if NOT in practice mode already
+            // If already in practice mode (e.g. from previous error), skip node connection
+            if (!isPracticeMode) {
+                if (!audioSourceRef.current) {
+                    try {
+                        const source = ctx.createMediaElementSource(audioRef.current);
+                        
+                        const analyser = ctx.createAnalyser();
+                        analyser.fftSize = 256;
+                        const bufferLength = analyser.frequencyBinCount;
+                        const dataArray = new Uint8Array(bufferLength);
+                        analyserRef.current = analyser;
+                        dataArrayRef.current = dataArray;
 
-                    const dest = ctx.createMediaStreamDestination();
-                    
-                    source.connect(analyser);
-                    analyser.connect(dest);
-                    source.connect(ctx.destination); 
-                    
-                    audioSourceRef.current = source;
-                    audioDestRef.current = dest;
-                } catch (sourceError) {
-                    throw new Error("WebAudio Source Creation Failed (CORS Blocked)");
+                        const dest = ctx.createMediaStreamDestination();
+                        
+                        source.connect(analyser);
+                        analyser.connect(dest);
+                        source.connect(ctx.destination); 
+                        
+                        audioSourceRef.current = source;
+                        audioDestRef.current = dest;
+                    } catch (sourceError) {
+                        throw new Error("WebAudio Source Creation Failed (CORS Blocked)");
+                    }
                 }
+
+                const canvasStream = (canvasRef.current as any).captureStream(60); 
+                const tracks = [...canvasStream.getVideoTracks()];
+                
+                if (audioDestRef.current) {
+                    const audioTracks = audioDestRef.current.stream.getAudioTracks();
+                    if (audioTracks.length > 0) tracks.push(audioTracks[0]);
+                }
+
+                const combinedStream = new MediaStream(tracks);
+
+                let mimeType = 'video/webm;codecs=vp9,opus';
+                if (!MediaRecorder.isTypeSupported(mimeType)) mimeType = 'video/webm'; 
+                if (MediaRecorder.isTypeSupported('video/mp4')) mimeType = 'video/mp4'; 
+
+                const recorder = new MediaRecorder(combinedStream, { 
+                    mimeType, 
+                    videoBitsPerSecond: 12000000 // High bitrate
+                });
+                
+                recorder.ondataavailable = e => {
+                    if (e.data.size > 0) recordedChunksRef.current.push(e.data);
+                };
+                
+                recorder.onstop = () => {
+                    setMode('finished');
+                    cancelAnimationFrame(animationFrameRef.current);
+                };
+
+                mediaRecorderRef.current = recorder;
+                recorder.start();
             }
-
-            const canvasStream = (canvasRef.current as any).captureStream(60); 
-            const tracks = [...canvasStream.getVideoTracks()];
-            
-            if (audioDestRef.current) {
-                const audioTracks = audioDestRef.current.stream.getAudioTracks();
-                if (audioTracks.length > 0) tracks.push(audioTracks[0]);
-            }
-
-            const combinedStream = new MediaStream(tracks);
-
-            let mimeType = 'video/webm;codecs=vp9,opus';
-            if (!MediaRecorder.isTypeSupported(mimeType)) mimeType = 'video/webm'; 
-            if (MediaRecorder.isTypeSupported('video/mp4')) mimeType = 'video/mp4'; 
-
-            const recorder = new MediaRecorder(combinedStream, { 
-                mimeType, 
-                videoBitsPerSecond: 12000000 // High bitrate
-            });
-            
-            recorder.ondataavailable = e => {
-                if (e.data.size > 0) recordedChunksRef.current.push(e.data);
-            };
-            
-            recorder.onstop = () => {
-                setMode('finished');
-                cancelAnimationFrame(animationFrameRef.current);
-            };
-
-            mediaRecorderRef.current = recorder;
-            recorder.start();
-
         } catch (recorderError) {
             console.warn("Audio Visualizer failed (likely CORS), falling back to Practice Mode.", recorderError);
             setIsPracticeMode(true);
-            alert("⚠️ 系統偵測：音訊來源安全性限制 (CORS)。\n\n已自動切換至「練習模式 (Practice Mode)」。\n您可以正常遊玩互動，但無法生成跳動頻譜與錄製影片。\n\n(若您是管理員，請改用 Dropbox 連結以解決此問題)");
+            alert("⚠️ 系統偵測：音訊來源安全性限制 (CORS)。\n\n已自動切換至「練習模式 (Practice Mode)」。\n\n請再次點擊「開始」以在相容模式下進行。\n(您將無法下載錄影，但可完整體驗互動)");
+            // Stop here to let user retry (which triggers React re-render for audio tag)
+            return; 
         }
 
         setMode('playing');
@@ -308,7 +314,13 @@ const Interactive: React.FC = () => {
             await audioRef.current.play();
         } catch (playError) {
             console.error("Playback failed:", playError);
-            alert("播放失敗。請檢查連結是否有效。");
+            // If failed and not yet in practice mode, suggest it
+            if (!isPracticeMode) {
+                setIsPracticeMode(true);
+                alert("播放失敗 (Playback Failed)。\n\n系統將切換至「練習模式」以嘗試繞過連結限制。\n請點擊確定，並再次按下「開始錄製」。");
+            } else {
+                alert("播放失敗。請檢查連結是否有效 (404/403) 或格式是否支援。");
+            }
             setMode('tool-start');
             return;
         }
@@ -431,10 +443,10 @@ const Interactive: React.FC = () => {
 
       if (bgImageRef.current) {
           ctx.save();
-          const blurAmount = 30 - (bassImpact * 50); // Dynamic blur
-          ctx.filter = `blur(${Math.max(15, blurAmount)}px) brightness(${0.3 + bassImpact})`;
+          // Darker background for better text contrast
+          const blurAmount = 40 - (bassImpact * 50); 
+          ctx.filter = `blur(${Math.max(20, blurAmount)}px) brightness(${0.3 + bassImpact})`;
           
-          // Cover logic for background
           const scale = Math.max(w / bgImageRef.current.width, h / bgImageRef.current.height) * bgScaleRef.current;
           const x = (w / 2) - (bgImageRef.current.width / 2) * scale;
           const y = (h / 2) - (bgImageRef.current.height / 2) * scale;
@@ -443,11 +455,10 @@ const Interactive: React.FC = () => {
           ctx.restore();
       }
 
-      // Dark Overlay Gradient for Readability
-      const gradient = ctx.createLinearGradient(0, 0, 0, h);
-      gradient.addColorStop(0, 'rgba(0,0,0,0.6)');
-      gradient.addColorStop(0.5, 'rgba(0,0,0,0.2)');
-      gradient.addColorStop(1, 'rgba(0,0,0,0.8)');
+      // Dark Overlay Gradient for Readability (Heavy Vignette)
+      const gradient = ctx.createRadialGradient(w/2, h/2, h * 0.3, w/2, h/2, h * 0.8);
+      gradient.addColorStop(0, 'rgba(0,0,0,0.3)');
+      gradient.addColorStop(1, 'rgba(0,0,0,0.9)');
       ctx.fillStyle = gradient;
       ctx.fillRect(0, 0, w, h);
 
@@ -458,7 +469,7 @@ const Interactive: React.FC = () => {
           for(let i = 0; i < 64; i++) {
               const v = dataArrayRef.current[i]; 
               const barHeight = (v / 255) * 150; 
-              ctx.fillStyle = `rgba(255, 255, 255, 0.1)`;
+              ctx.fillStyle = `rgba(251, 191, 36, 0.15)`; // Gold tint
               ctx.fillRect(i * barWidth * 2, h - barHeight, barWidth, barHeight);
           }
           ctx.restore();
@@ -467,13 +478,11 @@ const Interactive: React.FC = () => {
       // 4. SCROLLING LYRICS RENDERER
       const centerX = w / 2;
       const centerY = h / 2;
-      const lineHeight = 140; // Spacing between lines
+      const lineHeight = 160; // Spacing between lines
       
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
 
-      // Loop through visible lines
-      // We only draw lines that are within view to save performance
       const visibleRange = 5; 
       const startDrawIndex = Math.floor(smoothLineIndexRef.current - visibleRange);
       const endDrawIndex = Math.ceil(smoothLineIndexRef.current + visibleRange);
@@ -482,10 +491,9 @@ const Interactive: React.FC = () => {
           if (i < 0 || i >= lyricsArrayRef.current.length) continue;
 
           const text = lyricsArrayRef.current[i];
-          // Determine relative position (0 is active center)
+          // BOTTOM-TO-TOP SCROLL:
+          // index increases -> smoothLineIndex increases -> relativePos becomes negative -> Y decreases (moves up)
           const relativePos = i - smoothLineIndexRef.current;
-          
-          // Calculate Y position
           const y = centerY + (relativePos * lineHeight);
           
           // Style based on distance from center
@@ -495,21 +503,20 @@ const Interactive: React.FC = () => {
           let blur = 0;
 
           if (dist < 0.5) {
-              // Active line
-              scale = 1.0 + (1 - dist) * 0.3; // Base scale up
-              scale *= (i === lineIndex ? textScaleRef.current : 1); // Apply hit bounce only if it's the exact target
+              // Active line (Center)
+              scale = 1.2 + (1 - dist) * 0.4; 
+              scale *= (i === lineIndex ? textScaleRef.current : 1); 
               alpha = 1;
               ctx.shadowColor = (combo > 10 && i === lineIndex) ? '#fbbf24' : 'rgba(255,255,255,0.8)';
-              ctx.shadowBlur = (1 - dist) * 30;
+              ctx.shadowBlur = (1 - dist) * 40;
           } else {
               // Inactive lines
-              scale = 1 - (dist * 0.15); 
-              alpha = Math.max(0, 1 - (dist * 0.4)); // Fade out
-              blur = dist * 2;
+              scale = 1 - (dist * 0.1); 
+              alpha = Math.max(0, 1 - (dist * 0.5)); 
+              blur = dist * 3;
               ctx.shadowBlur = 0;
           }
 
-          // Don't draw invisible lines
           if (alpha <= 0.05) continue;
 
           ctx.save();
@@ -523,13 +530,16 @@ const Interactive: React.FC = () => {
 
           const fontSize = text.length > 15 ? 50 : 70;
           ctx.font = `900 ${fontSize}px Montserrat`;
-          ctx.fillStyle = '#ffffff';
-          ctx.fillText(text, 0, 0);
           
+          // Color Logic: Gold for active, White for others
+          if (dist < 0.3) ctx.fillStyle = '#fbbf24'; 
+          else ctx.fillStyle = '#ffffff';
+          
+          ctx.fillText(text, 0, 0);
           ctx.restore();
       }
 
-      // 5. Particles Update & Draw (Foreground)
+      // 5. Particles Update & Draw
       for (let i = particlesRef.current.length - 1; i >= 0; i--) {
           const p = particlesRef.current[i];
           p.x += p.vx;
@@ -570,6 +580,7 @@ const Interactive: React.FC = () => {
       if (bgImageRef.current) {
           const footerY = h - 60;
           ctx.fillStyle = '#fbbf24'; 
+          ctx.textAlign = 'center';
           ctx.font = '900 20px Montserrat';
           ctx.letterSpacing = '4px';
           ctx.shadowBlur = 0;
@@ -887,6 +898,12 @@ const Interactive: React.FC = () => {
                         <button onClick={startRecording} className="px-8 py-4 bg-white text-black font-black text-xs uppercase tracking-[0.3em] hover:bg-brand-gold transition-all">
                             {t('interactive_btn_start_record')}
                         </button>
+                        {/* Status Indicator */}
+                        {isPracticeMode && (
+                            <p className="mt-4 text-[9px] text-yellow-500 font-bold uppercase tracking-widest animate-pulse">
+                                Practice Mode Ready (CORS Bypass)
+                            </p>
+                        )}
                     </div>
                 </div>
             </div>
@@ -980,8 +997,9 @@ const Interactive: React.FC = () => {
                     <audio 
                         ref={audioRef} 
                         src={selectedSong.audioUrl} 
-                        crossOrigin="anonymous" 
-                        key={selectedSong.id} 
+                        // Key trick: force re-mount when switching to practice mode to reset CORS state
+                        key={`${selectedSong.id}-${isPracticeMode ? 'practice' : 'normal'}`}
+                        crossOrigin={isPracticeMode ? undefined : "anonymous"}
                         className="hidden" 
                         onEnded={() => {
                             if (mediaRecorderRef.current?.state === 'recording') {
