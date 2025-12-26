@@ -319,7 +319,8 @@ const Interactive: React.FC = () => {
                 setIsPracticeMode(true);
                 alert("播放失敗 (Playback Failed)。\n\n系統將切換至「練習模式」以嘗試繞過連結限制。\n請點擊確定，並再次按下「開始錄製」。");
             } else {
-                alert("播放失敗。請檢查連結是否有效 (404/403) 或格式是否支援。");
+                // If checking default song 1, it might be soundhelix which is fine, but if user uses drive
+                alert("播放失敗。請檢查連結是否有效 (404/403) 或格式是否支援。\n\n提示：若使用 Google Drive，請確認權限為「知道連結的使用者」。");
             }
             setMode('tool-start');
             return;
@@ -996,10 +997,11 @@ const Interactive: React.FC = () => {
                 {selectedSong.audioUrl && (
                     <audio 
                         ref={audioRef} 
-                        src={selectedSong.audioUrl} 
-                        // Key trick: force re-mount when switching to practice mode to reset CORS state
+                        // IMPORTANT: Force fresh request for practice mode to bypass cached CORS errors
+                        src={selectedSong.audioUrl + (isPracticeMode ? (selectedSong.audioUrl.includes('?') ? '&' : '?') + 'mode=practice' : '')} 
                         key={`${selectedSong.id}-${isPracticeMode ? 'practice' : 'normal'}`}
                         crossOrigin={isPracticeMode ? undefined : "anonymous"}
+                        preload="auto"
                         className="hidden" 
                         onEnded={() => {
                             if (mediaRecorderRef.current?.state === 'recording') {
