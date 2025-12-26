@@ -160,8 +160,11 @@ const AdminDashboard: React.FC = () => {
       const reader = new FileReader();
       reader.onload = async (event) => {
           try {
-            const result = String(event.target?.result);
-            if (result === 'null' || result === 'undefined') return;
+            // Fix: explicit type check for result string instead of unsafe casting/conversion
+            const target = event.target;
+            const result = target?.result;
+            
+            if (typeof result !== 'string') return;
 
             const data = JSON.parse(result);
             if (Array.isArray(data)) {
