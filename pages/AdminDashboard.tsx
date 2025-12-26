@@ -187,7 +187,7 @@ const AdminDashboard: React.FC = () => {
           reader.onloadend = () => {
               const base64 = reader.result as string;
               setQrImages(prev => ({ ...prev, [key]: base64 }));
-              localStorage.setItem(`qr_${key}`, base64);
+              localStorage.setItem(`qr_${String(key)}`, base64);
           };
           reader.readAsDataURL(file);
       }
@@ -412,7 +412,11 @@ const AdminDashboard: React.FC = () => {
                   
                   {filteredSongs.length === 0 && (
                       <div className="p-20 text-center text-slate-500 text-xs font-mono uppercase tracking-widest">
-                          No tracks found matching your filters.
+                          {filterStatus === 'missing_assets' ? (
+                              <span className="text-emerald-500 font-black">All clear! No songs with missing assets found.</span>
+                          ) : (
+                              "No tracks found matching your filters."
+                          )}
                       </div>
                   )}
               </div>
