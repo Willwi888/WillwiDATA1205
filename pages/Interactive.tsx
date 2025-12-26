@@ -30,6 +30,7 @@ interface Particle {
     life: number;
     size: number;
     color: string;
+    gravity: number; // Added gravity
 }
 
 const Interactive: React.FC = () => {
@@ -77,6 +78,7 @@ const Interactive: React.FC = () => {
   const particlesRef = useRef<Particle[]>([]);
   const bgScaleRef = useRef<number>(1);
   const textScaleRef = useRef<number>(1);
+  const textBlurRef = useRef<number>(0); // Motion blur effect
   
   // Audio Context Refs (For Visualizer)
   const audioContextRef = useRef<AudioContext | null>(null);
@@ -331,15 +333,16 @@ const Interactive: React.FC = () => {
       
       for (let i = 0; i < count; i++) {
           const angle = Math.random() * Math.PI * 2;
-          const speed = Math.random() * 12 + 2;
+          const speed = Math.random() * 15 + 5; // Faster explosion
           particlesRef.current.push({
               x: x,
               y: y,
               vx: Math.cos(angle) * speed,
               vy: Math.sin(angle) * speed,
               life: 1.0,
-              size: Math.random() * 5 + 1,
-              color: Math.random() > 0.5 ? baseColor : '#ffffff'
+              size: Math.random() * 6 + 2,
+              color: Math.random() > 0.6 ? baseColor : '#ffffff',
+              gravity: 0.5
           });
       }
   };
@@ -364,8 +367,9 @@ const Interactive: React.FC = () => {
 
           // Visual Feedback
           lastActionTimeRef.current = performance.now();
-          bgScaleRef.current = 1.05; 
-          textScaleRef.current = 1.3; 
+          bgScaleRef.current = 1.1; // Harder kick
+          textScaleRef.current = 1.5; 
+          textBlurRef.current = 20; // Add initial blur for "slam" effect
 
           // Particle Spawn
           let px = window.innerWidth / 2;
@@ -416,16 +420,29 @@ const Interactive: React.FC = () => {
 
       const w = canvas.width, h = canvas.height;
       
-      // 1. Clear & Background
+      // 1. Audio Analysis (Beat Detection for BG)
+      let bassImpact = 0;
+      if (analyserRef.current && dataArrayRef.current && !isPracticeMode) {
+          analyserRef.current.getByteFrequencyData(dataArrayRef.current);
+          // Average of lower frequencies (Bass)
+          const bassRange = dataArrayRef.current.slice(0, 10);
+          const avgBass = bassRange.reduce((a, b) => a + b, 0) / bassRange.length;
+          bassImpact = (avgBass / 255) * 0.1; // 0.0 to 0.1
+      }
+
+      // Physics Interpolation
+      bgScaleRef.current = bgScaleRef.current + (1 + bassImpact - bgScaleRef.current) * 0.1; // Smooth return to 1 + bass
+      textScaleRef.current = textScaleRef.current + (1 - textScaleRef.current) * 0.15; // Snappy return
+      textBlurRef.current = textBlurRef.current * 0.8; // Decay blur
+
+      // 2. Clear & Background
       ctx.fillStyle = '#020617';
       ctx.fillRect(0, 0, w, h);
 
-      bgScaleRef.current = bgScaleRef.current + (1 - bgScaleRef.current) * 0.05;
-      textScaleRef.current = textScaleRef.current + (1 - textScaleRef.current) * 0.1;
-
       if (bgImageRef.current) {
           ctx.save();
-          ctx.filter = 'blur(40px) brightness(0.4)';
+          const blurAmount = 40 - (bassImpact * 100); // Less blur on beat
+          ctx.filter = `blur(${Math.max(10, blurAmount)}px) brightness(${0.3 + bassImpact})`;
           const scale = Math.max(w / bgImageRef.current.width, h / bgImageRef.current.height) * bgScaleRef.current;
           const x = (w / 2) - (bgImageRef.current.width / 2) * scale;
           const y = (h / 2) - (bgImageRef.current.height / 2) * scale;
@@ -433,30 +450,32 @@ const Interactive: React.FC = () => {
           ctx.restore();
       }
 
-      // 2. Audio Visualizer (Spectrum) - Only if Analyzer exists and NOT in Practice Mode
+      // 3. Audio Visualizer (Circular / Bars)
       if (analyserRef.current && dataArrayRef.current && !isPracticeMode) {
-          analyserRef.current.getByteFrequencyData(dataArrayRef.current);
-          const barCount = 64; // Number of bars
-          const barWidth = (w / barCount) * 1.5;
-          let x = 0;
-          
+          const barCount = 128; 
+          const radius = 400 * bgScaleRef.current;
+          const centerX = w / 2;
+          const centerY = h / 2;
+
           ctx.save();
-          // Center the visualizer
-          x = (w - (barCount * (barWidth - 5))) / 2;
+          ctx.translate(centerX, centerY);
           
           for(let i = 0; i < barCount; i++) {
-              const v = dataArrayRef.current[i]; // 0-255
-              const barHeight = (v / 255) * 400 * (bgScaleRef.current); // Scale with beat
+              const v = dataArrayRef.current[i]; 
+              const barHeight = (v / 255) * 200; 
+              const rad = (i / barCount) * Math.PI * 2;
               
-              // Dynamic Color based on height/intensity
-              const hue = (i / barCount) * 60 + 20; // Gold to Orange spectrum
-              ctx.fillStyle = `hsla(${hue}, 100%, 50%, 0.3)`;
-              
-              // Mirror effect (Top and Bottom)
-              ctx.fillRect(x, h/2 - barHeight - 100, barWidth - 10, barHeight); 
-              ctx.fillRect(x, h/2 + 100, barWidth - 10, barHeight);
-              
-              x += barWidth - 5;
+              const x1 = Math.cos(rad) * radius;
+              const y1 = Math.sin(rad) * radius;
+              const x2 = Math.cos(rad) * (radius + barHeight);
+              const y2 = Math.sin(rad) * (radius + barHeight);
+
+              ctx.strokeStyle = `hsla(${i * 2}, 100%, 70%, 0.4)`;
+              ctx.lineWidth = 4;
+              ctx.beginPath();
+              ctx.moveTo(x1, y1);
+              ctx.lineTo(x2, y2);
+              ctx.stroke();
           }
           ctx.restore();
       }
@@ -465,13 +484,14 @@ const Interactive: React.FC = () => {
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
 
-      // 3. Particles
+      // 4. Particles Update & Draw
       for (let i = particlesRef.current.length - 1; i >= 0; i--) {
           const p = particlesRef.current[i];
           p.x += p.vx;
           p.y += p.vy;
+          p.vy += p.gravity; // Gravity effect
           p.life -= 0.02;
-          p.size *= 0.95;
+          p.size *= 0.96;
 
           if (p.life <= 0) {
               particlesRef.current.splice(i, 1);
@@ -479,6 +499,8 @@ const Interactive: React.FC = () => {
               ctx.save();
               ctx.globalAlpha = p.life;
               ctx.fillStyle = p.color;
+              ctx.shadowColor = p.color;
+              ctx.shadowBlur = 10;
               ctx.beginPath();
               ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
               ctx.fill();
@@ -486,90 +508,103 @@ const Interactive: React.FC = () => {
           }
       }
 
-      // 4. Cinematic Text Rendering
+      // 5. Cinematic Text Rendering
       const timeSinceAction = performance.now() - lastActionTimeRef.current;
-      let entranceOffset = 0;
       let alpha = 1;
+      let yOffset = 0;
       
-      if (timeSinceAction < 300) {
-          const t = timeSinceAction / 300; 
-          const ease = 1 - Math.pow(1 - t, 5); 
-          entranceOffset = (1 - ease) * 80; 
+      // Entrance Animation
+      if (timeSinceAction < 400) {
+          const t = timeSinceAction / 400; 
+          const ease = 1 - Math.pow(1 - t, 3); // Cubic ease out
           alpha = ease;
+          yOffset = (1 - ease) * 50; // Slide up
       }
 
       ctx.save();
       const currText = lyricsArrayRef.current[lineIndex] || "";
-      const baseSize = currText.length > 15 ? 64 : 80; // Bigger fonts
-      const finalScale = textScaleRef.current; 
+      const baseSize = currText.length > 15 ? 70 : 90; // Responsive font size
       
-      ctx.font = `900 ${baseSize * finalScale}px Montserrat`;
+      ctx.font = `900 ${baseSize * textScaleRef.current}px Montserrat`;
       
-      // Mega Glow
-      ctx.shadowColor = combo > 10 ? '#fbbf24' : 'rgba(255, 255, 255, 0.8)';
-      ctx.shadowBlur = (textScaleRef.current - 1) * 200 + 30; 
+      // Dynamic Shadow / Glow
+      const glowIntensity = combo > 10 ? 40 : 20;
+      const glowColor = combo > 20 ? '#fbbf24' : 'rgba(255, 255, 255, 0.8)';
+      
+      ctx.shadowColor = glowColor;
+      ctx.shadowBlur = glowIntensity + (textScaleRef.current - 1) * 100;
       ctx.fillStyle = `rgba(255, 255, 255, ${alpha})`;
       
-      ctx.fillText(currText, w/2, centerY + entranceOffset);
+      // Apply Motion Blur if recently tapped
+      if (textBlurRef.current > 0.5) {
+          ctx.filter = `blur(${textBlurRef.current}px)`;
+      }
+
+      ctx.fillText(currText, w/2, centerY + yOffset);
       ctx.restore();
 
-      // 5. Context Lines (Faded)
+      // 6. Context Lines (Faded)
       if (lineIndex > 0) {
           ctx.save();
-          ctx.globalAlpha = 0.15;
-          ctx.fillStyle = '#e2e8f0';
+          ctx.globalAlpha = 0.2;
+          ctx.fillStyle = '#cbd5e1';
           ctx.font = '700 32px Montserrat';
           const prevText = lyricsArrayRef.current[lineIndex - 1];
-          ctx.fillText(prevText, w/2, centerY - 140);
+          ctx.fillText(prevText, w/2, centerY - 150);
           ctx.restore();
       }
 
-      // 6. Combo Counter (Game Feel)
+      // 7. Combo Counter (Game Feel)
       if (combo > 1) {
           ctx.save();
           ctx.textAlign = 'right';
-          ctx.font = '900 48px Montserrat';
-          ctx.fillStyle = 'rgba(255, 255, 255, 0.2)';
+          const comboScale = 1 + (bassImpact * 2);
+          ctx.font = `900 ${48 * comboScale}px Montserrat`;
+          ctx.fillStyle = combo > 20 ? '#fbbf24' : 'rgba(255, 255, 255, 0.3)';
+          ctx.shadowColor = combo > 20 ? '#fbbf24' : 'transparent';
+          ctx.shadowBlur = 20;
           ctx.fillText(`${combo} HIT`, w - 50, 100);
           ctx.restore();
       }
 
-      // 7. Album Art & Branding
+      // 8. Footer Info
       if (bgImageRef.current) {
-          const coverSize = 180;
-          const coverY = h - coverSize - 80;
+          const coverSize = 120;
+          const coverY = h - coverSize - 60;
           
+          // Small Cover Art
           ctx.save();
           ctx.shadowColor = 'black';
           ctx.shadowBlur = 30;
-          ctx.fillStyle = 'white';
-          ctx.fillRect((w/2) - (coverSize/2) - 4, coverY - 4, coverSize + 8, coverSize + 8);
-          ctx.drawImage(bgImageRef.current, 0, 0, bgImageRef.current.width, bgImageRef.current.height, (w/2) - (coverSize/2), coverY, coverSize, coverSize);
+          ctx.strokeStyle = 'white';
+          ctx.lineWidth = 4;
+          ctx.strokeRect((w/2) - (coverSize/2), coverY, coverSize, coverSize);
+          ctx.drawImage(bgImageRef.current, (w/2) - (coverSize/2), coverY, coverSize, coverSize);
           ctx.restore();
 
           ctx.fillStyle = '#fbbf24'; 
-          ctx.font = '900 24px Montserrat';
-          ctx.letterSpacing = '2px';
-          ctx.shadowBlur = 0;
-          ctx.fillText(selectedSong.title.toUpperCase(), w/2, coverY + coverSize + 40);
-          
-          ctx.fillStyle = '#94a3b8';
-          ctx.font = '600 14px Montserrat';
+          ctx.font = '900 20px Montserrat';
           ctx.letterSpacing = '4px';
-          ctx.fillText("WILLWI HANDCRAFTED", w/2, coverY + coverSize + 70);
+          ctx.shadowBlur = 0;
+          ctx.fillText(selectedSong.title.toUpperCase(), w/2, coverY + coverSize + 30);
+          
+          ctx.fillStyle = 'rgba(255,255,255,0.5)';
+          ctx.font = '600 12px Montserrat';
+          ctx.letterSpacing = '2px';
+          ctx.fillText("WILLWI HANDCRAFTED", w/2, coverY + coverSize + 55);
       }
       
-      // 8. Progress Bar
+      // 9. Progress Bar
       if (audioRef.current && audioRef.current.duration) {
           const progress = audioRef.current.currentTime / audioRef.current.duration;
           ctx.fillStyle = '#fbbf24';
           const barW = w * progress;
-          ctx.fillRect(0, h - 10, barW, 10);
+          ctx.fillRect(0, h - 8, barW, 8);
           
           // Tip flare
           ctx.save();
           ctx.shadowColor = '#fbbf24';
-          ctx.shadowBlur = 30;
+          ctx.shadowBlur = 20;
           ctx.fillStyle = 'white';
           ctx.fillRect(barW - 2, h - 20, 4, 20);
           ctx.restore();
