@@ -381,15 +381,15 @@ const Interactive: React.FC = () => {
           textScaleRef.current = 1.4; // Text pop
           textBlurRef.current = 10; 
 
-          // Particle Spawn at CENTER (since focus is center line)
-          const centerX = window.innerWidth / 2;
-          const centerY = window.innerHeight / 2;
+          // Particle Spawn at LEFT (since Lyrics are on RIGHT)
+          const particleX = (window.innerWidth / 4); 
+          const particleY = window.innerHeight / 2;
           
           // Use fixed scale for canvas resolution
           const scaleX = 1920 / window.innerWidth;
           const scaleY = 1080 / window.innerHeight;
           
-          spawnParticles(centerX * scaleX, centerY * scaleY, combo);
+          spawnParticles(particleX * scaleX, particleY * scaleY, combo);
 
           setLineIndex(prev => {
               if (prev < lyricsArrayRef.current.length - 1) return prev + 1;
@@ -456,10 +456,11 @@ const Interactive: React.FC = () => {
           ctx.restore();
       }
 
-      // Dark Overlay Gradient for Readability (Heavy Vignette)
-      const gradient = ctx.createRadialGradient(w/2, h/2, h * 0.3, w/2, h/2, h * 0.8);
-      gradient.addColorStop(0, 'rgba(0,0,0,0.3)');
-      gradient.addColorStop(1, 'rgba(0,0,0,0.9)');
+      // Dark Overlay: Left Side Darker for Visuals, Right Side Transparent-ish for Text
+      const gradient = ctx.createLinearGradient(0, 0, w, 0);
+      gradient.addColorStop(0, 'rgba(0,0,0,0.8)'); // Left Dark
+      gradient.addColorStop(0.5, 'rgba(0,0,0,0.6)');
+      gradient.addColorStop(1, 'rgba(0,0,0,0.8)'); // Right Dark
       ctx.fillStyle = gradient;
       ctx.fillRect(0, 0, w, h);
 
@@ -476,15 +477,16 @@ const Interactive: React.FC = () => {
           ctx.restore();
       }
 
-      // 4. SCROLLING LYRICS RENDERER
-      const centerX = w / 2;
+      // 4. SCROLLING LYRICS RENDERER (RIGHT SIDE)
+      const lyricsCenterX = w * 0.75; // Right column center
       const centerY = h / 2;
-      const lineHeight = 160; // Spacing between lines
+      const lineHeight = 120; // Tighter spacing for "Complete List" feel
       
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
 
-      const visibleRange = 5; 
+      // Show more lines to feel "complete"
+      const visibleRange = 7; 
       const startDrawIndex = Math.floor(smoothLineIndexRef.current - visibleRange);
       const endDrawIndex = Math.ceil(smoothLineIndexRef.current + visibleRange);
 
@@ -492,36 +494,34 @@ const Interactive: React.FC = () => {
           if (i < 0 || i >= lyricsArrayRef.current.length) continue;
 
           const text = lyricsArrayRef.current[i];
-          // BOTTOM-TO-TOP SCROLL:
-          // index increases -> smoothLineIndex increases -> relativePos becomes negative -> Y decreases (moves up)
+          // SCROLL: Moves Up as index increases
           const relativePos = i - smoothLineIndexRef.current;
           const y = centerY + (relativePos * lineHeight);
           
-          // Style based on distance from center
           const dist = Math.abs(relativePos);
           let scale = 1;
           let alpha = 1;
           let blur = 0;
 
           if (dist < 0.5) {
-              // Active line (Center)
-              scale = 1.2 + (1 - dist) * 0.4; 
+              // Active line (Center of Right Column)
+              scale = 1.1 + (1 - dist) * 0.1; 
               scale *= (i === lineIndex ? textScaleRef.current : 1); 
               alpha = 1;
               ctx.shadowColor = (combo > 10 && i === lineIndex) ? '#fbbf24' : 'rgba(255,255,255,0.8)';
-              ctx.shadowBlur = (1 - dist) * 40;
+              ctx.shadowBlur = (1 - dist) * 30;
           } else {
               // Inactive lines
-              scale = 1 - (dist * 0.1); 
-              alpha = Math.max(0, 1 - (dist * 0.5)); 
-              blur = dist * 3;
+              scale = 0.9 - (dist * 0.05); 
+              alpha = Math.max(0.2, 1 - (dist * 0.3)); // Minimum visibility to show list
+              blur = dist * 1;
               ctx.shadowBlur = 0;
           }
 
           if (alpha <= 0.05) continue;
 
           ctx.save();
-          ctx.translate(centerX, y);
+          ctx.translate(lyricsCenterX, y);
           ctx.scale(scale, scale);
           ctx.globalAlpha = alpha;
           
@@ -529,12 +529,12 @@ const Interactive: React.FC = () => {
               ctx.filter = `blur(${blur + (i === lineIndex ? textBlurRef.current : 0)}px)`;
           }
 
-          const fontSize = text.length > 15 ? 50 : 70;
+          const fontSize = text.length > 15 ? 40 : 50; // Slightly smaller for list view
           ctx.font = `900 ${fontSize}px Montserrat`;
           
-          // Color Logic: Gold for active, White for others
+          // Color Logic: Gold for active, White/Grey for others
           if (dist < 0.3) ctx.fillStyle = '#fbbf24'; 
-          else ctx.fillStyle = '#ffffff';
+          else ctx.fillStyle = '#94a3b8'; // Slate 400 for inactive
           
           ctx.fillText(text, 0, 0);
           ctx.restore();
@@ -564,33 +564,35 @@ const Interactive: React.FC = () => {
           }
       }
 
-      // 6. Combo Counter (Top Right)
+      // 6. Combo Counter (Left Side)
       if (combo > 1) {
           ctx.save();
-          ctx.textAlign = 'right';
+          ctx.textAlign = 'center';
           const comboScale = 1 + (bassImpact * 2);
-          ctx.font = `900 ${48 * comboScale}px Montserrat`;
-          ctx.fillStyle = combo > 20 ? '#fbbf24' : 'rgba(255, 255, 255, 0.3)';
+          ctx.font = `900 ${80 * comboScale}px Montserrat`;
+          ctx.fillStyle = combo > 20 ? '#fbbf24' : 'rgba(255, 255, 255, 0.5)';
           ctx.shadowColor = combo > 20 ? '#fbbf24' : 'transparent';
           ctx.shadowBlur = 20;
-          ctx.fillText(`${combo} SYNC`, w - 50, 100);
+          ctx.fillText(`${combo}`, w * 0.25, h/2);
+          ctx.font = `700 20px Montserrat`;
+          ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
+          ctx.fillText("SYNC CHAIN", w * 0.25, h/2 + 60);
           ctx.restore();
       }
 
-      // 7. Footer Info
+      // 7. Footer Info (Left Bottom)
       if (bgImageRef.current) {
-          const footerY = h - 60;
+          ctx.save();
+          ctx.textAlign = 'left';
           ctx.fillStyle = '#fbbf24'; 
-          ctx.textAlign = 'center';
-          ctx.font = '900 20px Montserrat';
-          ctx.letterSpacing = '4px';
-          ctx.shadowBlur = 0;
-          ctx.fillText(selectedSong.title.toUpperCase(), w/2, footerY);
+          ctx.font = '900 30px Montserrat';
+          ctx.letterSpacing = '2px';
+          ctx.fillText(selectedSong.title.toUpperCase(), 60, h - 80);
           
           ctx.fillStyle = 'rgba(255,255,255,0.5)';
-          ctx.font = '600 12px Montserrat';
-          ctx.letterSpacing = '2px';
-          ctx.fillText("WILLWI HANDCRAFTED", w/2, footerY + 25);
+          ctx.font = '600 16px Montserrat';
+          ctx.fillText("WILLWI HANDCRAFTED", 60, h - 50);
+          ctx.restore();
       }
       
       // 8. Progress Bar
@@ -912,22 +914,22 @@ const Interactive: React.FC = () => {
 
         {/* --- MODE: PLAYING (RECORDING OVERLAY) --- */}
         {mode === 'playing' && (
-            <div className="fixed inset-0 z-50 flex flex-col items-center justify-end pb-20 select-none">
+            <div className="fixed inset-0 z-[60] flex flex-col items-center justify-end pb-20 select-none pointer-events-none">
                  
                  {/* Mobile Portrait Warning (Non-blocking) */}
                  {isMobile && isPortrait && (
-                     <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-white/20 text-4xl font-black rotate-90 pointer-events-none uppercase">
+                     <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-white/20 text-4xl font-black rotate-90 uppercase">
                          {t('interactive_recording_turn_landscape')}
                      </div>
                  )}
 
-                 <div className="pointer-events-none mb-8 relative z-10">
+                 <div className="mb-8 relative z-10 pointer-events-none">
                      <span className="bg-black/60 text-white px-6 py-3 text-[12px] uppercase tracking-widest backdrop-blur-md border border-white/20 animate-pulse font-bold shadow-2xl">
                          {isMobile ? t('interactive_recording_hint_mobile') : t('interactive_recording_hint_desktop')}
                      </span>
                  </div>
                  
-                 <div className="text-center pointer-events-none relative z-10">
+                 <div className="text-center relative z-10 pointer-events-none">
                      <div className="flex items-center gap-2 justify-center mb-2">
                          <div className={`w-3 h-3 rounded-full animate-pulse ${isPracticeMode ? 'bg-yellow-500' : 'bg-red-500'}`}></div>
                          <p className={`${isPracticeMode ? 'text-yellow-500' : 'text-red-500'} text-[10px] font-black uppercase tracking-widest`}>
@@ -936,9 +938,9 @@ const Interactive: React.FC = () => {
                      </div>
                  </div>
                  
-                 {/* Full Screen Touch Zone (High Performance) */}
+                 {/* Full Screen Touch Zone (High Performance) - Moved to Z-100 to ensure clicks register */}
                  <div 
-                    className="fixed inset-0 bg-transparent z-0 active:bg-white/5 transition-colors cursor-crosshair" 
+                    className="fixed inset-0 bg-transparent z-[100] cursor-pointer touch-manipulation pointer-events-auto" 
                     onClick={(e) => handleLineClick(e, false)}
                     onTouchStart={(e) => handleLineClick(e, false)} // Zero latency for mobile
                  />
