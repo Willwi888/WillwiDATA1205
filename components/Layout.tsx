@@ -85,7 +85,7 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
                     Willwi
                 </span>
                 <span className="text-[0.5rem] px-1.5 py-0.5 border border-slate-500 text-slate-300 rounded group-hover:border-brand-accent group-hover:text-brand-accent transition-colors tracking-widest bg-black/20 backdrop-blur-md">
-                    DB
+                    STUDIO
                 </span>
               </Link>
               {isAdmin && (
@@ -99,10 +99,11 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
               <div className="ml-10 flex items-center space-x-10 text-sm uppercase drop-shadow-md font-semibold">
                 <Link to={isEmbed ? "/?embed=true" : "/"} className={isActive('/')}>{t('nav_home')}</Link>
                 <Link to={isEmbed ? "/interactive?embed=true" : "/interactive"} className={isActive('/interactive')}>{t('nav_interactive')}</Link>
-                <Link to={isEmbed ? "/database?embed=true" : "/database"} className={isActive('/database')}>{t('nav_catalog')}</Link>
                 
+                {/* Catalog Hidden for Public, visible only if Admin or accessed directly */}
                 {isAdmin && (
                     <>
+                        <Link to="/database" className={isActive('/database')}>{t('nav_catalog')}</Link>
                         <Link to={isEmbed ? "/add?embed=true" : "/add"} className="text-slate-300 hover:text-brand-accent transition-colors font-bold tracking-wider">
                         + {t('nav_add')}
                         </Link>
@@ -174,10 +175,10 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
             <div className="px-2 pt-2 pb-3 space-y-1 sm:px-3">
               <Link to="/" onClick={() => setIsMenuOpen(false)} className={mobileLinkClass('/')}>{t('nav_home')}</Link>
               <Link to="/interactive" onClick={() => setIsMenuOpen(false)} className={mobileLinkClass('/interactive')}>{t('nav_interactive')}</Link>
-              <Link to="/database" onClick={() => setIsMenuOpen(false)} className={mobileLinkClass('/database')}>{t('nav_catalog')}</Link>
               
               {isAdmin && (
                   <>
+                    <Link to="/database" onClick={() => setIsMenuOpen(false)} className={mobileLinkClass('/database')}>{t('nav_catalog')}</Link>
                     <Link to="/add" onClick={() => setIsMenuOpen(false)} className={mobileLinkClass('/add')}>{t('nav_add')}</Link>
                     <Link to="/admin" onClick={() => setIsMenuOpen(false)} className={mobileLinkClass('/admin')}>Manager</Link>
                     <button onClick={handleExitAdmin} className="w-full text-left px-3 py-3 text-lg font-medium text-red-500 border-l-2 border-transparent">Exit Admin</button>
@@ -203,7 +204,6 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
                 </p>
             </div>
             <div className="flex space-x-6 text-slate-500">
-                <span className="text-[10px] font-mono">Build v2.5.0</span>
                 <Link to="/admin" className="text-[10px] font-mono hover:text-brand-accent transition-colors flex items-center gap-1 opacity-50 hover:opacity-100">
                     <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
                     Manager

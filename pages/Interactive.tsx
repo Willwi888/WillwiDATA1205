@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import { useData } from '../context/DataContext';
 import { Song, LyricConfig } from '../types';
@@ -87,11 +86,9 @@ const Interactive: React.FC = () => {
       const params = new URLSearchParams(location.search);
       if (params.get('payment') === 'success') {
           // If returned from payment successfully, unlock gate
-          setMode('setup'); // Actually should go to selection if song not selected, but usually flow is maintained.
-          // For simplicity in this static demo, we assume user selects song first, then pays.
-          // If returned from external payment, we might need to restore state.
-          // Here we just redirect to select if no song.
+          // If no song selected, go to selection
           if (!selectedSong) setMode('select');
+          else setMode('setup'); 
       }
       
       if (location.state?.targetSongId) {
@@ -214,7 +211,7 @@ const Interactive: React.FC = () => {
 
       // Debounce slightly
       const now = Date.now();
-      if (now - lastTapTimeRef.current < 100) return;
+      if (now - lastTapTimeRef.current < 70) return;
       lastTapTimeRef.current = now;
 
       hitPulseRef.current = 1.0; 
@@ -286,8 +283,8 @@ const Interactive: React.FC = () => {
       const targetIdx = isDynamic ? lineIndex : (lyricsArrayRef.current.length > 1 ? 1 : 0);
       
       // Physics
-      smoothIndexRef.current += (targetIdx - smoothIndexRef.current) * 0.1;
-      hitPulseRef.current *= 0.9;
+      smoothIndexRef.current += (targetIdx - smoothIndexRef.current) * 0.15;
+      hitPulseRef.current *= 0.92;
 
       // Draw Background
       ctx.fillStyle = '#020202';
@@ -295,25 +292,34 @@ const Interactive: React.FC = () => {
 
       if (bgImageRef.current?.complete) {
           ctx.save();
-          // Cinema Style: Blurred background
-          ctx.globalAlpha = 0.3 * exitAnimationRef.current;
-          ctx.filter = 'blur(80px)';
-          ctx.drawImage(bgImageRef.current, -100, -100, w + 200, h + 200);
-          ctx.restore();
+          // Cinema Style: Blurred background always
+          ctx.globalAlpha = 0.2 * exitAnimationRef.current;
+          ctx.filter = 'blur(100px) grayscale(100%)';
+          ctx.drawImage(bgImageRef.current, -200, -200, w + 400, h + 400);
           
-          // Cover Art (Square)
-          if (config.layout !== 'lyrics') {
-              // Draw small cover if requested
+          // Cover Art (Square) - Show if layout is cover
+          if (config.layout === 'cover') {
+              ctx.filter = 'none';
+              ctx.globalAlpha = 0.9 * exitAnimationRef.current;
+              const baseScale = config.format === 'social' ? w * 0.75 : 520;
+              const coverSize = baseScale * (1 + hitPulseRef.current * 0.06) * exitAnimationRef.current;
+              const coverX = config.format === 'social' ? (w/2 - coverSize/2) : (w - coverSize - 140);
+              const coverY = h/2 - coverSize/2;
+              
+              ctx.shadowColor = 'rgba(0,0,0,1)';
+              ctx.shadowBlur = 80;
+              ctx.drawImage(bgImageRef.current, coverX, coverY, coverSize, coverSize);
           }
+          ctx.restore();
       }
 
       // Draw Lyrics
-      const lyricsX = w / 2;
-      const baseFontSize = config.fontSize === 'small' ? 40 : config.fontSize === 'large' ? 80 : 60;
-      const lineHeight = baseFontSize * 2.5;
+      const lyricsX = config.alignHorizontal === 'left' ? 180 : config.alignHorizontal === 'right' ? w - 180 : w / 2;
+      const baseFontSize = config.fontSize === 'small' ? 50 : config.fontSize === 'large' ? 120 : 80;
+      const lineHeight = baseFontSize * 2.2;
       const centerOffset = h / 2;
 
-      ctx.textAlign = 'center';
+      ctx.textAlign = config.alignHorizontal as CanvasTextAlign;
       ctx.textBaseline = 'middle';
       
       const items = lyricsArrayRef.current;
@@ -321,28 +327,42 @@ const Interactive: React.FC = () => {
       items.forEach((textOrig, i) => {
           let text = textOrig;
           if (config.textCase === 'uppercase') text = text.toUpperCase();
+          else if (config.textCase === 'lowercase') text = text.toLowerCase();
           
           if (text === "[ READY ]" && isDynamic && lineIndex > 0) return; // Hide Ready
           if (text === "END") return; // Don't draw END marker
 
           let relPos = i - smoothIndexRef.current;
           let dist = Math.abs(relPos);
-          
-          // Fade Logic
-          let alpha = Math.max(0, 1 - dist * 0.5);
-          if (dist > 2) alpha = 0;
-          
           let y = centerOffset + (relPos * lineHeight);
           
-          // Current Line Effect
+          let alpha = 1;
           let scale = 1;
           let blur = 0;
-          if (dist < 0.5) {
-              scale = 1.1 + hitPulseRef.current * 0.1;
-              ctx.shadowColor = '#fbbf24';
-              ctx.shadowBlur = 20 + hitPulseRef.current * 30;
+          let yOffset = 0;
+
+          const isLineActive = isDynamic ? Math.round(smoothIndexRef.current) === i : i === targetIdx;
+
+          // --- MOTION LOGIC ---
+          if (config.motion === 'slide') {
+              // Classic vertical scroll
+              alpha = Math.max(0, 1 - dist * 0.35);
+              if (dist > 3) alpha = 0;
+              scale = isLineActive ? 1.1 + hitPulseRef.current * 0.1 : 0.9;
+          } else if (config.motion === 'fade') {
+              // Fade in center, others invisible
+              alpha = Math.max(0, 1 - dist * 0.8); // Sharp falloff
+              y = centerOffset + (relPos * (lineHeight * 0.5)); // Tighter spacing
+              scale = isLineActive ? 1.1 + hitPulseRef.current * 0.05 : 0.8;
+          } else if (config.motion === 'static') {
+              // Single line replacement
+              alpha = isLineActive ? 1 : 0;
+              if (dist > 0.6) alpha = 0; // Quick cutoff
+              y = centerOffset; // Fixed position
+              scale = isLineActive ? 1 + hitPulseRef.current * 0.2 : 0;
           } else {
-              blur = dist * 2;
+              // Default Slide
+              alpha = Math.max(0, 1 - dist * 0.4);
           }
 
           if (alpha > 0.01) {
@@ -354,27 +374,38 @@ const Interactive: React.FC = () => {
               if (blur > 0) ctx.filter = `blur(${blur}px)`;
               
               ctx.font = `900 ${baseFontSize}px Montserrat`;
-              ctx.fillStyle = dist < 0.5 ? '#ffffff' : '#aaaaaa';
-              ctx.fillText(text, 0, 0);
               
-              // Reflection / Glow
-              if (dist < 0.5 && hitPulseRef.current > 0.1) {
-                  ctx.fillStyle = `rgba(251, 191, 36, ${hitPulseRef.current * 0.5})`;
-                  ctx.fillText(text, 0, 0);
+              // Color Logic
+              if (isLineActive) {
+                  ctx.fillStyle = '#ffffff';
+                  // Glow Effect
+                  if (config.effect === 'glow') {
+                      ctx.shadowColor = '#fbbf24';
+                      ctx.shadowBlur = 40 + hitPulseRef.current * 60;
+                  }
+              } else {
+                  ctx.fillStyle = '#666666';
+                  ctx.shadowBlur = 0;
               }
 
+              ctx.fillText(text, 0, 0);
               ctx.restore();
           }
       });
 
       // Watermark
-      ctx.save();
-      ctx.globalAlpha = 0.5 * exitAnimationRef.current;
-      ctx.fillStyle = '#fbbf24';
-      ctx.font = '700 24px Montserrat';
-      ctx.textAlign = 'right';
-      ctx.fillText("CREATED WITH WILLWI STUDIO", w - 50, h - 50);
-      ctx.restore();
+      if (config.format === 'youtube' && config.layout !== 'cover') {
+          ctx.save();
+          ctx.globalAlpha = 1.0 * exitAnimationRef.current;
+          ctx.fillStyle = '#fbbf24';
+          ctx.font = '900 36px Montserrat';
+          ctx.textAlign = 'left';
+          ctx.fillText(selectedSong!.title.toUpperCase(), 140, h - 160);
+          ctx.fillStyle = '#ffffff33';
+          ctx.font = '700 20px Montserrat';
+          ctx.fillText(`Prod. Willwi`, 140, h - 110);
+          ctx.restore();
+      }
   };
 
   const toggleAudition = async () => {
@@ -498,25 +529,36 @@ const Interactive: React.FC = () => {
       {mode === 'setup' && selectedSong && (
           <div className="flex-1 flex flex-col md:flex-row h-screen pt-20 overflow-hidden">
               {/* Controls */}
-              <div className="w-full md:w-80 bg-slate-900 border-r border-white/5 p-8 flex flex-col z-20 shadow-2xl">
-                  <h4 className="text-[10px] font-black text-brand-gold uppercase tracking-widest mb-8">{t('interactive_tool_prepare_title')}</h4>
+              <div className="w-full md:w-80 bg-black border-r border-white/5 p-8 flex flex-col z-20 shadow-2xl overflow-y-auto custom-scrollbar">
                   
-                  <div className="space-y-4 mb-8">
-                      <div className={`p-3 border rounded text-[10px] uppercase font-bold tracking-widest flex justify-between ${isAudioReady ? 'border-emerald-500/30 text-emerald-500 bg-emerald-500/5' : 'border-white/10 text-slate-500'}`}>
-                          <span>{t('interactive_tool_checklist_1')}</span>
-                          <span>{isAudioReady ? 'OK' : '...'}</span>
+                  {/* NEW: Visual Customization Section */}
+                  <div className="mb-10 border-b border-white/5 pb-8">
+                      <h4 className="text-[10px] font-black text-brand-gold uppercase tracking-widest mb-4">Visual Motion</h4>
+                      <div className="grid grid-cols-2 gap-2 mb-4">
+                          {['slide', 'fade', 'static'].map(m => (
+                              <button 
+                                key={m}
+                                onClick={() => setConfig({...config, motion: m as any})}
+                                className={`py-3 text-[9px] font-black uppercase transition-all border ${config.motion === m ? 'bg-white text-black border-white' : 'bg-transparent text-slate-500 border-white/10 hover:border-white/50 hover:text-white'}`}
+                              >
+                                  {m}
+                              </button>
+                          ))}
                       </div>
-                      <div className="p-3 border border-emerald-500/30 text-emerald-500 bg-emerald-500/5 rounded text-[10px] uppercase font-bold tracking-widest flex justify-between">
-                          <span>{t('interactive_tool_checklist_2')}</span>
-                          <span>OK</span>
+                      
+                      <h4 className="text-[10px] font-black text-brand-gold uppercase tracking-widest mb-4 mt-6">Layout & Font</h4>
+                      <div className="grid grid-cols-2 gap-2">
+                          <button onClick={() => setConfig({...config, format: 'youtube'})} className={`py-3 text-[9px] font-black uppercase border ${config.format === 'youtube' ? 'bg-white text-black border-white' : 'text-slate-500 border-white/10'}`}>16:9 (PC)</button>
+                          <button onClick={() => setConfig({...config, format: 'social'})} className={`py-3 text-[9px] font-black uppercase border ${config.format === 'social' ? 'bg-white text-black border-white' : 'text-slate-500 border-white/10'}`}>9:16 (Phone)</button>
+                          <button onClick={() => setConfig({...config, layout: 'cover'})} className={`py-3 text-[9px] font-black uppercase border ${config.layout === 'cover' ? 'bg-white text-black border-white' : 'text-slate-500 border-white/10'}`}>Cover Mode</button>
+                          <button onClick={() => setConfig({...config, layout: 'lyrics'})} className={`py-3 text-[9px] font-black uppercase border ${config.layout === 'lyrics' ? 'bg-white text-black border-white' : 'text-slate-500 border-white/10'}`}>Lyrics Only</button>
                       </div>
                   </div>
 
                   <div className="mt-auto space-y-4">
-                      <p className="text-[10px] text-slate-400 leading-relaxed">
+                      <p className="text-[10px] text-slate-400 leading-relaxed mb-4">
                           {t('interactive_tool_guide_1')}<br/>
-                          <span className="text-white hidden md:inline">{t('interactive_tool_guide_2_desktop')}</span>
-                          <span className="text-white md:hidden">{t('interactive_tool_guide_2_mobile')}</span>
+                          <span className="text-white">{t('interactive_tool_guide_2_desktop')}</span>
                       </p>
                       <button onClick={toggleAudition} className={`w-full py-4 border font-black uppercase text-[10px] tracking-[0.2em] transition-all ${isAuditioning ? 'bg-white text-black border-white' : 'border-white/20 text-white hover:bg-white/10'}`}>
                           {isAuditioning ? 'STOP PREVIEW' : 'PRACTICE MODE'}
@@ -528,18 +570,12 @@ const Interactive: React.FC = () => {
               </div>
 
               {/* Canvas Preview */}
-              <div className="flex-1 bg-black relative flex items-center justify-center p-4 md:p-12 overflow-hidden" 
+              <div className="flex-1 bg-slate-950 relative flex items-center justify-center p-4 md:p-12 overflow-hidden" 
                    onMouseDown={isAuditioning ? handleLineClick : undefined}
                    onTouchStart={isAuditioning ? handleLineClick : undefined}
               >
-                  <div className="relative shadow-2xl border border-white/5 aspect-video w-full max-w-5xl bg-black">
-                      <canvas ref={canvasRef} width={1920} height={1080} className="w-full h-full object-contain" />
-                      {/* Overlay Hints */}
-                      {isAuditioning && (
-                          <div className="absolute top-4 right-4 text-[10px] text-brand-gold font-bold uppercase tracking-widest bg-black/50 px-2 py-1 border border-brand-gold/30">
-                              Preview Mode
-                          </div>
-                      )}
+                  <div className={`shadow-2xl border border-white/10 overflow-hidden transition-all duration-700 bg-black ${config.format === 'social' ? 'aspect-[9/16] h-full max-h-[80vh]' : 'aspect-video w-full max-w-5xl'}`}>
+                      <canvas ref={canvasRef} width={1920} height={config.format === 'social' ? 3413 : 1080} className="w-full h-full object-cover" />
                   </div>
               </div>
           </div>
@@ -554,15 +590,17 @@ const Interactive: React.FC = () => {
               </div>
               
               {/* Full Screen Capture Area */}
-              <div className="flex-1 flex items-center justify-center" onMouseDown={handleLineClick} onTouchStart={handleLineClick}>
-                  <canvas ref={canvasRef} width={1920} height={1080} className="w-full h-full object-contain max-h-screen" />
+              <div className="flex-1 flex items-center justify-center bg-black" onMouseDown={handleLineClick} onTouchStart={handleLineClick}>
+                  <div className={`${config.format === 'social' ? 'aspect-[9/16] h-full' : 'aspect-video w-full'}`}>
+                      <canvas ref={canvasRef} width={1920} height={config.format === 'social' ? 3413 : 1080} className="w-full h-full object-contain" />
+                  </div>
               </div>
 
               {/* Controls Overlay (Bottom) */}
               <div className="absolute bottom-0 w-full p-12 flex justify-between items-end bg-gradient-to-t from-black via-black/80 to-transparent pointer-events-none">
                   <div className="text-left">
                       <p className="text-[10px] text-brand-gold font-bold uppercase tracking-[0.3em] mb-2 animate-pulse">{t('interactive_recording_hint_desktop')}</p>
-                      <p className="text-4xl font-black text-white/20 uppercase truncate max-w-4xl">{lyricsArrayRef.current[lineIndex]}</p>
+                      <p className="text-4xl font-black text-white/20 uppercase truncate max-w-4xl opacity-50">{lyricsArrayRef.current[lineIndex]}</p>
                   </div>
                   <button onClick={finishRecording} className="pointer-events-auto px-8 py-3 border border-red-900 text-red-700 text-[10px] font-black uppercase tracking-widest hover:bg-red-900 hover:text-white transition-all">ABORT</button>
               </div>
