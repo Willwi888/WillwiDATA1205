@@ -256,9 +256,11 @@ const Interactive: React.FC = () => {
       const isDynamic = mode === 'playing' || (mode === 'setup' && isAuditioning);
       const targetIdx = isDynamic ? lineIndex : (lyricsArrayRef.current.length > 1 ? 1 : 0);
       
-      smoothIndexRef.current += (targetIdx - smoothIndexRef.current) * 0.18;
-      hitPulseRef.current *= 0.93;
+      // Smooth Scroll Physics
+      smoothIndexRef.current += (targetIdx - smoothIndexRef.current) * 0.15;
+      hitPulseRef.current *= 0.92;
 
+      // Background
       ctx.fillStyle = '#020202';
       ctx.fillRect(0, 0, w, h);
 
@@ -268,24 +270,33 @@ const Interactive: React.FC = () => {
           ctx.filter = 'blur(100px) grayscale(100%)';
           ctx.drawImage(bgImageRef.current, -200, -200, w + 400, h + 400);
           
-          ctx.filter = 'none';
-          ctx.globalAlpha = 0.9 * exitAnimationRef.current;
-          const baseScale = config.format === 'social' ? w * 0.75 : 520;
-          const coverSize = baseScale * (1 + hitPulseRef.current * 0.06) * exitAnimationRef.current;
-          const coverX = config.format === 'social' ? (w/2 - coverSize/2) : (w - coverSize - 140);
-          const coverY = h/2 - coverSize/2;
-          
-          ctx.shadowColor = 'rgba(0,0,0,1)';
-          ctx.shadowBlur = 80;
-          ctx.drawImage(bgImageRef.current, coverX, coverY, coverSize, coverSize);
+          // Small Cover Logic
+          if (config.layout === 'cover') {
+              ctx.filter = 'none';
+              ctx.globalAlpha = 0.9 * exitAnimationRef.current;
+              const baseScale = config.format === 'social' ? w * 0.75 : 520;
+              const coverSize = baseScale * (1 + hitPulseRef.current * 0.06) * exitAnimationRef.current;
+              const coverX = config.format === 'social' ? (w/2 - coverSize/2) : (w - coverSize - 140);
+              const coverY = h/2 - coverSize/2;
+              
+              ctx.shadowColor = 'rgba(0,0,0,1)';
+              ctx.shadowBlur = 80;
+              ctx.drawImage(bgImageRef.current, coverX, coverY, coverSize, coverSize);
+          }
           ctx.restore();
       }
 
+      // -----------------------------
+      // 9 MOTIONS IMPLEMENTATION
+      // -----------------------------
       const lyricsX = config.alignHorizontal === 'left' ? 180 : config.alignHorizontal === 'right' ? w - 180 : w / 2;
       const lineHeight = config.fontSize === 'small' ? 110 : config.fontSize === 'large' ? 280 : 190;
       let baseOffset = h / 2;
-      if (config.alignVertical === 'top') baseOffset = h * 0.3;
-      if (config.alignVertical === 'bottom') baseOffset = h * 0.7;
+      
+      // Override center for Static mode
+      if (config.motion === 'static') baseOffset = h / 2;
+      else if (config.alignVertical === 'top') baseOffset = h * 0.3;
+      else if (config.alignVertical === 'bottom') baseOffset = h * 0.7;
 
       ctx.textBaseline = 'middle';
       ctx.textAlign = config.alignHorizontal as CanvasTextAlign;
@@ -300,47 +311,158 @@ const Interactive: React.FC = () => {
           if (text === "[ READY ]" && isDynamic && lineIndex > 0) return;
           if (text === "END") return;
 
-          const relPos = i - smoothIndexRef.current;
-          const y = baseOffset + (relPos * lineHeight);
-          const dist = Math.abs(relPos);
+          let relPos = i - smoothIndexRef.current;
+          let dist = Math.abs(relPos);
+          let y = baseOffset + (relPos * lineHeight);
+          
+          // Motion Physics Variables
+          let alpha = 1;
+          let scale = 1;
+          let yOffset = 0;
+          let xOffset = 0;
+          let blur = 0;
+          let spacing = 0;
+          let isFillMode = false;
 
-          if (dist > 3.5) return; 
+          const isLineActive = isDynamic ? Math.round(smoothIndexRef.current) === i : i === targetIdx;
+
+          // --- MOTION LOGIC ---
+          switch (config.motion) {
+              case 'slide': // 經典垂直滾動
+                  alpha = Math.max(0, 1 - dist * 0.35);
+                  scale = isLineActive ? 1.2 + hitPulseRef.current * 0.1 : 0.9;
+                  break;
+
+              case 'fade': // 依距離透明
+                  alpha = Math.max(0, 1 - dist * 0.6);
+                  scale = isLineActive ? 1.1 : 0.9;
+                  y = baseOffset + (relPos * (lineHeight * 0.8)); // Tighter spacing
+                  break;
+
+              case 'static': // 鎖定單行
+                  if (dist > 0.6) alpha = 0;
+                  else alpha = 1 - dist;
+                  y = baseOffset; // Fixed Y
+                  scale = isLineActive ? 1.2 + hitPulseRef.current * 0.1 : 0;
+                  break;
+
+              case 'popup': // 彈跳感
+                  alpha = Math.max(0, 1 - dist * 0.4);
+                  if (isLineActive) {
+                      scale = 1.0 + hitPulseRef.current * 0.6; // Dramatic scale
+                  } else {
+                      scale = 0.6;
+                  }
+                  break;
+
+              case 'mask': // 中央遮罩
+                  if (dist > 1.2) alpha = 0;
+                  else alpha = 1;
+                  scale = 1;
+                  break;
+
+              case 'expand': // 字間距擴張 (Simulated via scaleX)
+                  alpha = Math.max(0, 1 - dist * 0.4);
+                  if (isLineActive) {
+                      scale = 1 + hitPulseRef.current * 0.2;
+                      spacing = 10 + hitPulseRef.current * 20; // Extra spacing
+                  } else {
+                      scale = 0.8;
+                  }
+                  break;
+
+              case 'fill': // 進度條填充感 (Stroke vs Fill)
+                  alpha = Math.max(0, 1 - dist * 0.3);
+                  scale = isLineActive ? 1.1 : 0.9;
+                  isFillMode = true; // Use special draw logic
+                  break;
+
+              case 'bubbling': // 漂浮感
+                  alpha = Math.max(0, 1 - dist * 0.3);
+                  yOffset = Math.sin((Date.now() / 400) + i) * 15;
+                  scale = isLineActive ? 1.1 + hitPulseRef.current * 0.1 : 0.85;
+                  break;
+                  
+              case 'wipe': // 擦拭效果 (Gradient)
+                  alpha = 1;
+                  scale = isLineActive ? 1.1 : 0.9;
+                  if (dist > 2) alpha = 0;
+                  break;
+
+              default: // standard slide fallback
+                  alpha = Math.max(0, 1 - dist * 0.3);
+                  scale = 1;
+          }
+
+          if (alpha <= 0.01) return; // Optimization
 
           ctx.save();
-          const isLineActive = isDynamic ? Math.round(smoothIndexRef.current) === i : i === targetIdx;
-          
-          let alpha = isLineActive ? 1 : Math.max(0, 0.5 - dist * 0.3);
-          alpha *= exitAnimationRef.current;
-          
-          let fontSizeVal = config.fontSize === 'small' ? 50 : config.fontSize === 'large' ? 140 : 95;
-          let scale = (isLineActive ? 1.25 + hitPulseRef.current * 0.25 : 0.85 - dist * 0.08) * exitAnimationRef.current;
-          
-          ctx.translate(lyricsX, y);
+          ctx.translate(lyricsX + xOffset, y + yOffset);
           ctx.scale(scale, scale);
-          ctx.globalAlpha = alpha;
+          ctx.globalAlpha = alpha * exitAnimationRef.current;
 
-          if (config.effect === 'glow' && isLineActive) {
-              ctx.shadowColor = '#fbbf24';
-              ctx.shadowBlur = 60 + hitPulseRef.current * 80;
-          }
-
+          // Font Settings
+          const fontSizeVal = config.fontSize === 'small' ? 50 : config.fontSize === 'large' ? 140 : 95;
           ctx.font = `900 ${fontSizeVal}px Montserrat`;
 
-          if (config.lyricStyle === 'cutout') {
-              ctx.strokeStyle = '#fbbf24'; ctx.lineWidth = 5; ctx.strokeText(text, 0, 0);
+          // --- RENDER TEXT ---
+          
+          if (config.motion === 'wipe') {
+              if (isLineActive) {
+                 const gradient = ctx.createLinearGradient(-300, 0, 300, 0);
+                 const progress = Math.min(1, Math.max(0, 1 - dist)); // Rough wipe progress based on scroll
+                 gradient.addColorStop(0, '#fbbf24');
+                 gradient.addColorStop(0.5 + hitPulseRef.current * 0.5, '#fbbf24');
+                 gradient.addColorStop(1, '#ffffff');
+                 ctx.fillStyle = gradient;
+                 ctx.fillText(text, 0, 0);
+              } else {
+                 ctx.fillStyle = '#333333';
+                 ctx.fillText(text, 0, 0);
+              }
+          } else if (config.motion === 'fill') {
+               // Stroke background
+               ctx.strokeStyle = '#333333';
+               ctx.lineWidth = 4;
+               ctx.strokeText(text, 0, 0);
+               
+               if (isLineActive) {
+                   ctx.fillStyle = '#fbbf24';
+                   ctx.fillText(text, 0, 0);
+               }
           } else {
-              ctx.fillStyle = isLineActive ? '#fbbf24' : '#ffffff';
-              ctx.fillText(text, 0, 0);
+              // Standard & Other Effects
+              if (config.effect === 'glow' && isLineActive) {
+                  ctx.shadowColor = '#fbbf24';
+                  ctx.shadowBlur = 40 + hitPulseRef.current * 60;
+              }
+
+              if (config.lyricStyle === 'cutout') {
+                  ctx.strokeStyle = '#fbbf24'; ctx.lineWidth = 5; ctx.strokeText(text, 0, 0);
+              } else {
+                  ctx.fillStyle = isLineActive ? '#fbbf24' : '#ffffff';
+                  // Simulate letter spacing for 'expand'
+                  if (config.motion === 'expand' && spacing > 0) {
+                      // Canvas doesn't support letter-spacing easily, simplistic approach
+                      // Just scaling X more than Y to simulate expansion
+                      ctx.scale(1 + (spacing/100), 1); 
+                  }
+                  ctx.fillText(text, 0, 0);
+              }
           }
+
           ctx.restore();
       });
 
+      // Watermark
       if (config.format === 'youtube' && config.layout !== 'cover') {
+          ctx.save();
           ctx.globalAlpha = 1.0 * exitAnimationRef.current;
           ctx.fillStyle = '#fbbf24'; ctx.font = '900 36px Montserrat'; ctx.textAlign = 'left';
           ctx.fillText(selectedSong!.title.toUpperCase(), 140, h - 160);
           ctx.fillStyle = '#ffffff33'; ctx.font = '700 20px Montserrat';
           ctx.fillText(`Prod. Willwi`, 140, h - 110);
+          ctx.restore();
       }
   };
 
@@ -387,6 +509,7 @@ const Interactive: React.FC = () => {
                           <div key={song.id} className="bg-slate-900 border border-white/5 overflow-hidden flex flex-col shadow-lg hover:shadow-brand-gold/10 transition-shadow duration-500">
                               {/* Cover Art */}
                               <div className="aspect-square relative group">
+                                  {/* UPDATE: Removed grayscale class here */}
                                   <img src={song.coverUrl} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" alt="" />
                                   <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent opacity-60"></div>
                                   
@@ -468,10 +591,23 @@ const Interactive: React.FC = () => {
       {mode === 'setup' && selectedSong && (
           <div className="flex-1 flex h-[calc(100vh-80px)] overflow-hidden">
               <div className="w-80 bg-black border-r border-white/5 p-8 overflow-y-auto custom-scrollbar space-y-12 hidden md:block">
+                  
+                  {/* NEW: Material Dashboard */}
                   <section>
-                      <h4 className="text-[10px] font-black text-brand-gold uppercase tracking-widest mb-6 border-b border-white/10 pb-2">Visual Motion</h4>
+                      <h4 className="text-[10px] font-black text-brand-gold uppercase tracking-widest mb-6 border-b border-white/10 pb-2">Material Board</h4>
+                      <div className="bg-slate-900/50 p-4 rounded border border-white/5 flex gap-4 items-center">
+                          <img src={selectedSong.coverUrl} className="w-16 h-16 object-cover shadow-lg border border-white/10" alt="" />
+                          <div>
+                              <div className="text-[9px] text-brand-gold font-bold uppercase tracking-wider mb-1 px-1.5 py-0.5 border border-brand-gold/30 inline-block rounded">Willwi Verified</div>
+                              <h5 className="text-sm font-black text-white uppercase leading-tight line-clamp-2">{selectedSong.title}</h5>
+                          </div>
+                      </div>
+                  </section>
+
+                  <section>
+                      <h4 className="text-[10px] font-black text-brand-gold uppercase tracking-widest mb-6 border-b border-white/10 pb-2">Visual Motion (9 Styles)</h4>
                       <div className="grid grid-cols-2 gap-2">
-                          {['slide', 'fade', 'wipe', 'static', 'popup', 'mask', 'scaling', 'fill', 'bubbling'].map(m => (
+                          {['slide', 'fade', 'wipe', 'static', 'popup', 'mask', 'expand', 'fill', 'bubbling'].map(m => (
                               <button key={m} onClick={() => setConfig({...config, motion: m as any})} className={`py-3 text-[9px] font-black uppercase transition-all border ${config.motion === m ? 'bg-white text-black border-white' : 'bg-transparent text-slate-500 border-white/10 hover:border-white/50 hover:text-white'}`}>
                                   {m}
                               </button>

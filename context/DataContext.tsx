@@ -120,7 +120,7 @@ Fading out...`,
     id: 'seed-004',
     title: 'Golden Hour (黃金時刻)',
     versionLabel: 'Demo',
-    coverUrl: 'https://images.unsplash.com/photo-1634152962476-4b8a00e1915c?q=80&w=1000&auto=format&fit=crop', // Dark abstract gold/black texture (NOT the square)
+    coverUrl: 'https://images.unsplash.com/photo-1483729558449-99ef09a8c325?q=80&w=1000&auto=format&fit=crop', // Replaced the yellow square with a darker, stylish image
     language: Language.Instrumental,
     projectType: ProjectType.Indie,
     releaseCategory: ReleaseCategory.Single,
