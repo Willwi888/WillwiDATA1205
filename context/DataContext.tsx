@@ -16,7 +16,7 @@ const LOCAL_STORAGE_KEY = 'willwi_music_db_v3';
 export const ASSETS = {
     willwiPortrait: "https://drive.google.com/thumbnail?id=18rpLhJQKHKK5EeonFqutlOoKAI2Eq_Hd&sz=w2000",
     casperLogo: "logo.png",
-    defaultCover: "https://images.unsplash.com/photo-1614613535308-eb5fbd3d2c17?q=80&w=1000&auto=format&fit=crop" // Dark abstract texture
+    defaultCover: "https://placehold.co/1000x1000/1e293b/fbbf24?text=Willwi+Music"
 };
 
 export const INITIAL_DATA: Song[] = [
@@ -24,7 +24,7 @@ export const INITIAL_DATA: Song[] = [
     id: 'seed-001',
     title: '再愛一次 (Love Again)',
     versionLabel: 'Original',
-    coverUrl: 'https://images.unsplash.com/photo-1493225255756-d9584f8606e9?q=80&w=1000&auto=format&fit=crop', // Black and white surfer/ocean vibe
+    coverUrl: 'https://placehold.co/1000x1000/0f172a/fbbf24?text=Love+Again',
     language: Language.Mandarin,
     projectType: ProjectType.Indie,
     releaseCategory: ReleaseCategory.Single,
@@ -56,7 +56,7 @@ export const INITIAL_DATA: Song[] = [
     id: 'seed-002',
     title: 'Neon Drift (霓虹漂流)',
     versionLabel: 'Synthwave Mix',
-    coverUrl: 'https://images.unsplash.com/photo-1605721911519-3dfeb3be25e7?q=80&w=1000&auto=format&fit=crop', // Dark moody smoke/abstract
+    coverUrl: 'https://placehold.co/1000x1000/2c0b0e/38bdf8?text=Neon+Drift',
     language: Language.English,
     projectType: ProjectType.PaoMien,
     releaseCategory: ReleaseCategory.Single,
@@ -88,7 +88,7 @@ Fading out...`,
     id: 'seed-003',
     title: '沉默 (Silence)',
     versionLabel: 'Acoustic',
-    coverUrl: 'https://images.unsplash.com/photo-1506744038136-46273834b3fb?q=80&w=1000&auto=format&fit=crop', // BW Landscape
+    coverUrl: 'https://placehold.co/1000x1000/000000/ffffff?text=Silence',
     language: Language.Mandarin,
     projectType: ProjectType.Indie,
     releaseCategory: ReleaseCategory.EP,
@@ -120,7 +120,7 @@ Fading out...`,
     id: 'seed-004',
     title: 'Golden Hour (黃金時刻)',
     versionLabel: 'Demo',
-    coverUrl: 'https://images.unsplash.com/photo-1483729558449-99ef09a8c325?q=80&w=1000&auto=format&fit=crop', // Replaced the yellow square with a darker, stylish image
+    coverUrl: 'https://placehold.co/1000x1000/fbbf24/000000?text=Golden+Hour',
     language: Language.Instrumental,
     projectType: ProjectType.Indie,
     releaseCategory: ReleaseCategory.Single,

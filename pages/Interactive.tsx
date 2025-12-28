@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import { useData } from '../context/DataContext';
 import { Song, LyricConfig } from '../types';
@@ -25,21 +26,22 @@ const convertToDirectStream = (url: string) => {
     } catch (e) { return url; }
 };
 
-// 簡化模式：移除 intro，直接進入 select
-type InteractionMode = 'select' | 'gate' | 'setup' | 'playing' | 'contact' | 'finished';
+// Mode State Machine
+type InteractionMode = 'intro' | 'select' | 'gate' | 'setup' | 'playing' | 'contact' | 'finished';
 
 const Interactive: React.FC = () => {
   const { songs } = useData();
   const { t } = useTranslation();
   const location = useLocation();
+  const navigate = useNavigate();
   
-  // 預設直接進入 select (選歌大廳)
-  const [mode, setMode] = useState<InteractionMode>('select');
+  const [mode, setMode] = useState<InteractionMode>('intro');
   const [selectedSong, setSelectedSong] = useState<Song | null>(null);
   const [contactInfo, setContactInfo] = useState({ name: '', phone: '' });
   const [isAudioReady, setIsAudioReady] = useState(false);
   const [showPayment, setShowPayment] = useState(false);
   
+  // Visual Config (Preset for Willwi)
   const [config, setConfig] = useState<LyricConfig>({
       layout: 'lyrics',
       format: 'youtube',
@@ -74,16 +76,36 @@ const Interactive: React.FC = () => {
   const exitAnimationRef = useRef<number>(1);
   const bgImageRef = useRef<HTMLImageElement | null>(null);
   
+  // Web Audio Context for Stream Merging
   const audioContextRef = useRef<AudioContext | null>(null);
   const audioSourceRef = useRef<MediaElementAudioSourceNode | null>(null);
+
+  // Filter only active songs
+  const activeSongs = songs.filter(s => s.isInteractiveActive);
 
   useEffect(() => {
       const params = new URLSearchParams(location.search);
       if (params.get('payment') === 'success') {
-          setMode('select'); 
+          // If returned from payment successfully, unlock gate
+          setMode('setup'); // Actually should go to selection if song not selected, but usually flow is maintained.
+          // For simplicity in this static demo, we assume user selects song first, then pays.
+          // If returned from external payment, we might need to restore state.
+          // Here we just redirect to select if no song.
+          if (!selectedSong) setMode('select');
       }
-  }, [location.search]);
+      
+      if (location.state?.targetSongId) {
+          const s = songs.find(x => x.id === location.state.targetSongId);
+          if (s) {
+              setSelectedSong(s);
+              setMode('gate');
+          }
+      } else if (location.state?.initialMode) {
+          setMode(location.state.initialMode as InteractionMode);
+      }
+  }, [location.search, songs, location.state]);
 
+  // Key Listener for PC
   useEffect(() => {
       const handleKeyDown = (e: KeyboardEvent) => {
           if (e.code === 'Space') {
@@ -105,9 +127,11 @@ const Interactive: React.FC = () => {
   const unlockStudio = () => {
       if (!selectedSong) return;
       setIsAudioReady(false);
+      // Parse lyrics
       const rawLines = (selectedSong.lyrics || "").split('\n').map(l => l.trim()).filter(l => l.length > 0);
       lyricsArrayRef.current = ["[ READY ]", ...rawLines, "END"];
       
+      // Load Cover
       if (selectedSong.coverUrl) {
           const img = new Image();
           img.crossOrigin = "anonymous";
@@ -129,6 +153,7 @@ const Interactive: React.FC = () => {
           setIsAuditioning(false);
       }
 
+      // Initialize Audio Context for Recording
       if (!audioContextRef.current) {
           audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
       }
@@ -152,8 +177,9 @@ const Interactive: React.FC = () => {
               audioSourceRef.current = ctx.createMediaElementSource(audioRef.current);
           }
           audioSourceRef.current.connect(dest);
-          audioSourceRef.current.connect(ctx.destination);
+          audioSourceRef.current.connect(ctx.destination); // Hear it
 
+          // Combine
           const combinedStream = new MediaStream([
               ...canvasStream.getVideoTracks(),
               ...dest.stream.getAudioTracks()
@@ -186,8 +212,9 @@ const Interactive: React.FC = () => {
       const isInteractive = mode === 'playing' || (mode === 'setup' && isAuditioning);
       if (!isInteractive || !audioRef.current) return;
 
+      // Debounce slightly
       const now = Date.now();
-      if (now - lastTapTimeRef.current < 70) return;
+      if (now - lastTapTimeRef.current < 100) return;
       lastTapTimeRef.current = now;
 
       hitPulseRef.current = 1.0; 
@@ -196,7 +223,9 @@ const Interactive: React.FC = () => {
           if (prev < lyricsArrayRef.current.length - 1) {
               const next = prev + 1;
               
+              // Check for END in real recording
               if (mode === 'playing' && lyricsArrayRef.current[next] === "END") {
+                  // Trigger finish sequence
                   const vanish = setInterval(() => {
                       exitAnimationRef.current -= 0.08;
                       if (exitAnimationRef.current <= 0) {
@@ -206,6 +235,7 @@ const Interactive: React.FC = () => {
                   }, 40);
               }
               
+              // Loop in practice
               if (mode === 'setup' && lyricsArrayRef.current[next] === "END") {
                   toggleAudition();
                   return 0;
@@ -255,214 +285,96 @@ const Interactive: React.FC = () => {
       const isDynamic = mode === 'playing' || (mode === 'setup' && isAuditioning);
       const targetIdx = isDynamic ? lineIndex : (lyricsArrayRef.current.length > 1 ? 1 : 0);
       
-      // Smooth Scroll Physics
-      smoothIndexRef.current += (targetIdx - smoothIndexRef.current) * 0.15;
-      hitPulseRef.current *= 0.92;
+      // Physics
+      smoothIndexRef.current += (targetIdx - smoothIndexRef.current) * 0.1;
+      hitPulseRef.current *= 0.9;
 
-      // Background
+      // Draw Background
       ctx.fillStyle = '#020202';
       ctx.fillRect(0, 0, w, h);
 
       if (bgImageRef.current?.complete) {
           ctx.save();
-          ctx.globalAlpha = 0.2 * exitAnimationRef.current;
-          ctx.filter = 'blur(100px) grayscale(100%)';
-          ctx.drawImage(bgImageRef.current, -200, -200, w + 400, h + 400);
-          
-          // Small Cover Logic
-          if (config.layout === 'cover') {
-              ctx.filter = 'none';
-              ctx.globalAlpha = 0.9 * exitAnimationRef.current;
-              const baseScale = config.format === 'social' ? w * 0.75 : 520;
-              const coverSize = baseScale * (1 + hitPulseRef.current * 0.06) * exitAnimationRef.current;
-              const coverX = config.format === 'social' ? (w/2 - coverSize/2) : (w - coverSize - 140);
-              const coverY = h/2 - coverSize/2;
-              
-              ctx.shadowColor = 'rgba(0,0,0,1)';
-              ctx.shadowBlur = 80;
-              ctx.drawImage(bgImageRef.current, coverX, coverY, coverSize, coverSize);
-          }
+          // Cinema Style: Blurred background
+          ctx.globalAlpha = 0.3 * exitAnimationRef.current;
+          ctx.filter = 'blur(80px)';
+          ctx.drawImage(bgImageRef.current, -100, -100, w + 200, h + 200);
           ctx.restore();
+          
+          // Cover Art (Square)
+          if (config.layout !== 'lyrics') {
+              // Draw small cover if requested
+          }
       }
 
-      // -----------------------------
-      // 9 MOTIONS IMPLEMENTATION
-      // -----------------------------
-      const lyricsX = config.alignHorizontal === 'left' ? 180 : config.alignHorizontal === 'right' ? w - 180 : w / 2;
-      const lineHeight = config.fontSize === 'small' ? 110 : config.fontSize === 'large' ? 280 : 190;
-      let baseOffset = h / 2;
-      
-      // Override center for Static mode
-      if (config.motion === 'static') baseOffset = h / 2;
-      else if (config.alignVertical === 'top') baseOffset = h * 0.3;
-      else if (config.alignVertical === 'bottom') baseOffset = h * 0.7;
+      // Draw Lyrics
+      const lyricsX = w / 2;
+      const baseFontSize = config.fontSize === 'small' ? 40 : config.fontSize === 'large' ? 80 : 60;
+      const lineHeight = baseFontSize * 2.5;
+      const centerOffset = h / 2;
 
+      ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      ctx.textAlign = config.alignHorizontal as CanvasTextAlign;
       
       const items = lyricsArrayRef.current;
 
       items.forEach((textOrig, i) => {
           let text = textOrig;
           if (config.textCase === 'uppercase') text = text.toUpperCase();
-          else if (config.textCase === 'lowercase') text = text.toLowerCase();
           
-          if (text === "[ READY ]" && isDynamic && lineIndex > 0) return;
-          if (text === "END") return;
+          if (text === "[ READY ]" && isDynamic && lineIndex > 0) return; // Hide Ready
+          if (text === "END") return; // Don't draw END marker
 
           let relPos = i - smoothIndexRef.current;
           let dist = Math.abs(relPos);
-          let y = baseOffset + (relPos * lineHeight);
           
-          // Motion Physics Variables
-          let alpha = 1;
+          // Fade Logic
+          let alpha = Math.max(0, 1 - dist * 0.5);
+          if (dist > 2) alpha = 0;
+          
+          let y = centerOffset + (relPos * lineHeight);
+          
+          // Current Line Effect
           let scale = 1;
-          let yOffset = 0;
-          let xOffset = 0;
           let blur = 0;
-          let spacing = 0;
-          let isFillMode = false;
-
-          const isLineActive = isDynamic ? Math.round(smoothIndexRef.current) === i : i === targetIdx;
-
-          // --- MOTION LOGIC ---
-          switch (config.motion) {
-              case 'slide': // 經典垂直滾動
-                  alpha = Math.max(0, 1 - dist * 0.35);
-                  scale = isLineActive ? 1.2 + hitPulseRef.current * 0.1 : 0.9;
-                  break;
-
-              case 'fade': // 依距離透明
-                  alpha = Math.max(0, 1 - dist * 0.6);
-                  scale = isLineActive ? 1.1 : 0.9;
-                  y = baseOffset + (relPos * (lineHeight * 0.8)); // Tighter spacing
-                  break;
-
-              case 'static': // 鎖定單行
-                  if (dist > 0.6) alpha = 0;
-                  else alpha = 1 - dist;
-                  y = baseOffset; // Fixed Y
-                  scale = isLineActive ? 1.2 + hitPulseRef.current * 0.1 : 0;
-                  break;
-
-              case 'popup': // 彈跳感
-                  alpha = Math.max(0, 1 - dist * 0.4);
-                  if (isLineActive) {
-                      scale = 1.0 + hitPulseRef.current * 0.6; // Dramatic scale
-                  } else {
-                      scale = 0.6;
-                  }
-                  break;
-
-              case 'mask': // 中央遮罩
-                  if (dist > 1.2) alpha = 0;
-                  else alpha = 1;
-                  scale = 1;
-                  break;
-
-              case 'expand': // 字間距擴張 (Simulated via scaleX)
-                  alpha = Math.max(0, 1 - dist * 0.4);
-                  if (isLineActive) {
-                      scale = 1 + hitPulseRef.current * 0.2;
-                      spacing = 10 + hitPulseRef.current * 20; // Extra spacing
-                  } else {
-                      scale = 0.8;
-                  }
-                  break;
-
-              case 'fill': // 進度條填充感 (Stroke vs Fill)
-                  alpha = Math.max(0, 1 - dist * 0.3);
-                  scale = isLineActive ? 1.1 : 0.9;
-                  isFillMode = true; // Use special draw logic
-                  break;
-
-              case 'bubbling': // 漂浮感
-                  alpha = Math.max(0, 1 - dist * 0.3);
-                  yOffset = Math.sin((Date.now() / 400) + i) * 15;
-                  scale = isLineActive ? 1.1 + hitPulseRef.current * 0.1 : 0.85;
-                  break;
-                  
-              case 'wipe': // 擦拭效果 (Gradient)
-                  alpha = 1;
-                  scale = isLineActive ? 1.1 : 0.9;
-                  if (dist > 2) alpha = 0;
-                  break;
-
-              default: // standard slide fallback
-                  alpha = Math.max(0, 1 - dist * 0.3);
-                  scale = 1;
+          if (dist < 0.5) {
+              scale = 1.1 + hitPulseRef.current * 0.1;
+              ctx.shadowColor = '#fbbf24';
+              ctx.shadowBlur = 20 + hitPulseRef.current * 30;
+          } else {
+              blur = dist * 2;
           }
 
-          if (alpha <= 0.01) return; // Optimization
-
-          ctx.save();
-          ctx.translate(lyricsX + xOffset, y + yOffset);
-          ctx.scale(scale, scale);
-          ctx.globalAlpha = alpha * exitAnimationRef.current;
-
-          // Font Settings
-          const fontSizeVal = config.fontSize === 'small' ? 50 : config.fontSize === 'large' ? 140 : 95;
-          ctx.font = `900 ${fontSizeVal}px Montserrat`;
-
-          // --- RENDER TEXT ---
-          
-          if (config.motion === 'wipe') {
-              if (isLineActive) {
-                 const gradient = ctx.createLinearGradient(-300, 0, 300, 0);
-                 const progress = Math.min(1, Math.max(0, 1 - dist)); // Rough wipe progress based on scroll
-                 gradient.addColorStop(0, '#fbbf24');
-                 gradient.addColorStop(0.5 + hitPulseRef.current * 0.5, '#fbbf24');
-                 gradient.addColorStop(1, '#ffffff');
-                 ctx.fillStyle = gradient;
-                 ctx.fillText(text, 0, 0);
-              } else {
-                 ctx.fillStyle = '#333333';
-                 ctx.fillText(text, 0, 0);
-              }
-          } else if (config.motion === 'fill') {
-               // Stroke background
-               ctx.strokeStyle = '#333333';
-               ctx.lineWidth = 4;
-               ctx.strokeText(text, 0, 0);
-               
-               if (isLineActive) {
-                   ctx.fillStyle = '#fbbf24';
-                   ctx.fillText(text, 0, 0);
-               }
-          } else {
-              // Standard & Other Effects
-              if (config.effect === 'glow' && isLineActive) {
-                  ctx.shadowColor = '#fbbf24';
-                  ctx.shadowBlur = 40 + hitPulseRef.current * 60;
-              }
-
-              if (config.lyricStyle === 'cutout') {
-                  ctx.strokeStyle = '#fbbf24'; ctx.lineWidth = 5; ctx.strokeText(text, 0, 0);
-              } else {
-                  ctx.fillStyle = isLineActive ? '#fbbf24' : '#ffffff';
-                  // Simulate letter spacing for 'expand'
-                  if (config.motion === 'expand' && spacing > 0) {
-                      // Canvas doesn't support letter-spacing easily, simplistic approach
-                      // Just scaling X more than Y to simulate expansion
-                      ctx.scale(1 + (spacing/100), 1); 
-                  }
+          if (alpha > 0.01) {
+              ctx.save();
+              ctx.translate(lyricsX, y);
+              ctx.scale(scale, scale);
+              ctx.globalAlpha = alpha * exitAnimationRef.current;
+              
+              if (blur > 0) ctx.filter = `blur(${blur}px)`;
+              
+              ctx.font = `900 ${baseFontSize}px Montserrat`;
+              ctx.fillStyle = dist < 0.5 ? '#ffffff' : '#aaaaaa';
+              ctx.fillText(text, 0, 0);
+              
+              // Reflection / Glow
+              if (dist < 0.5 && hitPulseRef.current > 0.1) {
+                  ctx.fillStyle = `rgba(251, 191, 36, ${hitPulseRef.current * 0.5})`;
                   ctx.fillText(text, 0, 0);
               }
-          }
 
-          ctx.restore();
+              ctx.restore();
+          }
       });
 
       // Watermark
-      if (config.format === 'youtube' && config.layout !== 'cover') {
-          ctx.save();
-          ctx.globalAlpha = 1.0 * exitAnimationRef.current;
-          ctx.fillStyle = '#fbbf24'; ctx.font = '900 36px Montserrat'; ctx.textAlign = 'left';
-          ctx.fillText(selectedSong!.title.toUpperCase(), 140, h - 160);
-          ctx.fillStyle = '#ffffff33'; ctx.font = '700 20px Montserrat';
-          ctx.fillText(`Prod. Willwi`, 140, h - 110);
-          ctx.restore();
-      }
+      ctx.save();
+      ctx.globalAlpha = 0.5 * exitAnimationRef.current;
+      ctx.fillStyle = '#fbbf24';
+      ctx.font = '700 24px Montserrat';
+      ctx.textAlign = 'right';
+      ctx.fillText("CREATED WITH WILLWI STUDIO", w - 50, h - 50);
+      ctx.restore();
   };
 
   const toggleAudition = async () => {
@@ -484,66 +396,63 @@ const Interactive: React.FC = () => {
   return (
     <div className="bg-black min-h-screen text-slate-100 flex flex-col font-sans">
       
-      {/* SELECT & EXPLORE (合併了 Intro 與 Select) */}
+      {/* INTRO */}
+      {mode === 'intro' && (
+          <div className="flex-1 flex flex-col items-center justify-center p-6 animate-fade-in relative overflow-hidden">
+              <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_rgba(251,191,36,0.1)_0%,_transparent_70%)]"></div>
+              <div className="max-w-2xl text-center z-10 space-y-8">
+                  <div className="border border-brand-gold/30 inline-block px-4 py-1 text-[10px] text-brand-gold font-black uppercase tracking-[0.3em] mb-4">
+                      {t('interactive_intro_method')}
+                  </div>
+                  <h2 className="text-4xl md:text-6xl font-black uppercase tracking-tighter text-white">
+                      {t('interactive_intro_title')}
+                  </h2>
+                  <p className="text-sm md:text-base text-slate-400 leading-loose whitespace-pre-line tracking-widest font-light">
+                      {t('interactive_intro_desc')}
+                  </p>
+                  <button onClick={() => setMode('select')} className="px-10 py-4 bg-white text-black font-black uppercase tracking-[0.2em] hover:bg-brand-gold transition-all text-xs shadow-[0_0_30px_rgba(255,255,255,0.2)]">
+                      {t('interactive_btn_participate')}
+                  </button>
+              </div>
+          </div>
+      )}
+
+      {/* SELECT */}
       {mode === 'select' && (
           <div className="flex-1 p-6 md:p-12 animate-fade-in">
               <div className="max-w-7xl mx-auto">
-                  {/* Header Area with Disclaimer */}
-                  <div className="mb-12 border-b border-white/10 pb-8">
-                      <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6">
-                          <div>
-                              <h2 className="text-4xl md:text-6xl font-black uppercase tracking-tighter text-white mb-4">
-                                  {t('interactive_select_title')}
-                              </h2>
-                              <div className="text-sm text-slate-400 max-w-2xl leading-relaxed space-y-2">
-                                  <p>{t('interactive_intro_desc')}</p>
-                              </div>
-                          </div>
-                      </div>
-                  </div>
-
-                  {/* Song Grid */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                      {songs.map(song => (
-                          <div key={song.id} className="bg-slate-900 border border-white/5 overflow-hidden flex flex-col shadow-lg hover:shadow-brand-gold/10 transition-shadow duration-500">
-                              {/* Cover Art - UPDATED: Ensure full color (removed grayscale) */}
-                              <div className="aspect-square relative group">
-                                  <img src={song.coverUrl} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" alt="" />
-                                  <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent opacity-60"></div>
-                                  
-                                  <div className="absolute bottom-0 left-0 p-6 w-full">
-                                      <h3 className="text-2xl font-black text-white uppercase truncate drop-shadow-md">{song.title}</h3>
-                                      <p className="text-xs text-brand-gold uppercase tracking-widest">{song.releaseDate} • {song.language}</p>
+                  <h3 className="text-3xl font-black uppercase tracking-tighter text-white mb-2">{t('interactive_select_title')}</h3>
+                  <p className="text-slate-500 text-xs uppercase tracking-widest mb-10">{t('interactive_select_subtitle')}</p>
+                  
+                  {activeSongs.length === 0 ? (
+                      <div className="p-20 text-center border border-white/10 text-slate-500 uppercase tracking-widest">{t('interactive_select_empty')}</div>
+                  ) : (
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                          {activeSongs.map(song => (
+                              <div key={song.id} className="bg-slate-900 border border-white/5 overflow-hidden flex flex-col shadow-lg hover:shadow-brand-gold/10 transition-shadow duration-500">
+                                  {/* Cover */}
+                                  <div className="aspect-square relative group cursor-pointer" onClick={() => handleSelectSong(song)}>
+                                      <img src={song.coverUrl} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105 filter grayscale group-hover:grayscale-0" alt="" />
+                                      <div className="absolute inset-0 bg-black/50 group-hover:bg-transparent transition-all flex items-center justify-center">
+                                          <span className="opacity-0 group-hover:opacity-100 bg-brand-gold text-black px-4 py-2 font-black text-xs uppercase tracking-widest transform translate-y-4 group-hover:translate-y-0 transition-all">{t('interactive_select_start')}</span>
+                                      </div>
+                                  </div>
+                                  <div className="p-5 flex flex-col gap-4">
+                                      <div>
+                                          <h4 className="text-white font-black uppercase truncate text-lg">{song.title}</h4>
+                                          <p className="text-slate-500 text-[10px] uppercase tracking-widest">Willwi • {song.releaseDate}</p>
+                                      </div>
+                                      {/* Spotify Embed for Preview */}
+                                      {song.spotifyId && (
+                                          <div className="rounded-lg overflow-hidden h-[80px]">
+                                              <iframe src={`https://open.spotify.com/embed/track/${song.spotifyId}?utm_source=generator&theme=0`} width="100%" height="80" frameBorder="0" allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture" loading="lazy"></iframe>
+                                          </div>
+                                      )}
                                   </div>
                               </div>
-
-                              {/* Controls Area */}
-                              <div className="p-6 bg-black flex flex-col gap-4">
-                                  {/* Spotify Player - Always Visible */}
-                                  {song.spotifyId ? (
-                                      <iframe 
-                                        src={`https://open.spotify.com/embed/track/${song.spotifyId}?utm_source=generator&theme=0`} 
-                                        width="100%" height="80" frameBorder="0" allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture" loading="lazy"
-                                        className="rounded-lg bg-slate-800"
-                                      ></iframe>
-                                  ) : (
-                                      <div className="h-20 bg-slate-800 rounded-lg flex items-center justify-center text-xs text-slate-500 uppercase tracking-widest border border-white/5">
-                                          Spotify Preview Unavailable
-                                      </div>
-                                  )}
-
-                                  {/* Action Button */}
-                                  <button 
-                                    onClick={() => handleSelectSong(song)}
-                                    className="w-full py-4 bg-white text-black font-black text-xs uppercase tracking-[0.2em] hover:bg-brand-gold transition-all shadow-lg flex items-center justify-center gap-2"
-                                  >
-                                      <span>Create Video</span>
-                                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M14 5l7 7m0 0l-7 7m7-7H3" /></svg>
-                                  </button>
-                              </div>
-                          </div>
-                      ))}
-                  </div>
+                          ))}
+                      </div>
+                  )}
               </div>
           </div>
       )}
@@ -587,83 +496,50 @@ const Interactive: React.FC = () => {
 
       {/* SETUP (The Lab) */}
       {mode === 'setup' && selectedSong && (
-          <div className="flex-1 flex h-[calc(100vh-80px)] overflow-hidden">
-              <div className="w-80 bg-black border-r border-white/5 p-8 overflow-y-auto custom-scrollbar space-y-12 hidden md:block">
+          <div className="flex-1 flex flex-col md:flex-row h-screen pt-20 overflow-hidden">
+              {/* Controls */}
+              <div className="w-full md:w-80 bg-slate-900 border-r border-white/5 p-8 flex flex-col z-20 shadow-2xl">
+                  <h4 className="text-[10px] font-black text-brand-gold uppercase tracking-widest mb-8">{t('interactive_tool_prepare_title')}</h4>
                   
-                  {/* NEW: Material Dashboard */}
-                  <section>
-                      <h4 className="text-[10px] font-black text-brand-gold uppercase tracking-widest mb-6 border-b border-white/10 pb-2">Material Board</h4>
-                      <div className="bg-slate-900/50 p-4 rounded border border-white/5 flex gap-4 items-center">
-                          <img src={selectedSong.coverUrl} className="w-16 h-16 object-cover shadow-lg border border-white/10" alt="" />
-                          <div>
-                              <div className="text-[9px] text-brand-gold font-bold uppercase tracking-wider mb-1 px-1.5 py-0.5 border border-brand-gold/30 inline-block rounded">Willwi Verified</div>
-                              <h5 className="text-sm font-black text-white uppercase leading-tight line-clamp-2">{selectedSong.title}</h5>
-                          </div>
+                  <div className="space-y-4 mb-8">
+                      <div className={`p-3 border rounded text-[10px] uppercase font-bold tracking-widest flex justify-between ${isAudioReady ? 'border-emerald-500/30 text-emerald-500 bg-emerald-500/5' : 'border-white/10 text-slate-500'}`}>
+                          <span>{t('interactive_tool_checklist_1')}</span>
+                          <span>{isAudioReady ? 'OK' : '...'}</span>
                       </div>
-                  </section>
-
-                  <section>
-                      <h4 className="text-[10px] font-black text-brand-gold uppercase tracking-widest mb-6 border-b border-white/10 pb-2">Visual Motion (9 Styles)</h4>
-                      <div className="grid grid-cols-2 gap-2">
-                          {['slide', 'fade', 'wipe', 'static', 'popup', 'mask', 'expand', 'fill', 'bubbling'].map(m => (
-                              <button key={m} onClick={() => setConfig({...config, motion: m as any})} className={`py-3 text-[9px] font-black uppercase transition-all border ${config.motion === m ? 'bg-white text-black border-white' : 'bg-transparent text-slate-500 border-white/10 hover:border-white/50 hover:text-white'}`}>
-                                  {m}
-                              </button>
-                          ))}
-                      </div>
-                  </section>
-                  <section>
-                      <h4 className="text-[10px] font-black text-brand-gold uppercase tracking-widest mb-6 border-b border-white/10 pb-2">Text Layout</h4>
-                      <div className="space-y-2">
-                          {['youtube', 'social'].map(f => (
-                              <button key={f} onClick={() => setConfig({...config, format: f as any})} className={`w-full py-3 text-[9px] font-black uppercase transition-all border flex justify-between px-4 ${config.format === f ? 'bg-white text-black border-white' : 'bg-transparent text-slate-500 border-white/10 hover:border-white/50'}`}>
-                                  <span>{f === 'youtube' ? '16:9' : '9:16'}</span>
-                                  <span>{f === 'youtube' ? '📺' : '📱'}</span>
-                              </button>
-                          ))}
-                      </div>
-                  </section>
-              </div>
-
-              <div className="flex-1 flex flex-col bg-slate-950 relative">
-                  <div 
-                    className="flex-1 flex items-center justify-center p-4 md:p-12 bg-slate-900/50"
-                  >
-                      <div 
-                        className={`shadow-2xl border border-white/10 overflow-hidden transition-all duration-700 bg-black cursor-pointer ${config.format === 'social' ? 'aspect-[9/16] h-full max-h-[70vh]' : 'aspect-video w-full max-w-5xl'}`}
-                        onMouseDown={isAuditioning ? handleLineClick : undefined}
-                        onTouchStart={isAuditioning ? handleLineClick : undefined}
-                      >
-                          <canvas ref={canvasRef} width={1920} height={config.format === 'social' ? 3413 : 1080} className="w-full h-full object-cover" />
+                      <div className="p-3 border border-emerald-500/30 text-emerald-500 bg-emerald-500/5 rounded text-[10px] uppercase font-bold tracking-widest flex justify-between">
+                          <span>{t('interactive_tool_checklist_2')}</span>
+                          <span>OK</span>
                       </div>
                   </div>
 
-                  <div className="bg-black border-t border-white/10 p-6 flex items-center gap-6">
-                      <div className="flex flex-col items-center gap-2">
-                          <button onClick={toggleAudition} className={`w-14 h-14 md:w-16 md:h-16 flex items-center justify-center flex-shrink-0 hover:scale-110 transition-transform shadow-lg rounded-full ${isAuditioning ? 'bg-brand-gold text-black' : 'bg-white text-black'}`}>
-                              {isAuditioning ? <div className="w-4 h-4 bg-black"></div> : <div className="w-0 h-0 border-t-8 border-t-transparent border-b-8 border-b-transparent border-l-[14px] border-l-black ml-1"></div>}
-                          </button>
-                          <span className="text-[9px] font-bold uppercase tracking-widest text-slate-500">{isAuditioning ? 'STOP' : 'PRACTICE'}</span>
-                      </div>
-                      
-                      <div className="flex-grow pl-4 border-l border-white/10 hidden md:block">
-                           <div className="flex justify-between text-[10px] text-slate-500 font-bold uppercase mb-2 tracking-widest">
-                              <span className={`${isAuditioning ? 'text-brand-gold animate-pulse' : ''}`}>
-                                  {isAuditioning ? 'PRESS SPACEBAR TO SYNC' : 'PREVIEW MODE'}
-                              </span>
-                              <span>{selectedSong.title}</span>
-                          </div>
-                          <div className="h-10 bg-white/[0.02] flex items-end gap-[2px] border-b border-white/5">
-                              {Array.from({ length: 100 }).map((_, i) => (
-                                  <div key={i} className={`w-full transition-all duration-100 ${ (i / 100) < (currentTime / duration) ? 'bg-brand-gold' : 'bg-slate-800' }`} 
-                                       style={{ height: `${(Math.sin(i * 0.2) * 40 + 50) * (isAuditioning ? Math.random() : 0.2)}%`, opacity: (i / 100) < (currentTime / duration) ? 1 : 0.3 }}></div>
-                              ))}
-                          </div>
-                      </div>
-                      
-                      <button onClick={startRecording} className="ml-auto px-8 py-4 bg-brand-gold text-black font-black uppercase text-xs tracking-[0.2em] hover:bg-white transition-all transform hover:scale-105 shadow-xl whitespace-nowrap">
-                          START REC
+                  <div className="mt-auto space-y-4">
+                      <p className="text-[10px] text-slate-400 leading-relaxed">
+                          {t('interactive_tool_guide_1')}<br/>
+                          <span className="text-white hidden md:inline">{t('interactive_tool_guide_2_desktop')}</span>
+                          <span className="text-white md:hidden">{t('interactive_tool_guide_2_mobile')}</span>
+                      </p>
+                      <button onClick={toggleAudition} className={`w-full py-4 border font-black uppercase text-[10px] tracking-[0.2em] transition-all ${isAuditioning ? 'bg-white text-black border-white' : 'border-white/20 text-white hover:bg-white/10'}`}>
+                          {isAuditioning ? 'STOP PREVIEW' : 'PRACTICE MODE'}
                       </button>
+                      <button onClick={startRecording} className="w-full py-4 bg-brand-gold text-black font-black uppercase text-[10px] tracking-[0.2em] hover:bg-white transition-all shadow-[0_0_20px_rgba(251,191,36,0.4)] animate-pulse">
+                          {t('interactive_btn_start_record')}
+                      </button>
+                  </div>
+              </div>
+
+              {/* Canvas Preview */}
+              <div className="flex-1 bg-black relative flex items-center justify-center p-4 md:p-12 overflow-hidden" 
+                   onMouseDown={isAuditioning ? handleLineClick : undefined}
+                   onTouchStart={isAuditioning ? handleLineClick : undefined}
+              >
+                  <div className="relative shadow-2xl border border-white/5 aspect-video w-full max-w-5xl bg-black">
+                      <canvas ref={canvasRef} width={1920} height={1080} className="w-full h-full object-contain" />
+                      {/* Overlay Hints */}
+                      {isAuditioning && (
+                          <div className="absolute top-4 right-4 text-[10px] text-brand-gold font-bold uppercase tracking-widest bg-black/50 px-2 py-1 border border-brand-gold/30">
+                              Preview Mode
+                          </div>
+                      )}
                   </div>
               </div>
           </div>
@@ -671,39 +547,38 @@ const Interactive: React.FC = () => {
 
       {/* RECORDING MODE */}
       {mode === 'playing' && (
-          <div className="fixed inset-0 z-[110] bg-black flex flex-col animate-fade-in cursor-none">
-              <div className="absolute top-10 left-10 z-[300] flex items-center gap-4 pointer-events-none">
+          <div className="fixed inset-0 z-[100] bg-black flex flex-col animate-fade-in cursor-none">
+              <div className="absolute top-10 left-10 z-[200] flex items-center gap-4 pointer-events-none">
                   <div className="w-4 h-4 bg-red-600 rounded-full animate-pulse shadow-[0_0_30px_red]"></div>
                   <span className="text-lg font-black uppercase tracking-[0.4em] text-white">REC • {currentTime.toFixed(1)}s</span>
               </div>
-              <div className="absolute inset-0 z-[200] cursor-pointer" onMouseDown={handleLineClick} onTouchStart={handleLineClick} />
               
-              <div className="flex-1 flex items-center justify-center bg-black">
-                  <div className={`${config.format === 'social' ? 'aspect-[9/16] h-full' : 'aspect-video w-full'}`}>
-                      <canvas ref={canvasRef} width={1920} height={config.format === 'social' ? 3413 : 1080} className="w-full h-full object-contain" />
-                  </div>
+              {/* Full Screen Capture Area */}
+              <div className="flex-1 flex items-center justify-center" onMouseDown={handleLineClick} onTouchStart={handleLineClick}>
+                  <canvas ref={canvasRef} width={1920} height={1080} className="w-full h-full object-contain max-h-screen" />
               </div>
 
-              <div className="bg-[#020202] p-12 flex justify-between items-center border-t border-white/10 relative z-[300]">
-                  <div className="flex flex-col">
-                      <span className="text-[10px] text-brand-gold font-bold uppercase mb-2 animate-pulse tracking-[0.2em]">WAITING FOR INPUT...</span>
-                      <span className="text-4xl font-black text-white uppercase truncate max-w-4xl tracking-tight opacity-50">{lyricsArrayRef.current[lineIndex]}</span>
+              {/* Controls Overlay (Bottom) */}
+              <div className="absolute bottom-0 w-full p-12 flex justify-between items-end bg-gradient-to-t from-black via-black/80 to-transparent pointer-events-none">
+                  <div className="text-left">
+                      <p className="text-[10px] text-brand-gold font-bold uppercase tracking-[0.3em] mb-2 animate-pulse">{t('interactive_recording_hint_desktop')}</p>
+                      <p className="text-4xl font-black text-white/20 uppercase truncate max-w-4xl">{lyricsArrayRef.current[lineIndex]}</p>
                   </div>
-                  <button onClick={finishRecording} className="px-12 py-6 border border-red-900 text-red-600 text-xs font-black uppercase tracking-[0.4em] hover:bg-red-900 hover:text-white transition-all pointer-events-auto">Abort</button>
+                  <button onClick={finishRecording} className="pointer-events-auto px-8 py-3 border border-red-900 text-red-700 text-[10px] font-black uppercase tracking-widest hover:bg-red-900 hover:text-white transition-all">ABORT</button>
               </div>
           </div>
       )}
 
-      {/* CONTACT FORM */}
+      {/* CONTACT & EXPORT */}
       {mode === 'contact' && (
           <div className="flex-1 flex flex-col items-center justify-center p-6 bg-black">
               <h2 className="text-5xl font-black uppercase mb-12 tracking-tighter text-white">Production Wrapped</h2>
               <form onSubmit={(e) => { e.preventDefault(); setMode('finished'); }} className="space-y-8 bg-slate-900 p-16 border border-white/10 shadow-2xl max-w-2xl w-full">
                   <div className="space-y-2">
-                      <label className="text-[10px] text-brand-gold font-bold uppercase tracking-[0.2em]">Director Name</label>
+                      <label className="text-[10px] text-brand-gold font-bold uppercase tracking-[0.2em]">{t('interactive_input_name')}</label>
                       <input type="text" required className="w-full bg-black border border-white/20 p-4 text-white text-xl focus:border-brand-gold outline-none font-bold uppercase tracking-widest" value={contactInfo.name} onChange={e => setContactInfo({...contactInfo, name: e.target.value})} autoFocus placeholder="YOUR NAME" />
                   </div>
-                  <button type="submit" className="w-full py-5 bg-white text-black font-black uppercase text-xs tracking-[0.4em] hover:bg-brand-gold transition-all mt-8">Confirm & Export</button>
+                  <button type="submit" className="w-full py-5 bg-white text-black font-black uppercase text-xs tracking-[0.4em] hover:bg-brand-gold transition-all mt-8">CONFIRM & EXPORT</button>
               </form>
           </div>
       )}
@@ -716,7 +591,7 @@ const Interactive: React.FC = () => {
                   <h2 className="text-[8rem] font-black uppercase mb-10 tracking-tighter text-white leading-none relative z-10">SAVED</h2>
               </div>
               <div className="bg-slate-900 p-12 border border-white/10 shadow-2xl space-y-8 max-w-md w-full text-center relative z-10">
-                   <p className="text-[10px] text-slate-400 uppercase tracking-widest mb-8">Your unique video is ready.</p>
+                   <p className="text-[10px] text-slate-400 uppercase tracking-widest mb-8">{t('interactive_finished_desc')}</p>
                    <button 
                     onClick={() => { 
                         if (recordedChunks.length === 0) return alert("System Packing...");
@@ -725,8 +600,8 @@ const Interactive: React.FC = () => {
                         const a = document.createElement('a'); a.href = url; a.download = `WILLWI_STUDIO_${selectedSong?.title}_${contactInfo.name}.webm`; a.click(); 
                     }} 
                     className="w-full py-5 bg-brand-gold text-black font-black uppercase text-xs tracking-[0.4em] hover:bg-white transition-all shadow-lg"
-                   >Download Video</button>
-                   <button onClick={() => setMode('select')} className="w-full py-4 border border-white/10 text-slate-500 font-bold uppercase text-[10px] tracking-[0.4em] hover:text-white hover:border-white transition-all">Back to Lobby</button>
+                   >{t('interactive_btn_save_video')}</button>
+                   <button onClick={() => setMode('select')} className="w-full py-4 border border-white/10 text-slate-500 font-bold uppercase text-[10px] tracking-[0.4em] hover:text-white hover:border-white transition-all">{t('interactive_btn_return')}</button>
               </div>
           </div>
       )}
@@ -738,7 +613,7 @@ const Interactive: React.FC = () => {
             crossOrigin="anonymous" 
             className="hidden" 
             onCanPlayThrough={() => setIsAudioReady(true)}
-            onError={() => { setIsAudioReady(false); }}
+            onError={() => { console.error("Audio Load Error"); setIsAudioReady(false); }}
           />
       )}
     </div>

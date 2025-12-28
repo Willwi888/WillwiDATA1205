@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from '../context/LanguageContext';
@@ -15,12 +16,13 @@ const Home: React.FC = () => {
     <div className="min-h-screen relative flex flex-col items-center">
       {/* HERO SECTION */}
       <section className="relative w-full min-h-screen flex flex-col items-center justify-center px-6 md:px-20 overflow-hidden py-24">
-        {/* 背景無濾鏡，原始呈現 */}
+        {/* Background Image */}
         <div className="absolute inset-0 bg-cover bg-[position:right_center] md:bg-right"
              style={{ backgroundImage: `url(${ASSETS.willwiPortrait})` }}></div>
         
-        {/* 移除所有遮罩與漸層，僅保留極輕微的底部漸層以防文字完全無法閱讀，但幾乎透明 */}
-        <div className="absolute inset-0 bg-gradient-to-t from-slate-950/40 via-transparent to-transparent opacity-50"></div>
+        {/* Cinematic Gradient Overlays */}
+        <div className="absolute inset-0 bg-gradient-to-r from-slate-950/90 via-slate-950/70 to-transparent"></div>
+        <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-transparent to-transparent"></div>
 
         <div className="relative z-10 max-w-7xl w-full text-left flex flex-col items-start animate-fade-in-up">
             <span className="text-brand-gold font-black text-[10px] uppercase tracking-[0.5em] mb-8 block border border-brand-gold/40 px-6 py-2 rounded-sm backdrop-blur-md bg-black/20">
@@ -31,17 +33,17 @@ const Home: React.FC = () => {
               WILLWI<br/>STUDIO
             </h1>
             
-            <p className="text-white text-xs md:text-sm tracking-[0.6em] uppercase mb-20 font-light max-w-xl leading-relaxed opacity-90 border-l-2 border-brand-gold/60 pl-8 drop-shadow-lg">
+            <p className="text-slate-300 text-xs md:text-sm tracking-[0.4em] uppercase mb-20 font-light max-w-xl leading-relaxed opacity-80 border-l-2 border-brand-gold/60 pl-8">
                 支持音樂人 WILLWI 歌詞影片創作工具<br/>
                 選擇作品 開始製作專屬您的動態歌詞影片
             </p>
 
-            {/* PAYMENT COLUMNS - 調整為低飽和半透明工業感 */}
+            {/* PAYMENT COLUMNS */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-px bg-white/10 border border-white/20 w-full max-w-5xl shadow-[0_40px_100px_rgba(0,0,0,0.5)] backdrop-blur-sm">
                 {/* COLUMN 1: INTERACTIVE */}
                 <div onClick={() => handleNavigateToMode('intro')} className="group relative bg-black/60 p-10 flex flex-col items-start hover:bg-slate-900/80 transition-all cursor-pointer overflow-hidden">
-                    <h3 className="text-brand-gold font-black text-[11px] uppercase tracking-[0.4em] mb-4">共鳴同步</h3>
-                    <p className="text-slate-400 text-[10px] uppercase tracking-widest mb-8">手工對時動態歌詞影片</p>
+                    <h3 className="text-brand-gold font-black text-[11px] uppercase tracking-[0.4em] mb-4">動態歌詞影片</h3>
+                    <p className="text-slate-400 text-[10px] uppercase tracking-widest mb-8">手工對時創作體驗</p>
                     <div className="text-4xl font-black text-white mb-10 tracking-tighter">NT$ 320</div>
                     <ul className="text-[9px] text-slate-400 space-y-3 mb-12 text-left w-full uppercase tracking-widest">
                         <li className="flex items-center gap-2"><span className="w-1 h-1 bg-brand-gold"></span> 參與單曲製作體驗</li>
@@ -56,8 +58,8 @@ const Home: React.FC = () => {
                 {/* COLUMN 2: CLOUD CINEMA */}
                 <div onClick={() => handleNavigateToMode('intro')} className="group relative bg-black/80 p-10 flex flex-col items-start hover:bg-slate-900/80 transition-all cursor-pointer overflow-hidden border-x border-white/10">
                     <div className="absolute top-0 right-0 bg-brand-accent text-slate-900 text-[9px] font-black px-4 py-1.5 uppercase tracking-widest">PREMIUM</div>
-                    <h3 className="text-brand-accent font-black text-[11px] uppercase tracking-[0.4em] mb-4">雲端影院</h3>
-                    <p className="text-slate-400 text-[10px] uppercase tracking-widest mb-8">高畫質加歌手專屬簽名</p>
+                    <h3 className="text-brand-accent font-black text-[11px] uppercase tracking-[0.4em] mb-4">雲端影院 + 簽名</h3>
+                    <p className="text-slate-400 text-[10px] uppercase tracking-widest mb-8">高畫質嵌入歌手專屬簽名</p>
                     <div className="text-4xl font-black text-white mb-10 tracking-tighter">NT$ 2,800</div>
                     <ul className="text-[9px] text-slate-300 space-y-3 mb-12 text-left w-full uppercase tracking-widest">
                         <li className="flex items-center gap-2"><span className="w-1 h-1 bg-brand-accent"></span> 4K 高畫質重製</li>

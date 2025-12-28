@@ -35,7 +35,7 @@ export interface Song {
   publisher?: string; 
   releaseDate: string;
   isEditorPick: boolean;
-  isInteractiveActive?: boolean; 
+  isInteractiveActive: boolean; // New: Controls if song appears in Interactive Lab
   isrc?: string;
   upc?: string;
   spotifyId?: string;

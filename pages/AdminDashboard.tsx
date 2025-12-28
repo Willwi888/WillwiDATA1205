@@ -1,3 +1,4 @@
+
 import React, { useRef, useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useData } from '../context/DataContext';
@@ -48,17 +49,6 @@ const AdminDashboard: React.FC = () => {
   
   // Import Options
   const [importStrategy, setImportStrategy] = useState<'merge' | 'overwrite'>('merge');
-
-  // Logic to detect duplicate ISRCs
-  const isrcCounts = useMemo(() => {
-      const counts: Record<string, number> = {};
-      songs.forEach(s => {
-          if(s.isrc && s.isrc.trim() !== '') {
-              counts[s.isrc] = (counts[s.isrc] || 0) + 1;
-          }
-      });
-      return counts;
-  }, [songs]);
 
   useEffect(() => {
       setQrImages({
@@ -233,19 +223,12 @@ const AdminDashboard: React.FC = () => {
   return (
     <div className="max-w-screen-2xl mx-auto px-6 py-12 animate-fade-in pb-40">
       
-      {/* HEADER WITH STATUS LIGHT */}
+      {/* HEADER */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-10 gap-6 border-b border-white/10 pb-8">
           <div>
-            <div className="flex items-center gap-4 mb-2">
-                <h1 className="text-4xl font-black text-white uppercase tracking-tighter">Admin Console</h1>
-                <div className={`px-3 py-1 rounded-full border ${dbStatus === 'ONLINE' ? 'bg-emerald-900/30 border-emerald-500/50 text-emerald-400' : 'bg-red-900/30 border-red-500/50 text-red-400'} flex items-center gap-2`}>
-                    <span className={`block w-2.5 h-2.5 rounded-full ${dbStatus === 'ONLINE' ? 'bg-emerald-500 shadow-[0_0_10px_#10b981] animate-pulse' : 'bg-red-500 shadow-[0_0_10px_#ef4444]'}`}></span>
-                    <span className="text-[10px] font-black uppercase tracking-widest">{dbStatus}</span>
-                </div>
-            </div>
-            <p className="text-slate-500 text-[10px] font-bold uppercase tracking-[0.4em]">Willwi Music Central Control</p>
+            <h1 className="text-4xl font-black text-white uppercase tracking-tighter">Admin Console</h1>
+            <p className="text-slate-500 text-[10px] font-bold uppercase tracking-[0.4em] mt-2">Willwi Music Central Control</p>
           </div>
-          
           <div className="flex items-center gap-3">
             <button onClick={() => navigate('/add')} className="h-10 px-6 bg-brand-accent text-slate-950 text-[10px] font-black uppercase tracking-widest rounded hover:bg-white transition-all shadow-lg flex items-center gap-2">
                 <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M12 4v16m8-8H4" /></svg>
@@ -296,8 +279,6 @@ const AdminDashboard: React.FC = () => {
                               <th className="p-4 w-12 text-center"><input type="checkbox" onChange={handleSelectAll} checked={selectedIds.size > 0 && selectedIds.size === filteredSongs.length} /></th>
                               <th className="p-4 w-12">Play</th>
                               <th className="p-4 cursor-pointer" onClick={() => handleSort('title')}>作品資訊</th>
-                              <th className="p-4 text-left">ISRC</th>
-                              <th className="p-4 text-center">Ext. Links</th>
                               <th className="p-4 hidden md:table-cell" onClick={() => handleSort('releaseDate')}>發行日期</th>
                               <th className="p-4 text-center">互動模式</th>
                               <th className="p-4 text-right">管理</th>
@@ -322,26 +303,6 @@ const AdminDashboard: React.FC = () => {
                                   </td>
 
                                   <td className="p-4"><div className="flex items-center gap-4"><img src={song.coverUrl} className="w-10 h-10 object-cover rounded" alt="" /><div className="font-bold text-sm text-white">{song.title}</div></div></td>
-                                  
-                                  {/* ISRC Column with Duplicate Warning */}
-                                  <td className="p-4">
-                                      <div className="flex items-center gap-2">
-                                          <span className="font-mono text-xs text-slate-300">{song.isrc || '--'}</span>
-                                          {song.isrc && isrcCounts[song.isrc] > 1 && (
-                                              <span className="text-red-500 animate-pulse text-xs" title="Duplicate ISRC detected">⚠️</span>
-                                          )}
-                                      </div>
-                                  </td>
-
-                                  {/* External Links Column */}
-                                  <td className="p-4 text-center" onClick={(e) => e.stopPropagation()}>
-                                      <div className="flex gap-2 justify-center">
-                                          {song.spotifyLink ? <a href={song.spotifyLink} target="_blank" rel="noopener noreferrer" className="text-green-500 hover:text-white" title="Spotify"><svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.66 0 12 0zm-2 17V7l7 5-7 5z"/></svg></a> : <span className="text-slate-700">●</span>}
-                                          {song.youtubeUrl ? <a href={song.youtubeUrl} target="_blank" rel="noopener noreferrer" className="text-red-500 hover:text-white" title="YouTube"><svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M19.615 3.184c-3.604-.246-11.631-.245-15.23 0-3.897.266-4.356 2.62-4.385 8.816.029 6.185.484 8.549 4.385 8.816 3.6.245 11.626.246 15.23 0 3.897-.266 4.356-2.62 4.385-8.816-.029-6.185-.484-8.549-4.385-8.816zm-10.615 12.816v-8l8 3.993-8 4.007z"/></svg></a> : <span className="text-slate-700">●</span>}
-                                          {song.smartLink ? <a href={song.smartLink} target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:text-white" title="SmartLink"><svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" /></svg></a> : <span className="text-slate-700">●</span>}
-                                      </div>
-                                  </td>
-
                                   <td className="p-4 hidden md:table-cell text-xs font-mono text-slate-400">{song.releaseDate}</td>
                                   <td className="p-4 text-center" onClick={(e) => e.stopPropagation()}><button onClick={() => updateSong(song.id, { isInteractiveActive: !song.isInteractiveActive })} className={`px-4 py-1 text-[9px] font-black uppercase border rounded ${song.isInteractiveActive ? 'bg-emerald-500 text-black border-emerald-500' : 'text-slate-500 border-white/10'}`}>{song.isInteractiveActive ? 'ON' : 'OFF'}</button></td>
                                   <td className="p-4 text-right"><button onClick={(e) => { e.stopPropagation(); navigate(`/song/${song.id}`); }} className="text-[10px] font-black text-slate-400 hover:text-white">編輯</button></td>
