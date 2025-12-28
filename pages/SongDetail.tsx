@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useData } from '../context/DataContext';
-import { Song, getLanguageColor, Language } from '../types';
+import { Song, getLanguageColor, Language, ReleaseCategory, ProjectType } from '../types';
 import { generateMusicCritique } from '../services/geminiService';
 import { useTranslation } from '../context/LanguageContext';
 import { useUser } from '../context/UserContext';
@@ -219,23 +219,14 @@ const SongDetail: React.FC = () => {
 
   if (!song) return null;
 
-  const getSpotifyEmbedId = (link?: string, id?: string) => {
-      if (id) return id;
-      if (!link) return null;
-      try {
-          const url = new URL(link);
-          const parts = url.pathname.split('/');
-          const trackIndex = parts.indexOf('track');
-          if (trackIndex !== -1 && parts[trackIndex + 1]) return parts[trackIndex + 1];
-      } catch (e) { return null; }
-      return null;
-  };
-
-  const getYoutubeEmbedId = (url?: string) => {
-      if (!url) return null;
-      const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/;
-      const match = url.match(regExp);
-      return (match && match[2].length === 11) ? match[2] : null;
+  const handleEditChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
+    const { name, value, type } = e.target;
+    if (type === 'checkbox') {
+        const checked = (e.target as HTMLInputElement).checked;
+        setEditForm(prev => ({ ...prev, [name]: checked }));
+    } else {
+        setEditForm(prev => ({ ...prev, [name]: value }));
+    }
   };
 
   const handleSave = async () => {
@@ -274,33 +265,25 @@ const SongDetail: React.FC = () => {
       navigate('/interactive', { state: { targetSongId: song.id } });
   };
 
-  const spotifyEmbedId = getSpotifyEmbedId(song.spotifyLink, song.spotifyId);
-  const youtubeEmbedId = getYoutubeEmbedId(song.youtubeUrl);
   const isInstrumental = song.language === Language.Instrumental;
-
   const WILLWI_MBID = '526cc0f8-da20-4d2d-86a5-4bf841a6ba3c';
   
   const getMusicBrainzSeedingUrl = (s: Song) => {
     const params = new URLSearchParams();
-    
-    // Core Identity
     params.append('name', s.title);
     params.append('artist_credit.names.0.name', 'Willwi');
     params.append('artist_credit.names.0.artist.id', WILLWI_MBID);
     
-    // Type Mapping
     let type = 'album';
     if (s.releaseCategory?.includes('Single')) type = 'single';
     else if (s.releaseCategory?.includes('EP')) type = 'ep';
     params.append('type', type);
 
-    // Language Mapping (MB specific codes)
     const langCodes: Record<string, string> = {
         '華語': 'cmn', '台語': 'nan', '日語': 'jpn', '韓語': 'kor', '英語': 'eng', '法語': 'fra'
     };
     if (langCodes[s.language]) params.append('language', langCodes[s.language]);
 
-    // Dates
     if (s.releaseDate) {
         const [y, m, d] = s.releaseDate.split('-');
         if (y) params.append('date.year', y);
@@ -308,15 +291,11 @@ const SongDetail: React.FC = () => {
         if (d) params.append('date.day', d);
     }
 
-    // Identifiers
     if (s.upc) params.append('barcode', s.upc);
-    
-    // Track Mapping
     params.append('mediums.0.format', 'Digital Media');
     params.append('mediums.0.track.0.name', s.title);
     if (s.isrc) params.append('mediums.0.track.0.recording.isrc.0', s.isrc);
 
-    // Edit Note with source context
     let note = `Seeded from Willwi Creative Database.\n`;
     if (s.spotifyLink) note += `Source Spotify: ${s.spotifyLink}\n`;
     if (s.coverUrl) note += `Cover Source: ${s.coverUrl}\n`;
@@ -333,12 +312,12 @@ const SongDetail: React.FC = () => {
             <div className="absolute inset-0 bg-cover bg-center opacity-10 blur-2xl" style={{ backgroundImage: `url(${song.coverUrl})` }}></div>
             <div className="relative z-10 p-10 flex flex-col md:flex-row gap-12 items-start">
                 <div className="w-full md:w-80 flex-shrink-0">
-                     <img src={isEditing ? editForm.coverUrl : song.coverUrl} className="w-full aspect-square object-cover shadow-2xl border border-white/10" alt="cover" />
+                     <img src={isEditing ? (editForm.coverUrl || song.coverUrl) : song.coverUrl} className="w-full aspect-square object-cover shadow-2xl border border-white/10" alt="cover" />
                      {isAdmin && isEditing && (
                          <div className="mt-4 space-y-2">
-                            <button onClick={() => fileInputRef.current?.click()} className="w-full bg-white/10 text-white font-bold py-3 text-[10px] uppercase tracking-widest border border-white/10">Upload Image</button>
+                            <button onClick={() => fileInputRef.current?.click()} className="w-full bg-white/10 text-white font-bold py-3 text-[10px] uppercase tracking-widest border border-white/10 hover:bg-white hover:text-black transition-all">Upload Image</button>
                             <input ref={fileInputRef} type="file" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if(f){ const r=new FileReader(); r.onloadend=()=>setEditForm(p=>({...p, coverUrl:r.result as string})); r.readAsDataURL(f); } }} />
-                            <input className="w-full bg-black border border-white/10 p-2 text-[10px] text-white font-mono" value={editForm.coverUrl} onChange={e => setEditForm({...editForm, coverUrl: e.target.value})} placeholder="IMAGE URL" />
+                            <input className="w-full bg-black border border-white/10 p-2 text-[10px] text-white font-mono outline-none focus:border-brand-accent" value={editForm.coverUrl || ''} onChange={handleEditChange} name="coverUrl" placeholder="IMAGE URL" />
                          </div>
                      )}
                 </div>
@@ -346,68 +325,144 @@ const SongDetail: React.FC = () => {
                     <div className="flex justify-between items-start">
                         <div className="w-full">
                             {isAdmin && isEditing ? (
-                                <input className="text-5xl font-black text-white bg-black border border-white/10 px-4 py-2 w-full uppercase tracking-tighter" value={editForm.title} onChange={e => setEditForm({...editForm, title: e.target.value})} />
+                                <input className="text-5xl font-black text-white bg-black/50 border-b border-white/20 px-0 py-2 w-full uppercase tracking-tighter outline-none focus:border-brand-accent mb-4" value={editForm.title} name="title" onChange={handleEditChange} placeholder="SONG TITLE" />
                             ) : (
                                 <h1 className="text-5xl md:text-7xl font-black text-white uppercase tracking-tighter mb-4 leading-none">{song.title}</h1>
                             )}
-                            <div className="flex items-center gap-4 mt-6">
-                                <span className={`px-3 py-1 text-[10px] font-black uppercase tracking-[0.2em] text-white ${getLanguageColor(song.language)}`}>{song.language}</span>
-                                <span className="text-slate-500 text-[10px] font-bold uppercase tracking-[0.3em]">{song.releaseDate}</span>
-                                {isAdmin && !isEditing && <button onClick={() => setIsEditing(true)} className="text-[10px] border border-white/20 px-3 py-1 uppercase tracking-widest hover:bg-white hover:text-black transition-all">Edit Mode</button>}
-                            </div>
-                            <div className="mt-8 flex flex-wrap gap-4">
-                                <button onClick={() => setShowLyricsPlayer(true)} className="group flex items-center gap-3 px-6 py-3 bg-white/5 border border-white/10 hover:bg-white hover:text-black transition-all rounded-full">
-                                    <div className="w-8 h-8 rounded-full bg-brand-gold flex items-center justify-center text-black shadow-[0_0_15px_rgba(251,191,36,0.5)]"><svg className="w-4 h-4 ml-0.5" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 14H9V8h2v8zm4 0h-2V8h2v8z" /></svg></div>
-                                    <span className="text-[10px] font-black uppercase tracking-[0.2em]">{t('detail_btn_immersive')}</span>
-                                </button>
-                                {song.smartLink && !isEditing && <a href={song.smartLink} target="_blank" rel="noopener noreferrer" className="group flex items-center gap-3 px-6 py-3 bg-white text-black font-black uppercase tracking-[0.2em] text-[10px] transition-all rounded-full hover:scale-105 shadow-[0_0_20px_rgba(255,255,255,0.4)]"><span>{t('detail_btn_smartlink')}</span><svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" /></svg></a>}
-                            </div>
-                            <div className="mt-6 flex flex-col gap-4 max-w-sm">
-                                {isAdmin ? (
-                                    <button onClick={handleStartInteractive} className={`w-full py-4 font-black uppercase tracking-[0.3em] text-xs transition-all shadow-lg ${song.isInteractiveActive ? 'bg-brand-gold text-slate-900 hover:bg-white' : 'bg-red-900 text-white hover:bg-red-700'}`}>
-                                        {song.isInteractiveActive ? t('detail_btn_start_session') : 'Admin Force Start (Test)'}
-                                    </button>
-                                ) : (
-                                    song.isInteractiveActive ? (
-                                        (isInstrumental || !song.lyrics) ? <div className="w-full py-4 border border-slate-600 text-slate-500 font-bold uppercase tracking-[0.2em] text-[10px] text-center bg-slate-900 cursor-not-allowed">{t('detail_status_instrumental')}</div> :
-                                        <button onClick={handleStartInteractive} className="w-full py-4 bg-brand-gold text-slate-900 font-black uppercase tracking-[0.3em] text-xs hover:bg-white transition-all shadow-lg animate-pulse">{t('detail_btn_start_session')}</button>
-                                    ) : <div className="w-full py-4 border border-white/10 text-slate-500 font-bold uppercase tracking-[0.2em] text-[10px] text-center bg-black/20">{t('detail_status_closed')}</div>
-                                )}
-                            </div>
-                            {isAdmin && !isEditing && (
-                                <div className="mt-8 w-full max-w-md bg-black/40 border border-white/10 p-5 rounded-lg shadow-xl">
-                                    <div className="flex items-center gap-2 mb-4 border-b border-white/5 pb-2">
-                                        <div className="w-2 h-2 rounded-full bg-brand-gold animate-pulse"></div>
-                                        <p className="text-[10px] text-brand-gold font-black uppercase tracking-[0.2em]">Admin Control Tower</p>
-                                    </div>
-                                    <div className="space-y-4">
-                                        <div className="flex justify-between items-center">
-                                            <span className="text-[10px] text-white uppercase tracking-widest">Interactive Status</span>
-                                            <button onClick={() => updateSong(song.id, { isInteractiveActive: !song.isInteractiveActive })} className={`px-3 py-1 text-[9px] font-bold uppercase tracking-widest rounded ${song.isInteractiveActive ? 'bg-emerald-500 text-black' : 'bg-slate-700 text-slate-400'}`}>{song.isInteractiveActive ? 'Active (ON)' : 'Inactive (OFF)'}</button>
+                            
+                            {!isEditing && (
+                                <div className="flex items-center gap-4 mt-6">
+                                    <span className={`px-3 py-1 text-[10px] font-black uppercase tracking-[0.2em] text-white ${getLanguageColor(song.language)}`}>{song.language}</span>
+                                    <span className="text-slate-500 text-[10px] font-bold uppercase tracking-[0.3em]">{song.releaseDate}</span>
+                                    {isAdmin && <button onClick={() => setIsEditing(true)} className="text-[10px] border border-white/20 px-3 py-1 uppercase tracking-widest hover:bg-white hover:text-black transition-all">Edit Mode</button>}
+                                </div>
+                            )}
+
+                            {isAdmin && isEditing ? (
+                                // EXPANDED EDIT FORM
+                                <div className="mt-6 bg-slate-950/80 p-6 border border-white/10 rounded-lg space-y-6">
+                                    <h4 className="text-xs font-black text-brand-gold uppercase tracking-widest border-b border-white/10 pb-2">Edit Metadata & Links</h4>
+                                    
+                                    {/* Core Info */}
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div className="space-y-1">
+                                            <label className="text-[9px] text-slate-400 uppercase font-bold">Version Label</label>
+                                            <input name="versionLabel" className="w-full bg-black/50 border border-white/10 p-2 text-white text-xs outline-none focus:border-brand-accent" value={editForm.versionLabel || ''} onChange={handleEditChange} />
                                         </div>
-                                        <div className="pt-4 border-t border-white/5 space-y-3">
-                                            <span className="text-[10px] text-slate-500 uppercase tracking-widest block mb-2">MusicBrainz Indexing</span>
-                                            <div className="flex gap-3">
-                                                {song.musicBrainzId ? (
-                                                    <a href={`https://musicbrainz.org/recording/${song.musicBrainzId}`} target="_blank" rel="noopener noreferrer" className="flex-1 py-2 text-[9px] font-black uppercase text-center rounded bg-slate-800 text-white border border-white/10 hover:bg-white hover:text-black transition-all">View MB Entry</a>
-                                                ) : (
-                                                    <div className="flex-1 py-2 text-[9px] font-bold uppercase text-center rounded bg-black/40 text-slate-600 border border-white/5">Not Indexed</div>
-                                                )}
-                                                <a href={getMusicBrainzSeedingUrl(song)} target="_blank" rel="noopener noreferrer" className="flex-1 py-2 text-[9px] font-black uppercase text-center rounded bg-purple-600 text-white shadow-lg shadow-purple-900/40 hover:bg-white hover:text-purple-600 transition-all">Submit to MB</a>
+                                        <div className="space-y-1">
+                                            <label className="text-[9px] text-slate-400 uppercase font-bold">Release Date</label>
+                                            <input type="date" name="releaseDate" className="w-full bg-black/50 border border-white/10 p-2 text-white text-xs outline-none focus:border-brand-accent" value={editForm.releaseDate || ''} onChange={handleEditChange} />
+                                        </div>
+                                        <div className="space-y-1">
+                                            <label className="text-[9px] text-slate-400 uppercase font-bold">Language</label>
+                                            <select name="language" className="w-full bg-black/50 border border-white/10 p-2 text-white text-xs outline-none focus:border-brand-accent" value={editForm.language} onChange={handleEditChange}>
+                                                {Object.values(Language).map(l => <option key={l} value={l}>{l}</option>)}
+                                            </select>
+                                        </div>
+                                        <div className="space-y-1">
+                                            <label className="text-[9px] text-slate-400 uppercase font-bold">Category</label>
+                                            <select name="releaseCategory" className="w-full bg-black/50 border border-white/10 p-2 text-white text-xs outline-none focus:border-brand-accent" value={editForm.releaseCategory} onChange={handleEditChange}>
+                                                {Object.values(ReleaseCategory).map(c => <option key={c} value={c}>{c}</option>)}
+                                            </select>
+                                        </div>
+                                        <div className="space-y-1">
+                                            <label className="text-[9px] text-slate-400 uppercase font-bold">Project Type</label>
+                                            <select name="projectType" className="w-full bg-black/50 border border-white/10 p-2 text-white text-xs outline-none focus:border-brand-accent" value={editForm.projectType} onChange={handleEditChange}>
+                                                {Object.values(ProjectType).map(p => <option key={p} value={p}>{p}</option>)}
+                                            </select>
+                                        </div>
+                                        <div className="space-y-1">
+                                            <label className="text-[9px] text-slate-400 uppercase font-bold">Publisher</label>
+                                            <input name="publisher" className="w-full bg-black/50 border border-white/10 p-2 text-white text-xs outline-none focus:border-brand-accent" value={editForm.publisher || ''} onChange={handleEditChange} />
+                                        </div>
+                                    </div>
+
+                                    {/* IDs */}
+                                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                                        <div className="space-y-1"><label className="text-[9px] text-slate-400 uppercase font-bold">ISRC</label><input name="isrc" className="w-full bg-black/50 border border-white/10 p-2 text-white text-xs font-mono outline-none focus:border-brand-accent" value={editForm.isrc || ''} onChange={handleEditChange} /></div>
+                                        <div className="space-y-1"><label className="text-[9px] text-slate-400 uppercase font-bold">UPC</label><input name="upc" className="w-full bg-black/50 border border-white/10 p-2 text-white text-xs font-mono outline-none focus:border-brand-accent" value={editForm.upc || ''} onChange={handleEditChange} /></div>
+                                        <div className="space-y-1"><label className="text-[9px] text-slate-400 uppercase font-bold">Spotify ID</label><input name="spotifyId" className="w-full bg-black/50 border border-white/10 p-2 text-white text-xs font-mono outline-none focus:border-brand-accent" value={editForm.spotifyId || ''} onChange={handleEditChange} /></div>
+                                        <div className="space-y-1"><label className="text-[9px] text-slate-400 uppercase font-bold">MusicBrainz ID</label><input name="musicBrainzId" className="w-full bg-black/50 border border-white/10 p-2 text-white text-xs font-mono outline-none focus:border-brand-accent" value={editForm.musicBrainzId || ''} onChange={handleEditChange} /></div>
+                                    </div>
+
+                                    {/* Links */}
+                                    <div className="space-y-2 border-t border-white/10 pt-4">
+                                        <label className="text-[9px] text-brand-accent uppercase font-bold">External Links</label>
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                            <input name="youtubeUrl" className="bg-black/50 border border-white/10 p-2 text-white text-xs font-mono outline-none focus:border-brand-accent" value={editForm.youtubeUrl || ''} onChange={handleEditChange} placeholder="YouTube Video URL" />
+                                            <input name="spotifyLink" className="bg-black/50 border border-white/10 p-2 text-white text-xs font-mono outline-none focus:border-brand-accent" value={editForm.spotifyLink || ''} onChange={handleEditChange} placeholder="Spotify Link" />
+                                            <input name="appleMusicLink" className="bg-black/50 border border-white/10 p-2 text-white text-xs font-mono outline-none focus:border-brand-accent" value={editForm.appleMusicLink || ''} onChange={handleEditChange} placeholder="Apple Music Link" />
+                                            <input name="smartLink" className="bg-black/50 border border-white/10 p-2 text-white text-xs font-mono outline-none focus:border-brand-accent" value={editForm.smartLink || ''} onChange={handleEditChange} placeholder="Smart Link / HyperFollow" />
+                                            <input name="musixmatchUrl" className="bg-black/50 border border-white/10 p-2 text-white text-xs font-mono outline-none focus:border-brand-accent" value={editForm.musixmatchUrl || ''} onChange={handleEditChange} placeholder="Musixmatch URL" />
+                                            <input name="distrokidManageUrl" className="bg-black/50 border border-white/10 p-2 text-white text-xs font-mono outline-none focus:border-brand-accent" value={editForm.distrokidManageUrl || ''} onChange={handleEditChange} placeholder="DistroKid Admin URL" />
+                                        </div>
+                                    </div>
+
+                                    {/* Audio */}
+                                    <div className="space-y-1 border-t border-white/10 pt-4">
+                                        <label className="text-[9px] text-brand-accent uppercase font-bold">Source Audio (Dropbox Link)</label>
+                                        <input name="audioUrl" className="w-full bg-black/50 border border-white/10 p-2 text-white text-xs font-mono outline-none focus:border-brand-accent" value={editForm.audioUrl || ''} onChange={handleEditChange} />
+                                    </div>
+
+                                    {/* Actions */}
+                                    <div className="pt-4 flex justify-between items-center">
+                                        <button onClick={handleDelete} className="text-red-500 hover:text-white border border-red-900/50 px-4 py-2 text-[10px] font-black uppercase tracking-widest rounded hover:bg-red-900">DELETE SONG</button>
+                                        <div className="flex gap-4">
+                                            <button onClick={() => setIsEditing(false)} className="text-slate-400 px-4 py-2 text-[10px] font-black uppercase tracking-widest hover:text-white">Cancel</button>
+                                            <button onClick={handleSave} disabled={isSaving} className="bg-brand-accent text-slate-900 px-6 py-2 text-[10px] font-black uppercase tracking-widest hover:bg-white transition-all shadow-lg">{isSaving ? "Saving..." : "Save Changes"}</button>
+                                        </div>
+                                    </div>
+                                </div>
+                            ) : (
+                                <>
+                                    <div className="mt-8 flex flex-wrap gap-4">
+                                        <button onClick={() => setShowLyricsPlayer(true)} className="group flex items-center gap-3 px-6 py-3 bg-white/5 border border-white/10 hover:bg-white hover:text-black transition-all rounded-full">
+                                            <div className="w-8 h-8 rounded-full bg-brand-gold flex items-center justify-center text-black shadow-[0_0_15px_rgba(251,191,36,0.5)]"><svg className="w-4 h-4 ml-0.5" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 14H9V8h2v8zm4 0h-2V8h2v8z" /></svg></div>
+                                            <span className="text-[10px] font-black uppercase tracking-[0.2em]">{t('detail_btn_immersive')}</span>
+                                        </button>
+                                        {song.smartLink && <a href={song.smartLink} target="_blank" rel="noopener noreferrer" className="group flex items-center gap-3 px-6 py-3 bg-white text-black font-black uppercase tracking-[0.2em] text-[10px] transition-all rounded-full hover:scale-105 shadow-[0_0_20px_rgba(255,255,255,0.4)]"><span>{t('detail_btn_smartlink')}</span><svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" /></svg></a>}
+                                    </div>
+                                    <div className="mt-6 flex flex-col gap-4 max-w-sm">
+                                        {isAdmin ? (
+                                            <button onClick={handleStartInteractive} className={`w-full py-4 font-black uppercase tracking-[0.3em] text-xs transition-all shadow-lg ${song.isInteractiveActive ? 'bg-brand-gold text-slate-900 hover:bg-white' : 'bg-red-900 text-white hover:bg-red-700'}`}>
+                                                {song.isInteractiveActive ? t('detail_btn_start_session') : 'Admin Force Start (Test)'}
+                                            </button>
+                                        ) : (
+                                            song.isInteractiveActive ? (
+                                                (isInstrumental || !song.lyrics) ? <div className="w-full py-4 border border-slate-600 text-slate-500 font-bold uppercase tracking-[0.2em] text-[10px] text-center bg-slate-900 cursor-not-allowed">{t('detail_status_instrumental')}</div> :
+                                                <button onClick={handleStartInteractive} className="w-full py-4 bg-brand-gold text-slate-900 font-black uppercase tracking-[0.3em] text-xs hover:bg-white transition-all shadow-lg animate-pulse">{t('detail_btn_start_session')}</button>
+                                            ) : <div className="w-full py-4 border border-white/10 text-slate-500 font-bold uppercase tracking-[0.2em] text-[10px] text-center bg-black/20">{t('detail_status_closed')}</div>
+                                        )}
+                                    </div>
+                                    {isAdmin && (
+                                        <div className="mt-8 w-full max-w-md bg-black/40 border border-white/10 p-5 rounded-lg shadow-xl">
+                                            <div className="flex items-center gap-2 mb-4 border-b border-white/5 pb-2">
+                                                <div className="w-2 h-2 rounded-full bg-brand-gold animate-pulse"></div>
+                                                <p className="text-[10px] text-brand-gold font-black uppercase tracking-[0.2em]">Admin Control Tower</p>
+                                            </div>
+                                            <div className="space-y-4">
+                                                <div className="flex justify-between items-center">
+                                                    <span className="text-[10px] text-white uppercase tracking-widest">Interactive Status</span>
+                                                    <button onClick={() => updateSong(song.id, { isInteractiveActive: !song.isInteractiveActive })} className={`px-3 py-1 text-[9px] font-bold uppercase tracking-widest rounded ${song.isInteractiveActive ? 'bg-emerald-500 text-black' : 'bg-slate-700 text-slate-400'}`}>{song.isInteractiveActive ? 'Active (ON)' : 'Inactive (OFF)'}</button>
+                                                </div>
+                                                <div className="pt-4 border-t border-white/5 space-y-3">
+                                                    <span className="text-[10px] text-slate-500 uppercase tracking-widest block mb-2">MusicBrainz Indexing</span>
+                                                    <div className="flex gap-3">
+                                                        {song.musicBrainzId ? (
+                                                            <a href={`https://musicbrainz.org/recording/${song.musicBrainzId}`} target="_blank" rel="noopener noreferrer" className="flex-1 py-2 text-[9px] font-black uppercase text-center rounded bg-slate-800 text-white border border-white/10 hover:bg-white hover:text-black transition-all">View MB Entry</a>
+                                                        ) : (
+                                                            <div className="flex-1 py-2 text-[9px] font-bold uppercase text-center rounded bg-black/40 text-slate-600 border border-white/5">Not Indexed</div>
+                                                        )}
+                                                        <a href={getMusicBrainzSeedingUrl(song)} target="_blank" rel="noopener noreferrer" className="flex-1 py-2 text-[9px] font-black uppercase text-center rounded bg-purple-600 text-white shadow-lg shadow-purple-900/40 hover:bg-white hover:text-purple-600 transition-all">Submit to MB</a>
+                                                    </div>
+                                                </div>
                                             </div>
                                         </div>
-                                    </div>
-                                </div>
-                            )}
-                            {isAdmin && isEditing && (
-                                <div className="mt-6 space-y-4 bg-slate-800/50 p-4 border border-white/10">
-                                    <div className="space-y-1"><label className="text-[10px] text-slate-500 font-bold uppercase tracking-widest block">MusicBrainz ID</label><input className="w-full bg-black border border-white/10 p-3 text-white text-xs font-mono" value={editForm.musicBrainzId || ''} onChange={e => setEditForm({...editForm, musicBrainzId: e.target.value})} placeholder="MBID..." /></div>
-                                    <div className="pt-6 border-t border-white/10 flex justify-between"><button onClick={handleDelete} className="text-red-500 hover:text-white border border-red-900/50 px-4 py-3 text-[10px] font-black uppercase tracking-widest rounded">DELETE</button>
-                                    <div className="flex gap-4"><button onClick={() => setIsEditing(false)} className="text-slate-400 px-4 py-3 text-[10px] font-black uppercase tracking-widest">Cancel</button><button onClick={handleSave} disabled={isSaving} className="bg-brand-accent text-slate-900 px-6 py-3 text-[10px] font-black uppercase tracking-widest hover:bg-white transition-all shadow-lg">{isSaving ? "Saving..." : "Save Changes"}</button></div></div>
-                                </div>
+                                    )}
+                                </>
                             )}
                         </div>
-                        {isAdmin && (
+                        {isAdmin && !isEditing && (
                             <div className="grid grid-cols-2 md:grid-cols-4 gap-8 mt-12 pt-12 border-t border-white/5">
                                 {['isrc', 'upc', 'spotifyId', 'musicBrainzId'].map(field => (
                                     <div key={field}>
@@ -425,16 +480,16 @@ const SongDetail: React.FC = () => {
             <div className="lg:col-span-2 space-y-12">
                 <div className="bg-slate-900/50 p-10 border border-white/5">
                     <div className="flex justify-between items-center mb-8"><h3 className="text-sm font-black text-white uppercase tracking-[0.4em]">{t('detail_section_context')}</h3>{isAdmin && <button onClick={handleAiGenerate} disabled={loadingAi} className="text-[9px] border border-brand-accent/30 text-brand-accent px-4 py-2 uppercase tracking-widest hover:bg-brand-accent hover:text-black transition-all">{loadingAi ? "Analyzing..." : "Generate AI Review"}</button>}</div>
-                    {isAdmin && isEditing ? <textarea className="w-full h-60 bg-black border border-white/10 p-4 text-white text-sm outline-none" value={editForm.description || ''} onChange={e => setEditForm({...editForm, description: e.target.value})} /> : <div className="text-slate-400 text-sm font-light leading-relaxed whitespace-pre-line">{song.description || t('detail_empty_desc')}</div>}
+                    {isAdmin && isEditing ? <textarea className="w-full h-60 bg-black border border-white/10 p-4 text-white text-sm outline-none" value={editForm.description || ''} name="description" onChange={handleEditChange} /> : <div className="text-slate-400 text-sm font-light leading-relaxed whitespace-pre-line">{song.description || t('detail_empty_desc')}</div>}
                 </div>
                 <div className="bg-slate-900/50 p-10 border border-white/5">
                     <h3 className="text-sm font-black text-white uppercase tracking-[0.4em] mb-8">{t('detail_section_lyrics')}</h3>
-                    {isAdmin && isEditing ? <textarea className="w-full h-80 bg-black border border-white/10 p-4 text-white text-xs font-mono" value={editForm.lyrics || ''} onChange={e => setEditForm({...editForm, lyrics: e.target.value})} /> : <div className="font-mono text-xs text-slate-500 whitespace-pre-line leading-loose border-l border-white/5 pl-8">{song.lyrics || t('detail_empty_lyrics')}</div>}
+                    {isAdmin && isEditing ? <textarea className="w-full h-80 bg-black border border-white/10 p-4 text-white text-xs font-mono" value={editForm.lyrics || ''} name="lyrics" onChange={handleEditChange} /> : <div className="font-mono text-xs text-slate-500 whitespace-pre-line leading-loose border-l border-white/5 pl-8">{song.lyrics || t('detail_empty_lyrics')}</div>}
                 </div>
             </div>
             <div className="bg-slate-900 p-8 border border-white/5">
                 <h3 className="text-[10px] font-black text-white uppercase tracking-[0.4em] mb-6">{t('detail_section_credits')}</h3>
-                {isAdmin && isEditing ? <textarea className="w-full h-60 bg-black border border-white/10 p-4 text-white text-xs font-mono" value={editForm.credits || ''} onChange={e => setEditForm({...editForm, credits: e.target.value})} /> : <div className="text-[10px] text-slate-500 font-mono leading-loose uppercase tracking-wider whitespace-pre-line">{song.credits || t('detail_empty_credits')}</div>}
+                {isAdmin && isEditing ? <textarea className="w-full h-60 bg-black border border-white/10 p-4 text-white text-xs font-mono" value={editForm.credits || ''} name="credits" onChange={handleEditChange} /> : <div className="text-[10px] text-slate-500 font-mono leading-loose uppercase tracking-wider whitespace-pre-line">{song.credits || t('detail_empty_credits')}</div>}
                 <div className="mt-8 pt-8 border-t border-white/5 text-[9px] text-slate-600 font-mono"><p>℗ {new Date(song.releaseDate).getFullYear()} {song.releaseCompany}</p></div>
             </div>
         </div>
