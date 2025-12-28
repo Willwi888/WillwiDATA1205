@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useData } from '../context/DataContext';
@@ -305,9 +306,17 @@ const SongDetail: React.FC = () => {
   };
 
   return (
-    <div className="animate-fade pb-32 max-w-7xl mx-auto px-6">
+    <div className="animate-fade pb-32 max-w-7xl mx-auto px-6 pt-10">
         {showLyricsPlayer && <ImmersivePlayer song={song} onClose={() => setShowLyricsPlayer(false)} />}
-        <div className="mb-6"><Link to="/database" className="text-[10px] text-slate-500 hover:text-white uppercase tracking-widest">{t('detail_back_link')}</Link></div>
+        <div className="mb-6 flex justify-between items-center">
+            <Link to="/database" className="text-[10px] text-slate-500 hover:text-white uppercase tracking-widest">{t('detail_back_link')}</Link>
+            {isAdmin && !isEditing && (
+                <button onClick={() => setIsEditing(true)} className="text-[10px] border border-brand-accent/50 text-brand-accent px-4 py-2 uppercase tracking-widest hover:bg-brand-accent hover:text-black transition-all font-bold">
+                    Edit Mode
+                </button>
+            )}
+        </div>
+
         <div className="bg-slate-900 border border-white/5 relative overflow-hidden">
             <div className="absolute inset-0 bg-cover bg-center opacity-10 blur-2xl" style={{ backgroundImage: `url(${song.coverUrl})` }}></div>
             <div className="relative z-10 p-10 flex flex-col md:flex-row gap-12 items-start">
@@ -334,14 +343,16 @@ const SongDetail: React.FC = () => {
                                 <div className="flex items-center gap-4 mt-6">
                                     <span className={`px-3 py-1 text-[10px] font-black uppercase tracking-[0.2em] text-white ${getLanguageColor(song.language)}`}>{song.language}</span>
                                     <span className="text-slate-500 text-[10px] font-bold uppercase tracking-[0.3em]">{song.releaseDate}</span>
-                                    {isAdmin && <button onClick={() => setIsEditing(true)} className="text-[10px] border border-white/20 px-3 py-1 uppercase tracking-widest hover:bg-white hover:text-black transition-all">Edit Mode</button>}
                                 </div>
                             )}
 
                             {isAdmin && isEditing ? (
                                 // EXPANDED EDIT FORM
-                                <div className="mt-6 bg-slate-950/80 p-6 border border-white/10 rounded-lg space-y-6">
-                                    <h4 className="text-xs font-black text-brand-gold uppercase tracking-widest border-b border-white/10 pb-2">Edit Metadata & Links</h4>
+                                <div className="mt-6 bg-slate-950/80 p-6 border border-white/10 rounded-lg space-y-6 animate-fade-in">
+                                    <div className="flex justify-between items-center border-b border-white/10 pb-2">
+                                        <h4 className="text-xs font-black text-brand-gold uppercase tracking-widest">Metadata & Links</h4>
+                                        <span className="text-[9px] text-slate-500 uppercase tracking-widest">Admin Control</span>
+                                    </div>
                                     
                                     {/* Core Info */}
                                     <div className="grid grid-cols-2 gap-4">
@@ -398,14 +409,18 @@ const SongDetail: React.FC = () => {
                                         </div>
                                     </div>
 
-                                    {/* Audio */}
+                                    {/* Audio - CRITICAL FOR INTERACTION */}
                                     <div className="space-y-1 border-t border-white/10 pt-4">
-                                        <label className="text-[9px] text-brand-accent uppercase font-bold">Source Audio (Dropbox Link)</label>
-                                        <input name="audioUrl" className="w-full bg-black/50 border border-white/10 p-2 text-white text-xs font-mono outline-none focus:border-brand-accent" value={editForm.audioUrl || ''} onChange={handleEditChange} />
+                                        <label className="text-[9px] text-brand-gold uppercase font-bold flex items-center gap-2">
+                                            Source Audio (Dropbox Link)
+                                            <span className="bg-brand-gold text-black px-1 rounded text-[8px]">REQUIRED FOR INTERACTIVE MODE</span>
+                                        </label>
+                                        <input name="audioUrl" className="w-full bg-black/50 border border-brand-gold/30 p-2 text-brand-gold text-xs font-mono outline-none focus:border-brand-gold" value={editForm.audioUrl || ''} onChange={handleEditChange} placeholder="Paste Dropbox DL Link here..." />
+                                        {editForm.audioUrl && <audio controls src={convertToDirectStream(editForm.audioUrl)} className="w-full h-8 mt-2" />}
                                     </div>
 
                                     {/* Actions */}
-                                    <div className="pt-4 flex justify-between items-center">
+                                    <div className="pt-4 flex justify-between items-center border-t border-white/10 mt-4">
                                         <button onClick={handleDelete} className="text-red-500 hover:text-white border border-red-900/50 px-4 py-2 text-[10px] font-black uppercase tracking-widest rounded hover:bg-red-900">DELETE SONG</button>
                                         <div className="flex gap-4">
                                             <button onClick={() => setIsEditing(false)} className="text-slate-400 px-4 py-2 text-[10px] font-black uppercase tracking-widest hover:text-white">Cancel</button>
@@ -467,7 +482,7 @@ const SongDetail: React.FC = () => {
                                 {['isrc', 'upc', 'spotifyId', 'musicBrainzId'].map(field => (
                                     <div key={field}>
                                         <span className="text-[9px] text-slate-600 uppercase tracking-[0.4em] block mb-2">{field}</span>
-                                        {field === 'musicBrainzId' && (song as any)[field] ? <a href={`https://musicbrainz.org/recording/${(song as any)[field]}`} target="_blank" rel="noopener noreferrer" className="font-mono text-[11px] text-brand-gold hover:underline uppercase">{(song as any)[field]} ↗</a> : <span className="font-mono text-[11px] text-slate-400">{(song as any)[field] || '--'}</span>}
+                                        {field === 'musicBrainzId' && (song as any)[field] ? <a href={`https://musicbrainz.org/recording/${(song as any)[field]}`} target="_blank" rel="noopener noreferrer" className="font-mono text-[11px] text-brand-gold hover:underline uppercase">{(song as any)[field] ↗</a> : <span className="font-mono text-[11px] text-slate-400">{(song as any)[field] || '--'}</span>}
                                     </div>
                                 ))}
                             </div>
@@ -483,8 +498,11 @@ const SongDetail: React.FC = () => {
                     {isAdmin && isEditing ? <textarea className="w-full h-60 bg-black border border-white/10 p-4 text-white text-sm outline-none" value={editForm.description || ''} name="description" onChange={handleEditChange} /> : <div className="text-slate-400 text-sm font-light leading-relaxed whitespace-pre-line">{song.description || t('detail_empty_desc')}</div>}
                 </div>
                 <div className="bg-slate-900/50 p-10 border border-white/5">
-                    <h3 className="text-sm font-black text-white uppercase tracking-[0.4em] mb-8">{t('detail_section_lyrics')}</h3>
-                    {isAdmin && isEditing ? <textarea className="w-full h-80 bg-black border border-white/10 p-4 text-white text-xs font-mono" value={editForm.lyrics || ''} name="lyrics" onChange={handleEditChange} /> : <div className="font-mono text-xs text-slate-500 whitespace-pre-line leading-loose border-l border-white/5 pl-8">{song.lyrics || t('detail_empty_lyrics')}</div>}
+                    <div className="flex justify-between items-center mb-8">
+                        <h3 className="text-sm font-black text-white uppercase tracking-[0.4em]">{t('detail_section_lyrics')}</h3>
+                        {isAdmin && isEditing && <span className="text-[9px] text-brand-gold bg-brand-gold/10 px-2 py-1 uppercase tracking-widest font-bold">REQUIRED FOR INTERACTIVE</span>}
+                    </div>
+                    {isAdmin && isEditing ? <textarea className="w-full h-80 bg-black border border-white/10 p-4 text-white text-xs font-mono" value={editForm.lyrics || ''} name="lyrics" onChange={handleEditChange} placeholder="Paste plain text lyrics here..." /> : <div className="font-mono text-xs text-slate-500 whitespace-pre-line leading-loose border-l border-white/5 pl-8">{song.lyrics || t('detail_empty_lyrics')}</div>}
                 </div>
             </div>
             <div className="bg-slate-900 p-8 border border-white/5">

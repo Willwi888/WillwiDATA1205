@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import { useData } from '../context/DataContext';
 import { Song, LyricConfig } from '../types';
@@ -26,7 +27,7 @@ const convertToDirectStream = (url: string) => {
 };
 
 // Mode State Machine
-type InteractionMode = 'intro' | 'select' | 'gate' | 'setup' | 'playing' | 'contact' | 'finished';
+type InteractionMode = 'intro' | 'select' | 'gate' | 'setup' | 'playing' | 'rendering' | 'contact' | 'finished';
 
 const Interactive: React.FC = () => {
   const { songs } = useData();
@@ -39,6 +40,9 @@ const Interactive: React.FC = () => {
   const [contactInfo, setContactInfo] = useState({ name: '', phone: '' });
   const [isAudioReady, setIsAudioReady] = useState(false);
   const [showPayment, setShowPayment] = useState(false);
+  
+  // Help Modal State
+  const [showHelp, setShowHelp] = useState(false);
   
   // Visual Config (Preset for Willwi)
   const [config, setConfig] = useState<LyricConfig>({
@@ -138,6 +142,48 @@ const Interactive: React.FC = () => {
       setMode('setup');
       setLineIndex(0);
       setIsAuditioning(false);
+      // Auto-show help on first entry to Setup
+      setShowHelp(true);
+  };
+
+  const toggleAudition = () => {
+      if (!isAuditioning) {
+          // Start Practice
+          if (audioRef.current) {
+              audioRef.current.currentTime = 0;
+              audioRef.current.play().catch(e => console.error("Play failed", e));
+          }
+          setLineIndex(0);
+          smoothIndexRef.current = 0;
+          setIsAuditioning(true);
+      } else {
+          // Stop Practice
+          if (audioRef.current) {
+              audioRef.current.pause();
+              audioRef.current.currentTime = 0;
+          }
+          setLineIndex(0);
+          smoothIndexRef.current = 0;
+          setIsAuditioning(false);
+      }
+  };
+
+  // Helper: Find best supported MIME type for Mobile compatibility
+  const getSupportedMimeType = () => {
+      const types = [
+          'video/webm;codecs=vp9,opus',
+          'video/webm;codecs=vp8,opus',
+          'video/webm;codecs=h264',
+          'video/webm',
+          'video/mp4' // Some newer browsers support this via MediaRecorder
+      ];
+      for (const type of types) {
+          if (MediaRecorder.isTypeSupported(type)) {
+              console.log(`Using MIME Type: ${type}`);
+              return type;
+          }
+      }
+      return ''; // Let browser choose default
   };
 
   const startRecording = async () => {
@@ -167,7 +213,7 @@ const Interactive: React.FC = () => {
       audioRef.current.currentTime = 0;
 
       try {
-          const canvasStream = (canvasRef.current as any).captureStream(60);
+          const canvasStream = (canvasRef.current as any).captureStream(30); // Lower FPS for mobile stability
           const dest = ctx.createMediaStreamDestination();
           
           if (!audioSourceRef.current) {
@@ -182,14 +228,19 @@ const Interactive: React.FC = () => {
               ...dest.stream.getAudioTracks()
           ]);
 
-          const recorder = new MediaRecorder(combinedStream, { 
-              mimeType: 'video/webm;codecs=vp9,opus', 
-              videoBitsPerSecond: 25000000 
-          });
+          const mimeType = getSupportedMimeType();
+          const options = mimeType ? { mimeType, videoBitsPerSecond: 2500000 } : { videoBitsPerSecond: 2500000 }; // 2.5 Mbps is enough for mobile webm
+
+          const recorder = new MediaRecorder(combinedStream, options);
 
           const chunks: Blob[] = [];
           recorder.ondataavailable = e => { if (e.data.size > 0) chunks.push(e.data); };
-          recorder.onstop = () => setRecordedChunks(chunks);
+          
+          // Important: Handle stop to move state
+          recorder.onstop = () => {
+              setRecordedChunks(chunks);
+              setMode('contact'); // Only move to contact after data is ready
+          };
 
           mediaRecorderRef.current = recorder;
           recorder.start(100); 
@@ -198,7 +249,7 @@ const Interactive: React.FC = () => {
           renderLoop();
       } catch (e) { 
           console.error(e); 
-          alert("Recording failed to initialize. Please try refreshing.");
+          alert("Recording failed to initialize. Mobile browser might restrict capture.");
           setMode('setup');
       }
   };
@@ -244,10 +295,19 @@ const Interactive: React.FC = () => {
   };
 
   const finishRecording = () => {
-      if (mediaRecorderRef.current?.state === 'recording') mediaRecorderRef.current.stop();
-      setMode('contact');
-      cancelAnimationFrame(animationFrameRef.current);
+      // 1. Pause Audio First
       if (audioRef.current) audioRef.current.pause();
+      
+      // 2. Set UI to Rendering (Packaging)
+      setMode('rendering');
+      cancelAnimationFrame(animationFrameRef.current);
+
+      // 3. Stop Recorder after small delay to flush buffer
+      setTimeout(() => {
+          if (mediaRecorderRef.current?.state === 'recording') {
+              mediaRecorderRef.current.stop();
+          }
+      }, 500);
   };
 
   const renderLoop = () => {
@@ -408,22 +468,6 @@ const Interactive: React.FC = () => {
       }
   };
 
-  const toggleAudition = async () => {
-      if (!audioRef.current) return;
-      if (isAuditioning) { 
-          audioRef.current.pause(); 
-          setIsAuditioning(false); 
-          setLineIndex(0); 
-      } else { 
-          audioRef.current.currentTime = 0;
-          setLineIndex(0);
-          smoothIndexRef.current = 0;
-          setIsAuditioning(true);
-          try { await audioRef.current.play(); } 
-          catch(e) { console.error("Audio Play Error:", e); setIsAuditioning(false); }
-      }
-  };
-
   return (
     <div className="bg-black min-h-screen text-slate-100 flex flex-col font-sans">
       
@@ -527,41 +571,111 @@ const Interactive: React.FC = () => {
 
       {/* SETUP (The Lab) */}
       {mode === 'setup' && selectedSong && (
-          <div className="flex-1 flex flex-col md:flex-row h-screen pt-20 overflow-hidden">
+          <div className="flex-1 flex flex-col md:flex-row h-screen pt-20 overflow-hidden relative">
+              {/* Help Modal */}
+              {showHelp && (
+                  <div className="absolute inset-0 z-50 bg-black/90 backdrop-blur-md flex items-center justify-center p-6 animate-fade-in" onClick={() => setShowHelp(false)}>
+                      <div className="bg-slate-900 border border-white/10 max-w-lg w-full p-8 shadow-2xl relative" onClick={(e) => e.stopPropagation()}>
+                          <button onClick={() => setShowHelp(false)} className="absolute top-4 right-4 text-slate-500 hover:text-white">✕</button>
+                          <h3 className="text-xl font-black text-white uppercase tracking-[0.3em] mb-6">How to Play</h3>
+                          
+                          <div className="space-y-6">
+                              <div className="space-y-2">
+                                  <h4 className="text-brand-gold text-xs font-black uppercase tracking-widest">1. Visual Options (風格選項)</h4>
+                                  <ul className="text-xs text-slate-300 space-y-2 pl-4 border-l border-white/10">
+                                      <li><strong className="text-white">SLIDE</strong>: 經典滾動 (Scrolling lyrics, safe choice)</li>
+                                      <li><strong className="text-white">FADE</strong>: 電影淡入 (Fade in/out, artistic)</li>
+                                      <li><strong className="text-white">STATIC</strong>: 極簡切換 (Instant cut, for fast songs)</li>
+                                  </ul>
+                              </div>
+                              <div className="space-y-2">
+                                  <h4 className="text-brand-gold text-xs font-black uppercase tracking-widest">2. Operation (操作方式)</h4>
+                                  <p className="text-xs text-slate-300 leading-relaxed">
+                                      This is a rhythm game. When you hear the singer sing the <strong className="text-white">first word</strong> of a line:
+                                  </p>
+                                  <div className="flex gap-4 mt-2">
+                                      <div className="flex-1 bg-white/10 p-3 text-center rounded border border-white/10">
+                                          <span className="block text-[10px] text-slate-400 uppercase mb-1">PC</span>
+                                          <span className="text-sm font-bold text-white">Press SPACE</span>
+                                      </div>
+                                      <div className="flex-1 bg-white/10 p-3 text-center rounded border border-white/10">
+                                          <span className="block text-[10px] text-slate-400 uppercase mb-1">Mobile</span>
+                                          <span className="text-sm font-bold text-white">TAP Screen</span>
+                                      </div>
+                                  </div>
+                              </div>
+                          </div>
+                          
+                          <button onClick={() => setShowHelp(false)} className="w-full mt-8 py-3 bg-white text-black font-black uppercase text-xs tracking-widest hover:bg-brand-gold transition-all">
+                              Got it
+                          </button>
+                      </div>
+                  </div>
+              )}
+
               {/* Controls */}
               <div className="w-full md:w-80 bg-black border-r border-white/5 p-8 flex flex-col z-20 shadow-2xl overflow-y-auto custom-scrollbar">
                   
-                  {/* NEW: Visual Customization Section */}
-                  <div className="mb-10 border-b border-white/5 pb-8">
-                      <h4 className="text-[10px] font-black text-brand-gold uppercase tracking-widest mb-4">Visual Motion</h4>
-                      <div className="grid grid-cols-2 gap-2 mb-4">
-                          {['slide', 'fade', 'static'].map(m => (
-                              <button 
-                                key={m}
-                                onClick={() => setConfig({...config, motion: m as any})}
-                                className={`py-3 text-[9px] font-black uppercase transition-all border ${config.motion === m ? 'bg-white text-black border-white' : 'bg-transparent text-slate-500 border-white/10 hover:border-white/50 hover:text-white'}`}
-                              >
-                                  {m}
-                              </button>
-                          ))}
+                  <div className="mb-8">
+                      {/* Visual Config 1: Motion */}
+                      <div className="mb-6">
+                          <div className="text-[10px] text-brand-gold font-black uppercase tracking-widest mb-3 flex items-center justify-between">
+                              <div className="flex items-center gap-2">
+                                  <span className="w-1 h-3 bg-brand-gold"></span>
+                                  <span>Visual Motion</span>
+                              </div>
+                              <button onClick={() => setShowHelp(true)} className="text-[9px] text-slate-500 border border-slate-700 px-2 rounded hover:text-white hover:border-white transition-all">?</button>
+                          </div>
+                          <div className="grid grid-cols-3 gap-2">
+                              {['slide', 'fade', 'static'].map((m) => (
+                                  <button 
+                                      key={m}
+                                      onClick={() => setConfig({...config, motion: m as any})} 
+                                      className={`flex flex-col items-center justify-center p-3 border transition-all ${config.motion === m ? 'bg-white text-black border-white' : 'bg-transparent text-slate-500 border-white/10 hover:border-white/30 hover:text-white'}`}
+                                  >
+                                      <span className="text-[10px] font-black uppercase">{m}</span>
+                                      <span className="text-[8px] opacity-60 mt-1 uppercase tracking-wider">{m === 'slide' ? 'Scroll' : m === 'fade' ? 'Cinema' : 'Cut'}</span>
+                                  </button>
+                              ))}
+                          </div>
                       </div>
                       
-                      <h4 className="text-[10px] font-black text-brand-gold uppercase tracking-widest mb-4 mt-6">Layout & Font</h4>
-                      <div className="grid grid-cols-2 gap-2">
-                          <button onClick={() => setConfig({...config, format: 'youtube'})} className={`py-3 text-[9px] font-black uppercase border ${config.format === 'youtube' ? 'bg-white text-black border-white' : 'text-slate-500 border-white/10'}`}>16:9 (PC)</button>
-                          <button onClick={() => setConfig({...config, format: 'social'})} className={`py-3 text-[9px] font-black uppercase border ${config.format === 'social' ? 'bg-white text-black border-white' : 'text-slate-500 border-white/10'}`}>9:16 (Phone)</button>
-                          <button onClick={() => setConfig({...config, layout: 'cover'})} className={`py-3 text-[9px] font-black uppercase border ${config.layout === 'cover' ? 'bg-white text-black border-white' : 'text-slate-500 border-white/10'}`}>Cover Mode</button>
-                          <button onClick={() => setConfig({...config, layout: 'lyrics'})} className={`py-3 text-[9px] font-black uppercase border ${config.layout === 'lyrics' ? 'bg-white text-black border-white' : 'text-slate-500 border-white/10'}`}>Lyrics Only</button>
+                      {/* Visual Config 2: Layout */}
+                      <div className="mb-6">
+                          <div className="text-[10px] text-brand-gold font-black uppercase tracking-widest mb-3 flex items-center gap-2">
+                              <span className="w-1 h-3 bg-brand-gold"></span>
+                              <span>Format & Layout</span>
+                          </div>
+                          <div className="grid grid-cols-2 gap-2 mb-2">
+                              <button onClick={() => setConfig({...config, format: 'youtube'})} className={`py-3 text-[9px] font-black uppercase border flex items-center justify-center gap-2 ${config.format === 'youtube' ? 'bg-white text-black border-white' : 'text-slate-500 border-white/10 hover:text-white'}`}>
+                                  <span className="w-4 h-2 border border-current"></span> 16:9 PC
+                              </button>
+                              <button onClick={() => setConfig({...config, format: 'social'})} className={`py-3 text-[9px] font-black uppercase border flex items-center justify-center gap-2 ${config.format === 'social' ? 'bg-white text-black border-white' : 'text-slate-500 border-white/10 hover:text-white'}`}>
+                                  <span className="w-2 h-3 border border-current"></span> 9:16 Mobile
+                              </button>
+                          </div>
+                          <div className="grid grid-cols-2 gap-2">
+                              <button onClick={() => setConfig({...config, layout: 'lyrics'})} className={`py-3 text-[9px] font-black uppercase border ${config.layout === 'lyrics' ? 'bg-white text-black border-white' : 'text-slate-500 border-white/10 hover:text-white'}`}>Lyrics Only</button>
+                              <button onClick={() => setConfig({...config, layout: 'cover'})} className={`py-3 text-[9px] font-black uppercase border ${config.layout === 'cover' ? 'bg-white text-black border-white' : 'text-slate-500 border-white/10 hover:text-white'}`}>Cover Mode</button>
+                          </div>
                       </div>
                   </div>
 
                   <div className="mt-auto space-y-4">
-                      <p className="text-[10px] text-slate-400 leading-relaxed mb-4">
-                          {t('interactive_tool_guide_1')}<br/>
-                          <span className="text-white">{t('interactive_tool_guide_2_desktop')}</span>
-                      </p>
+                      {/* INLINE INSTRUCTIONS */}
+                      <div className="bg-slate-900 border border-white/10 p-5 mb-4 relative overflow-hidden group cursor-pointer hover:border-brand-accent/50 transition-all" onClick={() => setShowHelp(true)}>
+                          <div className="absolute top-0 left-0 w-1 h-full bg-brand-accent"></div>
+                          <div className="flex justify-between items-center mb-2">
+                              <h5 className="text-[10px] font-black text-brand-accent uppercase tracking-widest">Operation</h5>
+                              <span className="text-[8px] text-slate-500 uppercase tracking-widest bg-black px-1">Click for info</span>
+                          </div>
+                          <p className="text-[9px] text-slate-300 leading-relaxed">
+                              Press <span className="bg-white text-black px-1 rounded font-bold">SPACE</span> exactly when the lyrics start.
+                          </p>
+                      </div>
+
                       <button onClick={toggleAudition} className={`w-full py-4 border font-black uppercase text-[10px] tracking-[0.2em] transition-all ${isAuditioning ? 'bg-white text-black border-white' : 'border-white/20 text-white hover:bg-white/10'}`}>
-                          {isAuditioning ? 'STOP PREVIEW' : 'PRACTICE MODE'}
+                          {isAuditioning ? 'STOP PREVIEW' : 'PRACTICE MODE (試玩)'}
                       </button>
                       <button onClick={startRecording} className="w-full py-4 bg-brand-gold text-black font-black uppercase text-[10px] tracking-[0.2em] hover:bg-white transition-all shadow-[0_0_20px_rgba(251,191,36,0.4)] animate-pulse">
                           {t('interactive_btn_start_record')}
@@ -597,13 +711,27 @@ const Interactive: React.FC = () => {
               </div>
 
               {/* Controls Overlay (Bottom) */}
-              <div className="absolute bottom-0 w-full p-12 flex justify-between items-end bg-gradient-to-t from-black via-black/80 to-transparent pointer-events-none">
-                  <div className="text-left">
+              <div className="absolute bottom-0 w-full p-12 flex justify-between items-end bg-gradient-to-t from-black via-black/80 to-transparent pointer-events-auto">
+                  <div className="text-left pointer-events-none">
                       <p className="text-[10px] text-brand-gold font-bold uppercase tracking-[0.3em] mb-2 animate-pulse">{t('interactive_recording_hint_desktop')}</p>
                       <p className="text-4xl font-black text-white/20 uppercase truncate max-w-4xl opacity-50">{lyricsArrayRef.current[lineIndex]}</p>
                   </div>
-                  <button onClick={finishRecording} className="pointer-events-auto px-8 py-3 border border-red-900 text-red-700 text-[10px] font-black uppercase tracking-widest hover:bg-red-900 hover:text-white transition-all">ABORT</button>
+                  <button onClick={finishRecording} className="pointer-events-auto px-8 py-3 border border-red-900 text-red-700 text-[10px] font-black uppercase tracking-widest hover:bg-red-900 hover:text-white transition-all backdrop-blur-md">ABORT (Retry)</button>
               </div>
+          </div>
+      )}
+
+      {/* RENDERING / PACKAGING STATE */}
+      {mode === 'rendering' && (
+          <div className="fixed inset-0 z-[150] bg-black flex flex-col items-center justify-center animate-fade-in">
+              <div className="relative">
+                  <div className="w-16 h-16 border-4 border-slate-800 border-t-brand-gold rounded-full animate-spin mb-8"></div>
+              </div>
+              <h3 className="text-xl font-black text-white uppercase tracking-[0.4em] mb-4">Packaging Video...</h3>
+              <p className="text-slate-500 text-[10px] uppercase tracking-widest">
+                  Calculating Personal Imprint...<br/>
+                  Please do not close this tab.
+              </p>
           </div>
       )}
 
@@ -633,9 +761,10 @@ const Interactive: React.FC = () => {
                    <button 
                     onClick={() => { 
                         if (recordedChunks.length === 0) return alert("System Packing...");
-                        const b = new Blob(recordedChunks, { type: 'video/webm' }); 
-                        const url = URL.createObjectURL(b); 
-                        const a = document.createElement('a'); a.href = url; a.download = `WILLWI_STUDIO_${selectedSong?.title}_${contactInfo.name}.webm`; a.click(); 
+                        // Use stored mime type or default
+                        const blob = new Blob(recordedChunks, { type: 'video/mp4' }); 
+                        const url = URL.createObjectURL(blob); 
+                        const a = document.createElement('a'); a.href = url; a.download = `WILLWI_STUDIO_${selectedSong?.title}_${contactInfo.name}.mp4`; a.click(); 
                     }} 
                     className="w-full py-5 bg-brand-gold text-black font-black uppercase text-xs tracking-[0.4em] hover:bg-white transition-all shadow-lg"
                    >{t('interactive_btn_save_video')}</button>
