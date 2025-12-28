@@ -45,7 +45,6 @@ const parseLyrics = (raw: string): { lines: LyricsLine[], hasTime: boolean } => 
             const min = parseInt(match[1]);
             const sec = parseInt(match[2]);
             const ms = parseInt(match[3]);
-            // 標準化為「秒」
             const time = min * 60 + sec + (ms / (ms > 99 ? 1000 : 100));
             const text = line.replace(timeRegex, '').trim();
             if (text) parsed.push({ time, text });
@@ -280,19 +279,49 @@ const SongDetail: React.FC = () => {
   const isInstrumental = song.language === Language.Instrumental;
 
   const WILLWI_MBID = '526cc0f8-da20-4d2d-86a5-4bf841a6ba3c';
+  
   const getMusicBrainzSeedingUrl = (s: Song) => {
     const params = new URLSearchParams();
+    
+    // Core Identity
     params.append('name', s.title);
+    params.append('artist_credit.names.0.name', 'Willwi');
     params.append('artist_credit.names.0.artist.id', WILLWI_MBID);
+    
+    // Type Mapping
+    let type = 'album';
+    if (s.releaseCategory?.includes('Single')) type = 'single';
+    else if (s.releaseCategory?.includes('EP')) type = 'ep';
+    params.append('type', type);
+
+    // Language Mapping (MB specific codes)
+    const langCodes: Record<string, string> = {
+        '華語': 'cmn', '台語': 'nan', '日語': 'jpn', '韓語': 'kor', '英語': 'eng', '法語': 'fra'
+    };
+    if (langCodes[s.language]) params.append('language', langCodes[s.language]);
+
+    // Dates
     if (s.releaseDate) {
         const [y, m, d] = s.releaseDate.split('-');
         if (y) params.append('date.year', y);
         if (m) params.append('date.month', m);
         if (d) params.append('date.day', d);
     }
+
+    // Identifiers
     if (s.upc) params.append('barcode', s.upc);
+    
+    // Track Mapping
+    params.append('mediums.0.format', 'Digital Media');
+    params.append('mediums.0.track.0.name', s.title);
     if (s.isrc) params.append('mediums.0.track.0.recording.isrc.0', s.isrc);
-    params.append('edit_note', `Seeded from Willwi Database.\nSpotify: ${s.spotifyLink}\nISRC: ${s.isrc}`);
+
+    // Edit Note with source context
+    let note = `Seeded from Willwi Creative Database.\n`;
+    if (s.spotifyLink) note += `Source Spotify: ${s.spotifyLink}\n`;
+    if (s.coverUrl) note += `Cover Source: ${s.coverUrl}\n`;
+    params.append('edit_note', note);
+
     return `https://musicbrainz.org/release/add?${params.toString()}`;
   };
 
@@ -346,17 +375,27 @@ const SongDetail: React.FC = () => {
                                 )}
                             </div>
                             {isAdmin && !isEditing && (
-                                <div className="mt-8 w-full max-w-md bg-black/40 border border-white/10 p-4 rounded-lg">
-                                    <div className="flex items-center gap-2 mb-3 border-b border-white/5 pb-2">
+                                <div className="mt-8 w-full max-w-md bg-black/40 border border-white/10 p-5 rounded-lg shadow-xl">
+                                    <div className="flex items-center gap-2 mb-4 border-b border-white/5 pb-2">
                                         <div className="w-2 h-2 rounded-full bg-brand-gold animate-pulse"></div>
-                                        <p className="text-[10px] text-brand-gold font-black uppercase tracking-widest">Admin Control Panel</p>
+                                        <p className="text-[10px] text-brand-gold font-black uppercase tracking-[0.2em]">Admin Control Tower</p>
                                     </div>
                                     <div className="space-y-4">
-                                        <div className="flex justify-between items-center"><span className="text-[10px] text-white uppercase tracking-widest">Interactive Status</span><button onClick={() => updateSong(song.id, { isInteractiveActive: !song.isInteractiveActive })} className={`px-3 py-1 text-[9px] font-bold uppercase tracking-widest rounded ${song.isInteractiveActive ? 'bg-emerald-500 text-black' : 'bg-slate-700 text-slate-400'}`}>{song.isInteractiveActive ? 'Active (ON)' : 'Inactive (OFF)'}</button></div>
-                                        <div className="flex justify-between items-center pt-2 border-t border-white/5"><span className="text-[10px] text-white uppercase tracking-widest">MusicBrainz Data</span><div className="flex gap-2">
-                                            {song.musicBrainzId && <a href={`https://musicbrainz.org/recording/${song.musicBrainzId}`} target="_blank" rel="noopener noreferrer" className="px-3 py-1 text-[9px] font-bold uppercase tracking-widest rounded bg-slate-800 text-slate-300 border border-slate-600 hover:bg-white hover:text-black transition-all">View</a>}
-                                            <a href={getMusicBrainzSeedingUrl(song)} target="_blank" rel="noopener noreferrer" className="px-3 py-1 text-[9px] font-bold uppercase tracking-widest rounded bg-purple-900/50 text-purple-400 border border-purple-500/30 hover:bg-purple-500 hover:text-white transition-all">Submit</a>
-                                        </div></div>
+                                        <div className="flex justify-between items-center">
+                                            <span className="text-[10px] text-white uppercase tracking-widest">Interactive Status</span>
+                                            <button onClick={() => updateSong(song.id, { isInteractiveActive: !song.isInteractiveActive })} className={`px-3 py-1 text-[9px] font-bold uppercase tracking-widest rounded ${song.isInteractiveActive ? 'bg-emerald-500 text-black' : 'bg-slate-700 text-slate-400'}`}>{song.isInteractiveActive ? 'Active (ON)' : 'Inactive (OFF)'}</button>
+                                        </div>
+                                        <div className="pt-4 border-t border-white/5 space-y-3">
+                                            <span className="text-[10px] text-slate-500 uppercase tracking-widest block mb-2">MusicBrainz Indexing</span>
+                                            <div className="flex gap-3">
+                                                {song.musicBrainzId ? (
+                                                    <a href={`https://musicbrainz.org/recording/${song.musicBrainzId}`} target="_blank" rel="noopener noreferrer" className="flex-1 py-2 text-[9px] font-black uppercase text-center rounded bg-slate-800 text-white border border-white/10 hover:bg-white hover:text-black transition-all">View MB Entry</a>
+                                                ) : (
+                                                    <div className="flex-1 py-2 text-[9px] font-bold uppercase text-center rounded bg-black/40 text-slate-600 border border-white/5">Not Indexed</div>
+                                                )}
+                                                <a href={getMusicBrainzSeedingUrl(song)} target="_blank" rel="noopener noreferrer" className="flex-1 py-2 text-[9px] font-black uppercase text-center rounded bg-purple-600 text-white shadow-lg shadow-purple-900/40 hover:bg-white hover:text-purple-600 transition-all">Submit to MB</a>
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
                             )}
