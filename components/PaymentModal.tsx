@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useUser } from '../context/UserContext';
 import { useTranslation } from '../context/LanguageContext';
@@ -197,12 +198,12 @@ const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, initialMod
                     </div>
                     
                     {step === 'qr' ? (
-                        <div className="animate-fade-in space-y-6">
+                        <div className="animate-fade-in space-y-6 flex flex-col items-center">
                             
                             {/* OPTION 1: BANK TRANSFER */}
-                            <div className="bg-slate-50 border border-slate-200 p-4 rounded-sm">
+                            <div className="bg-slate-50 border border-slate-200 p-4 rounded-sm w-full">
                                 <div className="flex justify-between items-start mb-2">
-                                    <div>
+                                    <div className="text-left">
                                         <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest mb-1">{t('modal_bank_info')}</p>
                                         <p className="text-sm font-bold text-slate-800">{BANK_INFO.code} {BANK_INFO.name}</p>
                                     </div>
@@ -216,7 +217,7 @@ const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, initialMod
                                 </div>
                             </div>
 
-                            <div className="grid grid-cols-2 gap-4">
+                            <div className="grid grid-cols-2 gap-4 w-full">
                                 {/* OPTION 2: LINE PAY QR */}
                                 <div className="bg-[#06c755]/10 border border-[#06c755]/30 p-3 flex flex-col items-center justify-center text-center rounded-sm relative group">
                                     <div className="absolute top-2 right-2 bg-[#06c755] text-white text-[9px] font-bold px-1.5 py-0.5 rounded uppercase">Line Pay</div>
@@ -246,7 +247,7 @@ const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, initialMod
                             <button 
                                 onClick={handleTransferred}
                                 disabled={!isFormValid}
-                                className={`w-full py-4 font-black text-xs uppercase tracking-[0.2em] transition-all shadow-lg flex justify-center items-center gap-2 mt-4
+                                className={`w-full py-4 font-black text-xs uppercase tracking-[0.2em] transition-all shadow-lg flex justify-center items-center gap-2 mt-2
                                     ${!isFormValid ? 'bg-slate-200 text-slate-400 cursor-not-allowed' : 'bg-slate-900 text-white hover:bg-black'}`}
                             >
                                 {t('modal_manual_btn')}
@@ -255,6 +256,13 @@ const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, initialMod
                             <p className="text-[9px] text-slate-400 text-center">
                                 {t('modal_manual_note')}
                             </p>
+
+                            <button 
+                                onClick={() => setStep('verify')}
+                                className="mt-2 text-[10px] text-slate-500 font-bold underline hover:text-slate-800 transition-colors uppercase tracking-widest"
+                            >
+                                {t('modal_already_have_code')}
+                            </button>
                         </div>
                     ) : (
                         <div className="animate-fade-in flex flex-col justify-center h-full py-10">

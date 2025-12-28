@@ -120,10 +120,10 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
 
                 <Link to={isEmbed ? "/interactive?embed=true" : "/interactive"} className={isActive('/interactive')}>{t('nav_interactive')}</Link>
                 
-                <Link to={isEmbed ? "/about?embed=true" : "/about"} className={isActive('/about')}>About</Link>
+                <Link to={isEmbed ? "/about?embed=true" : "/about"} className={isActive('/about')}>{t('nav_about')}</Link>
                 
                 {/* Manager (Authority) - Text Only */}
-                <Link to="/admin" className={isActive('/admin')}>Manager</Link>
+                <Link to="/admin" className={isActive('/admin')}>{t('nav_admin')}</Link>
               </div>
             </div>
 
@@ -133,7 +133,7 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
                         onClick={handleExitAdmin}
                         className="text-[10px] font-bold text-red-500 border border-red-900/50 hover:bg-red-500 hover:text-white px-3 py-1.5 rounded transition-all uppercase tracking-widest"
                     >
-                        Exit Admin
+                        {t('nav_exit_admin')}
                     </button>
                 )}
                 
@@ -191,11 +191,11 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
               <Link to="/database" onClick={() => setIsMenuOpen(false)} className={mobileLinkClass('/database')}>{t('nav_catalog')}</Link>
               <Link to="/add" onClick={() => setIsMenuOpen(false)} className={mobileLinkClass('/add')}>{t('nav_add')}</Link>
               <Link to="/interactive" onClick={() => setIsMenuOpen(false)} className={mobileLinkClass('/interactive')}>{t('nav_interactive')}</Link>
-              <Link to="/about" onClick={() => setIsMenuOpen(false)} className={mobileLinkClass('/about')}>About</Link>
-              <Link to="/admin" onClick={() => setIsMenuOpen(false)} className={mobileLinkClass('/admin')}>Manager</Link>
+              <Link to="/about" onClick={() => setIsMenuOpen(false)} className={mobileLinkClass('/about')}>{t('nav_about')}</Link>
+              <Link to="/admin" onClick={() => setIsMenuOpen(false)} className={mobileLinkClass('/admin')}>{t('nav_admin')}</Link>
               
               {isAdmin && (
-                  <button onClick={handleExitAdmin} className="w-full text-left px-3 py-3 text-lg font-medium text-red-500 border-l-2 border-transparent">Exit Admin</button>
+                  <button onClick={handleExitAdmin} className="w-full text-left px-3 py-3 text-lg font-medium text-red-500 border-l-2 border-transparent">{t('nav_exit_admin')}</button>
               )}
             </div>
           </div>

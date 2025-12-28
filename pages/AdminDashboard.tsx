@@ -1,9 +1,11 @@
+
 import React, { useRef, useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useData } from '../context/DataContext';
 import { useUser } from '../context/UserContext';
 import { dbService } from '../services/db';
 import { Song, ProjectType } from '../types';
+import { useTranslation } from '../context/LanguageContext';
 
 type Tab = 'catalog' | 'settings' | 'payment' | 'curation';
 type SortKey = 'releaseDate' | 'title' | 'language';
@@ -11,6 +13,7 @@ type SortKey = 'releaseDate' | 'title' | 'language';
 const AdminDashboard: React.FC = () => {
   const { songs, updateSong, deleteSong, bulkAddSongs, dbStatus } = useData();
   const { isAdmin, enableAdmin, logoutAdmin, getAllUsers, getAllTransactions } = useUser();
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const fileInputRef = useRef<HTMLInputElement>(null);
   
@@ -36,7 +39,7 @@ const AdminDashboard: React.FC = () => {
       missingDataSongs: 0
   });
 
-  // QR Code Images State
+  // QR Code & Security State
   const [qrImages, setQrImages] = useState({
       global_payment: '',
       production: '',
@@ -44,7 +47,8 @@ const AdminDashboard: React.FC = () => {
       support: '',
       line: ''
   });
-  const [accessCode, setAccessCode] = useState('8888');
+  const [accessCode, setAccessCode] = useState('8888'); // User Access Code
+  const [adminPassword, setAdminPassword] = useState('8520'); // Admin Login Password
   
   // Import Options
   const [importStrategy, setImportStrategy] = useState<'merge' | 'overwrite'>('merge');
@@ -58,7 +62,9 @@ const AdminDashboard: React.FC = () => {
           line: localStorage.getItem('qr_line') || ''
       });
 
+      // Load both distinct passwords
       setAccessCode(localStorage.getItem('willwi_access_code') || '8888');
+      setAdminPassword(localStorage.getItem('willwi_admin_password') || '8520');
       
       if (isAdmin) {
           const users = getAllUsers();
@@ -184,8 +190,15 @@ const AdminDashboard: React.FC = () => {
   };
 
   const saveAccessCode = () => {
+      if (accessCode.length < 4) return alert("通行碼太短");
       localStorage.setItem('willwi_access_code', accessCode);
-      alert("通行碼已更新");
+      alert("✅ 使用者通行碼已更新");
+  };
+
+  const saveAdminPassword = () => {
+      if (adminPassword.length < 4) return alert("密碼請至少設定 4 位數");
+      localStorage.setItem('willwi_admin_password', adminPassword);
+      alert("✅ 後台管理密碼已更新");
   };
 
   const filteredSongs = useMemo(() => {
@@ -208,11 +221,16 @@ const AdminDashboard: React.FC = () => {
       return (
           <div className="min-h-[60vh] flex items-center justify-center px-4">
                <div className="bg-slate-900 border border-slate-800 rounded-xl p-10 max-w-md w-full shadow-2xl text-center">
-                   <h2 className="text-2xl font-black text-white mb-8 uppercase tracking-[0.2em]">Manager Login</h2>
-                   <form onSubmit={(e) => { e.preventDefault(); if (passwordInput === '8520') enableAdmin(); else setLoginError('密碼錯誤'); }} className="space-y-6">
+                   <h2 className="text-2xl font-black text-white mb-8 uppercase tracking-[0.2em]">{t('admin_login_title')}</h2>
+                   <form onSubmit={(e) => { 
+                       e.preventDefault(); 
+                       const correctPwd = localStorage.getItem('willwi_admin_password') || '8520';
+                       if (passwordInput === correctPwd) enableAdmin(); 
+                       else setLoginError(t('admin_login_error')); 
+                   }} className="space-y-6">
                        <input type="password" placeholder="ACCESS CODE" className="w-full bg-black border border-slate-700 rounded px-4 py-4 text-white text-center tracking-[0.8em] font-mono outline-none focus:border-brand-gold transition-all" value={passwordInput} onChange={(e) => setPasswordInput(e.target.value)} />
                        {loginError && <p className="text-red-500 text-[10px] font-bold uppercase tracking-widest">{loginError}</p>}
-                       <button className="w-full py-4 bg-brand-gold text-slate-950 font-black rounded uppercase tracking-widest text-xs hover:bg-white transition-all">Unlock Console</button>
+                       <button className="w-full py-4 bg-brand-gold text-slate-950 font-black rounded uppercase tracking-widest text-xs hover:bg-white transition-all">{t('admin_login_btn')}</button>
                    </form>
                </div>
           </div>
@@ -225,34 +243,34 @@ const AdminDashboard: React.FC = () => {
       {/* HEADER */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-10 gap-6 border-b border-white/10 pb-8">
           <div>
-            <h1 className="text-4xl font-black text-white uppercase tracking-tighter">Admin Console</h1>
-            <p className="text-slate-500 text-[10px] font-bold uppercase tracking-[0.4em] mt-2">Willwi Music Central Control</p>
+            <h1 className="text-4xl font-black text-white uppercase tracking-tighter">{t('admin_title')}</h1>
+            <p className="text-slate-500 text-[10px] font-bold uppercase tracking-[0.4em] mt-2">{t('admin_subtitle')}</p>
           </div>
           <div className="flex items-center gap-3">
             <button onClick={() => navigate('/add')} className="h-10 px-6 bg-brand-accent text-slate-950 text-[10px] font-black uppercase tracking-widest rounded hover:bg-white transition-all shadow-lg flex items-center gap-2">
                 <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M12 4v16m8-8H4" /></svg>
-                New Song
+                {t('admin_btn_new')}
             </button>
-            <button onClick={logoutAdmin} className="h-10 px-6 border border-slate-700 text-slate-400 text-[10px] font-black uppercase tracking-widest rounded hover:bg-slate-800 hover:text-white transition-all">Exit</button>
+            <button onClick={logoutAdmin} className="h-10 px-6 border border-slate-700 text-slate-400 text-[10px] font-black uppercase tracking-widest rounded hover:bg-slate-800 hover:text-white transition-all">{t('admin_btn_exit')}</button>
           </div>
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4 mb-10">
           <div className={`bg-slate-900 border p-5 rounded-xl cursor-pointer hover:bg-slate-800 ${activeTab === 'catalog' ? 'border-white bg-slate-800' : 'border-white/5'}`} onClick={() => setActiveTab('catalog')}>
-              <div className="text-[10px] text-slate-500 font-bold uppercase tracking-widest mb-2">Total Catalog</div>
+              <div className="text-[10px] text-slate-500 font-bold uppercase tracking-widest mb-2">{t('admin_stat_total')}</div>
               <div className="text-3xl font-black text-white">{songs.length}</div>
           </div>
           <div className={`bg-slate-900 border p-5 rounded-xl border-l-4 border-l-emerald-500 cursor-pointer hover:bg-slate-800 ${activeTab === 'curation' ? 'bg-slate-800' : 'border-white/5'}`} onClick={() => setActiveTab('curation')}>
-              <div className="text-[10px] text-emerald-400 font-bold uppercase tracking-widest mb-2">Interactive Active</div>
+              <div className="text-[10px] text-emerald-400 font-bold uppercase tracking-widest mb-2">{t('admin_stat_active')}</div>
               <div className="text-3xl font-black text-emerald-400">{stats.activeSongs}</div>
           </div>
           <div className={`bg-slate-900 border p-5 rounded-xl border-l-4 border-l-brand-gold cursor-pointer hover:bg-slate-800 ${activeTab === 'payment' ? 'bg-slate-800' : 'border-white/5'}`} onClick={() => setActiveTab('payment')}>
-              <div className="text-[10px] text-brand-gold font-bold uppercase tracking-widest mb-2">Payment Setup</div>
+              <div className="text-[10px] text-brand-gold font-bold uppercase tracking-widest mb-2">{t('admin_stat_payment')}</div>
               <div className="text-3xl font-black text-white">QR</div>
           </div>
           <div className={`bg-slate-900 border p-5 rounded-xl border-l-4 border-l-brand-accent cursor-pointer hover:bg-slate-800 ${activeTab === 'settings' ? 'bg-slate-800' : 'border-white/5'}`} onClick={() => setActiveTab('settings')}>
-              <div className="text-[10px] text-brand-accent font-bold uppercase tracking-widest mb-2">Data Center</div>
-              <div className="text-3xl font-black text-white">JSON</div>
+              <div className="text-[10px] text-brand-accent font-bold uppercase tracking-widest mb-2">{t('admin_stat_data')}</div>
+              <div className="text-3xl font-black text-white">SET</div>
           </div>
       </div>
 
@@ -276,12 +294,12 @@ const AdminDashboard: React.FC = () => {
                       <thead className="bg-black text-[9px] font-black text-slate-500 uppercase tracking-widest">
                           <tr>
                               <th className="p-4 w-12 text-center"><input type="checkbox" onChange={handleSelectAll} checked={selectedIds.size > 0 && selectedIds.size === filteredSongs.length} /></th>
-                              <th className="p-4 w-12">Play</th>
-                              <th className="p-4 cursor-pointer" onClick={() => handleSort('title')}>作品資訊</th>
-                              <th className="p-4 text-center">Ext. Links</th>
-                              <th className="p-4 hidden md:table-cell" onClick={() => handleSort('releaseDate')}>發行日期</th>
-                              <th className="p-4 text-center">互動模式</th>
-                              <th className="p-4 text-right">管理</th>
+                              <th className="p-4 w-12">{t('admin_table_play')}</th>
+                              <th className="p-4 cursor-pointer" onClick={() => handleSort('title')}>{t('admin_table_info')}</th>
+                              <th className="p-4 text-center">{t('admin_table_links')}</th>
+                              <th className="p-4 hidden md:table-cell" onClick={() => handleSort('releaseDate')}>{t('admin_table_date')}</th>
+                              <th className="p-4 text-center">{t('admin_table_mode')}</th>
+                              <th className="p-4 text-right">{t('admin_table_action')}</th>
                           </tr>
                       </thead>
                       <tbody className="divide-y divide-white/5">
@@ -304,7 +322,7 @@ const AdminDashboard: React.FC = () => {
 
                                   <td className="p-4"><div className="flex items-center gap-4"><img src={song.coverUrl} className="w-10 h-10 object-cover rounded" alt="" /><div className="font-bold text-sm text-white">{song.title}</div></div></td>
                                   
-                                  {/* External Links Column - UPDATED for better visibility */}
+                                  {/* External Links Column */}
                                   <td className="p-4 text-center" onClick={(e) => e.stopPropagation()}>
                                       <div className="flex gap-2 justify-center">
                                           {song.spotifyLink ? <a href={song.spotifyLink} target="_blank" rel="noopener noreferrer" className="text-green-500 hover:text-white" title="Spotify"><svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.66 0 12 0zm-2 17V7l7 5-7 5z"/></svg></a> : <span className="text-slate-700">●</span>}
@@ -328,27 +346,80 @@ const AdminDashboard: React.FC = () => {
           <div className="max-w-4xl mx-auto animate-fade-in space-y-8">
               <div className="bg-slate-900 border border-brand-accent/30 p-10 rounded-xl shadow-[0_0_50px_rgba(56,189,248,0.1)]">
                   <h3 className="text-xl font-black text-brand-accent uppercase tracking-[0.3em] mb-8 flex items-center gap-4">
-                      <span className="w-8 h-8 bg-brand-accent text-black rounded-full flex items-center justify-center text-sm">JSON</span>
-                      資料管理中心 (Data Center)
+                      <span className="w-8 h-8 bg-brand-accent text-black rounded-full flex items-center justify-center text-sm">SET</span>
+                      {t('admin_settings_system')}
                   </h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                  
+                  {/* SECURITY & ACCESS CONTROL - SPLIT INTO TWO DISTINCT ZONES */}
+                  <div className="p-8 bg-black/40 border border-white/5 rounded-lg mb-8">
+                      <h4 className="text-white text-base font-bold mb-6 flex items-center gap-2">
+                          <span className="text-brand-accent">🔐</span> 
+                          {t('admin_settings_security')}
+                      </h4>
+                      
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                          {/* ADMIN ZONE (RED) */}
+                          <div className="p-6 bg-red-950/20 border border-red-900/50 rounded-lg">
+                              <h5 className="text-red-400 font-bold text-xs uppercase tracking-widest mb-2 flex items-center gap-2">
+                                  <span>🛡️</span> {t('admin_sec_admin_pwd')}
+                              </h5>
+                              <p className="text-[10px] text-slate-500 mb-4 leading-relaxed">
+                                  {t('admin_sec_admin_desc')}
+                              </p>
+                              <div className="flex flex-col gap-2">
+                                  <input 
+                                      type="text" 
+                                      value={adminPassword} 
+                                      onChange={(e) => setAdminPassword(e.target.value)} 
+                                      className="bg-black border border-red-900/30 px-4 py-3 text-white font-mono text-center w-full outline-none focus:border-red-500 transition-all rounded tracking-widest" 
+                                  />
+                                  <button onClick={saveAdminPassword} className="w-full py-3 bg-red-900/50 border border-red-500 text-red-100 font-bold text-[10px] uppercase tracking-widest hover:bg-red-600 hover:text-white transition-all rounded shadow-lg">
+                                      {t('admin_btn_update')}
+                                  </button>
+                              </div>
+                          </div>
+
+                          {/* USER ZONE (GREEN) */}
+                          <div className="p-6 bg-emerald-950/20 border border-emerald-900/50 rounded-lg">
+                              <h5 className="text-emerald-400 font-bold text-xs uppercase tracking-widest mb-2 flex items-center gap-2">
+                                  <span>🔑</span> {t('admin_sec_user_code')}
+                              </h5>
+                              <p className="text-[10px] text-slate-500 mb-4 leading-relaxed">
+                                  {t('admin_sec_user_desc')}
+                              </p>
+                              <div className="flex flex-col gap-2">
+                                  <input 
+                                      value={accessCode} 
+                                      onChange={(e) => setAccessCode(e.target.value)} 
+                                      className="bg-black border border-emerald-900/30 px-4 py-3 text-white font-mono text-center w-full outline-none focus:border-emerald-500 transition-all rounded tracking-widest" 
+                                  />
+                                  <button onClick={saveAccessCode} className="w-full py-3 bg-emerald-900/50 border border-emerald-500 text-emerald-100 font-bold text-[10px] uppercase tracking-widest hover:bg-emerald-600 hover:text-white transition-all rounded shadow-lg">
+                                      {t('admin_btn_update')}
+                                  </button>
+                              </div>
+                          </div>
+                      </div>
+                  </div>
+
+                  {/* DATA CENTER */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-8 border-t border-white/5 pt-8">
                       <div className="p-8 bg-black/40 border border-white/5 rounded-lg flex flex-col justify-between">
                           <div>
-                              <h4 className="text-white text-base font-bold mb-3">導出作品集 (Export JSON)</h4>
-                              <p className="text-xs text-slate-500 leading-relaxed mb-8">將目前資料庫中所有的作品、歌詞與連結備份成單一 JSON 檔案，以便隨時復原或轉移。</p>
+                              <h4 className="text-white text-base font-bold mb-3">{t('admin_data_export')}</h4>
+                              <p className="text-xs text-slate-500 leading-relaxed mb-8">{t('admin_data_export_desc')}</p>
                           </div>
                           <button onClick={downloadFullBackup} className="w-full py-4 bg-slate-800 text-white font-black text-[11px] uppercase tracking-widest hover:bg-white hover:text-black transition-all rounded shadow-xl">
-                              立即下載備份檔案
+                              {t('admin_btn_download')}
                           </button>
                       </div>
-                      <div className="p-8 bg-black/40 border border-red-900/30 rounded-lg flex flex-col justify-between">
+                      <div className="p-8 bg-black/40 border border-white/5 rounded-lg flex flex-col justify-between">
                           <div>
-                              <h4 className="text-red-400 text-base font-bold mb-3">匯入作品集 (Import JSON)</h4>
-                              <p className="text-xs text-slate-500 leading-relaxed mb-8">上傳備份的 JSON 檔案。<span className="text-red-500 font-bold underline">注意：這會清空目前的資料庫並以新檔案覆蓋。</span></p>
+                              <h4 className="text-white text-base font-bold mb-3">{t('admin_data_import')}</h4>
+                              <p className="text-xs text-slate-500 leading-relaxed mb-8">{t('admin_data_import_desc')}</p>
                           </div>
                           <div className="relative">
-                              <button onClick={() => fileInputRef.current?.click()} className="w-full py-4 border border-red-500 text-red-500 font-black text-[11px] uppercase tracking-widest hover:bg-red-500 hover:text-white transition-all rounded">
-                                  選擇檔案並覆寫
+                              <button onClick={() => fileInputRef.current?.click()} className="w-full py-4 border border-white/20 text-slate-300 font-black text-[11px] uppercase tracking-widest hover:bg-white hover:text-black transition-all rounded">
+                                  {t('admin_btn_overwrite')}
                               </button>
                               <input ref={fileInputRef} type="file" className="hidden" accept=".json" onChange={handleImportFile} />
                           </div>
@@ -361,18 +432,8 @@ const AdminDashboard: React.FC = () => {
       {activeTab === 'payment' && (
           <div className="max-w-4xl mx-auto animate-fade-in space-y-8">
               <div className="bg-slate-900 border border-white/10 p-10 rounded-xl">
-                  <h3 className="text-xl font-black text-brand-gold uppercase tracking-[0.3em] mb-8">金流 QR Code 設置</h3>
+                  <h3 className="text-xl font-black text-brand-gold uppercase tracking-[0.3em] mb-8">{t('admin_payment_setup')}</h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                      <div className="col-span-full p-6 bg-emerald-900/20 border border-emerald-500/30 rounded-xl flex items-center justify-between">
-                          <div>
-                              <h4 className="text-emerald-400 font-bold uppercase tracking-widest text-xs">系統通行碼 (Access Code)</h4>
-                              <p className="text-slate-500 text-[10px] mt-1">使用者付款後需輸入此代碼解鎖互動權限。</p>
-                          </div>
-                          <div className="flex gap-2">
-                              <input value={accessCode} onChange={(e) => setAccessCode(e.target.value)} className="bg-black border border-emerald-500/50 px-4 py-2 text-white font-mono text-center w-24 outline-none" />
-                              <button onClick={saveAccessCode} className="px-6 py-2 bg-emerald-600 text-white font-bold text-xs uppercase tracking-widest hover:bg-emerald-400">更新</button>
-                          </div>
-                      </div>
                       {[
                           { key: 'global_payment', label: '主要收款 QR (Line Pay)' },
                           { key: 'line', label: 'LINE 官方帳號 QR' }

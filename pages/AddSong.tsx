@@ -101,7 +101,8 @@ const AddSong: React.FC = () => {
 
   const handleAdminLogin = (e: React.FormEvent) => {
       e.preventDefault();
-      if (passwordInput === '8520') { enableAdmin(); setLoginError(''); }
+      const correctPwd = localStorage.getItem('willwi_admin_password') || '8520';
+      if (passwordInput === correctPwd) { enableAdmin(); setLoginError(''); }
       else { setLoginError('Invalid Access Code'); }
   };
 
@@ -176,7 +177,7 @@ const AddSong: React.FC = () => {
           // STEP 1: Use AI to Identify the Spotify Entity from the Link
           const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
           const bridgeResponse = await ai.models.generateContent({
-              model: 'gemini-2.5-flash',
+              model: 'gemini-3-flash-preview',
               contents: `Analyze this music link: "${searchQuery}"
               
               Goal: Find the official **Spotify Album URL** (or Track URL) for this release.
@@ -503,10 +504,10 @@ const AddSong: React.FC = () => {
       <div className="flex flex-col md:flex-row justify-between items-center mb-10 gap-4">
           <h2 className="text-3xl font-black text-white uppercase tracking-tighter">{t('form_title_add')}</h2>
           <div className="bg-slate-800 p-1 rounded flex border border-slate-700 overflow-x-auto max-w-full">
-              <button onClick={() => setImportMode('smart')} className={`px-4 py-2 rounded text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap ${importMode === 'smart' ? 'bg-white text-black shadow' : 'text-slate-500 hover:text-white'}`}>Smart Link (HyperFollow)</button>
-              <button onClick={() => setImportMode('spotify-search')} className={`px-4 py-2 rounded text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap ${importMode === 'spotify-search' ? 'bg-brand-accent text-slate-900 shadow' : 'text-slate-500 hover:text-white'}`}>Spotify Search</button>
-              <button onClick={() => setImportMode('mb')} className={`px-4 py-2 rounded text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap ${importMode === 'mb' ? 'bg-brand-gold text-slate-900 shadow' : 'text-slate-500 hover:text-white'}`}>MusicBrainz</button>
-              <button onClick={() => setImportMode('manual')} className={`px-4 py-2 rounded text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap ${importMode === 'manual' ? 'bg-slate-700 text-white shadow' : 'text-slate-500 hover:text-white'}`}>Manual</button>
+              <button onClick={() => setImportMode('smart')} className={`px-4 py-2 rounded text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap ${importMode === 'smart' ? 'bg-white text-black shadow' : 'text-slate-500 hover:text-white'}`}>{t('import_mode_smart')}</button>
+              <button onClick={() => setImportMode('spotify-search')} className={`px-4 py-2 rounded text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap ${importMode === 'spotify-search' ? 'bg-brand-accent text-slate-900 shadow' : 'text-slate-500 hover:text-white'}`}>{t('import_mode_spotify')}</button>
+              <button onClick={() => setImportMode('mb')} className={`px-4 py-2 rounded text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap ${importMode === 'mb' ? 'bg-brand-gold text-slate-900 shadow' : 'text-slate-500 hover:text-white'}`}>{t('import_mode_mb')}</button>
+              <button onClick={() => setImportMode('manual')} className={`px-4 py-2 rounded text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap ${importMode === 'manual' ? 'bg-slate-700 text-white shadow' : 'text-slate-500 hover:text-white'}`}>{t('import_mode_manual')}</button>
           </div>
       </div>
 
@@ -526,7 +527,7 @@ const AddSong: React.FC = () => {
             )}
             {importMode !== 'manual' && (
                 <button onClick={handleSearch} disabled={isSearching} className="px-6 bg-white/10 text-white font-black text-[10px] uppercase tracking-widest hover:bg-white hover:text-black transition-all whitespace-nowrap">
-                    {isSearching ? 'Processing...' : importMode === 'mb' ? 'Scan Releases' : (importMode === 'smart' ? 'Bridge & Import' : 'Search')}
+                    {isSearching ? t('btn_processing') : t('btn_search')}
                 </button>
             )}
         </div>
@@ -649,7 +650,7 @@ const AddSong: React.FC = () => {
                  <input name="title" className="w-full bg-slate-900 border border-white/10 px-4 py-3 text-white text-sm focus:border-brand-accent outline-none" value={formData.title} onChange={handleChange} required />
              </div>
              <div className="space-y-2">
-                 <label className="text-[10px] text-slate-500 font-black uppercase tracking-widest">Version Label</label>
+                 <label className="text-[10px] text-slate-500 font-black uppercase tracking-widest">{t('form_label_version')}</label>
                  <input name="versionLabel" className="w-full bg-slate-900 border border-white/10 px-4 py-3 text-white text-sm focus:border-brand-accent outline-none" value={formData.versionLabel} onChange={handleChange} placeholder="e.g. Acoustic, Remix" />
              </div>
         </div>
@@ -662,25 +663,25 @@ const AddSong: React.FC = () => {
                  </select>
              </div>
              <div className="space-y-2">
-                 <label className="text-[10px] text-slate-500 font-black uppercase tracking-widest">Project Type</label>
+                 <label className="text-[10px] text-slate-500 font-black uppercase tracking-widest">{t('form_label_project')}</label>
                  <select name="projectType" className="w-full bg-slate-900 border border-white/10 px-4 py-3 text-white text-xs focus:border-brand-accent outline-none appearance-none" value={formData.projectType} onChange={handleChange}>
                      {Object.values(ProjectType).map(p => <option key={p} value={p}>{p}</option>)}
                  </select>
              </div>
              <div className="space-y-2">
-                 <label className="text-[10px] text-slate-500 font-black uppercase tracking-widest">Release Category</label>
+                 <label className="text-[10px] text-slate-500 font-black uppercase tracking-widest">{t('form_label_category')}</label>
                  <select name="releaseCategory" className="w-full bg-slate-900 border border-white/10 px-4 py-3 text-white text-xs focus:border-brand-accent outline-none appearance-none" value={formData.releaseCategory} onChange={handleChange}>
                      {Object.values(ReleaseCategory).map(c => <option key={c} value={c}>{c}</option>)}
                  </select>
              </div>
              <div className="space-y-2">
-                 <label className="text-[10px] text-slate-500 font-black uppercase tracking-widest">Date</label>
+                 <label className="text-[10px] text-slate-500 font-black uppercase tracking-widest">{t('form_label_date')}</label>
                  <input type="date" name="releaseDate" className="w-full bg-slate-900 border border-white/10 px-4 py-3 text-white text-xs focus:border-brand-accent outline-none" value={formData.releaseDate} onChange={handleChange} />
              </div>
         </div>
 
         <div className="space-y-2">
-             <label className="text-[10px] text-slate-500 font-black uppercase tracking-widest">Cover Image URL</label>
+             <label className="text-[10px] text-slate-500 font-black uppercase tracking-widest">{t('form_label_cover')}</label>
              <div className="flex gap-4">
                  <input name="coverUrl" className="flex-1 bg-slate-900 border border-white/10 px-4 py-3 text-white text-xs focus:border-brand-accent outline-none font-mono" value={formData.coverUrl} onChange={handleChange} placeholder="https://..." />
                  {formData.coverUrl && <img src={formData.coverUrl} className="w-10 h-10 object-cover border border-white/20" alt="" />}
@@ -690,7 +691,7 @@ const AddSong: React.FC = () => {
         {/* PLATFORM LINKS SECTION - EXPANDED */}
         <div className="space-y-2">
              <label className="text-[10px] text-brand-gold font-black uppercase tracking-widest">
-                 Platform Links (Streaming & Sales)
+                 {t('form_label_links')}
              </label>
              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <input name="youtubeUrl" className="bg-slate-900 border border-white/10 px-4 py-3 text-white text-xs focus:border-brand-accent outline-none font-mono" value={formData.youtubeUrl} onChange={handleChange} placeholder="YouTube Video URL" />
@@ -715,7 +716,7 @@ const AddSong: React.FC = () => {
 
         <div className="space-y-2">
              <label className="text-[10px] text-brand-accent font-black uppercase tracking-widest">
-                 Raw Audio Source (Private - For Generation)
+                 {t('form_label_audio')}
              </label>
              <div className="space-y-2">
                  <input 
@@ -723,7 +724,7 @@ const AddSong: React.FC = () => {
                     className="w-full bg-slate-800 border border-brand-accent/30 px-4 py-3 text-brand-accent text-xs focus:border-brand-accent outline-none font-mono placeholder-slate-600" 
                     value={formData.audioUrl} 
                     onChange={handleChange} 
-                    placeholder="Paste Dropbox Share Link (Use FILE LINK, not FOLDER)" 
+                    placeholder={t('form_placeholder_audio')} 
                  />
                  {/* FOLDER LINK WARNING */}
                  {formData.audioUrl?.includes('/fo/') && (
@@ -741,7 +742,7 @@ const AddSong: React.FC = () => {
         </div>
         
         <div className="space-y-2">
-             <label className="text-[10px] text-slate-500 font-black uppercase tracking-widest">Metadata</label>
+             <label className="text-[10px] text-slate-500 font-black uppercase tracking-widest">{t('form_label_metadata')}</label>
              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 <input name="isrc" className="bg-slate-900 border border-white/10 px-4 py-3 text-white text-xs focus:border-brand-accent outline-none font-mono" value={formData.isrc} onChange={handleChange} placeholder="ISRC" />
                 <input name="upc" className="bg-slate-900 border border-white/10 px-4 py-3 text-white text-xs focus:border-brand-accent outline-none font-mono" value={formData.upc} onChange={handleChange} placeholder="UPC" />
@@ -780,7 +781,7 @@ const AddSong: React.FC = () => {
                  <textarea name="lyrics" className="w-full h-40 bg-slate-900 border border-white/10 px-4 py-3 text-white text-xs focus:border-brand-accent outline-none font-mono leading-relaxed" value={formData.lyrics} onChange={handleChange} placeholder="Paste lyrics here..." />
             </div>
             <div className="space-y-2">
-                 <label className="text-[10px] text-slate-500 font-black uppercase tracking-widest">Credits & Description</label>
+                 <label className="text-[10px] text-slate-500 font-black uppercase tracking-widest">{t('form_label_credits')}</label>
                  <textarea name="description" className="w-full h-20 bg-slate-900 border border-white/10 px-4 py-3 text-white text-xs focus:border-brand-accent outline-none mb-4" value={formData.description} onChange={handleChange} placeholder="Story behind the song..." />
                  <textarea name="credits" className="w-full h-16 bg-slate-900 border border-white/10 px-4 py-3 text-white text-xs focus:border-brand-accent outline-none font-mono" value={formData.credits} onChange={handleChange} placeholder="Producer, Arranger, Mixing..." />
             </div>

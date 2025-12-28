@@ -312,7 +312,7 @@ const SongDetail: React.FC = () => {
             <Link to="/database" className="text-[10px] text-slate-500 hover:text-white uppercase tracking-widest">{t('detail_back_link')}</Link>
             {isAdmin && !isEditing && (
                 <button onClick={() => setIsEditing(true)} className="text-[10px] border border-brand-accent/50 text-brand-accent px-4 py-2 uppercase tracking-widest hover:bg-brand-accent hover:text-black transition-all font-bold">
-                    Edit Mode
+                    {t('detail_edit_mode')}
                 </button>
             )}
         </div>
@@ -324,7 +324,7 @@ const SongDetail: React.FC = () => {
                      <img src={isEditing ? (editForm.coverUrl || song.coverUrl) : song.coverUrl} className="w-full aspect-square object-cover shadow-2xl border border-white/10" alt="cover" />
                      {isAdmin && isEditing && (
                          <div className="mt-4 space-y-2">
-                            <button onClick={() => fileInputRef.current?.click()} className="w-full bg-white/10 text-white font-bold py-3 text-[10px] uppercase tracking-widest border border-white/10 hover:bg-white hover:text-black transition-all">Upload Image</button>
+                            <button onClick={() => fileInputRef.current?.click()} className="w-full bg-white/10 text-white font-bold py-3 text-[10px] uppercase tracking-widest border border-white/10 hover:bg-white hover:text-black transition-all">{t('detail_upload_image')}</button>
                             <input ref={fileInputRef} type="file" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if(f){ const r=new FileReader(); r.onloadend=()=>setEditForm(p=>({...p, coverUrl:r.result as string})); r.readAsDataURL(f); } }} />
                             <input className="w-full bg-black border border-white/10 p-2 text-[10px] text-white font-mono outline-none focus:border-brand-accent" value={editForm.coverUrl || ''} onChange={handleEditChange} name="coverUrl" placeholder="IMAGE URL" />
                          </div>
@@ -421,10 +421,10 @@ const SongDetail: React.FC = () => {
 
                                     {/* Actions */}
                                     <div className="pt-4 flex justify-between items-center border-t border-white/10 mt-4">
-                                        <button onClick={handleDelete} className="text-red-500 hover:text-white border border-red-900/50 px-4 py-2 text-[10px] font-black uppercase tracking-widest rounded hover:bg-red-900">DELETE SONG</button>
+                                        <button onClick={handleDelete} className="text-red-500 hover:text-white border border-red-900/50 px-4 py-2 text-[10px] font-black uppercase tracking-widest rounded hover:bg-red-900">{t('detail_delete')}</button>
                                         <div className="flex gap-4">
-                                            <button onClick={() => setIsEditing(false)} className="text-slate-400 px-4 py-2 text-[10px] font-black uppercase tracking-widest hover:text-white">Cancel</button>
-                                            <button onClick={handleSave} disabled={isSaving} className="bg-brand-accent text-slate-900 px-6 py-2 text-[10px] font-black uppercase tracking-widest hover:bg-white transition-all shadow-lg">{isSaving ? "Saving..." : "Save Changes"}</button>
+                                            <button onClick={() => setIsEditing(false)} className="text-slate-400 px-4 py-2 text-[10px] font-black uppercase tracking-widest hover:text-white">{t('form_btn_cancel')}</button>
+                                            <button onClick={handleSave} disabled={isSaving} className="bg-brand-accent text-slate-900 px-6 py-2 text-[10px] font-black uppercase tracking-widest hover:bg-white transition-all shadow-lg">{isSaving ? t('form_btn_saving') : t('form_btn_save')}</button>
                                         </div>
                                     </div>
                                 </div>
@@ -440,7 +440,7 @@ const SongDetail: React.FC = () => {
                                     <div className="mt-6 flex flex-col gap-4 max-w-sm">
                                         {isAdmin ? (
                                             <button onClick={handleStartInteractive} className={`w-full py-4 font-black uppercase tracking-[0.3em] text-xs transition-all shadow-lg ${song.isInteractiveActive ? 'bg-brand-gold text-slate-900 hover:bg-white' : 'bg-red-900 text-white hover:bg-red-700'}`}>
-                                                {song.isInteractiveActive ? t('detail_btn_start_session') : 'Admin Force Start (Test)'}
+                                                {song.isInteractiveActive ? t('detail_btn_start_session') : t('detail_admin_force')}
                                             </button>
                                         ) : (
                                             song.isInteractiveActive ? (
@@ -453,22 +453,22 @@ const SongDetail: React.FC = () => {
                                         <div className="mt-8 w-full max-w-md bg-black/40 border border-white/10 p-5 rounded-lg shadow-xl">
                                             <div className="flex items-center gap-2 mb-4 border-b border-white/5 pb-2">
                                                 <div className="w-2 h-2 rounded-full bg-brand-gold animate-pulse"></div>
-                                                <p className="text-[10px] text-brand-gold font-black uppercase tracking-[0.2em]">Admin Control Tower</p>
+                                                <p className="text-[10px] text-brand-gold font-black uppercase tracking-[0.2em]">{t('detail_admin_control')}</p>
                                             </div>
                                             <div className="space-y-4">
                                                 <div className="flex justify-between items-center">
-                                                    <span className="text-[10px] text-white uppercase tracking-widest">Interactive Status</span>
+                                                    <span className="text-[10px] text-white uppercase tracking-widest">{t('detail_interactive_status')}</span>
                                                     <button onClick={() => updateSong(song.id, { isInteractiveActive: !song.isInteractiveActive })} className={`px-3 py-1 text-[9px] font-bold uppercase tracking-widest rounded ${song.isInteractiveActive ? 'bg-emerald-500 text-black' : 'bg-slate-700 text-slate-400'}`}>{song.isInteractiveActive ? 'Active (ON)' : 'Inactive (OFF)'}</button>
                                                 </div>
                                                 <div className="pt-4 border-t border-white/5 space-y-3">
-                                                    <span className="text-[10px] text-slate-500 uppercase tracking-widest block mb-2">MusicBrainz Indexing</span>
+                                                    <span className="text-[10px] text-slate-500 uppercase tracking-widest block mb-2">{t('detail_mb_indexing')}</span>
                                                     <div className="flex gap-3">
                                                         {song.musicBrainzId ? (
-                                                            <a href={`https://musicbrainz.org/recording/${song.musicBrainzId}`} target="_blank" rel="noopener noreferrer" className="flex-1 py-2 text-[9px] font-black uppercase text-center rounded bg-slate-800 text-white border border-white/10 hover:bg-white hover:text-black transition-all">View MB Entry</a>
+                                                            <a href={`https://musicbrainz.org/recording/${song.musicBrainzId}`} target="_blank" rel="noopener noreferrer" className="flex-1 py-2 text-[9px] font-black uppercase text-center rounded bg-slate-800 text-white border border-white/10 hover:bg-white hover:text-black transition-all">{t('detail_mb_view')}</a>
                                                         ) : (
-                                                            <div className="flex-1 py-2 text-[9px] font-bold uppercase text-center rounded bg-black/40 text-slate-600 border border-white/5">Not Indexed</div>
+                                                            <div className="flex-1 py-2 text-[9px] font-bold uppercase text-center rounded bg-black/40 text-slate-600 border border-white/5">{t('detail_mb_none')}</div>
                                                         )}
-                                                        <a href={getMusicBrainzSeedingUrl(song)} target="_blank" rel="noopener noreferrer" className="flex-1 py-2 text-[9px] font-black uppercase text-center rounded bg-purple-600 text-white shadow-lg shadow-purple-900/40 hover:bg-white hover:text-purple-600 transition-all">Submit to MB</a>
+                                                        <a href={getMusicBrainzSeedingUrl(song)} target="_blank" rel="noopener noreferrer" className="flex-1 py-2 text-[9px] font-black uppercase text-center rounded bg-purple-600 text-white shadow-lg shadow-purple-900/40 hover:bg-white hover:text-purple-600 transition-all">{t('detail_mb_submit')}</a>
                                                     </div>
                                                 </div>
                                             </div>
@@ -482,7 +482,18 @@ const SongDetail: React.FC = () => {
                                 {['isrc', 'upc', 'spotifyId', 'musicBrainzId'].map(field => (
                                     <div key={field}>
                                         <span className="text-[9px] text-slate-600 uppercase tracking-[0.4em] block mb-2">{field}</span>
-                                        {field === 'musicBrainzId' && (song as any)[field] ? <a href={`https://musicbrainz.org/recording/${(song as any)[field]}`} target="_blank" rel="noopener noreferrer" className="font-mono text-[11px] text-brand-gold hover:underline uppercase">{(song as any)[field] ↗</a> : <span className="font-mono text-[11px] text-slate-400">{(song as any)[field] || '--'}</span>}
+                                        {field === 'musicBrainzId' && (song as any)[field] ? (
+                                            <a href={`https://musicbrainz.org/recording/${(song as any)[field]}`} target="_blank" rel="noopener noreferrer" className="font-mono text-[11px] text-brand-gold hover:underline uppercase">{(song as any)[field]} ↗</a>
+                                        ) : (
+                                            <div className="flex items-center gap-2">
+                                                <span className="font-mono text-[11px] text-slate-400">{(song as any)[field] || '--'}</span>
+                                                {field === 'musicBrainzId' && (
+                                                    <a href={getMusicBrainzSeedingUrl(song)} target="_blank" rel="noopener noreferrer" className="text-[9px] bg-purple-900/50 text-purple-300 px-2 py-1 rounded hover:bg-purple-600 hover:text-white transition-colors uppercase font-bold">
+                                                        Submit
+                                                    </a>
+                                                )}
+                                            </div>
+                                        )}
                                     </div>
                                 ))}
                             </div>
@@ -494,7 +505,7 @@ const SongDetail: React.FC = () => {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-12 mt-12">
             <div className="lg:col-span-2 space-y-12">
                 <div className="bg-slate-900/50 p-10 border border-white/5">
-                    <div className="flex justify-between items-center mb-8"><h3 className="text-sm font-black text-white uppercase tracking-[0.4em]">{t('detail_section_context')}</h3>{isAdmin && <button onClick={handleAiGenerate} disabled={loadingAi} className="text-[9px] border border-brand-accent/30 text-brand-accent px-4 py-2 uppercase tracking-widest hover:bg-brand-accent hover:text-black transition-all">{loadingAi ? "Analyzing..." : "Generate AI Review"}</button>}</div>
+                    <div className="flex justify-between items-center mb-8"><h3 className="text-sm font-black text-white uppercase tracking-[0.4em]">{t('detail_section_context')}</h3>{isAdmin && <button onClick={handleAiGenerate} disabled={loadingAi} className="text-[9px] border border-brand-accent/30 text-brand-accent px-4 py-2 uppercase tracking-widest hover:bg-brand-accent hover:text-black transition-all">{loadingAi ? t('btn_processing') : t('detail_ai_generate')}</button>}</div>
                     {isAdmin && isEditing ? <textarea className="w-full h-60 bg-black border border-white/10 p-4 text-white text-sm outline-none" value={editForm.description || ''} name="description" onChange={handleEditChange} /> : <div className="text-slate-400 text-sm font-light leading-relaxed whitespace-pre-line">{song.description || t('detail_empty_desc')}</div>}
                 </div>
                 <div className="bg-slate-900/50 p-10 border border-white/5">

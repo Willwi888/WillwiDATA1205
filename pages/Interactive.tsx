@@ -729,9 +729,8 @@ const Interactive: React.FC = () => {
                       
                       <div className="space-y-4">
                            <p className="text-xl md:text-2xl text-white font-bold leading-relaxed tracking-widest">
-                               本平台所提供之內容<br/>
-                               <span className="text-brand-accent">並非購買歌曲、歌詞或任何數位商品</span><br/>
-                               <span className="text-brand-accent">亦不涉及著作權授權、轉讓或下載行為</span>
+                               {t('interactive_disclaimer_1_title')}<br/>
+                               <span className="text-brand-accent">{t('interactive_disclaimer_1_text')}</span>
                            </p>
                       </div>
 
@@ -739,8 +738,7 @@ const Interactive: React.FC = () => {
 
                       <div className="space-y-4">
                            <p className="text-sm md:text-lg text-slate-300 font-medium leading-relaxed tracking-widest">
-                               <span className="text-brand-accent">相關費用係用於支持創作者投入之人工時間</span><br/>
-                               <span className="text-brand-accent">包含手工歌詞對位與創作引導之參與過程</span>
+                               <span className="text-brand-accent">{t('interactive_disclaimer_2_text')}</span>
                            </p>
                       </div>
 
@@ -748,8 +746,7 @@ const Interactive: React.FC = () => {
 
                       <div className="space-y-4">
                            <p className="text-sm md:text-base text-slate-400 font-light leading-relaxed tracking-widest">
-                               如僅需聆聽音樂，請至各大音樂平台收聽<br/>
-                               <span className="text-white font-bold">這裡不是購買歌曲，而是邀請您支持創作</span>
+                               {t('interactive_disclaimer_3_text')}
                            </p>
                       </div>
                   </div>
@@ -805,14 +802,14 @@ const Interactive: React.FC = () => {
                   <div className="flex items-center justify-center gap-6 mb-10 bg-black/30 p-4 rounded-lg border border-white/5">
                       <img src={selectedSong.coverUrl} className="w-20 h-20 object-cover rounded shadow-lg" alt="" />
                       <div className="text-left">
-                          <div className="text-[10px] text-slate-500 uppercase tracking-widest mb-1">Selected Track</div>
+                          <div className="text-[10px] text-slate-500 uppercase tracking-widest mb-1">{t('interactive_gate_selected')}</div>
                           <div className="text-xl font-black text-white uppercase">{selectedSong.title}</div>
                       </div>
                   </div>
 
                   <div className="space-y-4 mb-10 border-t border-b border-white/5 py-8">
                       <div className="flex justify-between items-center text-sm">
-                          <span className="text-slate-400 font-bold uppercase tracking-widest">Entry Fee</span>
+                          <span className="text-slate-400 font-bold uppercase tracking-widest">{t('interactive_gate_fee')}</span>
                           <span className="text-white font-mono text-xl">NT$ 320</span>
                       </div>
                       <p className="text-[10px] text-slate-500 leading-relaxed text-left mt-2">
@@ -826,7 +823,7 @@ const Interactive: React.FC = () => {
                   >
                       {t('interactive_gate_pay_btn')}
                   </button>
-                  <button onClick={() => setMode('select')} className="mt-6 text-[10px] text-slate-500 font-bold uppercase tracking-widest hover:text-white">Cancel</button>
+                  <button onClick={() => setMode('select')} className="mt-6 text-[10px] text-slate-500 font-bold uppercase tracking-widest hover:text-white">{t('form_btn_cancel')}</button>
               </div>
               <PaymentModal isOpen={showPayment} onClose={() => { setShowPayment(false); unlockStudio(); }} initialMode="production" />
           </div>
@@ -840,13 +837,13 @@ const Interactive: React.FC = () => {
                   <div className="absolute inset-0 z-50 bg-black/90 backdrop-blur-md flex items-center justify-center p-6 animate-fade-in" onClick={() => setShowHelp(false)}>
                       <div className="bg-slate-900 border border-white/10 max-w-lg w-full p-8 shadow-2xl relative" onClick={(e) => e.stopPropagation()}>
                           <button onClick={() => setShowHelp(false)} className="absolute top-4 right-4 text-slate-500 hover:text-white">✕</button>
-                          <h3 className="text-xl font-black text-white uppercase tracking-[0.3em] mb-8 border-b border-white/10 pb-4">Studio Guide</h3>
+                          <h3 className="text-xl font-black text-white uppercase tracking-[0.3em] mb-8 border-b border-white/10 pb-4">{t('interactive_guide_title')}</h3>
                           
                           <div className="space-y-8">
                               <div className="space-y-3">
                                   <h4 className="text-brand-gold text-xs font-black uppercase tracking-widest flex items-center gap-2">
                                       <span className="w-2 h-2 bg-brand-gold rounded-full"></span>
-                                      Visual Style (視覺風格)
+                                      {t('interactive_guide_style')}
                                   </h4>
                                   <ul className="text-xs text-slate-300 space-y-3 pl-4 border-l border-white/10 ml-1">
                                       <li className="flex flex-col gap-1">
@@ -866,26 +863,26 @@ const Interactive: React.FC = () => {
                               <div className="space-y-3">
                                   <h4 className="text-brand-gold text-xs font-black uppercase tracking-widest flex items-center gap-2">
                                       <span className="w-2 h-2 bg-brand-gold rounded-full"></span>
-                                      How to Play (操作方式)
+                                      {t('interactive_guide_play')}
                                   </h4>
                                   <p className="text-xs text-slate-300 leading-relaxed">
-                                      這是一個節奏遊戲。當你聽到歌手唱出<strong className="text-white mx-1">每一句的第一個字</strong>時：
+                                      {t('interactive_guide_desc')}
                                   </p>
                                   <div className="grid grid-cols-2 gap-4 mt-2">
                                       <div className="bg-white/5 p-4 text-center rounded border border-white/10">
-                                          <span className="block text-[9px] text-slate-500 uppercase mb-2">PC 電腦</span>
-                                          <div className="inline-block px-3 py-1 bg-white text-black font-bold text-xs rounded">SPACE 空白鍵</div>
+                                          <span className="block text-[9px] text-slate-500 uppercase mb-2">{t('interactive_guide_pc')}</span>
+                                          <div className="inline-block px-3 py-1 bg-white text-black font-bold text-xs rounded">{t('interactive_guide_space')}</div>
                                       </div>
                                       <div className="bg-white/5 p-4 text-center rounded border border-white/10">
-                                          <span className="block text-[9px] text-slate-500 uppercase mb-2">Mobile 手機</span>
-                                          <div className="inline-block px-3 py-1 bg-white text-black font-bold text-xs rounded">TAP 點擊螢幕</div>
+                                          <span className="block text-[9px] text-slate-500 uppercase mb-2">{t('interactive_guide_mobile')}</span>
+                                          <div className="inline-block px-3 py-1 bg-white text-black font-bold text-xs rounded">{t('interactive_guide_tap')}</div>
                                       </div>
                                   </div>
                               </div>
                           </div>
                           
                           <button onClick={() => setShowHelp(false)} className="w-full mt-8 py-3 bg-white text-black font-black uppercase text-xs tracking-widest hover:bg-brand-gold transition-all">
-                              I Understand (我了解了)
+                              {t('interactive_btn_understand')}
                           </button>
                       </div>
                   </div>
@@ -894,15 +891,15 @@ const Interactive: React.FC = () => {
               {/* Controls Sidebar */}
               <div className="w-full md:w-80 bg-slate-950 border-r border-white/5 p-6 flex flex-col z-20 shadow-2xl overflow-y-auto custom-scrollbar">
                   <div className="mb-6 flex justify-between items-center">
-                      <h4 className="text-white font-black uppercase tracking-widest text-sm">Control Panel</h4>
+                      <h4 className="text-white font-black uppercase tracking-widest text-sm">{t('interactive_panel_control')}</h4>
                       <button onClick={() => setShowHelp(true)} className="text-[9px] bg-brand-gold/10 text-brand-gold border border-brand-gold/50 px-2 py-1 rounded hover:bg-brand-gold hover:text-black transition-all font-bold">HELP</button>
                   </div>
                   
                   <div className="space-y-8">
                       {/* Visual Config 1: Motion */}
                       <div>
-                          <div className="text-[9px] text-slate-500 font-bold uppercase tracking-widest mb-3 border-b border-white/10 pb-1">Visual Style</div>
-                          <div className="grid grid-cols-1 gap-2">
+                          <div className="text-[9px] text-slate-500 font-bold uppercase tracking-widest mb-3 border-b border-white/10 pb-1">{t('interactive_panel_visual')}</div>
+                          <div className="grid grid-cols-2 gap-2">
                               {[
                                   { id: 'slide', label: 'Slide', sub: 'Scroll' },
                                   { id: 'fade', label: 'Fade', sub: 'Cinema' },
@@ -917,10 +914,10 @@ const Interactive: React.FC = () => {
                                   <button 
                                       key={m.id}
                                       onClick={() => setConfig({...config, motion: m.id as any})} 
-                                      className={`flex items-center justify-between p-3 border transition-all rounded-sm group ${config.motion === m.id ? 'bg-white text-black border-white' : 'bg-transparent text-slate-400 border-white/10 hover:border-white/30 hover:text-white'}`}
+                                      className={`flex flex-col items-start justify-center p-3 border transition-all rounded-sm group ${config.motion === m.id ? 'bg-white text-black border-white' : 'bg-transparent text-slate-400 border-white/10 hover:border-white/30 hover:text-white'}`}
                                   >
                                       <span className="text-[10px] font-black uppercase tracking-widest">{m.label}</span>
-                                      <span className={`text-[9px] opacity-60 uppercase tracking-wider ${config.motion === m.id ? 'text-black' : 'group-hover:text-white'}`}>{m.sub}</span>
+                                      <span className={`text-[8px] opacity-60 uppercase tracking-wider ${config.motion === m.id ? 'text-black' : 'group-hover:text-white'}`}>{m.sub}</span>
                                   </button>
                               ))}
                           </div>
@@ -928,7 +925,7 @@ const Interactive: React.FC = () => {
                       
                       {/* Visual Config 2: Format & Layout */}
                       <div>
-                          <div className="text-[9px] text-slate-500 font-bold uppercase tracking-widest mb-3 border-b border-white/10 pb-1">Canvas Format</div>
+                          <div className="text-[9px] text-slate-500 font-bold uppercase tracking-widest mb-3 border-b border-white/10 pb-1">{t('interactive_panel_format')}</div>
                           <div className="grid grid-cols-2 gap-2 mb-4">
                               <button onClick={() => setConfig({...config, format: 'youtube'})} className={`py-3 text-[9px] font-black uppercase border rounded-sm flex flex-col items-center gap-1 ${config.format === 'youtube' ? 'bg-brand-accent text-black border-brand-accent' : 'text-slate-500 border-white/10 hover:text-white'}`}>
                                   <span className="w-6 h-3 border border-current mb-1"></span> 16:9 (PC)
@@ -938,7 +935,7 @@ const Interactive: React.FC = () => {
                               </button>
                           </div>
                           
-                          <div className="text-[9px] text-slate-500 font-bold uppercase tracking-widest mb-3 border-b border-white/10 pb-1">Composition</div>
+                          <div className="text-[9px] text-slate-500 font-bold uppercase tracking-widest mb-3 border-b border-white/10 pb-1">{t('interactive_panel_composition')}</div>
                           <div className="grid grid-cols-2 gap-2">
                               <button onClick={() => setConfig({...config, layout: 'lyrics'})} className={`py-3 text-[9px] font-black uppercase border rounded-sm ${config.layout === 'lyrics' ? 'bg-brand-gold text-black border-brand-gold' : 'text-slate-500 border-white/10 hover:text-white'}`}>Lyrics Only</button>
                               <button onClick={() => setConfig({...config, layout: 'cover'})} className={`py-3 text-[9px] font-black uppercase border rounded-sm ${config.layout === 'cover' ? 'bg-brand-gold text-black border-brand-gold' : 'text-slate-500 border-white/10 hover:text-white'}`}>Cover Mode</button>
@@ -951,10 +948,10 @@ const Interactive: React.FC = () => {
                           <p className="text-[9px] text-slate-500 uppercase tracking-widest animate-pulse">Ready to sync?</p>
                       </div>
                       <button onClick={toggleAudition} disabled={!isAudioReady} className={`w-full py-4 border font-black uppercase text-[10px] tracking-[0.2em] transition-all rounded-sm ${isAuditioning ? 'bg-white text-black border-white' : 'border-white/20 text-white hover:bg-white/10'} disabled:opacity-50`}>
-                          {loadingAudio ? 'LOADING AUDIO...' : (isAuditioning ? 'STOP PREVIEW' : 'PRACTICE MODE (試玩)')}
+                          {loadingAudio ? t('interactive_loading_audio') : (isAuditioning ? t('interactive_btn_stop_preview') : t('interactive_btn_practice'))}
                       </button>
                       <button onClick={startRecording} disabled={!isAudioReady} className="w-full py-4 bg-brand-gold text-black font-black uppercase text-[10px] tracking-[0.2em] hover:bg-white transition-all shadow-[0_0_20px_rgba(251,191,36,0.4)] rounded-sm disabled:opacity-50 disabled:cursor-not-allowed">
-                          {loadingAudio ? 'DOWNLOADING ASSETS...' : t('interactive_btn_start_record')}
+                          {loadingAudio ? t('interactive_loading_audio') : t('interactive_btn_start_record')}
                       </button>
                   </div>
               </div>
@@ -968,7 +965,7 @@ const Interactive: React.FC = () => {
                   {!isAuditioning && (
                       <div className="absolute top-6 left-0 w-full text-center z-10 pointer-events-none">
                           <span className="bg-black/50 border border-white/10 text-slate-400 px-4 py-2 rounded-full text-[10px] uppercase tracking-widest backdrop-blur-md">
-                              Preview Mode • Setup your visual style
+                              {t('interactive_preview_mode')}
                           </span>
                       </div>
                   )}
@@ -1015,10 +1012,9 @@ const Interactive: React.FC = () => {
               <div className="relative">
                   <div className="w-20 h-20 border-4 border-slate-800 border-t-brand-gold rounded-full animate-spin mb-10"></div>
               </div>
-              <h3 className="text-2xl font-black text-white uppercase tracking-[0.3em] mb-4">Rendering Video</h3>
-              <p className="text-slate-500 text-xs uppercase tracking-widest font-mono">
-                  High Quality Export (5Mbps)<br/>
-                  Please do not close this tab.
+              <h3 className="text-2xl font-black text-white uppercase tracking-[0.3em] mb-4">{t('interactive_rendering_title')}</h3>
+              <p className="text-slate-500 text-xs uppercase tracking-widest font-mono whitespace-pre-line text-center">
+                  {t('interactive_rendering_desc')}
               </p>
           </div>
       )}
@@ -1026,13 +1022,13 @@ const Interactive: React.FC = () => {
       {/* CONTACT & EXPORT */}
       {mode === 'contact' && (
           <div className="flex-1 flex flex-col items-center justify-center p-6 bg-black">
-              <h2 className="text-5xl font-black uppercase mb-12 tracking-tighter text-white">Production Wrapped</h2>
+              <h2 className="text-5xl font-black uppercase mb-12 tracking-tighter text-white">{t('interactive_wrapped_title')}</h2>
               <form onSubmit={(e) => { e.preventDefault(); setMode('finished'); }} className="space-y-8 bg-slate-900 p-16 border border-white/10 shadow-2xl max-w-2xl w-full">
                   <div className="space-y-2">
                       <label className="text-[10px] text-brand-gold font-bold uppercase tracking-[0.2em]">{t('interactive_input_name')}</label>
                       <input type="text" required className="w-full bg-black border border-white/20 p-4 text-white text-xl focus:border-brand-gold outline-none font-bold uppercase tracking-widest" value={contactInfo.name} onChange={e => setContactInfo({...contactInfo, name: e.target.value})} autoFocus placeholder="YOUR NAME" />
                   </div>
-                  <button type="submit" className="w-full py-5 bg-white text-black font-black uppercase text-xs tracking-[0.4em] hover:bg-brand-gold transition-all mt-8 shadow-lg">CONFIRM & EXPORT</button>
+                  <button type="submit" className="w-full py-5 bg-white text-black font-black uppercase text-xs tracking-[0.4em] hover:bg-brand-gold transition-all mt-8 shadow-lg">{t('interactive_btn_export')}</button>
               </form>
           </div>
       )}
@@ -1043,7 +1039,7 @@ const Interactive: React.FC = () => {
               {/* WARM ENDING MESSAGE */}
               <div className="text-center mb-16 space-y-4 max-w-3xl">
                   <h2 className="text-4xl md:text-5xl font-black text-white uppercase tracking-tighter mb-8 leading-tight">
-                      {t('interactive_finished_desc').split('\n').map((line, i) => (
+                      {t('interactive_finished_desc').split('\n').map((line: string, i: number) => (
                           <span key={i} className="block">{line}</span>
                       ))}
                   </h2>

@@ -35,14 +35,14 @@ const Database: React.FC = () => {
   return (
     <div className="animate-fade-in max-w-7xl mx-auto px-6 pt-12 pb-40">
       <div className="mb-20 text-center">
-           <h2 className="text-7xl font-black text-white tracking-tighter uppercase mb-4 text-gold-glow">Database</h2>
-           <p className="text-slate-600 text-[10px] font-bold tracking-[0.8em] uppercase">Willwi Official Catalog</p>
+           <h2 className="text-7xl font-black text-white tracking-tighter uppercase mb-4 text-gold-glow">{t('db_title')}</h2>
+           <p className="text-slate-600 text-[10px] font-bold tracking-[0.8em] uppercase">{t('db_subtitle')}</p>
       </div>
 
       <div className="flex flex-col md:flex-row gap-px mb-16 bg-white/5 p-px border border-white/10">
         <input
           type="text"
-          placeholder="SEARCH TRACK / ISRC..."
+          placeholder={t('db_search_placeholder')}
           className="flex-grow bg-black px-8 py-5 text-white outline-none text-sm font-black uppercase tracking-widest focus:bg-slate-900 transition-all"
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
@@ -52,7 +52,7 @@ const Database: React.FC = () => {
             value={filterLang} 
             onChange={(e) => setFilterLang(e.target.value)}
         >
-            <option value="All">All Languages</option>
+            <option value="All">{t('db_filter_lang_all')}</option>
             {Object.values(Language).map(l => <option key={l} value={l}>{l}</option>)}
         </select>
       </div>
@@ -61,7 +61,7 @@ const Database: React.FC = () => {
           {filteredSongs.map(song => (
               <div key={song.id} className="group relative bg-black p-8 transition-all hover:bg-slate-900/50 flex flex-col h-full">
                   <div className="flex flex-col gap-6 relative z-10 flex-grow">
-                      {/* Cover Art - UPDATED: Removed grayscale class */}
+                      {/* Cover Art */}
                       <div className="aspect-square w-full relative overflow-hidden bg-slate-900 border border-white/5 shadow-lg group-hover:border-brand-gold/30 transition-all">
                           <img src={song.coverUrl} className="w-full h-full object-cover transition-all duration-700 group-hover:scale-105" alt="" />
                       </div>
@@ -84,7 +84,7 @@ const Database: React.FC = () => {
                               </div>
                           ) : (
                                <div className="mb-6 h-20 bg-slate-900/50 border border-white/5 flex items-center justify-center text-[9px] text-slate-600 uppercase tracking-widest">
-                                   Spotify Preview Unavailable
+                                   {t('db_spotify_unavailable')}
                                </div>
                           )}
 
@@ -103,13 +103,13 @@ const Database: React.FC = () => {
                                 onClick={() => handleStartSession(song.id)} 
                                 className="flex-grow bg-white text-black py-4 text-[10px] font-black uppercase tracking-[0.2em] hover:bg-brand-gold transition-all"
                               >
-                                  Enter Lab
+                                  {t('db_btn_enter_lab')}
                               </button>
                               <button 
                                 onClick={() => navigate(`/song/${song.id}`)} 
                                 className="px-6 bg-slate-900 text-slate-400 py-4 text-[10px] font-black uppercase hover:text-white transition-all"
                               >
-                                  Info
+                                  {t('db_btn_info')}
                               </button>
                           </div>
                       </div>
@@ -120,7 +120,7 @@ const Database: React.FC = () => {
 
       {filteredSongs.length === 0 && (
           <div className="py-60 text-center border border-white/10">
-              <p className="text-slate-700 text-[10px] font-black uppercase tracking-[1em]">Empty Collection.</p>
+              <p className="text-slate-700 text-[10px] font-black uppercase tracking-[1em]">{t('db_empty')}</p>
           </div>
       )}
     </div>
