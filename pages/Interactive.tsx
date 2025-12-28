@@ -53,7 +53,10 @@ const Interactive: React.FC = () => {
 
   const [lineIndex, setLineIndex] = useState(0);
   const [recordedChunks, setRecordedChunks] = useState<Blob[]>([]);
+  
+  // Audition State: "Practice Mode" inside Setup
   const [isAuditioning, setIsAuditioning] = useState(false);
+  
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
   
@@ -78,10 +81,26 @@ const Interactive: React.FC = () => {
     }
   }, [location.state, songs]);
 
+  // Unified Keydown Handler for both Practice and Recording
+  useEffect(() => {
+      const handleKeyDown = (e: KeyboardEvent) => {
+          if (e.code === 'Space') {
+              if (mode === 'playing' || (mode === 'setup' && isAuditioning)) {
+                  e.preventDefault(); 
+                  handleLineClick();
+              }
+          }
+      };
+      window.addEventListener('keydown', handleKeyDown);
+      return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [mode, isAuditioning]);
+
   const handleSelectSong = (song: Song) => {
       setSelectedSong(song);
       setIsAudioReady(false);
       const rawLines = (song.lyrics || "").split('\n').map(l => l.trim()).filter(l => l.length > 0);
+      
+      // Use REAL lyrics, but ensure there's a start and end marker
       lyricsArrayRef.current = ["[ READY ]", ...rawLines, "END"];
       
       if (song.coverUrl) {
@@ -91,27 +110,37 @@ const Interactive: React.FC = () => {
           img.onload = () => { bgImageRef.current = img; };
       }
       setMode('setup');
+      setLineIndex(0);
+      setIsAuditioning(false);
   };
 
   const startRecording = async () => {
       if (!canvasRef.current || !audioRef.current || !isAudioReady) {
-          alert("Preparing Studio...");
+          alert("Preparing Studio... (Audio Loading)");
           return;
       }
       
+      // Stop audition if running
+      if (isAuditioning) {
+          audioRef.current.pause();
+          setIsAuditioning(false);
+      }
+
       if (!audioContextRef.current) {
           audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
       }
       const ctx = audioContextRef.current;
       if (ctx.state === 'suspended') await ctx.resume();
 
-      setIsAuditioning(false);
       setMode('playing');
       setLineIndex(0);
       smoothIndexRef.current = 0;
       hitPulseRef.current = 0;
       exitAnimationRef.current = 1;
       setRecordedChunks([]);
+      
+      // Reset audio
+      audioRef.current.currentTime = 0;
 
       try {
           const canvasStream = (canvasRef.current as any).captureStream(60);
@@ -130,7 +159,7 @@ const Interactive: React.FC = () => {
 
           const recorder = new MediaRecorder(combinedStream, { 
               mimeType: 'video/webm;codecs=vp9,opus', 
-              videoBitsPerSecond: 50000000 
+              videoBitsPerSecond: 25000000 
           });
 
           const chunks: Blob[] = [];
@@ -138,9 +167,8 @@ const Interactive: React.FC = () => {
           recorder.onstop = () => setRecordedChunks(chunks);
 
           mediaRecorderRef.current = recorder;
-          recorder.start(200);
+          recorder.start(100); 
           
-          audioRef.current.currentTime = 0;
           await audioRef.current.play();
           renderLoop();
       } catch (e) { 
@@ -152,20 +180,24 @@ const Interactive: React.FC = () => {
 
   const handleLineClick = (e?: any) => {
       if (e) { e.preventDefault(); e.stopPropagation(); }
-      if (mode !== 'playing' || !audioRef.current) return;
+      
+      // Interaction is allowed if Recording OR Auditioning
+      const isInteractive = mode === 'playing' || (mode === 'setup' && isAuditioning);
+      
+      if (!isInteractive || !audioRef.current) return;
 
       const now = Date.now();
-      if (now - lastTapTimeRef.current < 70) return;
+      if (now - lastTapTimeRef.current < 70) return; // Debounce
       lastTapTimeRef.current = now;
 
       hitPulseRef.current = 1.0; 
-      const currentText = lyricsArrayRef.current[lineIndex];
-
+      
       setLineIndex(prev => {
           if (prev < lyricsArrayRef.current.length - 1) {
               const next = prev + 1;
-              // 當點擊到 END 時，啟動縮小消失特效並結束錄製
-              if (lyricsArrayRef.current[next] === "END") {
+              
+              // Only trigger end sequence during RECORDING
+              if (mode === 'playing' && lyricsArrayRef.current[next] === "END") {
                   const vanish = setInterval(() => {
                       exitAnimationRef.current -= 0.08;
                       if (exitAnimationRef.current <= 0) {
@@ -174,6 +206,13 @@ const Interactive: React.FC = () => {
                       }
                   }, 40);
               }
+              
+              // For Audition, just stop or loop
+              if (mode === 'setup' && lyricsArrayRef.current[next] === "END") {
+                  toggleAudition(); // Stop audition
+                  return 0;
+              }
+
               return next;
           }
           return prev;
@@ -187,31 +226,39 @@ const Interactive: React.FC = () => {
       if (audioRef.current) audioRef.current.pause();
   };
 
+  // Shared Render Loop for both Setup (Preview/Audition) and Playing (Recording)
   const renderLoop = () => {
       draw();
+      
       if (audioRef.current) {
           setCurrentTime(audioRef.current.currentTime);
           setDuration(audioRef.current.duration);
-          if (!audioRef.current.paused && !audioRef.current.ended) {
-            animationFrameRef.current = requestAnimationFrame(renderLoop);
-          } else if (audioRef.current?.ended) { finishRecording(); }
-          else {
-            animationFrameRef.current = requestAnimationFrame(renderLoop);
+          
+          const isPlaying = !audioRef.current.paused && !audioRef.current.ended;
+          
+          if (mode === 'playing') {
+              if (isPlaying) {
+                  animationFrameRef.current = requestAnimationFrame(renderLoop);
+              } else if (audioRef.current.ended) {
+                  finishRecording();
+              } else {
+                  animationFrameRef.current = requestAnimationFrame(renderLoop);
+              }
+          } else if (mode === 'setup') {
+              // Always render in setup mode to show style changes instantly
+              animationFrameRef.current = requestAnimationFrame(renderLoop);
           }
       }
   };
 
+  // Initialize loop when entering setup
   useEffect(() => {
-    let frame: number;
-    const previewLoop = () => {
-        if (mode === 'setup') {
-            draw();
-            frame = requestAnimationFrame(previewLoop);
-        }
-    };
-    if (mode === 'setup') frame = requestAnimationFrame(previewLoop);
-    return () => cancelAnimationFrame(frame);
-  }, [mode, config, selectedSong]);
+      cancelAnimationFrame(animationFrameRef.current);
+      if (mode === 'setup' || mode === 'playing') {
+          renderLoop();
+      }
+      return () => cancelAnimationFrame(animationFrameRef.current);
+  }, [mode, config, selectedSong, lineIndex, isAuditioning]);
 
   const draw = () => {
       const canvas = canvasRef.current;
@@ -220,7 +267,13 @@ const Interactive: React.FC = () => {
 
       const w = canvas.width;
       const h = canvas.height;
-      const targetIdx = mode === 'setup' ? 1 : lineIndex;
+      
+      // Determine which line to focus on
+      // If Recording or Auditioning: Use real lineIndex
+      // If Setup Static: Show Line 1 (Usually the first real lyric)
+      const isDynamic = mode === 'playing' || (mode === 'setup' && isAuditioning);
+      const targetIdx = isDynamic ? lineIndex : (lyricsArrayRef.current.length > 1 ? 1 : 0);
+      
       smoothIndexRef.current += (targetIdx - smoothIndexRef.current) * 0.18;
       hitPulseRef.current *= 0.93;
 
@@ -255,34 +308,38 @@ const Interactive: React.FC = () => {
       ctx.textBaseline = 'middle';
       ctx.textAlign = config.alignHorizontal as CanvasTextAlign;
       
-      const items = mode === 'setup' ? ["PREVIEW LINE 01", "CURRENT ACTIVE LYRIC", "PREVIEW LINE 02"] : lyricsArrayRef.current;
+      const items = lyricsArrayRef.current;
 
       items.forEach((textOrig, i) => {
           let text = textOrig;
           if (config.textCase === 'uppercase') text = text.toUpperCase();
           else if (config.textCase === 'lowercase') text = text.toLowerCase();
           
-          if (text === "END" || (text === "[ READY ]" && mode === 'playing' && lineIndex > 0)) return;
+          // Hide [ READY ] if we have moved past it in dynamic mode
+          if (text === "[ READY ]" && isDynamic && lineIndex > 0) return;
+          if (text === "END") return;
 
-          const relPos = mode === 'setup' ? (i - 1) : (i - smoothIndexRef.current);
+          const relPos = i - smoothIndexRef.current;
           const y = baseOffset + (relPos * lineHeight);
           const dist = Math.abs(relPos);
 
-          if (dist > 3.5) return;
+          if (dist > 3.5) return; 
 
           ctx.save();
-          const isActive = mode === 'setup' ? i === 1 : dist < 0.5;
-          let alpha = isActive ? 1 : Math.max(0, 0.5 - dist * 0.3);
+          // Active state depends on smoothing for animation
+          const isLineActive = isDynamic ? Math.round(smoothIndexRef.current) === i : i === targetIdx;
+          
+          let alpha = isLineActive ? 1 : Math.max(0, 0.5 - dist * 0.3);
           alpha *= exitAnimationRef.current;
           
           let fontSizeVal = config.fontSize === 'small' ? 50 : config.fontSize === 'large' ? 140 : 95;
-          let scale = (isActive ? 1.25 + hitPulseRef.current * 0.25 : 0.85 - dist * 0.08) * exitAnimationRef.current;
+          let scale = (isLineActive ? 1.25 + hitPulseRef.current * 0.25 : 0.85 - dist * 0.08) * exitAnimationRef.current;
           
           ctx.translate(lyricsX, y);
           ctx.scale(scale, scale);
           ctx.globalAlpha = alpha;
 
-          if (config.effect === 'glow' && isActive) {
+          if (config.effect === 'glow' && isLineActive) {
               ctx.shadowColor = '#fbbf24';
               ctx.shadowBlur = 60 + hitPulseRef.current * 80;
           }
@@ -292,7 +349,7 @@ const Interactive: React.FC = () => {
           if (config.lyricStyle === 'cutout') {
               ctx.strokeStyle = '#fbbf24'; ctx.lineWidth = 5; ctx.strokeText(text, 0, 0);
           } else {
-              ctx.fillStyle = isActive ? '#fbbf24' : '#ffffff';
+              ctx.fillStyle = isLineActive ? '#fbbf24' : '#ffffff';
               ctx.fillText(text, 0, 0);
           }
           ctx.restore();
@@ -309,8 +366,25 @@ const Interactive: React.FC = () => {
 
   const toggleAudition = async () => {
       if (!audioRef.current) return;
-      if (isAuditioning) { audioRef.current.pause(); setIsAuditioning(false); }
-      else { audioRef.current.play(); setIsAuditioning(true); }
+      
+      if (isAuditioning) { 
+          // Stop Practice
+          audioRef.current.pause(); 
+          setIsAuditioning(false); 
+          setLineIndex(0); // Reset for clean start next time
+      } else { 
+          // Start Practice
+          audioRef.current.currentTime = 0;
+          setLineIndex(0);
+          smoothIndexRef.current = 0;
+          setIsAuditioning(true);
+          try {
+            await audioRef.current.play();
+          } catch(e) {
+              console.error("Audio Play Error:", e);
+              setIsAuditioning(false);
+          }
+      }
   };
 
   return (
@@ -383,19 +457,29 @@ const Interactive: React.FC = () => {
                       <button onClick={() => setConfig({...config, format: 'social'})} className={`px-10 py-3 text-[11px] font-black transition-all ${config.format === 'social' ? 'bg-white text-black shadow-2xl' : 'bg-black text-slate-600 hover:text-white'}`}>PORTRAIT (9:16)</button>
                   </div>
 
-                  <div className="flex-1 flex items-center justify-center p-20">
+                  <div 
+                    className="flex-1 flex items-center justify-center p-20 cursor-pointer"
+                    onMouseDown={isAuditioning ? handleLineClick : undefined}
+                    onTouchStart={isAuditioning ? handleLineClick : undefined}
+                  >
                       <div className={`shadow-2xl border border-white/10 overflow-hidden transition-all duration-700 bg-black ${config.format === 'social' ? 'aspect-[9/16] h-full' : 'aspect-video w-full max-w-6xl'}`}>
                           <canvas ref={canvasRef} width={1920} height={config.format === 'social' ? 3413 : 1080} className="w-full h-full object-cover" />
                       </div>
                   </div>
 
                   <div className="bg-black border-t border-white/10 p-12 flex items-center gap-16">
-                      <button onClick={toggleAudition} className="w-20 h-20 bg-white text-black flex items-center justify-center flex-shrink-0 hover:scale-110 transition-transform shadow-2xl">
-                          {isAuditioning ? <div className="w-5 h-5 bg-black"></div> : <div className="w-0 h-0 border-t-10 border-t-transparent border-b-10 border-b-transparent border-l-16 border-l-black ml-1"></div>}
-                      </button>
+                      <div className="flex flex-col items-center gap-2">
+                          <button onClick={toggleAudition} className={`w-20 h-20 flex items-center justify-center flex-shrink-0 hover:scale-110 transition-transform shadow-2xl ${isAuditioning ? 'bg-brand-gold text-black' : 'bg-white text-black'}`}>
+                              {isAuditioning ? <div className="w-5 h-5 bg-black"></div> : <div className="w-0 h-0 border-t-10 border-t-transparent border-b-10 border-b-transparent border-l-16 border-l-black ml-1"></div>}
+                          </button>
+                          <span className="text-[9px] font-bold uppercase tracking-widest text-slate-500">{isAuditioning ? 'STOP' : 'PRACTICE'}</span>
+                      </div>
+                      
                       <div className="flex-grow">
                           <div className="flex justify-between text-[11px] text-slate-600 font-black uppercase mb-6 tracking-widest">
-                              <span className="bg-white/5 px-4 py-2">{!isAudioReady ? 'PRE-LOADING CORE...' : `${currentTime.toFixed(2)} / ${duration.toFixed(2)}S`}</span>
+                              <span className={`px-4 py-2 ${isAuditioning ? 'bg-brand-gold text-black animate-pulse' : 'bg-white/5'}`}>
+                                  {!isAudioReady ? 'LOADING...' : (isAuditioning ? 'PRACTICE MODE ACTIVE • TAP SCREEN' : 'SETUP MODE')}
+                              </span>
                               <span className="text-brand-gold opacity-80">Waveform Engine Synthesis</span>
                           </div>
                           <div className="h-20 bg-white/[0.03] flex items-end gap-[4px] px-6 border border-white/5">
