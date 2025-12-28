@@ -33,6 +33,15 @@ const convertToDirectStream = (url: string) => {
 // Mode State Machine
 type InteractionMode = 'intro' | 'select' | 'gate' | 'setup' | 'playing' | 'rendering' | 'contact' | 'finished';
 
+interface Particle {
+    x: number;
+    y: number;
+    vx: number;
+    vy: number;
+    alpha: number;
+    size: number;
+}
+
 const Interactive: React.FC = () => {
   const { songs } = useData();
   const { t } = useTranslation();
@@ -89,6 +98,7 @@ const Interactive: React.FC = () => {
   const hitPulseRef = useRef<number>(0);
   const exitAnimationRef = useRef<number>(1);
   const bgImageRef = useRef<HTMLImageElement | null>(null);
+  const particlesRef = useRef<Particle[]>([]);
   
   // Web Audio Context for Stream Merging
   const audioContextRef = useRef<AudioContext | null>(null);
@@ -421,6 +431,9 @@ const Interactive: React.FC = () => {
       const w = canvas.width;
       const h = canvas.height;
       
+      // Clear Letter Spacing from previous frames (Important for Expand mode cleanup)
+      (ctx as any).letterSpacing = '0px';
+
       const isDynamic = mode === 'playing' || (mode === 'setup' && isAuditioning);
       // USE REF for target index to avoid closure staleness without restarting loop
       const targetIdx = isDynamic ? lineIndexRef.current : (lyricsArrayRef.current.length > 1 ? 1 : 0);
@@ -503,6 +516,44 @@ const Interactive: React.FC = () => {
           ctx.restore();
       }
 
+      // --- PARTICLES (Bubbling & Popup) ---
+      if (config.motion === 'bubbling' || config.motion === 'popup') {
+          // Spawn particles on hit
+          if (hitPulseRef.current > 0.8) {
+              const spawnCount = config.motion === 'popup' ? 3 : 1;
+              for(let k=0; k < spawnCount; k++) {
+                  particlesRef.current.push({
+                      x: w/2 + (Math.random() - 0.5) * 600,
+                      y: h/2 + (Math.random() - 0.5) * 200,
+                      vx: (Math.random() - 0.5) * 4,
+                      vy: (Math.random() - 1) * 5,
+                      alpha: 1,
+                      size: Math.random() * 4 + 2
+                  });
+              }
+          }
+          // Update and Draw
+          ctx.save();
+          particlesRef.current.forEach((p, idx) => {
+              p.x += p.vx;
+              p.y += p.vy;
+              p.alpha -= 0.015;
+              if (p.alpha > 0) {
+                  ctx.fillStyle = `rgba(251, 191, 36, ${p.alpha})`; // Brand Gold
+                  ctx.shadowColor = 'rgba(251, 191, 36, 0.5)';
+                  ctx.shadowBlur = 10;
+                  ctx.beginPath();
+                  ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+                  ctx.fill();
+              } else {
+                  particlesRef.current.splice(idx, 1);
+              }
+          });
+          ctx.restore();
+      } else {
+          particlesRef.current = []; // Clear if switched mode
+      }
+
       // --- 2. LYRICS RENDER ---
       // Determine Text Position based on Layout
       let lyricsX = w / 2; // Default Center
@@ -572,12 +623,9 @@ const Interactive: React.FC = () => {
                   }
                   break;
               case 'wipe':
-                  // Active line is fully visible, but we use clip to transition?
-                  // Simplified Wipe: Highlight active, others fade out
                   y = centerOffset;
                   if (dist < 0.8) {
                       alpha = 1 - dist;
-                      // Simulating wipe by position offset or alpha
                       offsetX = dist * 20; 
                   }
                   break;
@@ -649,7 +697,7 @@ const Interactive: React.FC = () => {
               
               // Handle Expand Spacing
               if (config.motion === 'expand' && (ctx as any).letterSpacing !== undefined) {
-                  const spacing = Math.max(0, (1 - dist * 2) * 20); // 0 to 20px
+                  const spacing = Math.max(0, (1 - dist * 2) * 40); // Increased expand effect
                   (ctx as any).letterSpacing = `${spacing}px`;
               }
 
@@ -903,8 +951,8 @@ const Interactive: React.FC = () => {
                               {[
                                   { id: 'slide', label: 'Slide', sub: 'Scroll' },
                                   { id: 'fade', label: 'Fade', sub: 'Cinema' },
-                                  { id: 'static', label: 'Static', sub: 'Flash' },
                                   { id: 'wipe', label: 'Wipe', sub: 'Reveal' },
+                                  { id: 'static', label: 'Static', sub: 'Flash' },
                                   { id: 'popup', label: 'Popup', sub: 'Bounce' },
                                   { id: 'mask', label: 'Mask', sub: 'Rise' },
                                   { id: 'expand', label: 'Expand', sub: 'Spacing' },
@@ -914,7 +962,7 @@ const Interactive: React.FC = () => {
                                   <button 
                                       key={m.id}
                                       onClick={() => setConfig({...config, motion: m.id as any})} 
-                                      className={`flex flex-col items-start justify-center p-3 border transition-all rounded-sm group ${config.motion === m.id ? 'bg-white text-black border-white' : 'bg-transparent text-slate-400 border-white/10 hover:border-white/30 hover:text-white'}`}
+                                      className={`flex flex-col items-start justify-center p-3 border transition-all rounded-sm group ${config.motion === m.id ? 'bg-white text-black border-white ring-2 ring-brand-gold/50' : 'bg-transparent text-slate-400 border-white/10 hover:border-white/30 hover:text-white'}`}
                                   >
                                       <span className="text-[10px] font-black uppercase tracking-widest">{m.label}</span>
                                       <span className={`text-[8px] opacity-60 uppercase tracking-wider ${config.motion === m.id ? 'text-black' : 'group-hover:text-white'}`}>{m.sub}</span>

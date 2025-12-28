@@ -192,13 +192,13 @@ const AdminDashboard: React.FC = () => {
   const saveAccessCode = () => {
       if (accessCode.length < 4) return alert("通行碼太短");
       localStorage.setItem('willwi_access_code', accessCode);
-      alert("✅ 使用者通行碼已更新");
+      alert("✅ 使用者通行碼已更新 (User Code Updated)");
   };
 
   const saveAdminPassword = () => {
       if (adminPassword.length < 4) return alert("密碼請至少設定 4 位數");
       localStorage.setItem('willwi_admin_password', adminPassword);
-      alert("✅ 後台管理密碼已更新");
+      alert("✅ 後台管理密碼已更新 (Admin Password Updated)");
   };
 
   const filteredSongs = useMemo(() => {
@@ -434,6 +434,7 @@ const AdminDashboard: React.FC = () => {
               <div className="bg-slate-900 border border-white/10 p-10 rounded-xl">
                   <h3 className="text-xl font-black text-brand-gold uppercase tracking-[0.3em] mb-8">{t('admin_payment_setup')}</h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                      {/* Only QR Codes here now, Access Code moved to Settings */}
                       {[
                           { key: 'global_payment', label: '主要收款 QR (Line Pay)' },
                           { key: 'line', label: 'LINE 官方帳號 QR' }
