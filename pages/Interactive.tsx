@@ -80,6 +80,7 @@ const Interactive: React.FC = () => {
   const smoothIndexRef = useRef<number>(0);
   const hitPulseRef = useRef<number>(0);
   const bgImageRef = useRef<HTMLImageElement | null>(null);
+  const audioContextRef = useRef<AudioContext | null>(null);
 
   useEffect(() => {
     if (location.state?.targetSongId) {
@@ -104,24 +105,68 @@ const Interactive: React.FC = () => {
 
   const startRecording = async () => {
       if (!canvasRef.current || !audioRef.current) return;
+      
       setMode('playing');
       setLineIndex(0);
       smoothIndexRef.current = 0;
       hitPulseRef.current = 0;
       tapLogRef.current = [];
-      
+      setRecordedChunks([]);
+
       try {
-          const stream = (canvasRef.current as any).captureStream(60);
-          const recorder = new MediaRecorder(stream, { mimeType: 'video/webm;codecs=vp9', videoBitsPerSecond: 25000000 });
+          // 1. 影像擷取
+          const canvasStream = (canvasRef.current as any).captureStream(60);
+          
+          // 2. 音訊混合 (Audio Mixer)
+          if (!audioContextRef.current) {
+              audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
+          }
+          const ctx = audioContextRef.current;
+          if (ctx.state === 'suspended') await ctx.resume();
+          
+          const source = ctx.createMediaElementSource(audioRef.current);
+          const dest = ctx.createMediaStreamDestination();
+          source.connect(dest);
+          source.connect(ctx.destination); // 讓使用者錄製時也能聽到聲音
+
+          // 3. 混合音軌與影軌
+          const combinedStream = new MediaStream([
+              ...canvasStream.getVideoTracks(),
+              ...dest.stream.getAudioTracks()
+          ]);
+
+          // 4. 初始化錄製器 (最佳化編碼設定)
+          const mimeType = MediaRecorder.isTypeSupported('video/webm;codecs=vp9,opus') 
+              ? 'video/webm;codecs=vp9,opus' 
+              : 'video/webm';
+          
+          const recorder = new MediaRecorder(combinedStream, { 
+              mimeType, 
+              videoBitsPerSecond: 25000000, // 25Mbps 高品質
+              audioBitsPerSecond: 128000
+          });
+
           const chunks: Blob[] = [];
-          recorder.ondataavailable = e => chunks.push(e.data);
-          recorder.onstop = () => setRecordedChunks(chunks);
+          recorder.ondataavailable = e => {
+              if (e.data.size > 0) chunks.push(e.data);
+          };
+          
+          recorder.onstop = () => {
+              setRecordedChunks(chunks);
+              console.log("Recording Stopped. Chunks gathered:", chunks.length);
+          };
+
           mediaRecorderRef.current = recorder;
-          recorder.start();
+          recorder.start(200); // 每 200ms 切分一次 chunk 增加穩定性
+          
           audioRef.current.currentTime = 0;
           await audioRef.current.play();
           renderLoop();
-      } catch (e) { console.error(e); }
+      } catch (e) { 
+          console.error("Recording Start Failed:", e);
+          alert("錄製引擎啟動失敗，請檢查權限或更換瀏覽器。");
+          setMode('setup');
+      }
   };
 
   const handleLineClick = (e?: any) => {
@@ -129,7 +174,7 @@ const Interactive: React.FC = () => {
       if (mode !== 'playing' || !audioRef.current) return;
 
       const now = Date.now();
-      if (now - lastTapTimeRef.current < 80) return;
+      if (now - lastTapTimeRef.current < 100) return;
       lastTapTimeRef.current = now;
 
       hitPulseRef.current = 1.0; 
@@ -141,7 +186,10 @@ const Interactive: React.FC = () => {
       setLineIndex(prev => {
           if (prev < lyricsArrayRef.current.length - 1) {
               const next = prev + 1;
-              if (lyricsArrayRef.current[next] === "END") setTimeout(finishRecording, 1500);
+              if (lyricsArrayRef.current[next] === "END") {
+                  // 延遲結束以捕捉最後的影格
+                  setTimeout(finishRecording, 1500); 
+              }
               return next;
           }
           return prev;
@@ -154,14 +202,20 @@ const Interactive: React.FC = () => {
           setDebugTime(audioRef.current.currentTime);
           if (!audioRef.current.paused && !audioRef.current.ended) {
             animationFrameRef.current = requestAnimationFrame(renderLoop);
-          } else if (audioRef.current?.ended) { finishRecording(); }
+          } else if (audioRef.current?.ended) { 
+              finishRecording(); 
+          }
       }
   };
 
   const finishRecording = () => {
-      if (mediaRecorderRef.current?.state === 'recording') mediaRecorderRef.current.stop();
+      if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
+          mediaRecorderRef.current.stop();
+      }
+      
       const lrc = tapLogRef.current.map(log => `${formatToLRC(log.time)}${log.text}`).join('\n');
       setLrcContent(lrc);
+      
       setMode('contact');
       cancelAnimationFrame(animationFrameRef.current);
       if (audioRef.current) audioRef.current.pause();
@@ -226,13 +280,11 @@ const Interactive: React.FC = () => {
           ctx.scale(scale, scale);
           ctx.globalAlpha = alpha;
 
-          // Effect: Glow
           if (config.effect === 'glow' && dist < 0.5) {
               ctx.shadowColor = '#fbbf24';
-              ctx.shadowBlur = 30 + hitPulseRef.current * 60;
+              ctx.shadowBlur = 35 + hitPulseRef.current * 55;
           }
 
-          // Motion Logic
           if (config.motion === 'expand' && dist < 0.5) {
              const charSpacing = hitPulseRef.current * 15;
              ctx.font = `900 60px Montserrat`;
@@ -243,7 +295,7 @@ const Interactive: React.FC = () => {
                  curX += ctx.measureText(char).width + charSpacing;
              }
           } else if (config.motion === 'bubbling' && dist < 0.5) {
-              ctx.translate(0, Math.sin(Date.now()/200) * 10);
+              ctx.translate(0, Math.sin(Date.now()/200) * 12);
               ctx.fillText(text, 0, 0);
           } else {
               ctx.font = `900 70px Montserrat`;
@@ -255,7 +307,7 @@ const Interactive: React.FC = () => {
   };
 
   return (
-    <div className="max-w-7xl mx-auto pt-24 px-6 pb-40 text-slate-100">
+    <div className="max-w-7xl mx-auto pt-24 px-6 pb-40 text-slate-100 min-h-screen">
       
       {mode === 'menu' && (
           <div className="flex flex-col items-center py-20 text-center animate-fade-in">
@@ -279,8 +331,7 @@ const Interactive: React.FC = () => {
               </div>
 
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
-                  <div className="lg:col-span-1 space-y-8 bg-slate-900/50 p-8 border border-white/5">
-                      {/* Vertical Align */}
+                  <div className="lg:col-span-1 space-y-8 bg-slate-900/50 p-8 border border-white/5 shadow-2xl">
                       <section>
                           <label className="text-[10px] text-slate-500 font-black uppercase mb-4 block">垂直對齊</label>
                           <div className="flex gap-2">
@@ -292,7 +343,6 @@ const Interactive: React.FC = () => {
                           </div>
                       </section>
 
-                      {/* Case */}
                       <section>
                           <label className="text-[10px] text-slate-500 font-black uppercase mb-4 block">案件 (Case)</label>
                           <div className="flex gap-2">
@@ -304,7 +354,6 @@ const Interactive: React.FC = () => {
                           </div>
                       </section>
 
-                      {/* Motion */}
                       <section>
                           <label className="text-[10px] text-slate-500 font-black uppercase mb-4 block">Motion (樣式選擇)</label>
                           <div className="grid grid-cols-3 gap-2">
@@ -316,7 +365,6 @@ const Interactive: React.FC = () => {
                           </div>
                       </section>
 
-                      {/* Effect */}
                       <section>
                           <label className="text-[10px] text-slate-500 font-black uppercase mb-4 block">歌詞效果</label>
                           <div className="flex gap-2">
@@ -328,7 +376,7 @@ const Interactive: React.FC = () => {
                       <button onClick={startRecording} className="w-full py-6 bg-brand-gold text-slate-950 font-black uppercase tracking-[0.4em] text-sm shadow-2xl hover:bg-white transition-all transform hover:scale-[1.02]">START RECORDING</button>
                   </div>
 
-                  <div className="lg:col-span-2 bg-black border border-white/10 flex items-center justify-center relative aspect-video overflow-hidden">
+                  <div className="lg:col-span-2 bg-black border border-white/10 flex items-center justify-center relative aspect-video overflow-hidden shadow-2xl">
                       <canvas ref={canvasRef} width={1280} height={720} className="w-full h-full object-contain" />
                       <div className="absolute top-4 left-4 text-[9px] text-slate-500 uppercase tracking-widest font-black bg-black/80 px-2 py-1">Style Preview Engine</div>
                   </div>
@@ -338,6 +386,10 @@ const Interactive: React.FC = () => {
 
       {mode === 'playing' && (
           <div className="fixed inset-0 z-[110] bg-black flex flex-col animate-fade-in">
+              <div className="absolute top-8 left-8 z-30 flex items-center gap-4">
+                  <div className="w-3 h-3 bg-red-600 rounded-full animate-pulse shadow-[0_0_15px_red]"></div>
+                  <span className="text-[10px] font-black uppercase tracking-widest text-white">LIVE RECORDING • {debugTime.toFixed(2)}s</span>
+              </div>
               <div className="absolute inset-0 z-[200] cursor-pointer" onMouseDown={handleLineClick} onTouchStart={handleLineClick} />
               <div className="flex-1 flex items-center justify-center bg-black">
                   <canvas ref={canvasRef} width={1920} height={1080} className="w-full h-full object-contain" />
@@ -369,8 +421,31 @@ const Interactive: React.FC = () => {
           <div className="max-w-3xl mx-auto text-center py-20 animate-fade-in">
               <h2 className="text-6xl font-black uppercase mb-16 tracking-tighter">SUCCESS</h2>
               <div className="bg-slate-900 p-12 border border-white/5 shadow-2xl space-y-6">
-                   <button onClick={() => { const b = new Blob(recordedChunks, { type: 'video/webm' }); const url = URL.createObjectURL(b); const a = document.createElement('a'); a.href = url; a.download = `WILLWI_LAB_${selectedSong?.title}.webm`; a.click(); }} className="w-full py-6 bg-white text-black font-black uppercase text-xs hover:bg-brand-gold transition-all">Save Lyric Video</button>
-                   <button onClick={() => { const b = new Blob([lrcContent], { type: 'text/plain' }); const url = URL.createObjectURL(b); const a = document.createElement('a'); a.href = url; a.download = `${selectedSong?.title}.lrc`; a.click(); }} className="w-full py-4 border border-brand-gold text-brand-gold font-black uppercase text-xs hover:bg-brand-gold hover:text-black transition-all">Save LRC Script</button>
+                   <button 
+                    onClick={() => { 
+                        if (recordedChunks.length === 0) return alert("影片尚未就緒，請稍後。");
+                        const b = new Blob(recordedChunks, { type: 'video/webm' }); 
+                        const url = URL.createObjectURL(b); 
+                        const a = document.createElement('a'); 
+                        a.href = url; 
+                        a.download = `WILLWI_SYNC_${selectedSong?.title}.webm`; 
+                        a.click(); 
+                    }} 
+                    className="w-full py-6 bg-white text-black font-black uppercase text-xs hover:bg-brand-gold transition-all shadow-xl"
+                   >Save Sync Video (HD + Audio)</button>
+
+                   <button 
+                    onClick={() => { 
+                        const b = new Blob([lrcContent], { type: 'text/plain' }); 
+                        const url = URL.createObjectURL(b); 
+                        const a = document.createElement('a'); 
+                        a.href = url; 
+                        a.download = `${selectedSong?.title}.lrc`; 
+                        a.click(); 
+                    }} 
+                    className="w-full py-4 border border-brand-gold text-brand-gold font-black uppercase text-xs hover:bg-brand-gold hover:text-black transition-all"
+                   >Save LRC Script</button>
+
                    <button onClick={() => navigate('/')} className="w-full mt-4 py-4 border border-white/10 text-white font-bold uppercase text-[10px] hover:bg-white hover:text-black transition-all">Back to Home</button>
               </div>
           </div>
