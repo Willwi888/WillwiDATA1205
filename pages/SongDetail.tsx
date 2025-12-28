@@ -375,7 +375,68 @@ const SongDetail: React.FC = () => {
   const WILLWI_MBID = '526cc0f8-da20-4d2d-86a5-4bf841a6ba3c';
   const MUSIXMATCH_ROSTER_URL = 'https://pro.musixmatch.com/roster/artist/64081678';
   
-  const musicBrainzSubmissionUrl = `https://musicbrainz.org/recording/create?artist=${WILLWI_MBID}&edit-recording.name=${encodeURIComponent(song.title)}&edit-recording.comment=Auto-submitted from Willwi DB`;
+  // Advanced MusicBrainz Seeding URL
+  const getMusicBrainzSeedingUrl = (s: Song) => {
+    const baseUrl = "https://musicbrainz.org/release/add";
+    const params = new URLSearchParams();
+    
+    params.append('name', s.title);
+    params.append('artist_credit.names.0.artist.id', WILLWI_MBID);
+    params.append('artist_credit.names.0.name', 'Willwi');
+    
+    if (s.releaseDate) {
+        const [year, month, day] = s.releaseDate.split('-');
+        if (year) params.append('date.year', year);
+        if (month) params.append('date.month', month);
+        if (day) params.append('date.day', day);
+    }
+    
+    if (s.upc) params.append('barcode', s.upc);
+    
+    // Mapping internal Language enum to MusicBrainz language codes
+    const langMap: Record<string, { lang: string, script: string }> = {
+        [Language.Mandarin]: { lang: 'zho', script: 'Hant' },
+        [Language.Taiwanese]: { lang: 'nan', script: 'Hant' },
+        [Language.Japanese]: { lang: 'jpn', script: 'Jpan' },
+        [Language.Korean]: { lang: 'kor', script: 'Kore' },
+        [Language.English]: { lang: 'eng', script: 'Latn' },
+    };
+    
+    const mapped = langMap[s.language];
+    if (mapped) {
+        params.append('language', mapped.lang);
+        params.append('script', mapped.script);
+    }
+    
+    if (s.releaseCategory) {
+        const cat = s.releaseCategory.toLowerCase();
+        if (cat.includes('single')) params.append('type', 'single');
+        else if (cat.includes('ep')) params.append('type', 'ep');
+        else if (cat.includes('album')) params.append('type', 'album');
+    }
+    
+    params.append('packaging', 'none'); // Digital media
+    params.append('status', 'official');
+    params.append('mediums.0.format', 'Digital Media');
+    params.append('mediums.0.track.0.name', s.title);
+    
+    if (s.isrc) {
+        params.append('mediums.0.track.0.recording.isrc.0', s.isrc);
+    }
+    
+    // Add links as edit notes or documentation
+    params.append('edit_note', `Seeded from Willwi Music Database.
+Title: ${s.title}
+Artist: Willwi
+ISRC: ${s.isrc || 'N/A'}
+UPC: ${s.upc || 'N/A'}
+Date: ${s.releaseDate || 'N/A'}
+Spotify: ${s.spotifyLink || 'N/A'}
+Cover: ${s.coverUrl || 'N/A'}
+`);
+
+    return `${baseUrl}?${params.toString()}`;
+  };
 
   return (
     <div className="animate-fade pb-32 max-w-7xl mx-auto px-6">
@@ -562,17 +623,27 @@ const SongDetail: React.FC = () => {
                                         
                                         {/* MusicBrainz Submission / Link */}
                                         <div className="flex items-center justify-between mt-2 pt-2 border-t border-white/5">
-                                            <span className="text-[10px] text-white uppercase tracking-widest">MusicBrainz</span>
-                                            <a 
-                                                href={song.musicBrainzId 
-                                                    ? `https://musicbrainz.org/recording/${song.musicBrainzId}` 
-                                                    : musicBrainzSubmissionUrl} 
-                                                target="_blank" 
-                                                rel="noopener noreferrer"
-                                                className="px-3 py-1 text-[9px] font-bold uppercase tracking-widest rounded bg-purple-900/50 text-purple-400 border border-purple-500/30 hover:bg-purple-500 hover:text-white transition-all"
-                                            >
-                                                {song.musicBrainzId ? 'View Entry' : 'Auto-Submit Data'}
-                                            </a>
+                                            <span className="text-[10px] text-white uppercase tracking-widest">MusicBrainz Data</span>
+                                            <div className="flex gap-2">
+                                                {song.musicBrainzId && (
+                                                    <a 
+                                                        href={`https://musicbrainz.org/recording/${song.musicBrainzId}`} 
+                                                        target="_blank" 
+                                                        rel="noopener noreferrer"
+                                                        className="px-3 py-1 text-[9px] font-bold uppercase tracking-widest rounded bg-slate-800 text-slate-300 border border-slate-600 hover:bg-white hover:text-black transition-all"
+                                                    >
+                                                        View
+                                                    </a>
+                                                )}
+                                                <a 
+                                                    href={getMusicBrainzSeedingUrl(song)} 
+                                                    target="_blank" 
+                                                    rel="noopener noreferrer"
+                                                    className="px-3 py-1 text-[9px] font-bold uppercase tracking-widest rounded bg-purple-900/50 text-purple-400 border border-purple-500/30 hover:bg-purple-500 hover:text-white transition-all"
+                                                >
+                                                    Auto-Submit Release
+                                                </a>
+                                            </div>
                                         </div>
 
                                         {song.audioUrl ? (
