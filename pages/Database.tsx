@@ -13,7 +13,6 @@ const Database: React.FC = () => {
   
   const [searchTerm, setSearchTerm] = useState('');
   const [filterLang, setFilterLang] = useState<string>('All');
-  const [activePreviewId, setActivePreviewId] = useState<string | null>(null);
 
   const filteredSongs = useMemo(() => {
     return songs.filter(song => {
@@ -35,8 +34,8 @@ const Database: React.FC = () => {
   return (
     <div className="animate-fade-in max-w-7xl mx-auto px-6 pt-12 pb-40">
       <div className="mb-20 text-center">
-           <h2 className="text-7xl font-black text-white tracking-tighter uppercase mb-4 text-gold-glow">Selection Lobby</h2>
-           <p className="text-slate-600 text-[10px] font-bold tracking-[0.8em] uppercase">選擇喜愛的作品，進入動態歌詞實驗室</p>
+           <h2 className="text-7xl font-black text-white tracking-tighter uppercase mb-4 text-gold-glow">Database</h2>
+           <p className="text-slate-600 text-[10px] font-bold tracking-[0.8em] uppercase">Willwi Official Catalog</p>
       </div>
 
       <div className="flex flex-col md:flex-row gap-px mb-16 bg-white/5 p-px border border-white/10">
@@ -57,35 +56,58 @@ const Database: React.FC = () => {
         </select>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-1px bg-white/10 border border-white/10">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-1 bg-white/10 border border-white/10">
           {filteredSongs.map(song => (
-              <div key={song.id} className="group relative bg-black p-8 transition-all hover:bg-slate-900/50">
-                  <div className="flex flex-col gap-8 relative z-10">
-                      <div className="aspect-square w-full relative overflow-hidden bg-slate-900 grayscale group-hover:grayscale-0 transition-all duration-700">
-                          <img src={song.coverUrl} className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-110" alt="" />
-                          <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-all flex items-center justify-center">
-                               <button 
-                                onClick={() => setActivePreviewId(activePreviewId === song.id ? null : song.id)}
-                                className="w-14 h-14 bg-brand-gold text-black flex items-center justify-center shadow-2xl hover:scale-110 transition-all"
-                               >
-                                   {activePreviewId === song.id ? <div className="w-4 h-4 bg-black"></div> : <div className="w-0 h-0 border-t-6 border-t-transparent border-b-6 border-b-transparent border-l-10 border-l-black ml-1"></div>}
-                               </button>
-                          </div>
+              <div key={song.id} className="group relative bg-black p-8 transition-all hover:bg-slate-900/50 flex flex-col h-full">
+                  <div className="flex flex-col gap-6 relative z-10 flex-grow">
+                      {/* Cover Art */}
+                      <div className="aspect-square w-full relative overflow-hidden bg-slate-900 border border-white/5 shadow-lg group-hover:border-brand-gold/30 transition-all">
+                          <img src={song.coverUrl} className="w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all duration-700" alt="" />
                       </div>
                       
-                      <div className="flex flex-col">
+                      <div className="flex flex-col flex-grow">
                           <div className="flex justify-between items-start mb-2">
                                <span className="text-[9px] text-brand-gold font-black uppercase tracking-widest border border-brand-gold/30 px-2 py-0.5">{song.language}</span>
                                <span className="text-[9px] text-slate-600 font-mono">{song.releaseDate}</span>
                           </div>
-                          <h4 className="text-2xl font-black text-white uppercase truncate mb-6 group-hover:text-brand-gold transition-colors">{song.title}</h4>
+                          <h4 className="text-2xl font-black text-white uppercase truncate mb-6 group-hover:text-brand-gold transition-colors" title={song.title}>{song.title}</h4>
                           
-                          <div className="flex gap-px bg-white/10">
+                          {/* Player Always Visible */}
+                          {song.spotifyId ? (
+                              <div className="mb-6 rounded-lg overflow-hidden bg-black shadow-lg">
+                                  <iframe 
+                                    src={`https://open.spotify.com/embed/track/${song.spotifyId}?utm_source=generator&theme=0`} 
+                                    width="100%" height="80" frameBorder="0" allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture" loading="lazy"
+                                    className="bg-slate-800"
+                                  ></iframe>
+                              </div>
+                          ) : (
+                               <div className="mb-6 h-20 bg-slate-900/50 border border-white/5 flex items-center justify-center text-[9px] text-slate-600 uppercase tracking-widest">
+                                   Spotify Preview Unavailable
+                               </div>
+                          )}
+
+                          {/* External Links Buttons */}
+                          <div className="flex gap-2 mb-4">
+                              {song.youtubeUrl && (
+                                  <a href={song.youtubeUrl} target="_blank" rel="noopener noreferrer" className="flex-1 py-3 border border-red-900/50 text-red-500 hover:bg-red-600 hover:text-white hover:border-red-600 transition-all text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 rounded">
+                                      <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 24 24"><path d="M19.615 3.184c-3.604-.246-11.631-.245-15.23 0-3.897.266-4.356 2.62-4.385 8.816.029 6.185.484 8.549 4.385 8.816 3.6.245 11.626.246 15.23 0 3.897-.266 4.356-2.62 4.385-8.816-.029-6.185-.484-8.549-4.385-8.816zm-10.615 12.816v-8l8 3.993-8 4.007z"/></svg>
+                                      YouTube
+                                  </a>
+                              )}
+                              {song.smartLink && (
+                                  <a href={song.smartLink} target="_blank" rel="noopener noreferrer" className="flex-1 py-3 border border-blue-900/50 text-blue-400 hover:bg-blue-600 hover:text-white hover:border-blue-600 transition-all text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 rounded">
+                                      Link
+                                  </a>
+                              )}
+                          </div>
+
+                          <div className="flex gap-1 mt-auto pt-4 border-t border-white/10">
                               <button 
                                 onClick={() => handleStartSession(song.id)} 
-                                className="flex-grow bg-white text-black py-4 text-[10px] font-black uppercase tracking-[0.3em] hover:bg-brand-gold transition-all"
+                                className="flex-grow bg-white text-black py-4 text-[10px] font-black uppercase tracking-[0.2em] hover:bg-brand-gold transition-all"
                               >
-                                  Start Lab
+                                  Enter Lab
                               </button>
                               <button 
                                 onClick={() => navigate(`/song/${song.id}`)} 
@@ -96,16 +118,6 @@ const Database: React.FC = () => {
                           </div>
                       </div>
                   </div>
-
-                  {activePreviewId === song.id && song.spotifyId && (
-                      <div className="mt-8 animate-fade-in border-t border-white/10 pt-8">
-                          <iframe 
-                            src={`https://open.spotify.com/embed/track/${song.spotifyId}?utm_source=generator&theme=0`} 
-                            width="100%" height="80" frameBorder="0" allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture" loading="lazy"
-                            className="grayscale contrast-125"
-                          ></iframe>
-                      </div>
-                  )}
               </div>
           ))}
       </div>

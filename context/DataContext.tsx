@@ -16,7 +16,7 @@ const LOCAL_STORAGE_KEY = 'willwi_music_db_v3';
 export const ASSETS = {
     willwiPortrait: "https://drive.google.com/thumbnail?id=18rpLhJQKHKK5EeonFqutlOoKAI2Eq_Hd&sz=w2000",
     casperLogo: "logo.png",
-    defaultCover: "https://is1-ssl.mzstatic.com/image/thumb/Music116/v4/4a/53/16/4a531649-1662-8356-6548-aa1d334544d6/198004739563.png/600x600bb.jpg"
+    defaultCover: "https://images.unsplash.com/photo-1614613535308-eb5fbd3d2c17?q=80&w=1000&auto=format&fit=crop" // Dark abstract texture
 };
 
 export const INITIAL_DATA: Song[] = [
@@ -24,16 +24,19 @@ export const INITIAL_DATA: Song[] = [
     id: 'seed-001',
     title: '再愛一次 (Love Again)',
     versionLabel: 'Original',
-    coverUrl: ASSETS.defaultCover,
+    coverUrl: 'https://images.unsplash.com/photo-1493225255756-d9584f8606e9?q=80&w=1000&auto=format&fit=crop', // Black and white surfer/ocean vibe
     language: Language.Mandarin,
     projectType: ProjectType.Indie,
     releaseCategory: ReleaseCategory.Single,
     releaseCompany: 'Willwi Music',
     releaseDate: '2023-01-20',
     isEditorPick: true,
+    isInteractiveActive: true,
     isrc: 'QZNWQ2392729',
     upc: '198004739563',
+    spotifyId: '5g5X2x1T9bZqQ1v8K3k9J2',
     spotifyLink: 'https://open.spotify.com/track/5g5X2x1T9bZqQ1v8K3k9J2',
+    youtubeUrl: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
     description: 'A heartfelt ballad exploring the courage to love again after heartbreak. \n關於失戀後重新找回愛自己的勇氣。鋼琴與弦樂的交織，訴說著深夜裡的內心獨白。',
     lyrics: `[VERSE 1]
 窗外的雨還在下
@@ -53,13 +56,14 @@ export const INITIAL_DATA: Song[] = [
     id: 'seed-002',
     title: 'Neon Drift (霓虹漂流)',
     versionLabel: 'Synthwave Mix',
-    coverUrl: 'https://images.unsplash.com/photo-1574169208507-84376194878b?q=80&w=1000&auto=format&fit=crop',
+    coverUrl: 'https://images.unsplash.com/photo-1605721911519-3dfeb3be25e7?q=80&w=1000&auto=format&fit=crop', // Dark moody smoke/abstract
     language: Language.English,
     projectType: ProjectType.PaoMien,
     releaseCategory: ReleaseCategory.Single,
     releaseCompany: 'Neon Records',
     releaseDate: '2023-06-15',
     isEditorPick: false,
+    isInteractiveActive: true,
     description: 'A drive through the cyberpunk city at 3 AM. \n充滿未來感的合成器聲響，模擬深夜在霓虹城市漫遊的孤寂與自由。',
     lyrics: `[INTRO]
 (Instrumental Build up)
@@ -84,13 +88,14 @@ Fading out...`,
     id: 'seed-003',
     title: '沉默 (Silence)',
     versionLabel: 'Acoustic',
-    coverUrl: 'https://images.unsplash.com/photo-1493225255756-d9584f8606e9?q=80&w=1000&auto=format&fit=crop',
+    coverUrl: 'https://images.unsplash.com/photo-1506744038136-46273834b3fb?q=80&w=1000&auto=format&fit=crop', // BW Landscape
     language: Language.Mandarin,
     projectType: ProjectType.Indie,
     releaseCategory: ReleaseCategory.EP,
     releaseCompany: 'Willwi Music',
     releaseDate: '2023-11-20',
     isEditorPick: true,
+    isInteractiveActive: true,
     description: '有時候，不說話才是最大聲的控訴。\n一把吉他，一個聲音，最純粹的表達。',
     lyrics: `[VERSE]
 你說的我都懂
@@ -115,13 +120,14 @@ Fading out...`,
     id: 'seed-004',
     title: 'Golden Hour (黃金時刻)',
     versionLabel: 'Demo',
-    coverUrl: 'https://images.unsplash.com/photo-1500462918059-b1a0cb512f1d?q=80&w=1000&auto=format&fit=crop',
+    coverUrl: 'https://images.unsplash.com/photo-1634152962476-4b8a00e1915c?q=80&w=1000&auto=format&fit=crop', // Dark abstract gold/black texture (NOT the square)
     language: Language.Instrumental,
     projectType: ProjectType.Indie,
     releaseCategory: ReleaseCategory.Single,
     releaseCompany: 'Willwi Music',
     releaseDate: '2024-01-01',
     isEditorPick: false,
+    isInteractiveActive: false,
     description: '捕捉日落前最美的那一刻光影。',
     lyrics: `[INSTRUMENTAL TRACK]
 (No Lyrics)

@@ -15,15 +15,12 @@ const Home: React.FC = () => {
     <div className="min-h-screen relative flex flex-col items-center">
       {/* HERO SECTION */}
       <section className="relative w-full min-h-screen flex flex-col items-center justify-center px-6 md:px-20 overflow-hidden py-24">
-        {/* 背景亮度顯著提升，從 0.35 調整至 0.65 */}
+        {/* 背景無濾鏡，原始呈現 */}
         <div className="absolute inset-0 bg-cover bg-[position:right_center] md:bg-right"
-             style={{ backgroundImage: `url(${ASSETS.willwiPortrait})`, filter: 'brightness(0.65) contrast(1.1)' }}></div>
+             style={{ backgroundImage: `url(${ASSETS.willwiPortrait})` }}></div>
         
-        {/* 精準垂直漸層：僅保留底部微量沈澱 */}
-        <div className="absolute inset-0 bg-gradient-to-t from-slate-950/60 via-transparent to-transparent"></div>
-        
-        {/* 精準水平漸層：加強左側文字背後的對比，但快速消散至透明，不擋臉 */}
-        <div className="absolute inset-0 bg-gradient-to-r from-slate-950/80 via-slate-950/20 to-transparent"></div>
+        {/* 移除所有遮罩與漸層，僅保留極輕微的底部漸層以防文字完全無法閱讀，但幾乎透明 */}
+        <div className="absolute inset-0 bg-gradient-to-t from-slate-950/40 via-transparent to-transparent opacity-50"></div>
 
         <div className="relative z-10 max-w-7xl w-full text-left flex flex-col items-start animate-fade-in-up">
             <span className="text-brand-gold font-black text-[10px] uppercase tracking-[0.5em] mb-8 block border border-brand-gold/40 px-6 py-2 rounded-sm backdrop-blur-md bg-black/20">
@@ -39,7 +36,7 @@ const Home: React.FC = () => {
                 選擇作品 開始製作專屬您的動態歌詞影片
             </p>
 
-            {/* PAYMENT COLUMNS - 調整為低飽和半透明工業感，與明亮的背景形成層次 */}
+            {/* PAYMENT COLUMNS - 調整為低飽和半透明工業感 */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-px bg-white/10 border border-white/20 w-full max-w-5xl shadow-[0_40px_100px_rgba(0,0,0,0.5)] backdrop-blur-sm">
                 {/* COLUMN 1: INTERACTIVE */}
                 <div onClick={() => handleNavigateToMode('intro')} className="group relative bg-black/60 p-10 flex flex-col items-start hover:bg-slate-900/80 transition-all cursor-pointer overflow-hidden">
