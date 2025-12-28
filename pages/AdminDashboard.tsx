@@ -1,8 +1,8 @@
-import React, { useRef, useState, useEffect, useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useData } from '../context/DataContext';
 import { useUser } from '../context/UserContext';
-import { Song, Language } from '../types';
+import { Song } from '../types';
 
 const AdminDashboard: React.FC = () => {
   const { songs, updateSong, deleteSong } = useData();
@@ -12,11 +12,9 @@ const AdminDashboard: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'catalog' | 'curation'>('catalog');
   const [searchTerm, setSearchTerm] = useState('');
 
-  // Filtering Logic
   const filteredSongs = useMemo(() => {
       return songs.filter(s => 
-          s.title.toLowerCase().includes(searchTerm.toLowerCase()) || 
-          (s.isrc && s.isrc.includes(searchTerm))
+          s.title.toLowerCase().includes(searchTerm.toLowerCase())
       ).sort((a, b) => new Date(b.releaseDate).getTime() - new Date(a.releaseDate).getTime());
   }, [songs, searchTerm]);
 
@@ -53,7 +51,7 @@ const AdminDashboard: React.FC = () => {
       <div className="mb-6">
           <input 
               type="text" 
-              placeholder="Search Title or ISRC..." 
+              placeholder="搜尋歌名..." 
               className="w-full bg-slate-900 border border-white/5 px-6 py-4 text-white text-sm outline-none focus:border-brand-gold transition-all"
               value={searchTerm}
               onChange={e => setSearchTerm(e.target.value)}
@@ -76,19 +74,19 @@ const AdminDashboard: React.FC = () => {
                           <td className="p-4">
                               <div className="flex items-center gap-4">
                                   <img src={song.coverUrl} className="w-10 h-10 object-cover rounded border border-white/10" alt="" />
-                                  <div>
-                                      <div className="font-bold text-white text-sm">{song.title}</div>
-                                      <div className="text-[9px] text-slate-600 font-mono">{song.isrc || 'No ISRC'}</div>
-                                  </div>
+                                  <div className="font-bold text-white text-sm">{song.title}</div>
                               </div>
                           </td>
-                          <td className="p-4">
-                              <div className="text-xs text-slate-400 font-mono">{song.releaseDate}</div>
-                              <div className="text-[10px] text-slate-600 uppercase tracking-widest">{song.language}</div>
-                          </td>
+                          <td className="p-4 text-xs text-slate-400 font-mono">{song.releaseDate}</td>
                           <td className="p-4 text-center">
                               <button 
-                                onClick={() => updateSong(song.id, { isInteractiveActive: !song.isInteractiveActive })}
+                                onClick={() => {
+                                    if (!song.isInteractiveActive && activeCount >= 20 && activeTab === 'curation') {
+                                        alert("前台僅限顯示 20 首，請先關閉其他作品。");
+                                        return;
+                                    }
+                                    updateSong(song.id, { isInteractiveActive: !song.isInteractiveActive });
+                                }}
                                 className={`px-4 py-1 text-[9px] font-black uppercase tracking-widest rounded transition-all ${song.isInteractiveActive ? 'bg-emerald-500 text-black shadow-[0_0_10px_rgba(16,185,129,0.3)]' : 'bg-slate-800 text-slate-500'}`}
                               >
                                 {song.isInteractiveActive ? 'ON' : 'OFF'}

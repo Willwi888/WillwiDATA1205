@@ -21,7 +21,7 @@ const Home: React.FC = () => {
 
         <div className="relative z-10 max-w-6xl w-full text-center animate-fade-in-up">
             <span className="text-brand-gold font-black text-[10px] uppercase tracking-[0.5em] mb-6 block border border-brand-gold/30 px-4 py-2 inline-block mx-auto rounded-full backdrop-blur-md">
-                {t('common_verified')}
+                OFFICIAL VERIFIED
             </span>
             <h1 className="text-[12vw] md:text-[8rem] font-black tracking-tighter uppercase leading-none text-white mb-6 text-gold-glow">
               WILLWI STUDIO
@@ -37,12 +37,12 @@ const Home: React.FC = () => {
                 <div onClick={() => handleNavigateToMode('intro')} className="group relative bg-slate-900/60 backdrop-blur-md border border-white/10 p-8 flex flex-col items-center hover:bg-slate-900/90 hover:border-brand-gold transition-all cursor-pointer overflow-hidden transform hover:-translate-y-2 duration-300">
                     <div className="absolute top-0 left-0 w-full h-1 bg-brand-gold/50 group-hover:bg-brand-gold transition-all"></div>
                     <h3 className="text-brand-gold font-black text-sm uppercase tracking-[0.3em] mb-4">共鳴同步</h3>
-                    <p className="text-white text-[10px] uppercase tracking-widest mb-6 h-8">手工對時動態歌詞影片</p>
+                    <p className="text-white text-[10px] uppercase tracking-widest mb-6 h-8 text-center">手工對時動態歌詞影片</p>
                     <div className="text-3xl font-black text-white mb-6">NT$ 320</div>
                     <ul className="text-[9px] text-slate-400 space-y-2 mb-8 text-left w-full pl-4 border-l border-white/10">
                         <li>✦ 參與單曲製作體驗</li>
                         <li>✦ 個人化對時紀錄</li>
-                        <li>✦ 數位創作證明</li>
+                        <li>✦ 30天雲端下載連結</li>
                     </ul>
                     <button className="mt-auto px-8 py-3 bg-brand-gold text-slate-900 font-black text-[10px] uppercase tracking-[0.3em] w-full hover:bg-white transition-all">
                         ENTER STUDIO
@@ -50,10 +50,10 @@ const Home: React.FC = () => {
                 </div>
 
                 {/* COLUMN 2: CLOUD CINEMA */}
-                <div onClick={() => handleNavigateToMode('cloud-cinema')} className="group relative bg-gradient-to-b from-slate-900/80 to-black/80 backdrop-blur-md border border-brand-accent/30 p-8 flex flex-col items-center hover:border-brand-accent transition-all cursor-pointer overflow-hidden transform hover:-translate-y-2 duration-300 shadow-[0_0_30px_rgba(56,189,248,0.1)]">
+                <div onClick={() => handleNavigateToMode('intro')} className="group relative bg-gradient-to-b from-slate-900/80 to-black/80 backdrop-blur-md border border-brand-accent/30 p-8 flex flex-col items-center hover:border-brand-accent transition-all cursor-pointer overflow-hidden transform hover:-translate-y-2 duration-300 shadow-[0_0_30px_rgba(56,189,248,0.1)]">
                     <div className="absolute top-0 right-0 bg-brand-accent text-slate-900 text-[9px] font-bold px-3 py-1 uppercase tracking-widest">PREMIUM</div>
                     <h3 className="text-brand-accent font-black text-sm uppercase tracking-[0.3em] mb-4">雲端影院</h3>
-                    <p className="text-white text-[10px] uppercase tracking-widest mb-6 h-8">高畫質加歌手專屬簽名</p>
+                    <p className="text-white text-[10px] uppercase tracking-widest mb-6 h-8 text-center">高畫質加歌手專屬簽名</p>
                     <div className="text-3xl font-black text-white mb-6">NT$ 2,800</div>
                     <ul className="text-[9px] text-slate-400 space-y-2 mb-8 text-left w-full pl-4 border-l border-white/10">
                         <li>✦ 4K 高畫質重製</li>
@@ -66,9 +66,9 @@ const Home: React.FC = () => {
                 </div>
 
                 {/* COLUMN 3: PURE SUPPORT */}
-                <div onClick={() => handleNavigateToMode('pure-support')} className="group relative bg-slate-900/40 backdrop-blur-sm border border-white/10 p-8 flex flex-col items-center hover:bg-slate-900/80 hover:border-white transition-all cursor-pointer overflow-hidden transform hover:-translate-y-2 duration-300">
+                <div onClick={() => handleNavigateToMode('intro')} className="group relative bg-slate-900/40 backdrop-blur-sm border border-white/10 p-8 flex flex-col items-center hover:bg-slate-900/80 hover:border-white transition-all cursor-pointer overflow-hidden transform hover:-translate-y-2 duration-300">
                     <h3 className="text-white font-black text-sm uppercase tracking-[0.3em] mb-4">暖心支持</h3>
-                    <p className="text-slate-400 text-[10px] uppercase tracking-widest mb-6 h-8">純粹創作能量挹注</p>
+                    <p className="text-slate-400 text-[10px] uppercase tracking-widest mb-6 h-8 text-center">純粹創作能量挹注</p>
                     <div className="text-3xl font-black text-white mb-6">NT$ 100</div>
                     <ul className="text-[9px] text-slate-500 space-y-2 mb-8 text-left w-full pl-4 border-l border-white/5">
                         <li>✦ 贊助一份餐點</li>
