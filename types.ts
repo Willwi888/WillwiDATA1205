@@ -31,36 +31,40 @@ export interface Song {
   language: Language;
   projectType: ProjectType;
   releaseCategory?: ReleaseCategory;
-  releaseCompany?: string; // Label (錄音著作)
-  publisher?: string; // NEW: Publisher (詞曲版權/歌詞發行商)
+  releaseCompany?: string; 
+  publisher?: string; 
   releaseDate: string;
   isEditorPick: boolean;
-  
-  // Feature Flags
   isInteractiveActive?: boolean; 
-  
-  // Metadata
   isrc?: string;
   upc?: string;
   spotifyId?: string;
   musicBrainzId?: string;
-  
-  // External Links
   youtubeUrl?: string;
-  musixmatchUrl?: string; // For Lyrics Link
+  musixmatchUrl?: string; 
   youtubeMusicUrl?: string;
   spotifyLink?: string;
   appleMusicLink?: string;
-  smartLink?: string; // Public: HyperFollow or Linktree
-  distrokidManageUrl?: string; // Private: DistroKid Backend Link
-  
-  // Audio Source
+  smartLink?: string; 
+  distrokidManageUrl?: string; 
   audioUrl?: string;
-  
-  // Content
   lyrics?: string;
   description?: string;
   credits?: string;
+}
+
+export interface LyricConfig {
+    layout: 'lyrics' | 'subtitles' | 'cover';
+    format: 'social' | 'youtube';
+    alignVertical: 'top' | 'middle' | 'bottom';
+    alignHorizontal: 'left' | 'center' | 'right' | 'justify';
+    textCase: 'uppercase' | 'lowercase' | 'capitalize';
+    lyricStyle: 'none' | 'broken' | 'cutout' | 'layered';
+    effect: 'none' | 'glow';
+    motion: 'slide' | 'fade' | 'wipe' | 'static' | 'popup' | 'mask' | 'scaling' | 'fill' | 'bubbling';
+    motionTweaks: 'none' | 'floating';
+    syncMode: 'line' | 'word';
+    fontSize: 'small' | 'medium' | 'large';
 }
 
 export interface SongContextType {
