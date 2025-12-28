@@ -41,6 +41,9 @@ const Interactive: React.FC = () => {
   const [isAudioReady, setIsAudioReady] = useState(false);
   const [showPayment, setShowPayment] = useState(false);
   
+  // Audio CORS State (Fallback mechanism)
+  const [corsMode, setCorsMode] = useState<'anonymous' | undefined>('anonymous');
+  
   // Help Modal State
   const [showHelp, setShowHelp] = useState(false);
   
@@ -120,12 +123,25 @@ const Interactive: React.FC = () => {
 
   const handleSelectSong = (song: Song) => {
       setSelectedSong(song);
+      setCorsMode('anonymous'); // Reset CORS mode for new song
+      setIsAudioReady(false);
       setMode('gate');
+  };
+
+  const handleAudioError = () => {
+      console.warn("Audio Load Error encountered.");
+      if (corsMode === 'anonymous') {
+          console.warn("Attempting fallback to non-CORS mode (Recording audio might be disabled, but playback will work).");
+          setCorsMode(undefined); // Retry without CORS
+          // Audio element will reload due to prop change
+      } else {
+          setIsAudioReady(false);
+          alert("無法載入音檔。請檢查連結是否有效。");
+      }
   };
 
   const unlockStudio = () => {
       if (!selectedSong) return;
-      setIsAudioReady(false);
       // Parse lyrics
       const rawLines = (selectedSong.lyrics || "").split('\n').map(l => l.trim()).filter(l => l.length > 0);
       lyricsArrayRef.current = ["[ READY ]", ...rawLines, "END"];
@@ -144,12 +160,21 @@ const Interactive: React.FC = () => {
       setShowHelp(true);
   };
 
-  const toggleAudition = () => {
+  const toggleAudition = async () => {
       if (!isAuditioning) {
+          // Fix: Resume AudioContext if it exists and is suspended (e.g. from previous record attempt)
+          if (audioContextRef.current && audioContextRef.current.state === 'suspended') {
+              try { await audioContextRef.current.resume(); } catch(e) {}
+          }
+
           // Start Practice
           if (audioRef.current) {
               audioRef.current.currentTime = 0;
-              audioRef.current.play().catch(e => console.error("Play failed", e));
+              audioRef.current.volume = 1.0; 
+              audioRef.current.play().catch(e => {
+                  console.error("Play failed", e);
+                  alert("播放失敗。請點擊畫面任一處以啟用音訊權限，或檢查音檔連結是否有效。");
+              });
           }
           setLineIndex(0);
           smoothIndexRef.current = 0;
@@ -192,13 +217,6 @@ const Interactive: React.FC = () => {
           setIsAuditioning(false);
       }
 
-      // Initialize Audio Context for Recording
-      if (!audioContextRef.current) {
-          audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
-      }
-      const ctx = audioContextRef.current;
-      if (ctx.state === 'suspended') await ctx.resume();
-
       setMode('playing');
       setLineIndex(0);
       smoothIndexRef.current = 0;
@@ -207,24 +225,50 @@ const Interactive: React.FC = () => {
       setRecordedChunks([]);
       
       audioRef.current.currentTime = 0;
+      audioRef.current.volume = 1.0;
 
       try {
-          const canvasStream = (canvasRef.current as any).captureStream(30);
-          const dest = ctx.createMediaStreamDestination();
-          
-          if (!audioSourceRef.current) {
-              audioSourceRef.current = ctx.createMediaElementSource(audioRef.current);
-          }
-          audioSourceRef.current.connect(dest);
-          audioSourceRef.current.connect(ctx.destination); 
+          // --- AUDIO GRAPH SETUP ---
+          // Only attempt Web Audio capture if CORS mode is anonymous (secure).
+          // If we fell back to undefined (insecure), we skip capture to avoid silence/errors.
+          let audioTrack: MediaStreamTrack | null = null;
 
-          const combinedStream = new MediaStream([
-              ...canvasStream.getVideoTracks(),
-              ...dest.stream.getAudioTracks()
-          ]);
+          if (corsMode === 'anonymous') {
+              if (!audioContextRef.current) {
+                  audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
+              }
+              const ctx = audioContextRef.current;
+              if (ctx.state === 'suspended') await ctx.resume();
+
+              const dest = ctx.createMediaStreamDestination();
+              
+              if (!audioSourceRef.current) {
+                  audioSourceRef.current = ctx.createMediaElementSource(audioRef.current);
+              } else {
+                  // Clean up previous connections to avoid multi-routing issues
+                  try { audioSourceRef.current.disconnect(); } catch(e) {}
+              }
+              
+              // Connect for Recording
+              audioSourceRef.current.connect(dest);
+              // Connect for Hearing (Speakers)
+              audioSourceRef.current.connect(ctx.destination); 
+              
+              if (dest.stream.getAudioTracks().length > 0) {
+                  audioTrack = dest.stream.getAudioTracks()[0];
+              }
+          } else {
+              console.warn("Recording in Non-CORS mode. Audio will NOT be in the video file, but playback works.");
+          }
+
+          const canvasStream = (canvasRef.current as any).captureStream(30);
+          const tracks = [...canvasStream.getVideoTracks()];
+          if (audioTrack) tracks.push(audioTrack);
+
+          const combinedStream = new MediaStream(tracks);
 
           const mimeType = getSupportedMimeType();
-          const options = mimeType ? { mimeType, videoBitsPerSecond: 5000000 } : { videoBitsPerSecond: 5000000 }; // 5 Mbps High Quality
+          const options = mimeType ? { mimeType, videoBitsPerSecond: 5000000 } : { videoBitsPerSecond: 5000000 };
 
           const recorder = new MediaRecorder(combinedStream, options);
 
@@ -243,7 +287,8 @@ const Interactive: React.FC = () => {
           renderLoop();
       } catch (e) { 
           console.error(e); 
-          alert("Recording failed to initialize. Browser might restrict capture.");
+          alert("Recording init failed. Proceeding with video-only capture.");
+          // Fallback if audio graph fails
           setMode('setup');
       }
   };
@@ -899,10 +944,10 @@ const Interactive: React.FC = () => {
           <audio 
             ref={audioRef} 
             src={convertToDirectStream(selectedSong.audioUrl)} 
-            crossOrigin="anonymous" 
+            crossOrigin={corsMode} // Dynamic CORS mode
             className="hidden" 
             onCanPlayThrough={() => setIsAudioReady(true)}
-            onError={() => { console.error("Audio Load Error"); setIsAudioReady(false); }}
+            onError={handleAudioError} // Robust Error Handling
           />
       )}
     </div>
