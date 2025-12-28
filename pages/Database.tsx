@@ -60,9 +60,9 @@ const Database: React.FC = () => {
           {filteredSongs.map(song => (
               <div key={song.id} className="group relative bg-black p-8 transition-all hover:bg-slate-900/50 flex flex-col h-full">
                   <div className="flex flex-col gap-6 relative z-10 flex-grow">
-                      {/* Cover Art */}
+                      {/* Cover Art - UPDATED: Removed grayscale class */}
                       <div className="aspect-square w-full relative overflow-hidden bg-slate-900 border border-white/5 shadow-lg group-hover:border-brand-gold/30 transition-all">
-                          <img src={song.coverUrl} className="w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all duration-700" alt="" />
+                          <img src={song.coverUrl} className="w-full h-full object-cover transition-all duration-700 group-hover:scale-105" alt="" />
                       </div>
                       
                       <div className="flex flex-col flex-grow">

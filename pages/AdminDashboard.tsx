@@ -49,6 +49,17 @@ const AdminDashboard: React.FC = () => {
   // Import Options
   const [importStrategy, setImportStrategy] = useState<'merge' | 'overwrite'>('merge');
 
+  // Logic to detect duplicate ISRCs
+  const isrcCounts = useMemo(() => {
+      const counts: Record<string, number> = {};
+      songs.forEach(s => {
+          if(s.isrc && s.isrc.trim() !== '') {
+              counts[s.isrc] = (counts[s.isrc] || 0) + 1;
+          }
+      });
+      return counts;
+  }, [songs]);
+
   useEffect(() => {
       setQrImages({
           global_payment: localStorage.getItem('qr_global_payment') || '',
@@ -285,6 +296,7 @@ const AdminDashboard: React.FC = () => {
                               <th className="p-4 w-12 text-center"><input type="checkbox" onChange={handleSelectAll} checked={selectedIds.size > 0 && selectedIds.size === filteredSongs.length} /></th>
                               <th className="p-4 w-12">Play</th>
                               <th className="p-4 cursor-pointer" onClick={() => handleSort('title')}>作品資訊</th>
+                              <th className="p-4 text-left">ISRC</th>
                               <th className="p-4 text-center">Ext. Links</th>
                               <th className="p-4 hidden md:table-cell" onClick={() => handleSort('releaseDate')}>發行日期</th>
                               <th className="p-4 text-center">互動模式</th>
@@ -311,6 +323,16 @@ const AdminDashboard: React.FC = () => {
 
                                   <td className="p-4"><div className="flex items-center gap-4"><img src={song.coverUrl} className="w-10 h-10 object-cover rounded" alt="" /><div className="font-bold text-sm text-white">{song.title}</div></div></td>
                                   
+                                  {/* ISRC Column with Duplicate Warning */}
+                                  <td className="p-4">
+                                      <div className="flex items-center gap-2">
+                                          <span className="font-mono text-xs text-slate-300">{song.isrc || '--'}</span>
+                                          {song.isrc && isrcCounts[song.isrc] > 1 && (
+                                              <span className="text-red-500 animate-pulse text-xs" title="Duplicate ISRC detected">⚠️</span>
+                                          )}
+                                      </div>
+                                  </td>
+
                                   {/* External Links Column */}
                                   <td className="p-4 text-center" onClick={(e) => e.stopPropagation()}>
                                       <div className="flex gap-2 justify-center">

@@ -82,7 +82,6 @@ const Interactive: React.FC = () => {
       if (params.get('payment') === 'success') {
           setMode('select'); 
       }
-      // 如果從首頁或其他地方帶入 initialMode，可以處理，但現在預設就是 select
   }, [location.search]);
 
   useEffect(() => {
@@ -507,9 +506,8 @@ const Interactive: React.FC = () => {
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                       {songs.map(song => (
                           <div key={song.id} className="bg-slate-900 border border-white/5 overflow-hidden flex flex-col shadow-lg hover:shadow-brand-gold/10 transition-shadow duration-500">
-                              {/* Cover Art */}
+                              {/* Cover Art - UPDATED: Ensure full color (removed grayscale) */}
                               <div className="aspect-square relative group">
-                                  {/* UPDATE: Removed grayscale class here */}
                                   <img src={song.coverUrl} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" alt="" />
                                   <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent opacity-60"></div>
                                   
@@ -629,11 +627,13 @@ const Interactive: React.FC = () => {
 
               <div className="flex-1 flex flex-col bg-slate-950 relative">
                   <div 
-                    className="flex-1 flex items-center justify-center p-4 md:p-12 cursor-pointer bg-slate-900/50"
-                    onMouseDown={isAuditioning ? handleLineClick : undefined}
-                    onTouchStart={isAuditioning ? handleLineClick : undefined}
+                    className="flex-1 flex items-center justify-center p-4 md:p-12 bg-slate-900/50"
                   >
-                      <div className={`shadow-2xl border border-white/10 overflow-hidden transition-all duration-700 bg-black ${config.format === 'social' ? 'aspect-[9/16] h-full max-h-[70vh]' : 'aspect-video w-full max-w-5xl'}`}>
+                      <div 
+                        className={`shadow-2xl border border-white/10 overflow-hidden transition-all duration-700 bg-black cursor-pointer ${config.format === 'social' ? 'aspect-[9/16] h-full max-h-[70vh]' : 'aspect-video w-full max-w-5xl'}`}
+                        onMouseDown={isAuditioning ? handleLineClick : undefined}
+                        onTouchStart={isAuditioning ? handleLineClick : undefined}
+                      >
                           <canvas ref={canvasRef} width={1920} height={config.format === 'social' ? 3413 : 1080} className="w-full h-full object-cover" />
                       </div>
                   </div>
@@ -676,7 +676,7 @@ const Interactive: React.FC = () => {
                   <div className="w-4 h-4 bg-red-600 rounded-full animate-pulse shadow-[0_0_30px_red]"></div>
                   <span className="text-lg font-black uppercase tracking-[0.4em] text-white">REC • {currentTime.toFixed(1)}s</span>
               </div>
-              <div className="absolute inset-0 z-[200]" onMouseDown={handleLineClick} onTouchStart={handleLineClick} />
+              <div className="absolute inset-0 z-[200] cursor-pointer" onMouseDown={handleLineClick} onTouchStart={handleLineClick} />
               
               <div className="flex-1 flex items-center justify-center bg-black">
                   <div className={`${config.format === 'social' ? 'aspect-[9/16] h-full' : 'aspect-video w-full'}`}>
@@ -689,7 +689,7 @@ const Interactive: React.FC = () => {
                       <span className="text-[10px] text-brand-gold font-bold uppercase mb-2 animate-pulse tracking-[0.2em]">WAITING FOR INPUT...</span>
                       <span className="text-4xl font-black text-white uppercase truncate max-w-4xl tracking-tight opacity-50">{lyricsArrayRef.current[lineIndex]}</span>
                   </div>
-                  <button onClick={finishRecording} className="px-12 py-6 border border-red-900 text-red-600 text-xs font-black uppercase tracking-[0.4em] hover:bg-red-900 hover:text-white transition-all">Abort</button>
+                  <button onClick={finishRecording} className="px-12 py-6 border border-red-900 text-red-600 text-xs font-black uppercase tracking-[0.4em] hover:bg-red-900 hover:text-white transition-all pointer-events-auto">Abort</button>
               </div>
           </div>
       )}
