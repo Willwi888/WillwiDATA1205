@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useData } from '../context/DataContext';
@@ -8,26 +9,22 @@ import { useTranslation } from '../context/LanguageContext';
 import { useUser } from '../context/UserContext';
 import { GoogleGenAI, Type } from "@google/genai";
 
-// SMART LINK CONVERTER
+// ROBUST LINK CONVERTER
 const convertToDirectStream = (url: string) => {
     try {
         if (!url) return '';
-        // Google Drive
-        if (url.includes('drive.google.com') && url.includes('/file/d/')) {
-            const id = url.split('/file/d/')[1].split('/')[0];
-            return `https://docs.google.com/uc?export=download&id=${id}`;
-        }
+        const u = new URL(url);
+        
         // Dropbox
-        if (url.includes('dropbox.com')) {
-            let newUrl = url;
-            // Handle folder links - user shouldn't use them but if they do, we can't really convert well
-            // But for file links:
-            if (newUrl.includes('dl=0')) newUrl = newUrl.replace('dl=0', 'raw=1');
-            else if (newUrl.includes('dl=1')) newUrl = newUrl.replace('dl=1', 'raw=1');
-            else if (!newUrl.includes('raw=1')) {
-                 newUrl += (newUrl.includes('?') ? '&' : '?') + 'raw=1';
-            }
-            return newUrl;
+        if (u.hostname.includes('dropbox.com')) {
+            u.searchParams.set('raw', '1');
+            u.searchParams.delete('dl');
+            return u.toString();
+        }
+        // Google Drive
+        if (u.hostname.includes('drive.google.com') && u.pathname.includes('/file/d/')) {
+            const id = u.pathname.split('/file/d/')[1].split('/')[0];
+            return `https://docs.google.com/uc?export=download&id=${id}`;
         }
         return url;
     } catch (e) { return url; }
@@ -148,7 +145,8 @@ const AddSong: React.FC = () => {
     } else {
       let finalValue = value;
       if (name === 'audioUrl') {
-          finalValue = convertToDirectStream(value);
+          // Store raw input for editing, but we can verify it
+          finalValue = value; 
       }
       setFormData(prev => ({ ...prev, [name]: finalValue }));
     }
@@ -490,7 +488,7 @@ const AddSong: React.FC = () => {
       appleMusicLink: formData.appleMusicLink,
       smartLink: formData.smartLink,
       distrokidManageUrl: formData.distrokidManageUrl,
-      audioUrl: formData.audioUrl,
+      audioUrl: convertToDirectStream(formData.audioUrl || ''),
       lyrics: formData.lyrics,
       description: formData.description,
       credits: formData.credits,
@@ -736,7 +734,7 @@ const AddSong: React.FC = () => {
                  {formData.audioUrl && (
                     <div className="bg-black/50 p-2 border border-white/10 flex items-center gap-2">
                         <span className="text-[9px] text-brand-accent font-bold uppercase tracking-widest">Verify Source:</span>
-                        <audio controls src={formData.audioUrl} className="h-6 w-full max-w-[200px]" style={{borderRadius: 0}} />
+                        <audio controls src={convertToDirectStream(formData.audioUrl)} className="h-6 w-full max-w-[200px]" style={{borderRadius: 0}} />
                     </div>
                  )}
              </div>

@@ -6,22 +6,26 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { useTranslation } from '../context/LanguageContext';
 import PaymentModal from '../components/PaymentModal';
 
+// Robust Link Converter for Dropbox/Drive
 const convertToDirectStream = (url: string) => {
     try {
         if (!url) return '';
-        if (url.includes('drive.google.com') && url.includes('/file/d/')) {
-            const id = url.split('/file/d/')[1].split('/')[0];
+        const u = new URL(url);
+        
+        // Dropbox Logic
+        if (u.hostname.includes('dropbox.com')) {
+            // Force raw=1 for streaming, ensure dl param is removed to avoid conflicts
+            u.searchParams.set('raw', '1');
+            u.searchParams.delete('dl');
+            return u.toString();
+        }
+        
+        // Google Drive Logic
+        if (u.hostname.includes('drive.google.com') && u.pathname.includes('/file/d/')) {
+            const id = u.pathname.split('/file/d/')[1].split('/')[0];
             return `https://docs.google.com/uc?export=download&id=${id}`;
         }
-        if (url.includes('dropbox.com')) {
-            let newUrl = url;
-            if (newUrl.includes('dl=0')) newUrl = newUrl.replace('dl=0', 'raw=1');
-            else if (newUrl.includes('dl=1')) newUrl = newUrl.replace('dl=1', 'raw=1');
-            else if (!newUrl.includes('raw=1')) {
-                 newUrl += (newUrl.includes('?') ? '&' : '?') + 'raw=1';
-            }
-            return newUrl;
-        }
+        
         return url;
     } catch (e) { return url; }
 };
@@ -41,8 +45,10 @@ const Interactive: React.FC = () => {
   const [isAudioReady, setIsAudioReady] = useState(false);
   const [showPayment, setShowPayment] = useState(false);
   
-  // Audio CORS State (Fallback mechanism)
+  // Audio Source Management
+  const [audioSrc, setAudioSrc] = useState<string>('');
   const [corsMode, setCorsMode] = useState<'anonymous' | undefined>('anonymous');
+  const [loadingAudio, setLoadingAudio] = useState(false);
   
   // Help Modal State
   const [showHelp, setShowHelp] = useState(false);
@@ -63,6 +69,8 @@ const Interactive: React.FC = () => {
   });
 
   const [lineIndex, setLineIndex] = useState(0);
+  const lineIndexRef = useRef(0); 
+
   const [recordedChunks, setRecordedChunks] = useState<Blob[]>([]);
   
   // Audition State
@@ -99,8 +107,7 @@ const Interactive: React.FC = () => {
       if (location.state?.targetSongId) {
           const s = songs.find(x => x.id === location.state.targetSongId);
           if (s) {
-              setSelectedSong(s);
-              setMode('gate');
+              handleSelectSong(s);
           }
       } else if (location.state?.initialMode) {
           setMode(location.state.initialMode as InteractionMode);
@@ -121,22 +128,57 @@ const Interactive: React.FC = () => {
       return () => window.removeEventListener('keydown', handleKeyDown);
   }, [mode, isAuditioning]);
 
+  // Audio Pre-loading Logic
+  useEffect(() => {
+      if (!selectedSong?.audioUrl) return;
+      
+      setLoadingAudio(true);
+      setIsAudioReady(false);
+      const directUrl = convertToDirectStream(selectedSong.audioUrl);
+      
+      // Attempt to fetch as Blob first (Best for recording stability)
+      fetch(directUrl)
+          .then(res => {
+              if (!res.ok) throw new Error("Fetch failed");
+              return res.blob();
+          })
+          .then(blob => {
+              const blobUrl = URL.createObjectURL(blob);
+              setAudioSrc(blobUrl);
+              setCorsMode('anonymous'); // Safe for blobs
+              console.log("Audio loaded via Blob (Perfect Quality)");
+          })
+          .catch(err => {
+              console.warn("Blob load failed, falling back to stream.", err);
+              setAudioSrc(directUrl);
+              setCorsMode('anonymous'); // Try anonymous first
+          })
+          .finally(() => {
+              setLoadingAudio(false);
+          });
+
+      return () => {
+          if (audioSrc.startsWith('blob:')) URL.revokeObjectURL(audioSrc);
+      };
+  }, [selectedSong]);
+
   const handleSelectSong = (song: Song) => {
       setSelectedSong(song);
-      setCorsMode('anonymous'); // Reset CORS mode for new song
-      setIsAudioReady(false);
       setMode('gate');
   };
 
   const handleAudioError = () => {
-      console.warn("Audio Load Error encountered.");
-      if (corsMode === 'anonymous') {
+      console.warn("Audio Error encountered.");
+      if (corsMode === 'anonymous' && !audioSrc.startsWith('blob:')) {
           console.warn("Attempting fallback to non-CORS mode (Recording audio might be disabled, but playback will work).");
           setCorsMode(undefined); // Retry without CORS
-          // Audio element will reload due to prop change
+          // Force reload by slightly modifying src or just letting React handle the prop change
+          const currentSrc = audioSrc;
+          setAudioSrc('');
+          setTimeout(() => setAudioSrc(currentSrc), 100);
       } else {
           setIsAudioReady(false);
-          alert("無法載入音檔。請檢查連結是否有效。");
+          alert("無法載入音檔。請檢查連結有效性 (Dropbox/Drive)。");
       }
   };
 
@@ -155,6 +197,7 @@ const Interactive: React.FC = () => {
       }
       setMode('setup');
       setLineIndex(0);
+      lineIndexRef.current = 0;
       setIsAuditioning(false);
       // Auto-show help on first entry to Setup
       setShowHelp(true);
@@ -177,6 +220,7 @@ const Interactive: React.FC = () => {
               });
           }
           setLineIndex(0);
+          lineIndexRef.current = 0;
           smoothIndexRef.current = 0;
           setIsAuditioning(true);
       } else {
@@ -186,6 +230,7 @@ const Interactive: React.FC = () => {
               audioRef.current.currentTime = 0;
           }
           setLineIndex(0);
+          lineIndexRef.current = 0;
           smoothIndexRef.current = 0;
           setIsAuditioning(false);
       }
@@ -219,6 +264,7 @@ const Interactive: React.FC = () => {
 
       setMode('playing');
       setLineIndex(0);
+      lineIndexRef.current = 0;
       smoothIndexRef.current = 0;
       hitPulseRef.current = 0;
       exitAnimationRef.current = 1;
@@ -308,6 +354,7 @@ const Interactive: React.FC = () => {
       setLineIndex(prev => {
           if (prev < lyricsArrayRef.current.length - 1) {
               const next = prev + 1;
+              lineIndexRef.current = next; // Sync Ref for loop
               
               if (mode === 'playing' && lyricsArrayRef.current[next] === "END") {
                   const vanish = setInterval(() => {
@@ -343,8 +390,13 @@ const Interactive: React.FC = () => {
   const renderLoop = () => {
       draw();
       if (audioRef.current) {
-          setCurrentTime(audioRef.current.currentTime);
-          setDuration(audioRef.current.duration);
+          // Optional: Only update React state for UI timestamp if needed, 
+          // or throttle it to avoid React re-renders interfering with Canvas.
+          // For smoothness, we can skip updating React state every frame if we don't display ms precision in UI
+          if (Math.random() < 0.1) {
+             setCurrentTime(audioRef.current.currentTime);
+             setDuration(audioRef.current.duration);
+          }
           
           if (mode === 'playing' || mode === 'setup') {
               animationFrameRef.current = requestAnimationFrame(renderLoop);
@@ -352,13 +404,14 @@ const Interactive: React.FC = () => {
       }
   };
 
+  // Optimized Effect: Removed lineIndex from dependency to prevent loop restart on tap
   useEffect(() => {
       cancelAnimationFrame(animationFrameRef.current);
       if (mode === 'setup' || mode === 'playing') {
           renderLoop();
       }
       return () => cancelAnimationFrame(animationFrameRef.current);
-  }, [mode, config, selectedSong, lineIndex, isAuditioning]);
+  }, [mode, config, selectedSong, isAuditioning]);
 
   const draw = () => {
       const canvas = canvasRef.current;
@@ -369,17 +422,16 @@ const Interactive: React.FC = () => {
       const h = canvas.height;
       
       const isDynamic = mode === 'playing' || (mode === 'setup' && isAuditioning);
-      const targetIdx = isDynamic ? lineIndex : (lyricsArrayRef.current.length > 1 ? 1 : 0);
+      // USE REF for target index to avoid closure staleness without restarting loop
+      const targetIdx = isDynamic ? lineIndexRef.current : (lyricsArrayRef.current.length > 1 ? 1 : 0);
       
       // Physics for Motion
-      if (config.motion === 'slide') {
-          // Classic Scroll: Smooth interpolation
+      if (config.motion === 'static') {
+          smoothIndexRef.current = targetIdx;
+      } else if (config.motion === 'slide') {
           smoothIndexRef.current += (targetIdx - smoothIndexRef.current) * 0.12; 
-      } else if (config.motion === 'static') {
-          // Flash: Instant snap
-          smoothIndexRef.current = targetIdx; 
       } else {
-          // Cinema: Slower fade interpolation
+          // Standard ease for most effects
           smoothIndexRef.current += (targetIdx - smoothIndexRef.current) * 0.08;
       }
       
@@ -392,7 +444,7 @@ const Interactive: React.FC = () => {
       if (bgImageRef.current?.complete) {
           ctx.save();
           // Cinema Mode gets darker, blurrier background
-          const isCinema = config.motion === 'fade';
+          const isCinema = config.motion === 'fade' || config.motion === 'popup';
           
           ctx.globalAlpha = (isCinema ? 0.3 : 0.4) * exitAnimationRef.current;
           // Heavy blur for atmosphere
@@ -479,52 +531,114 @@ const Interactive: React.FC = () => {
           if (config.textCase === 'uppercase') text = text.toUpperCase();
           else if (config.textCase === 'lowercase') text = text.toLowerCase();
           
-          if (text === "[ READY ]" && isDynamic && lineIndex > 0) return;
+          if (text === "[ READY ]" && isDynamic && lineIndexRef.current > 0) return;
           if (text === "END") return;
 
           let relPos = i - smoothIndexRef.current; // Relative position from current line
           let dist = Math.abs(relPos);
           
           let y = centerOffset + (relPos * lineHeight);
+          if (config.motion !== 'slide') y = centerOffset; // Force center for non-scrolling modes
+
           let alpha = 0;
           let scale = 1;
           let blur = 0;
+          let offsetX = 0;
+          let offsetY = 0;
 
           const isLineActive = Math.round(smoothIndexRef.current) === i;
 
           // --- MOTION LOGIC ---
-          if (config.motion === 'slide') {
-              // SCROLL: Apple Music Style
-              // Active line is big and bright. Others fade out quickly.
-              if (dist < 4) {
-                  alpha = 1 - (dist * 0.35);
-                  scale = isLineActive ? 1.05 + hitPulseRef.current * 0.03 : 0.9;
-                  blur = isLineActive ? 0 : dist * 2; // Blur non-active lines
-              }
-          } else if (config.motion === 'fade') {
-              // CINEMA: Only one line at center, fades in/out
-              y = centerOffset; // Force center
-              if (dist < 0.5) {
-                  alpha = 1 - (dist * 2);
-                  scale = 1.0 + (1-dist)*0.1 + hitPulseRef.current * 0.05;
-                  blur = dist * 10;
-              } else {
-                  alpha = 0; // Hide others
-              }
-          } else if (config.motion === 'static') {
-              // FLASH: Instant, no interpolation effects
-              y = centerOffset;
-              if (i === targetIdx) {
-                  alpha = 1;
-                  scale = 1.05 + hitPulseRef.current * 0.1;
-              } else {
-                  alpha = 0;
-              }
+          switch (config.motion) {
+              case 'slide':
+                  if (dist < 4) {
+                      alpha = 1 - (dist * 0.35);
+                      scale = isLineActive ? 1.05 + hitPulseRef.current * 0.03 : 0.9;
+                      blur = isLineActive ? 0 : dist * 2;
+                  }
+                  break;
+              case 'fade':
+                  if (dist < 0.5) {
+                      alpha = 1 - (dist * 2);
+                      scale = 1.0 + (1-dist)*0.1 + hitPulseRef.current * 0.05;
+                      blur = dist * 10;
+                  }
+                  break;
+              case 'static':
+                  y = centerOffset;
+                  if (i === targetIdx) {
+                      alpha = 1;
+                      scale = 1.05 + hitPulseRef.current * 0.1;
+                  }
+                  break;
+              case 'wipe':
+                  // Active line is fully visible, but we use clip to transition?
+                  // Simplified Wipe: Highlight active, others fade out
+                  y = centerOffset;
+                  if (dist < 0.8) {
+                      alpha = 1 - dist;
+                      // Simulating wipe by position offset or alpha
+                      offsetX = dist * 20; 
+                  }
+                  break;
+              case 'popup':
+                  y = centerOffset;
+                  if (dist < 0.6) {
+                      alpha = 1 - (dist * 1.5);
+                      // Pop effect: starts small, grows to normal
+                      scale = Math.max(0, 1 - dist) * (1 + hitPulseRef.current * 0.1);
+                  }
+                  break;
+              case 'mask':
+                  y = centerOffset;
+                  if (dist < 0.5) {
+                      alpha = 1;
+                      // We will apply clip rect below
+                  }
+                  break;
+              case 'expand':
+                  y = centerOffset;
+                  if (dist < 0.5) {
+                      alpha = 1 - (dist * 2);
+                      // Expand letter spacing logic is applied below via property or fallback
+                  }
+                  break;
+              case 'fill':
+                  y = centerOffset;
+                  if (dist < 0.5) {
+                      alpha = 1 - (dist * 2);
+                  }
+                  break;
+              case 'bubbling':
+                  y = centerOffset;
+                  if (dist < 0.5) {
+                      alpha = 1 - (dist * 2);
+                      offsetY = Math.sin(Date.now() / 300 + i) * 15;
+                      scale = 1 + Math.sin(Date.now() / 200) * 0.05;
+                  }
+                  break;
+              default:
+                  if (dist < 4) alpha = 1 - (dist * 0.35); // Fallback to slide
+                  break;
           }
 
           if (alpha > 0.01) {
               ctx.save();
-              ctx.translate(lyricsX, y);
+              
+              // Apply specific Masking for 'mask' and 'wipe' types
+              if (config.motion === 'mask') {
+                  const revealH = 200 * (1 - dist);
+                  ctx.beginPath();
+                  ctx.rect(0, y - revealH/2, w, revealH); // Center reveal vertically
+                  ctx.clip();
+              } else if (config.motion === 'wipe') {
+                  const revealW = w * (1 - dist * 0.5); // Wipe from center
+                  ctx.beginPath();
+                  ctx.rect((w - revealW)/2, 0, revealW, h);
+                  ctx.clip();
+              }
+
+              ctx.translate(lyricsX + offsetX, y + offsetY);
               ctx.scale(scale, scale);
               ctx.globalAlpha = alpha * exitAnimationRef.current;
               
@@ -533,11 +647,26 @@ const Interactive: React.FC = () => {
               // Font Weight: Active is heavier
               ctx.font = `${isLineActive ? 900 : 600} ${baseFontSize}px Montserrat, "Noto Sans TC", sans-serif`;
               
+              // Handle Expand Spacing
+              if (config.motion === 'expand' && (ctx as any).letterSpacing !== undefined) {
+                  const spacing = Math.max(0, (1 - dist * 2) * 20); // 0 to 20px
+                  (ctx as any).letterSpacing = `${spacing}px`;
+              }
+
               // Color Logic
               if (isLineActive) {
-                  ctx.fillStyle = '#ffffff';
+                  if (config.motion === 'fill') {
+                      // Gradient Fill
+                      const gradient = ctx.createLinearGradient(0, -baseFontSize/2, 0, baseFontSize/2);
+                      gradient.addColorStop(0, '#fbbf24'); // Gold
+                      gradient.addColorStop(1, '#ffffff'); // White
+                      ctx.fillStyle = gradient;
+                  } else {
+                      ctx.fillStyle = '#ffffff';
+                  }
+                  
                   // Glow Effect for Active Line
-                  if (config.effect === 'glow') {
+                  if (config.effect === 'glow' || config.motion === 'popup') {
                       ctx.shadowColor = 'rgba(251, 191, 36, 0.6)'; // Brand Gold
                       ctx.shadowBlur = 30 + hitPulseRef.current * 30;
                   }
@@ -545,11 +674,6 @@ const Interactive: React.FC = () => {
                   ctx.fillStyle = 'rgba(255,255,255,0.4)'; // Dim inactive
                   ctx.shadowBlur = 0;
               }
-
-              // Text Stroke (Optional for better visibility)
-              // ctx.lineWidth = 2;
-              // ctx.strokeStyle = 'rgba(0,0,0,0.5)';
-              // ctx.strokeText(text, 0, 0);
 
               ctx.fillText(text, 0, 0);
               ctx.restore();
@@ -571,7 +695,7 @@ const Interactive: React.FC = () => {
           // Song Title
           ctx.fillStyle = '#fbbf24';
           ctx.font = '900 32px Montserrat';
-          if (config.motion === 'fade') ctx.font = '900 40px Montserrat'; // Bigger for cinema
+          if (config.motion === 'fade' || config.motion === 'popup') ctx.font = '900 40px Montserrat'; // Bigger for cinema
           
           ctx.shadowColor = 'rgba(0,0,0,0.8)';
           ctx.shadowBlur = 10;
@@ -780,9 +904,15 @@ const Interactive: React.FC = () => {
                           <div className="text-[9px] text-slate-500 font-bold uppercase tracking-widest mb-3 border-b border-white/10 pb-1">Visual Style</div>
                           <div className="grid grid-cols-1 gap-2">
                               {[
-                                  { id: 'slide', label: 'SCROLL', sub: '經典滾動' },
-                                  { id: 'fade', label: 'CINEMA', sub: '電影淡入' },
-                                  { id: 'static', label: 'FLASH', sub: '極簡切換' }
+                                  { id: 'slide', label: 'Slide', sub: 'Scroll' },
+                                  { id: 'fade', label: 'Fade', sub: 'Cinema' },
+                                  { id: 'static', label: 'Static', sub: 'Flash' },
+                                  { id: 'wipe', label: 'Wipe', sub: 'Reveal' },
+                                  { id: 'popup', label: 'Popup', sub: 'Bounce' },
+                                  { id: 'mask', label: 'Mask', sub: 'Rise' },
+                                  { id: 'expand', label: 'Expand', sub: 'Spacing' },
+                                  { id: 'fill', label: 'Fill', sub: 'Color' },
+                                  { id: 'bubbling', label: 'Bubbling', sub: 'Float' },
                               ].map((m) => (
                                   <button 
                                       key={m.id}
@@ -820,11 +950,11 @@ const Interactive: React.FC = () => {
                       <div className="text-center mb-2">
                           <p className="text-[9px] text-slate-500 uppercase tracking-widest animate-pulse">Ready to sync?</p>
                       </div>
-                      <button onClick={toggleAudition} className={`w-full py-4 border font-black uppercase text-[10px] tracking-[0.2em] transition-all rounded-sm ${isAuditioning ? 'bg-white text-black border-white' : 'border-white/20 text-white hover:bg-white/10'}`}>
-                          {isAuditioning ? 'STOP PREVIEW' : 'PRACTICE MODE (試玩)'}
+                      <button onClick={toggleAudition} disabled={!isAudioReady} className={`w-full py-4 border font-black uppercase text-[10px] tracking-[0.2em] transition-all rounded-sm ${isAuditioning ? 'bg-white text-black border-white' : 'border-white/20 text-white hover:bg-white/10'} disabled:opacity-50`}>
+                          {loadingAudio ? 'LOADING AUDIO...' : (isAuditioning ? 'STOP PREVIEW' : 'PRACTICE MODE (試玩)')}
                       </button>
-                      <button onClick={startRecording} className="w-full py-4 bg-brand-gold text-black font-black uppercase text-[10px] tracking-[0.2em] hover:bg-white transition-all shadow-[0_0_20px_rgba(251,191,36,0.4)] rounded-sm">
-                          {t('interactive_btn_start_record')}
+                      <button onClick={startRecording} disabled={!isAudioReady} className="w-full py-4 bg-brand-gold text-black font-black uppercase text-[10px] tracking-[0.2em] hover:bg-white transition-all shadow-[0_0_20px_rgba(251,191,36,0.4)] rounded-sm disabled:opacity-50 disabled:cursor-not-allowed">
+                          {loadingAudio ? 'DOWNLOADING ASSETS...' : t('interactive_btn_start_record')}
                       </button>
                   </div>
               </div>
@@ -943,11 +1073,11 @@ const Interactive: React.FC = () => {
       {selectedSong && (
           <audio 
             ref={audioRef} 
-            src={convertToDirectStream(selectedSong.audioUrl)} 
-            crossOrigin={corsMode} // Dynamic CORS mode
+            src={audioSrc} 
+            crossOrigin={corsMode} 
             className="hidden" 
             onCanPlayThrough={() => setIsAudioReady(true)}
-            onError={handleAudioError} // Robust Error Handling
+            onError={handleAudioError} 
           />
       )}
     </div>

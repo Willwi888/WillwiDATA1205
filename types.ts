@@ -61,7 +61,7 @@ export interface LyricConfig {
     textCase: 'uppercase' | 'lowercase' | 'capitalize';
     lyricStyle: 'none' | 'broken' | 'cutout' | 'layered';
     effect: 'none' | 'glow';
-    motion: 'slide' | 'fade' | 'wipe' | 'static' | 'popup' | 'mask' | 'scaling' | 'fill' | 'bubbling';
+    motion: 'slide' | 'fade' | 'wipe' | 'static' | 'popup' | 'mask' | 'expand' | 'fill' | 'bubbling';
     motionTweaks: 'none' | 'floating';
     syncMode: 'line' | 'word';
     fontSize: 'small' | 'medium' | 'large';
