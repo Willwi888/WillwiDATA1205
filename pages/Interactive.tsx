@@ -3,6 +3,7 @@ import { useData } from '../context/DataContext';
 import { Song, Language, LyricConfig } from '../types';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useTranslation } from '../context/LanguageContext';
+import PaymentModal from '../components/PaymentModal';
 
 const convertToDirectStream = (url: string) => {
     try {
@@ -24,7 +25,7 @@ const convertToDirectStream = (url: string) => {
     } catch (e) { return url; }
 };
 
-type InteractionMode = 'menu' | 'setup' | 'playing' | 'contact' | 'finished';
+type InteractionMode = 'intro' | 'select' | 'gate' | 'setup' | 'playing' | 'contact' | 'finished';
 
 const Interactive: React.FC = () => {
   const { songs } = useData();
@@ -32,10 +33,11 @@ const Interactive: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   
-  const [mode, setMode] = useState<InteractionMode>('menu');
+  const [mode, setMode] = useState<InteractionMode>('intro');
   const [selectedSong, setSelectedSong] = useState<Song | null>(null);
   const [contactInfo, setContactInfo] = useState({ name: '', phone: '' });
   const [isAudioReady, setIsAudioReady] = useState(false);
+  const [showPayment, setShowPayment] = useState(false);
   
   const [config, setConfig] = useState<LyricConfig>({
       layout: 'lyrics',
@@ -74,12 +76,17 @@ const Interactive: React.FC = () => {
   const audioContextRef = useRef<AudioContext | null>(null);
   const audioSourceRef = useRef<MediaElementAudioSourceNode | null>(null);
 
+  // Check for successful payment return
   useEffect(() => {
-    if (location.state?.targetSongId) {
-        const s = songs.find(x => x.id === location.state.targetSongId);
-        if (s) handleSelectSong(s);
-    }
-  }, [location.state, songs]);
+      const params = new URLSearchParams(location.search);
+      if (params.get('payment') === 'success') {
+          // If returning from payment, we might need to restore state.
+          // For simplicity in this demo, if paid, we let them select song again but bypass gate?
+          // Or ideally, we should have persisted the selected song ID.
+          // Let's assume user starts fresh but knows the code.
+          setMode('intro'); 
+      }
+  }, [location.search]);
 
   // Unified Keydown Handler for both Practice and Recording
   useEffect(() => {
@@ -97,16 +104,21 @@ const Interactive: React.FC = () => {
 
   const handleSelectSong = (song: Song) => {
       setSelectedSong(song);
+      setMode('gate'); // Go to payment gate after selection
+  };
+
+  const unlockStudio = () => {
+      if (!selectedSong) return;
       setIsAudioReady(false);
-      const rawLines = (song.lyrics || "").split('\n').map(l => l.trim()).filter(l => l.length > 0);
+      const rawLines = (selectedSong.lyrics || "").split('\n').map(l => l.trim()).filter(l => l.length > 0);
       
-      // Use REAL lyrics, but ensure there's a start and end marker
+      // Use REAL lyrics
       lyricsArrayRef.current = ["[ READY ]", ...rawLines, "END"];
       
-      if (song.coverUrl) {
+      if (selectedSong.coverUrl) {
           const img = new Image();
           img.crossOrigin = "anonymous";
-          img.src = convertToDirectStream(song.coverUrl);
+          img.src = convertToDirectStream(selectedSong.coverUrl);
           img.onload = () => { bgImageRef.current = img; };
       }
       setMode('setup');
@@ -181,9 +193,7 @@ const Interactive: React.FC = () => {
   const handleLineClick = (e?: any) => {
       if (e) { e.preventDefault(); e.stopPropagation(); }
       
-      // Interaction is allowed if Recording OR Auditioning
       const isInteractive = mode === 'playing' || (mode === 'setup' && isAuditioning);
-      
       if (!isInteractive || !audioRef.current) return;
 
       const now = Date.now();
@@ -196,7 +206,6 @@ const Interactive: React.FC = () => {
           if (prev < lyricsArrayRef.current.length - 1) {
               const next = prev + 1;
               
-              // Only trigger end sequence during RECORDING
               if (mode === 'playing' && lyricsArrayRef.current[next] === "END") {
                   const vanish = setInterval(() => {
                       exitAnimationRef.current -= 0.08;
@@ -207,7 +216,6 @@ const Interactive: React.FC = () => {
                   }, 40);
               }
               
-              // For Audition, just stop or loop
               if (mode === 'setup' && lyricsArrayRef.current[next] === "END") {
                   toggleAudition(); // Stop audition
                   return 0;
@@ -226,7 +234,6 @@ const Interactive: React.FC = () => {
       if (audioRef.current) audioRef.current.pause();
   };
 
-  // Shared Render Loop for both Setup (Preview/Audition) and Playing (Recording)
   const renderLoop = () => {
       draw();
       
@@ -245,13 +252,11 @@ const Interactive: React.FC = () => {
                   animationFrameRef.current = requestAnimationFrame(renderLoop);
               }
           } else if (mode === 'setup') {
-              // Always render in setup mode to show style changes instantly
               animationFrameRef.current = requestAnimationFrame(renderLoop);
           }
       }
   };
 
-  // Initialize loop when entering setup
   useEffect(() => {
       cancelAnimationFrame(animationFrameRef.current);
       if (mode === 'setup' || mode === 'playing') {
@@ -268,9 +273,6 @@ const Interactive: React.FC = () => {
       const w = canvas.width;
       const h = canvas.height;
       
-      // Determine which line to focus on
-      // If Recording or Auditioning: Use real lineIndex
-      // If Setup Static: Show Line 1 (Usually the first real lyric)
       const isDynamic = mode === 'playing' || (mode === 'setup' && isAuditioning);
       const targetIdx = isDynamic ? lineIndex : (lyricsArrayRef.current.length > 1 ? 1 : 0);
       
@@ -315,7 +317,6 @@ const Interactive: React.FC = () => {
           if (config.textCase === 'uppercase') text = text.toUpperCase();
           else if (config.textCase === 'lowercase') text = text.toLowerCase();
           
-          // Hide [ READY ] if we have moved past it in dynamic mode
           if (text === "[ READY ]" && isDynamic && lineIndex > 0) return;
           if (text === "END") return;
 
@@ -326,7 +327,6 @@ const Interactive: React.FC = () => {
           if (dist > 3.5) return; 
 
           ctx.save();
-          // Active state depends on smoothing for animation
           const isLineActive = isDynamic ? Math.round(smoothIndexRef.current) === i : i === targetIdx;
           
           let alpha = isLineActive ? 1 : Math.max(0, 0.5 - dist * 0.3);
@@ -358,7 +358,7 @@ const Interactive: React.FC = () => {
       if (config.format === 'youtube' && config.layout !== 'cover') {
           ctx.globalAlpha = 1.0 * exitAnimationRef.current;
           ctx.fillStyle = '#fbbf24'; ctx.font = '900 36px Montserrat'; ctx.textAlign = 'left';
-          ctx.fillText(selectedSong.title.toUpperCase(), 140, h - 160);
+          ctx.fillText(selectedSong!.title.toUpperCase(), 140, h - 160);
           ctx.fillStyle = '#ffffff33'; ctx.font = '700 20px Montserrat';
           ctx.fillText(`Prod. Willwi`, 140, h - 110);
       }
@@ -366,163 +366,206 @@ const Interactive: React.FC = () => {
 
   const toggleAudition = async () => {
       if (!audioRef.current) return;
-      
       if (isAuditioning) { 
-          // Stop Practice
           audioRef.current.pause(); 
           setIsAuditioning(false); 
-          setLineIndex(0); // Reset for clean start next time
+          setLineIndex(0); 
       } else { 
-          // Start Practice
           audioRef.current.currentTime = 0;
           setLineIndex(0);
           smoothIndexRef.current = 0;
           setIsAuditioning(true);
-          try {
-            await audioRef.current.play();
-          } catch(e) {
-              console.error("Audio Play Error:", e);
-              setIsAuditioning(false);
-          }
+          try { await audioRef.current.play(); } 
+          catch(e) { console.error("Audio Play Error:", e); setIsAuditioning(false); }
       }
   };
 
   return (
     <div className="bg-black min-h-screen text-slate-100 flex flex-col font-sans">
-      {mode === 'menu' && (
-          <div className="flex-1 flex flex-col items-center justify-center p-6 animate-fade-in py-20">
-              <h2 className="text-[5rem] md:text-[8rem] font-black uppercase tracking-tighter mb-4 text-gold-glow">Mastering</h2>
-              <p className="text-slate-700 text-[10px] tracking-[1em] uppercase mb-16 font-black">Lyric Rendering Engine v4.0</p>
-              
-              {/* OPERATION GUIDE INTEGRATION */}
-              <div className="max-w-7xl w-full mb-20">
-                  <div className="flex justify-between items-end mb-8 border-b border-brand-gold/20 pb-4">
-                      <h3 className="text-brand-gold text-[10px] font-black uppercase tracking-[0.6em]">{t('guide_section_subtitle')}</h3>
-                      <p className="text-slate-500 text-[9px] font-bold uppercase tracking-[0.3em] text-right hidden md:block">
-                          {t('guide_section_title')}
+      
+      {/* 1. INTRO & DISCLAIMER */}
+      {mode === 'intro' && (
+          <div className="flex-1 flex flex-col items-center justify-center p-6 animate-fade-in py-20 relative">
+              <div className="max-w-3xl w-full text-center space-y-12 relative z-10">
+                  <h2 className="text-[4rem] font-black uppercase tracking-tighter text-white mb-8">{t('hero_title')}</h2>
+                  <div className="border border-brand-gold/30 p-10 bg-brand-gold/5 relative">
+                      <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-black px-4 text-brand-gold text-xs font-black uppercase tracking-[0.2em] border border-brand-gold/30">
+                          {t('interactive_intro_title')}
+                      </div>
+                      <p className="text-sm md:text-base text-slate-300 leading-loose whitespace-pre-line tracking-wide">
+                          {t('interactive_intro_desc')}
                       </p>
                   </div>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                      <div className="bg-slate-900/30 border border-white/5 p-8 relative group hover:border-brand-gold/30 transition-all hover:bg-slate-900/50">
-                          <div className="text-4xl font-black text-slate-800 group-hover:text-gold-glow transition-all duration-500 mb-6 font-mono group-hover:scale-110 origin-left drop-shadow-[0_0_10px_rgba(251,191,36,0.3)]">01</div>
-                          <h4 className="text-white font-black uppercase tracking-[0.2em] mb-3 text-sm">{t('guide_step1_title')}</h4>
-                          <p className="text-[10px] text-slate-500 leading-relaxed uppercase tracking-widest whitespace-pre-line">{t('guide_step1_desc')}</p>
-                      </div>
-                      <div className="bg-slate-900/30 border border-white/5 p-8 relative group hover:border-brand-gold/30 transition-all hover:bg-slate-900/50">
-                          <div className="text-4xl font-black text-slate-800 group-hover:text-gold-glow transition-all duration-500 mb-6 font-mono group-hover:scale-110 origin-left drop-shadow-[0_0_10px_rgba(251,191,36,0.3)]">02</div>
-                          <h4 className="text-white font-black uppercase tracking-[0.2em] mb-3 text-sm">{t('guide_step2_title')}</h4>
-                          <p className="text-[10px] text-slate-500 leading-relaxed uppercase tracking-widest whitespace-pre-line">{t('guide_step2_desc')}</p>
-                      </div>
-                      <div className="bg-slate-900/30 border border-white/5 p-8 relative group hover:border-brand-gold/30 transition-all hover:bg-slate-900/50">
-                          <div className="text-4xl font-black text-slate-800 group-hover:text-gold-glow transition-all duration-500 mb-6 font-mono group-hover:scale-110 origin-left drop-shadow-[0_0_10px_rgba(251,191,36,0.3)]">03</div>
-                          <h4 className="text-white font-black uppercase tracking-[0.2em] mb-3 text-sm">{t('guide_step3_title')}</h4>
-                          <p className="text-[10px] text-slate-500 leading-relaxed uppercase tracking-widest whitespace-pre-line">{t('guide_step3_desc')}</p>
-                      </div>
-                  </div>
-              </div>
-
-              <div onClick={() => navigate('/database')} className="w-full max-w-2xl py-12 bg-slate-900/20 border border-white/10 hover:border-brand-gold cursor-pointer transition-all group relative overflow-hidden flex flex-col items-center justify-center">
-                  <h3 className="text-brand-gold font-black text-3xl uppercase tracking-[0.4em] mb-2 group-hover:scale-105 transition-transform relative z-10 group-hover:text-white">Select Track</h3>
-                  <p className="text-slate-600 text-[10px] uppercase tracking-widest text-center relative z-10 group-hover:text-brand-gold">前往作品大廳 載入創作素材</p>
-                  <div className="absolute inset-0 bg-brand-gold/10 translate-y-full group-hover:translate-y-0 transition-transform"></div>
+                  <button 
+                    onClick={() => setMode('select')} 
+                    className="group relative px-12 py-5 bg-white text-black font-black text-sm uppercase tracking-[0.3em] hover:bg-brand-gold transition-all duration-500 overflow-hidden"
+                  >
+                      <span className="relative z-10 group-hover:text-black transition-colors">{t('interactive_btn_participate')}</span>
+                  </button>
               </div>
           </div>
       )}
 
+      {/* 2. SELECT & EXPLORE (With Spotify Preview) */}
+      {mode === 'select' && (
+          <div className="flex-1 p-6 md:p-20 animate-fade-in">
+              <div className="max-w-7xl mx-auto">
+                  <div className="flex justify-between items-end mb-16 border-b border-white/10 pb-8">
+                      <div>
+                          <h2 className="text-5xl font-black uppercase tracking-tighter text-white mb-2">{t('interactive_select_title')}</h2>
+                          <p className="text-brand-gold text-xs font-bold uppercase tracking-[0.4em]">{t('interactive_select_subtitle')}</p>
+                      </div>
+                      <button onClick={() => setMode('intro')} className="text-slate-500 hover:text-white text-[10px] font-black uppercase tracking-widest">Back</button>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-12">
+                      {songs.map(song => (
+                          <div key={song.id} className="group relative bg-slate-900/50 border border-white/5 hover:border-brand-gold/50 transition-all duration-500">
+                              <div className="aspect-square overflow-hidden relative">
+                                  <img src={song.coverUrl} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110 grayscale group-hover:grayscale-0" alt="" />
+                                  <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-all flex flex-col items-center justify-center gap-4">
+                                      <button 
+                                        onClick={() => handleSelectSong(song)}
+                                        className="px-8 py-3 bg-brand-gold text-black font-black text-[10px] uppercase tracking-[0.2em] hover:scale-105 transition-transform shadow-[0_0_20px_rgba(251,191,36,0.4)]"
+                                      >
+                                          Select This Track
+                                      </button>
+                                  </div>
+                              </div>
+                              <div className="p-6">
+                                  <h3 className="text-xl font-black uppercase text-white mb-2 truncate">{song.title}</h3>
+                                  <p className="text-[10px] text-slate-500 uppercase tracking-widest mb-4">{song.releaseDate} • {song.language}</p>
+                                  {song.spotifyId && (
+                                      <div className="mt-4 border-t border-white/5 pt-4">
+                                          <iframe 
+                                            src={`https://open.spotify.com/embed/track/${song.spotifyId}?utm_source=generator&theme=0`} 
+                                            width="100%" height="80" frameBorder="0" allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture" loading="lazy"
+                                            className="opacity-70 hover:opacity-100 transition-opacity"
+                                          ></iframe>
+                                      </div>
+                                  )}
+                              </div>
+                          </div>
+                      ))}
+                  </div>
+              </div>
+          </div>
+      )}
+
+      {/* 3. GATE (Payment) */}
+      {mode === 'gate' && selectedSong && (
+          <div className="flex-1 flex flex-col items-center justify-center p-6 animate-fade-in bg-black">
+              <div className="bg-slate-900 border border-white/10 p-12 max-w-xl w-full text-center relative overflow-hidden">
+                  <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-brand-gold to-transparent"></div>
+                  <h3 className="text-2xl font-black uppercase tracking-[0.3em] text-white mb-8">{t('interactive_gate_ticket')}</h3>
+                  
+                  <div className="flex items-center justify-center gap-6 mb-10">
+                      <img src={selectedSong.coverUrl} className="w-24 h-24 object-cover border border-white/20 shadow-2xl" alt="" />
+                      <div className="text-left">
+                          <div className="text-[10px] text-slate-500 uppercase tracking-widest mb-1">Selected Track</div>
+                          <div className="text-xl font-black text-white uppercase">{selectedSong.title}</div>
+                      </div>
+                  </div>
+
+                  <div className="space-y-4 mb-10 border-t border-b border-white/5 py-8">
+                      <div className="flex justify-between items-center text-sm">
+                          <span className="text-slate-400 font-bold uppercase tracking-widest">Entry Fee</span>
+                          <span className="text-white font-mono">NT$ 320</span>
+                      </div>
+                      <p className="text-[10px] text-slate-600 leading-relaxed text-left">
+                          {t('interactive_gate_pay_note')}
+                      </p>
+                  </div>
+
+                  <button 
+                    onClick={() => setShowPayment(true)}
+                    className="w-full py-4 bg-white text-black font-black text-xs uppercase tracking-[0.3em] hover:bg-brand-gold transition-all"
+                  >
+                      {t('interactive_gate_pay_btn')}
+                  </button>
+                  <button onClick={() => setMode('select')} className="mt-6 text-[10px] text-slate-500 font-bold uppercase tracking-widest hover:text-white">Cancel</button>
+              </div>
+              <PaymentModal isOpen={showPayment} onClose={() => { setShowPayment(false); unlockStudio(); }} initialMode="production" />
+          </div>
+      )}
+
+      {/* 4. SETUP (The Lab) */}
       {mode === 'setup' && selectedSong && (
           <div className="flex-1 flex h-[calc(100vh-80px)] overflow-hidden">
-              <div className="w-96 bg-black border-r border-white/5 p-10 overflow-y-auto custom-scrollbar space-y-16">
+              <div className="w-80 bg-black border-r border-white/5 p-8 overflow-y-auto custom-scrollbar space-y-12">
                   <section>
-                      <h4 className="text-[11px] font-black text-slate-700 uppercase tracking-widest mb-10 border-b border-white/10 pb-4">Motion Architecture</h4>
-                      <div className="grid grid-cols-2 gap-px bg-white/10">
+                      <h4 className="text-[10px] font-black text-brand-gold uppercase tracking-widest mb-6 border-b border-white/10 pb-2">Visual Motion</h4>
+                      <div className="grid grid-cols-2 gap-2">
                           {['slide', 'fade', 'wipe', 'static', 'popup', 'mask', 'scaling', 'fill', 'bubbling'].map(m => (
-                              <button key={m} onClick={() => setConfig({...config, motion: m as any})} className={`py-6 text-[10px] font-black uppercase transition-all bg-black ${config.motion === m ? 'text-brand-gold' : 'text-slate-600 hover:text-white'}`}>
+                              <button key={m} onClick={() => setConfig({...config, motion: m as any})} className={`py-3 text-[9px] font-black uppercase transition-all border ${config.motion === m ? 'bg-white text-black border-white' : 'bg-transparent text-slate-500 border-white/10 hover:border-white/50 hover:text-white'}`}>
                                   {m}
                               </button>
                           ))}
                       </div>
                   </section>
                   <section>
-                      <h4 className="text-[11px] font-black text-slate-700 uppercase tracking-widest mb-10 border-b border-white/10 pb-4">Sync Configuration</h4>
-                      <div className="grid grid-cols-1 gap-px bg-white/10">
-                          <button className="py-5 text-[11px] font-black bg-white text-black uppercase tracking-widest">Line-by-Line</button>
-                          <button className="py-5 text-[11px] font-black bg-black text-slate-800 uppercase tracking-widest cursor-not-allowed">Word-by-Word</button>
+                      <h4 className="text-[10px] font-black text-brand-gold uppercase tracking-widest mb-6 border-b border-white/10 pb-2">Text Layout</h4>
+                      <div className="space-y-2">
+                          {['youtube', 'social'].map(f => (
+                              <button key={f} onClick={() => setConfig({...config, format: f as any})} className={`w-full py-3 text-[9px] font-black uppercase transition-all border flex justify-between px-4 ${config.format === f ? 'bg-white text-black border-white' : 'bg-transparent text-slate-500 border-white/10 hover:border-white/50'}`}>
+                                  <span>{f === 'youtube' ? 'Landscape (16:9)' : 'Portrait (9:16)'}</span>
+                                  <span>{f === 'youtube' ? '📺' : '📱'}</span>
+                              </button>
+                          ))}
                       </div>
                   </section>
               </div>
 
               <div className="flex-1 flex flex-col bg-slate-950 relative">
-                  <div className="absolute top-10 right-10 flex gap-px bg-white/10 p-px z-10">
-                      <button onClick={() => setConfig({...config, format: 'youtube'})} className={`px-10 py-3 text-[11px] font-black transition-all ${config.format === 'youtube' ? 'bg-white text-black shadow-2xl' : 'bg-black text-slate-600 hover:text-white'}`}>WIDE (16:9)</button>
-                      <button onClick={() => setConfig({...config, format: 'social'})} className={`px-10 py-3 text-[11px] font-black transition-all ${config.format === 'social' ? 'bg-white text-black shadow-2xl' : 'bg-black text-slate-600 hover:text-white'}`}>PORTRAIT (9:16)</button>
-                  </div>
-
+                  {/* Canvas Area */}
                   <div 
-                    className="flex-1 flex items-center justify-center p-20 cursor-pointer"
+                    className="flex-1 flex items-center justify-center p-12 cursor-pointer bg-slate-900/50"
                     onMouseDown={isAuditioning ? handleLineClick : undefined}
                     onTouchStart={isAuditioning ? handleLineClick : undefined}
                   >
-                      <div className={`shadow-2xl border border-white/10 overflow-hidden transition-all duration-700 bg-black ${config.format === 'social' ? 'aspect-[9/16] h-full' : 'aspect-video w-full max-w-6xl'}`}>
+                      <div className={`shadow-2xl border border-white/10 overflow-hidden transition-all duration-700 bg-black ${config.format === 'social' ? 'aspect-[9/16] h-full' : 'aspect-video w-full max-w-5xl'}`}>
                           <canvas ref={canvasRef} width={1920} height={config.format === 'social' ? 3413 : 1080} className="w-full h-full object-cover" />
                       </div>
                   </div>
 
-                  <div className="bg-black border-t border-white/10 p-12 flex items-center gap-16">
+                  {/* Bottom Controls */}
+                  <div className="bg-black border-t border-white/10 p-8 flex items-center gap-8">
                       <div className="flex flex-col items-center gap-2">
-                          <button onClick={toggleAudition} className={`w-20 h-20 flex items-center justify-center flex-shrink-0 hover:scale-110 transition-transform shadow-2xl ${isAuditioning ? 'bg-brand-gold text-black' : 'bg-white text-black'}`}>
-                              {isAuditioning ? <div className="w-5 h-5 bg-black"></div> : <div className="w-0 h-0 border-t-10 border-t-transparent border-b-10 border-b-transparent border-l-16 border-l-black ml-1"></div>}
+                          <button onClick={toggleAudition} className={`w-16 h-16 flex items-center justify-center flex-shrink-0 hover:scale-110 transition-transform shadow-lg rounded-full ${isAuditioning ? 'bg-brand-gold text-black' : 'bg-white text-black'}`}>
+                              {isAuditioning ? <div className="w-4 h-4 bg-black"></div> : <div className="w-0 h-0 border-t-8 border-t-transparent border-b-8 border-b-transparent border-l-[14px] border-l-black ml-1"></div>}
                           </button>
-                          <span className="text-[9px] font-bold uppercase tracking-widest text-slate-500">{isAuditioning ? 'STOP' : 'PRACTICE'}</span>
+                          <span className="text-[9px] font-bold uppercase tracking-widest text-slate-500">{isAuditioning ? 'STOP' : 'AUDITION'}</span>
                       </div>
                       
-                      <div className="flex-grow">
-                          <div className="flex justify-between text-[11px] text-slate-600 font-black uppercase mb-6 tracking-widest">
-                              <span className={`px-4 py-2 ${isAuditioning ? 'bg-brand-gold text-black animate-pulse' : 'bg-white/5'}`}>
-                                  {!isAudioReady ? 'LOADING...' : (isAuditioning ? 'PRACTICE MODE ACTIVE • TAP SCREEN' : 'SETUP MODE')}
+                      <div className="flex-grow border-l border-white/10 pl-8">
+                          <div className="flex justify-between text-[10px] text-slate-500 font-bold uppercase mb-4 tracking-widest">
+                              <span className={`${isAuditioning ? 'text-brand-gold animate-pulse' : ''}`}>
+                                  {isAuditioning ? 'PRACTICE MODE • TAP SPACEBAR TO SYNC' : 'SETUP MODE • PRESS PLAY TO PREVIEW'}
                               </span>
-                              <span className="text-brand-gold opacity-80">Waveform Engine Synthesis</span>
+                              <span>{selectedSong.title}</span>
                           </div>
-                          <div className="h-20 bg-white/[0.03] flex items-end gap-[4px] px-6 border border-white/5">
-                              {Array.from({ length: 220 }).map((_, i) => (
-                                  <div key={i} className={`w-full rounded-t-sm transition-all duration-300 ${ (i / 220) < (currentTime / duration) ? 'bg-brand-gold' : 'bg-slate-900' }`} 
-                                       style={{ height: `${(Math.sin(i * 0.12) * 25 + 50) * (0.7 + Math.random() * 0.6)}%`, opacity: (i / 220) < (currentTime / duration) ? 1 : 0.1 }}></div>
+                          {/* Waveform Viz */}
+                          <div className="h-12 bg-white/[0.02] flex items-end gap-[2px] border-b border-white/5">
+                              {Array.from({ length: 150 }).map((_, i) => (
+                                  <div key={i} className={`w-full transition-all duration-100 ${ (i / 150) < (currentTime / duration) ? 'bg-brand-gold' : 'bg-slate-800' }`} 
+                                       style={{ height: `${(Math.sin(i * 0.2) * 40 + 50) * (isAuditioning ? Math.random() : 0.2)}%`, opacity: (i / 150) < (currentTime / duration) ? 1 : 0.3 }}></div>
                               ))}
                           </div>
                       </div>
-                      <button onClick={startRecording} className="px-20 py-8 bg-brand-gold text-black font-black uppercase text-sm tracking-[0.6em] hover:bg-white transition-all transform hover:scale-105 shadow-2xl">Start Recording</button>
+                      <button onClick={startRecording} className="px-10 py-5 bg-brand-gold text-black font-black uppercase text-xs tracking-[0.2em] hover:bg-white transition-all transform hover:scale-105 shadow-xl ml-4">
+                          Start Record
+                      </button>
                   </div>
-              </div>
-
-              <div className="w-96 bg-black border-l border-white/5 p-10 overflow-y-auto custom-scrollbar space-y-16">
-                  <section>
-                      <h4 className="text-[11px] font-black text-slate-700 uppercase tracking-widest mb-10 border-b border-white/10 pb-4">Vertical Alignment</h4>
-                      <div className="grid grid-cols-3 gap-px bg-white/10">
-                          {['top', 'middle', 'bottom'].map(v => (
-                              <button key={v} onClick={() => setConfig({...config, alignVertical: v as any})} className={`py-6 text-2xl font-black transition-all bg-black ${config.alignVertical === v ? 'text-white' : 'text-slate-800 hover:text-white'}`}>
-                                  {v === 'top' ? '↑' : v === 'middle' ? '÷' : '↓'}
-                              </button>
-                          ))}
-                      </div>
-                  </section>
-                  <section>
-                      <h4 className="text-[11px] font-black text-slate-700 uppercase tracking-widest mb-10 border-b border-white/10 pb-4">Typography Style</h4>
-                      <div className="grid grid-cols-1 gap-px bg-white/10">
-                          {['none', 'cutout'].map(s => (
-                              <button key={s} onClick={() => setConfig({...config, lyricStyle: s as any})} className={`py-6 text-[10px] font-black uppercase transition-all bg-black ${config.lyricStyle === s ? 'text-brand-gold' : 'text-slate-700 hover:text-white'}`}>
-                                  {s === 'none' ? 'Solid Fill' : 'Cutout Line'}
-                              </button>
-                          ))}
-                      </div>
-                  </section>
               </div>
           </div>
       )}
 
+      {/* 5. RECORDING MODE (Fullscreen) */}
       {mode === 'playing' && (
           <div className="fixed inset-0 z-[110] bg-black flex flex-col animate-fade-in cursor-none">
-              <div className="absolute top-16 left-16 z-[300] flex items-center gap-8 pointer-events-none">
-                  <div className="w-6 h-6 bg-red-600 rounded-full animate-pulse shadow-[0_0_60px_red]"></div>
-                  <span className="text-xl font-black uppercase tracking-[0.6em] text-white">LIVE_CAP_v4 • {currentTime.toFixed(2)}S</span>
+              <div className="absolute top-10 left-10 z-[300] flex items-center gap-4 pointer-events-none">
+                  <div className="w-4 h-4 bg-red-600 rounded-full animate-pulse shadow-[0_0_30px_red]"></div>
+                  <span className="text-lg font-black uppercase tracking-[0.4em] text-white">REC • {currentTime.toFixed(1)}s</span>
               </div>
               <div className="absolute inset-0 z-[200]" onMouseDown={handleLineClick} onTouchStart={handleLineClick} />
               
@@ -532,43 +575,53 @@ const Interactive: React.FC = () => {
                   </div>
               </div>
 
-              <div className="bg-[#020202] p-24 flex justify-between items-center border-t border-white/10 relative z-[300]">
+              <div className="bg-[#020202] p-12 flex justify-between items-center border-t border-white/10 relative z-[300]">
                   <div className="flex flex-col">
-                      <span className="text-[11px] text-brand-gold font-black uppercase mb-6 animate-pulse tracking-[0.8em]">COMMAND: TAP SCREEN TO SYNCHRONIZE</span>
-                      <span className="text-7xl font-black text-white uppercase truncate max-w-7xl tracking-tighter">{lyricsArrayRef.current[lineIndex]}</span>
+                      <span className="text-[10px] text-brand-gold font-bold uppercase mb-2 animate-pulse tracking-[0.2em]">WAITING FOR INPUT...</span>
+                      <span className="text-4xl font-black text-white uppercase truncate max-w-4xl tracking-tight opacity-50">{lyricsArrayRef.current[lineIndex]}</span>
                   </div>
-                  <button onClick={finishRecording} className="px-24 py-10 border border-red-900 text-red-600 text-lg font-black uppercase tracking-[0.6em] hover:bg-red-900 hover:text-white transition-all shadow-2xl">Abort</button>
+                  <button onClick={finishRecording} className="px-12 py-6 border border-red-900 text-red-600 text-xs font-black uppercase tracking-[0.4em] hover:bg-red-900 hover:text-white transition-all">Abort</button>
               </div>
           </div>
       )}
 
+      {/* 6. CONTACT FORM */}
       {mode === 'contact' && (
           <div className="flex-1 flex flex-col items-center justify-center p-6 bg-black">
-              <h2 className="text-7xl font-black uppercase mb-16 tracking-tighter text-gold-glow">Mastering Complete</h2>
-              <form onSubmit={(e) => { e.preventDefault(); setMode('finished'); }} className="space-y-12 bg-slate-950 p-24 border border-white/10 shadow-2xl max-w-3xl w-full text-center">
-                  <div className="space-y-8 text-left">
-                      <label className="text-[11px] text-slate-700 font-black uppercase tracking-[0.6em]">Signed Director Name</label>
-                      <input type="text" required className="w-full bg-black border border-white/10 p-10 text-white text-3xl focus:border-brand-gold outline-none font-black uppercase tracking-widest text-center" value={contactInfo.name} onChange={e => setContactInfo({...contactInfo, name: e.target.value})} autoFocus />
+              <h2 className="text-5xl font-black uppercase mb-12 tracking-tighter text-white">Production Wrapped</h2>
+              <form onSubmit={(e) => { e.preventDefault(); setMode('finished'); }} className="space-y-8 bg-slate-900 p-16 border border-white/10 shadow-2xl max-w-2xl w-full">
+                  <div className="space-y-2">
+                      <label className="text-[10px] text-brand-gold font-bold uppercase tracking-[0.2em]">Director Name</label>
+                      <input type="text" required className="w-full bg-black border border-white/20 p-4 text-white text-xl focus:border-brand-gold outline-none font-bold uppercase tracking-widest" value={contactInfo.name} onChange={e => setContactInfo({...contactInfo, name: e.target.value})} autoFocus placeholder="YOUR NAME" />
                   </div>
-                  <button type="submit" className="w-full py-10 bg-white text-black font-black uppercase text-sm tracking-[0.6em] hover:bg-brand-gold transition-all shadow-2xl">Confirm Signature & Export</button>
+                  <div className="space-y-2">
+                      <label className="text-[10px] text-brand-gold font-bold uppercase tracking-[0.2em]">Contact Email</label>
+                      <input type="email" required className="w-full bg-black border border-white/20 p-4 text-white text-xl focus:border-brand-gold outline-none font-bold tracking-widest" value={contactInfo.phone} onChange={e => setContactInfo({...contactInfo, phone: e.target.value})} placeholder="EMAIL@ADDRESS.COM" />
+                  </div>
+                  <button type="submit" className="w-full py-5 bg-white text-black font-black uppercase text-xs tracking-[0.4em] hover:bg-brand-gold transition-all mt-8">Confirm & Export</button>
               </form>
           </div>
       )}
 
+      {/* 7. FINISHED */}
       {mode === 'finished' && (
           <div className="flex-1 flex flex-col items-center justify-center p-6 animate-fade-in bg-black">
-              <h2 className="text-[12rem] font-black uppercase mb-20 tracking-tighter text-gold-glow leading-none">SUCCESS</h2>
-              <div className="bg-slate-950 p-24 border border-white/10 shadow-2xl space-y-16 max-w-5xl w-full text-center">
+              <div className="relative">
+                  <div className="absolute inset-0 bg-brand-gold blur-[100px] opacity-20"></div>
+                  <h2 className="text-[8rem] font-black uppercase mb-10 tracking-tighter text-white leading-none relative z-10">SAVED</h2>
+              </div>
+              <div className="bg-slate-900 p-12 border border-white/10 shadow-2xl space-y-8 max-w-md w-full text-center relative z-10">
+                   <p className="text-[10px] text-slate-400 uppercase tracking-widest mb-8">Your unique video is ready.</p>
                    <button 
                     onClick={() => { 
                         if (recordedChunks.length === 0) return alert("System Packing...");
                         const b = new Blob(recordedChunks, { type: 'video/webm' }); 
                         const url = URL.createObjectURL(b); 
-                        const a = document.createElement('a'); a.href = url; a.download = `WILLWI_STUDIO_${selectedSong?.title}.webm`; a.click(); 
+                        const a = document.createElement('a'); a.href = url; a.download = `WILLWI_STUDIO_${selectedSong?.title}_${contactInfo.name}.webm`; a.click(); 
                     }} 
-                    className="w-full py-12 bg-white text-black font-black uppercase text-xl tracking-[0.8em] hover:bg-brand-gold transition-all shadow-[0_0_100px_rgba(255,255,255,0.15)]"
-                   >Save High-Res WebM</button>
-                   <button onClick={() => navigate('/')} className="w-full py-8 border border-white/5 text-slate-700 font-black uppercase text-[11px] tracking-[1em] hover:text-white transition-all">Exit Studio</button>
+                    className="w-full py-5 bg-brand-gold text-black font-black uppercase text-xs tracking-[0.4em] hover:bg-white transition-all shadow-lg"
+                   >Download Video</button>
+                   <button onClick={() => setMode('intro')} className="w-full py-4 border border-white/10 text-slate-500 font-bold uppercase text-[10px] tracking-[0.4em] hover:text-white hover:border-white transition-all">Back to Menu</button>
               </div>
           </div>
       )}

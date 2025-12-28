@@ -7,7 +7,7 @@ const TRANSLATIONS = {
     // Navigation
     nav_home: "Home",
     nav_interactive: "Interactive Lab", 
-    nav_catalog: "Music Library",
+    nav_catalog: "Catalog",
     nav_add: "Add",
     footer_rights: "Willwi Music. All rights reserved.",
     
@@ -49,14 +49,14 @@ const TRANSLATIONS = {
     guide_section_subtitle: "Workflow",
     guide_section_title: "How to Create",
     
-    guide_step1_title: "Select & Style",
-    guide_step1_desc: "Choose a track from the library.\nConfigure visual style and motion.",
+    guide_step1_title: "SELECT & EXPLORE",
+    guide_step1_desc: "Browse the catalog.\nChoose a song that belongs to you at this moment.",
     
-    guide_step2_title: "Hand-Sync Recording",
-    guide_step2_desc: "Tap to the rhythm to sync lyrics.\nYour performance controls the video.",
+    guide_step2_title: "HANDCRAFT SYNC",
+    guide_step2_desc: "Enter the Interactive Lab.\nSync lyrics with your own hands.",
     
-    guide_step3_title: "Get Your Video",
-    guide_step3_desc: "System generates the MP4 file.\nDownload your unique creation.",
+    guide_step3_title: "SUPPORT & KEEP",
+    guide_step3_desc: "Support creation & Keep the memory.\nReceive your unique video.",
 
     // Database / Other
     db_title: "Music Catalog",
@@ -146,17 +146,17 @@ const TRANSLATIONS = {
     interactive_admin_lab: "[ADMIN] Lab",
     interactive_back_menu: "← Back",
 
-    interactive_intro_method: "How to Participate",
-    interactive_intro_title: "Support & Create",
-    interactive_intro_desc: "This platform is for supporting Willwi's music.\n\nIn return, you get to use this tool to create\na personalized dynamic lyric video.",
-    interactive_btn_participate: "Start Creation (NT$ 320)",
+    interactive_intro_method: "Disclaimer",
+    interactive_intro_title: "Important Notice",
+    interactive_intro_desc: "The content provided on this platform does not involve the sale of songs, lyrics, or any digital goods, nor does it involve copyright licensing, transfer, or downloading.\n\nThe related fees are used to support the time and labor invested by the creator, including the manual lyric synchronization and the guided creative participation process.\n\nIf you only wish to listen to music, please visit major music streaming platforms.\nYour support allows the creator to continue investing time in crafting these experiences.",
+    interactive_btn_participate: "I Understand & Select Track",
 
     interactive_gate_ticket: "Access Ticket",
     interactive_gate_session: "Single Session",
     interactive_gate_fee: "Fee",
-    interactive_gate_pay_btn: "Pay Now",
-    interactive_gate_pay_note: "Proceed to payment to unlock.",
-    interactive_gate_ready: "Ready",
+    interactive_gate_pay_btn: "Support & Unlock",
+    interactive_gate_pay_note: "Payment confirms your support for the artist's labor.",
+    interactive_gate_ready: "Selected",
     interactive_gate_policy: "By paying, you support the artist.",
     interactive_gate_selected: "* Track Selected.",
     interactive_gate_enter_btn: "Enter Studio",
@@ -166,7 +166,8 @@ const TRANSLATIONS = {
     interactive_welcome_desc: "Thank you for your support.\nLet's create your video.",
     interactive_btn_select: "Select Track",
 
-    interactive_select_title: "Select Track",
+    interactive_select_title: "Selection",
+    interactive_select_subtitle: "Pick a song that resonates with you.",
     interactive_select_empty: "No tracks available.",
     interactive_select_start: "Start >",
 
@@ -273,17 +274,17 @@ const TRANSLATIONS = {
     home_btn_support: "投食",
 
     // Guide Section (UPDATED FOR INTERACTIVE FLOW)
-    guide_section_subtitle: "Operation Guide",
+    guide_section_subtitle: "Workflow",
     guide_section_title: "如何參與創作",
     
-    guide_step1_title: "選擇曲目與風格",
-    guide_step1_desc: "從精選作品中挑選\n配置您喜愛的視覺與對位樣式",
+    guide_step1_title: "SELECT & EXPLORE",
+    guide_step1_desc: "走進作品資料庫\n慢慢選一首此刻屬於你的歌",
     
-    guide_step2_title: "手工對時錄製",
-    guide_step2_desc: "隨節奏點擊螢幕推進歌詞\n親手完成每一句同步與情感對位",
+    guide_step2_title: "HANDCRAFT SYNC",
+    guide_step2_desc: "進入互動實驗室\n用雙手完成歌詞與音樂的對齊",
     
-    guide_step3_title: "獲取動態影片",
-    guide_step3_desc: "系統自動整合錄製成果與音訊\n產出專屬您的創作紀錄檔案",
+    guide_step3_title: "SUPPORT & KEEP",
+    guide_step3_desc: "支持創作並獲得\n留下你參與過的那一刻",
 
     // Database / Other
     db_title: "作品資料庫",
@@ -373,15 +374,15 @@ const TRANSLATIONS = {
     interactive_admin_lab: "[管理] 實驗室",
     interactive_back_menu: "← 回選單",
 
-    interactive_intro_method: "參與方式",
-    interactive_intro_title: "支持與創作",
-    interactive_intro_desc: "這是一個支持 Willwi 音樂的平台。\n\n作為回饋，您將獲得此創作工具的使用權限，\n親手製作一支專屬的動態歌詞影片。",
-    interactive_btn_participate: "開始製作 (NT$ 320)",
+    interactive_intro_method: "重要聲明",
+    interactive_intro_title: "本平台非販售商品",
+    interactive_intro_desc: "本平台所提供之內容\n並非購買歌曲、歌詞或任何數位商品\n亦不涉及著作權授權、轉讓或下載行為\n\n相關費用係用於支持創作者投入之人工時間\n包含手工歌詞對位與創作引導之參與過程\n\n如僅需聆聽音樂，請至各大音樂平台收聽\n這裡不是購買歌曲，而是邀請您支持創作",
+    interactive_btn_participate: "我了解 • 選擇曲目",
 
     interactive_gate_ticket: "通行證",
     interactive_gate_session: "單次製作",
     interactive_gate_fee: "費用",
-    interactive_gate_pay_btn: "前往付款",
+    interactive_gate_pay_btn: "支持並解鎖",
     interactive_gate_pay_note: "付款完成後，請輸入通行碼。",
     interactive_gate_ready: "準備就緒",
     interactive_gate_policy: "點擊付款，即表示您願意支持創作者。",
@@ -393,7 +394,8 @@ const TRANSLATIONS = {
     interactive_welcome_desc: "謝謝您的支持。\n現在，請開始製作您的影片。",
     interactive_btn_select: "選擇曲目",
 
-    interactive_select_title: "選擇曲目",
+    interactive_select_title: "曲目票選",
+    interactive_select_subtitle: "請選擇 1 首您最喜愛的歌曲，開始創作。",
     interactive_select_empty: "目前無可用曲目。",
     interactive_select_start: "開始製作 >",
 
