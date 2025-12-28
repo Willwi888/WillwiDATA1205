@@ -2,7 +2,13 @@ import React, { createContext, useContext, useState, useEffect, ReactNode, useCa
 import { Song, Language, ProjectType, ReleaseCategory, SongContextType } from '../types';
 import { dbService } from '../services/db';
 
-const DataContext = createContext<SongContextType | undefined>(undefined);
+interface ExtendedSongContextType extends SongContextType {
+    dbStatus: 'CONNECTING' | 'ONLINE' | 'OFFLINE' | 'ERROR';
+    lastSyncTime: Date | null;
+    storageUsage: number;
+}
+
+const DataContext = createContext<ExtendedSongContextType | undefined>(undefined);
 
 const LOCAL_STORAGE_KEY = 'willwi_music_db_v3';
 
@@ -129,10 +135,25 @@ Fading out...`,
 export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [songs, setSongs] = useState<Song[]>([]);
   const [isReady, setIsReady] = useState(false);
+  const [dbStatus, setDbStatus] = useState<'CONNECTING' | 'ONLINE' | 'OFFLINE' | 'ERROR'>('CONNECTING');
+  const [lastSyncTime, setLastSyncTime] = useState<Date | null>(null);
+  const [storageUsage, setStorageUsage] = useState(0);
 
   // Source of truth: IndexedDB -> State
   const loadData = useCallback(async () => {
+      // Health Check First
+      const health = await dbService.checkHealth();
+      if (health.status === 'error') {
+          console.warn("DB Health Check Failed:", health.message);
+          setDbStatus('ERROR');
+          // Fallback to static seeds only, or potentially localstorage if critical
+          setSongs(INITIAL_DATA);
+          setIsReady(true);
+          return;
+      }
+
       try {
+        setDbStatus('ONLINE');
         let loadedSongs = await dbService.getAllSongs();
         
         // 1. Migration from localstorage if DB is empty
@@ -145,10 +166,8 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         }
 
         // 2. Seed Injection Logic
-        // Ensure INITIAL_DATA exists in the DB (for new users OR existing users missing new seeds)
         const currentIds = new Set(loadedSongs.map(s => s.id));
         let hasNewSeeds = false;
-
         for (const seed of INITIAL_DATA) {
             if (!currentIds.has(seed.id)) {
                 await dbService.addSong(seed);
@@ -161,9 +180,17 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         loadedSongs.sort((a, b) => new Date(b.releaseDate).getTime() - new Date(a.releaseDate).getTime());
 
         setSongs(loadedSongs);
+        setLastSyncTime(new Date());
         setIsReady(true);
+
+        // Update Storage Estimate
+        dbService.getStorageEstimate().then(est => {
+            if (est) setStorageUsage(est.usage);
+        });
+
       } catch (error) {
         console.error("DB Load Error", error);
+        setDbStatus('ERROR');
         setSongs(INITIAL_DATA);
         setIsReady(true);
       }
@@ -175,20 +202,33 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   const addSong = async (song: Song) => {
     try {
+      if (dbStatus === 'ERROR') {
+          setSongs(prev => [song, ...prev]); // Memory only
+          return true;
+      }
       await dbService.addSong(song);
       setSongs(prev => [song, ...prev]);
+      setLastSyncTime(new Date());
       return true;
     } catch (error) { return false; }
   };
 
   const bulkAddSongs = async (newSongs: Song[]) => {
     try {
+        if (dbStatus === 'ERROR') {
+            setSongs(newSongs); // Memory only
+            return true;
+        }
         await dbService.bulkAdd(newSongs);
         // Combine and re-sort
         setSongs(prev => {
-            const updated = [...newSongs, ...prev];
-            return updated.sort((a, b) => new Date(b.releaseDate).getTime() - new Date(a.releaseDate).getTime());
+            // Merge logic: newSongs overwrite prev if IDs match, otherwise append
+            const map = new Map<string, Song>(prev.map(s => [s.id, s]));
+            newSongs.forEach(s => map.set(s.id, s));
+            const updated = Array.from(map.values());
+            return updated.sort((a: Song, b: Song) => new Date(b.releaseDate).getTime() - new Date(a.releaseDate).getTime());
         });
+        setLastSyncTime(new Date());
         return true;
     } catch (e) {
         console.error("Bulk Add Error", e);
@@ -201,7 +241,11 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       const existing = songs.find(s => s.id === id);
       if (!existing) return false;
       const newSong = { ...existing, ...updatedSong };
-      await dbService.updateSong(newSong);
+      
+      if (dbStatus !== 'ERROR') {
+          await dbService.updateSong(newSong);
+          setLastSyncTime(new Date());
+      }
       setSongs(prev => prev.map(s => s.id === id ? newSong : s));
       return true;
     } catch (error) { return false; }
@@ -209,7 +253,10 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   const deleteSong = async (id: string) => {
     try {
-      await dbService.deleteSong(id);
+      if (dbStatus !== 'ERROR') {
+          await dbService.deleteSong(id);
+          setLastSyncTime(new Date());
+      }
       setSongs(prev => prev.filter(s => s.id !== id));
     } catch (error) {}
   };
@@ -217,7 +264,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const getSong = (id: string) => songs.find(s => s.id === id);
 
   return (
-    <DataContext.Provider value={{ songs, addSong, updateSong, deleteSong, getSong, bulkAddSongs }}>
+    <DataContext.Provider value={{ songs, addSong, updateSong, deleteSong, getSong, bulkAddSongs, dbStatus, lastSyncTime, storageUsage }}>
       {children}
     </DataContext.Provider>
   );

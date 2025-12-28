@@ -12,7 +12,7 @@ interface WillwiDB extends DBSchema {
 const DB_NAME = 'willwi-music-db';
 const DB_VERSION = 1;
 
-let dbPromise: Promise<IDBPDatabase<WillwiDB>>;
+let dbPromise: Promise<IDBPDatabase<WillwiDB>> | null = null;
 
 export const initDB = () => {
   if (!dbPromise) {
@@ -23,22 +23,57 @@ export const initDB = () => {
           store.createIndex('by-date', 'releaseDate');
         }
       },
+      blocked() {
+        console.warn('DB blocked: Close other tabs with this site open.');
+      },
+      blocking() {
+        console.warn('DB blocking: Closing connection for upgrade.');
+        if (dbPromise) dbPromise.then(db => db.close());
+        dbPromise = null;
+      },
+      terminated() {
+        console.error('DB terminated abnormally.');
+        dbPromise = null;
+      },
     });
   }
   return dbPromise;
 };
 
 export const dbService = {
+  async checkHealth(): Promise<{ status: 'ok' | 'error', message?: string }> {
+      try {
+          if (!window.indexedDB) return { status: 'error', message: 'Browser not supported' };
+          await initDB();
+          return { status: 'ok' };
+      } catch (e: any) {
+          return { status: 'error', message: e.message || 'IndexedDB access denied' };
+      }
+  },
+
+  async getStorageEstimate(): Promise<{ usage: number, quota: number } | null> {
+      if (navigator.storage && navigator.storage.estimate) {
+          const estimate = await navigator.storage.estimate();
+          return { 
+              usage: estimate.usage || 0, 
+              quota: estimate.quota || 0 
+          };
+      }
+      return null;
+  },
+
   async getAllSongs(): Promise<Song[]> {
-    const db = await initDB();
-    // Sort by date descending (newest first) could be done here or in memory
-    // IndexedDB natural order is by key (id), we can use index if needed
-    return await db.getAll('songs');
+    try {
+        const db = await initDB();
+        return await db.getAll('songs');
+    } catch (e) { console.error("DB Read Error", e); return []; }
   },
 
   async getSong(id: string): Promise<Song | undefined> {
-    const db = await initDB();
-    return await db.get('songs', id);
+    try {
+        const db = await initDB();
+        return await db.get('songs', id);
+    } catch (e) { return undefined; }
   },
 
   async addSong(song: Song): Promise<void> {
@@ -59,7 +94,11 @@ export const dbService = {
   async bulkAdd(songs: Song[]): Promise<void> {
     const db = await initDB();
     const tx = db.transaction('songs', 'readwrite');
-    await Promise.all(songs.map(song => tx.store.put(song)));
+    // Using Promise.all inside a transaction can be tricky with some browsers,
+    // but idb library handles it well usually. Sequential putting is safer for bulk.
+    for (const song of songs) {
+        await tx.store.put(song);
+    }
     await tx.done;
   },
 

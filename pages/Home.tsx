@@ -89,43 +89,6 @@ const Home: React.FC = () => {
             </div>
         </div>
       </section>
-
-      {/* HOW TO OPERATE GUIDE */}
-      <section className="w-full max-w-7xl px-6 md:px-20 py-32 border-b border-white/10 relative z-10 bg-slate-950">
-        <div className="flex flex-col md:flex-row justify-between items-end mb-24 gap-8">
-            <div className="text-left">
-                <h3 className="text-brand-gold text-[10px] font-black uppercase tracking-[0.6em] mb-4">OPERATION GUIDE</h3>
-                <h2 className="text-5xl font-black text-white uppercase tracking-tighter">如何參與創作</h2>
-            </div>
-            <p className="text-slate-500 text-xs font-bold uppercase tracking-[0.3em] max-w-md text-left md:text-right">
-                我們建立了一個簡單的流程，讓您在支持音樂的同時，也能留下獨特的參與痕跡。
-            </p>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-px bg-white/5 border border-white/5 shadow-2xl">
-            <div className="flex flex-col items-start p-12 space-y-8 group relative bg-black hover:bg-slate-900 transition-all">
-                <div className="text-4xl font-black text-slate-800 group-hover:text-brand-gold transition-colors font-mono">01</div>
-                <div>
-                    <h4 className="text-white font-black uppercase tracking-[0.2em] mb-6 text-lg">選擇曲目與風格</h4>
-                    <p className="text-[11px] text-slate-500 leading-relaxed uppercase tracking-widest">從精選作品中挑選<br/>配置您喜愛的視覺與對位樣式</p>
-                </div>
-            </div>
-            <div className="flex flex-col items-start p-12 space-y-8 group relative bg-black hover:bg-slate-900 transition-all border-x border-white/5">
-                <div className="text-4xl font-black text-slate-800 group-hover:text-brand-gold transition-colors font-mono">02</div>
-                <div>
-                    <h4 className="text-white font-black uppercase tracking-[0.2em] mb-6 text-lg">手工對時錄製</h4>
-                    <p className="text-[11px] text-slate-500 leading-relaxed uppercase tracking-widest">隨節奏點擊螢幕推進歌詞<br/>親手完成每一句同步與情感對位</p>
-                </div>
-            </div>
-            <div className="flex flex-col items-start p-12 space-y-8 group relative bg-black hover:bg-slate-900 transition-all">
-                <div className="text-4xl font-black text-slate-800 group-hover:text-brand-gold transition-colors font-mono">03</div>
-                <div>
-                    <h4 className="text-white font-black uppercase tracking-[0.2em] mb-6 text-lg">獲取動態影片</h4>
-                    <p className="text-[11px] text-slate-500 leading-relaxed uppercase tracking-widest">系統自動整合錄製成果與音訊<br/>產出專屬您的創作紀錄檔案</p>
-                </div>
-            </div>
-        </div>
-      </section>
     </div>
   );
 };

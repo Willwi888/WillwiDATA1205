@@ -316,13 +316,41 @@ const Interactive: React.FC = () => {
   return (
     <div className="bg-black min-h-screen text-slate-100 flex flex-col font-sans">
       {mode === 'menu' && (
-          <div className="flex-1 flex flex-col items-center justify-center p-6 animate-fade-in">
-              <h2 className="text-[10rem] font-black uppercase tracking-tighter mb-4 text-gold-glow">Mastering</h2>
-              <p className="text-slate-700 text-[10px] tracking-[1em] uppercase mb-20 font-black">Lyric Rendering Engine v4.0</p>
-              <div onClick={() => navigate('/database')} className="p-32 bg-slate-900/20 border border-white/5 hover:border-brand-gold cursor-pointer transition-all group relative overflow-hidden">
-                  <h3 className="text-brand-gold font-black text-4xl uppercase tracking-[0.4em] mb-4 group-hover:scale-105 transition-transform relative z-10">Select Track</h3>
-                  <p className="text-slate-600 text-[10px] uppercase tracking-widest text-center relative z-10">前往作品大廳 載入創作素材</p>
-                  <div className="absolute inset-0 bg-brand-gold/5 translate-y-full group-hover:translate-y-0 transition-transform"></div>
+          <div className="flex-1 flex flex-col items-center justify-center p-6 animate-fade-in py-20">
+              <h2 className="text-[5rem] md:text-[8rem] font-black uppercase tracking-tighter mb-4 text-gold-glow">Mastering</h2>
+              <p className="text-slate-700 text-[10px] tracking-[1em] uppercase mb-16 font-black">Lyric Rendering Engine v4.0</p>
+              
+              {/* OPERATION GUIDE INTEGRATION */}
+              <div className="max-w-7xl w-full mb-20">
+                  <div className="flex justify-between items-end mb-8 border-b border-brand-gold/20 pb-4">
+                      <h3 className="text-brand-gold text-[10px] font-black uppercase tracking-[0.6em]">{t('guide_section_subtitle')}</h3>
+                      <p className="text-slate-500 text-[9px] font-bold uppercase tracking-[0.3em] text-right hidden md:block">
+                          {t('guide_section_title')}
+                      </p>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                      <div className="bg-slate-900/30 border border-white/5 p-8 relative group hover:border-brand-gold/30 transition-all hover:bg-slate-900/50">
+                          <div className="text-4xl font-black text-slate-800 group-hover:text-gold-glow transition-all duration-500 mb-6 font-mono group-hover:scale-110 origin-left drop-shadow-[0_0_10px_rgba(251,191,36,0.3)]">01</div>
+                          <h4 className="text-white font-black uppercase tracking-[0.2em] mb-3 text-sm">{t('guide_step1_title')}</h4>
+                          <p className="text-[10px] text-slate-500 leading-relaxed uppercase tracking-widest whitespace-pre-line">{t('guide_step1_desc')}</p>
+                      </div>
+                      <div className="bg-slate-900/30 border border-white/5 p-8 relative group hover:border-brand-gold/30 transition-all hover:bg-slate-900/50">
+                          <div className="text-4xl font-black text-slate-800 group-hover:text-gold-glow transition-all duration-500 mb-6 font-mono group-hover:scale-110 origin-left drop-shadow-[0_0_10px_rgba(251,191,36,0.3)]">02</div>
+                          <h4 className="text-white font-black uppercase tracking-[0.2em] mb-3 text-sm">{t('guide_step2_title')}</h4>
+                          <p className="text-[10px] text-slate-500 leading-relaxed uppercase tracking-widest whitespace-pre-line">{t('guide_step2_desc')}</p>
+                      </div>
+                      <div className="bg-slate-900/30 border border-white/5 p-8 relative group hover:border-brand-gold/30 transition-all hover:bg-slate-900/50">
+                          <div className="text-4xl font-black text-slate-800 group-hover:text-gold-glow transition-all duration-500 mb-6 font-mono group-hover:scale-110 origin-left drop-shadow-[0_0_10px_rgba(251,191,36,0.3)]">03</div>
+                          <h4 className="text-white font-black uppercase tracking-[0.2em] mb-3 text-sm">{t('guide_step3_title')}</h4>
+                          <p className="text-[10px] text-slate-500 leading-relaxed uppercase tracking-widest whitespace-pre-line">{t('guide_step3_desc')}</p>
+                      </div>
+                  </div>
+              </div>
+
+              <div onClick={() => navigate('/database')} className="w-full max-w-2xl py-12 bg-slate-900/20 border border-white/10 hover:border-brand-gold cursor-pointer transition-all group relative overflow-hidden flex flex-col items-center justify-center">
+                  <h3 className="text-brand-gold font-black text-3xl uppercase tracking-[0.4em] mb-2 group-hover:scale-105 transition-transform relative z-10 group-hover:text-white">Select Track</h3>
+                  <p className="text-slate-600 text-[10px] uppercase tracking-widest text-center relative z-10 group-hover:text-brand-gold">前往作品大廳 載入創作素材</p>
+                  <div className="absolute inset-0 bg-brand-gold/10 translate-y-full group-hover:translate-y-0 transition-transform"></div>
               </div>
           </div>
       )}

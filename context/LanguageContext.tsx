@@ -45,18 +45,18 @@ const TRANSLATIONS = {
     home_col_support_li3: "✦ Direct Contribution",
     home_btn_support: "FEED",
 
-    // Guide Section
-    guide_section_subtitle: "User Guide",
-    guide_section_title: "How to Participate",
+    // Guide Section (UPDATED FOR INTERACTIVE FLOW)
+    guide_section_subtitle: "Operation Guide",
+    guide_section_title: "How to Create",
     
-    guide_step1_title: "SELECT OPTION",
-    guide_step1_desc: "Choose your support method above\n(Interactive, Premium, or Music Sustenance)",
+    guide_step1_title: "SELECT TRACK & STYLE",
+    guide_step1_desc: "Choose from the curated catalog.\nConfigure your visual and sync style.",
     
-    guide_step2_title: "PROCESS PAYMENT",
-    guide_step2_desc: "Secure payment via Bank/Line\nEnter process immediately after completion",
+    guide_step2_title: "HAND-SYNC RECORDING",
+    guide_step2_desc: "Tap screen to advance lyrics with rhythm.\nManually craft every sync and emotion.",
     
-    guide_step3_title: "EXPERIENCE & KEEP",
-    guide_step3_desc: "Experience the process or get the result\nLeave your connection with Willwi",
+    guide_step3_title: "GET MOTION VIDEO",
+    guide_step3_desc: "System integrates your performance.\nGenerate your exclusive creative record.",
 
     // Database / Other
     db_title: "Music Catalog",
@@ -272,18 +272,18 @@ const TRANSLATIONS = {
     home_col_support_li3: "✦ 直接挹注貢獻",
     home_btn_support: "投食",
 
-    // Guide Section
-    guide_section_subtitle: "操作指南",
-    guide_section_title: "參與方式說明",
+    // Guide Section (UPDATED FOR INTERACTIVE FLOW)
+    guide_section_subtitle: "Operation Guide",
+    guide_section_title: "如何參與創作",
     
-    guide_step1_title: "選擇方式",
-    guide_step1_desc: "從上方選擇您的支持方式\n(互動體驗、高畫質收藏或音樂食糧)",
+    guide_step1_title: "選擇曲目與風格",
+    guide_step1_desc: "從精選作品中挑選\n配置您喜愛的視覺與對位樣式",
     
-    guide_step2_title: "安全付款",
-    guide_step2_desc: "透過銀行匯款 / LINE 官方\n完成後直接進入對應流程",
+    guide_step2_title: "手工對時錄製",
+    guide_step2_desc: "隨節奏點擊螢幕推進歌詞\n親手完成每一句同步與情感對位",
     
-    guide_step3_title: "體驗與收藏",
-    guide_step3_desc: "體驗創作過程或獲得成品\n留下您與 Willwi 的連結",
+    guide_step3_title: "獲取動態影片",
+    guide_step3_desc: "系統自動整合錄製成果與音訊\n產出專屬您的創作紀錄檔案",
 
     // Database / Other
     db_title: "作品資料庫",
