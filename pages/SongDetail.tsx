@@ -435,7 +435,7 @@ const SongDetail: React.FC = () => {
                                             <div className="w-8 h-8 rounded-full bg-brand-gold flex items-center justify-center text-black shadow-[0_0_15px_rgba(251,191,36,0.5)]"><svg className="w-4 h-4 ml-0.5" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 14H9V8h2v8zm4 0h-2V8h2v8z" /></svg></div>
                                             <span className="text-[10px] font-black uppercase tracking-[0.2em]">{t('detail_btn_immersive')}</span>
                                         </button>
-                                        {song.smartLink && <a href={song.smartLink} target="_blank" rel="noopener noreferrer" className="group flex items-center gap-3 px-6 py-3 bg-white text-black font-black uppercase tracking-[0.2em] text-[10px] transition-all rounded-full hover:scale-105 shadow-[0_0_20px_rgba(255,255,255,0.4)]"><span>{t('detail_btn_smartlink')}</span><svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" /></svg></a>}
+                                        {/* Smart Link Removed from frontend as per request (used for internal audition) */}
                                     </div>
                                     <div className="mt-6 flex flex-col gap-4 max-w-sm">
                                         {isAdmin ? (

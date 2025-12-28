@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useState, ReactNode } from 'react';
 
 type Lang = 'en' | 'zh';
@@ -148,7 +149,8 @@ const TRANSLATIONS = {
 
     interactive_intro_method: "Disclaimer",
     interactive_intro_title: "Important Notice",
-    interactive_intro_desc: "The content provided on this platform does not involve the sale of songs, lyrics, or any digital goods, nor does it involve copyright licensing, transfer, or downloading.\n\nThe related fees are used to support the time and labor invested by the creator, including the manual lyric synchronization and the guided creative participation process.\n\nIf you only wish to listen to music, please visit major music streaming platforms.\nYour support allows the creator to continue investing time in crafting these experiences.",
+    // ENGLISH PLACEHOLDER - Chinese is main target
+    interactive_intro_desc: "The content provided on this platform does not involve the sale of songs, lyrics, or any digital goods, nor does it involve copyright licensing, transfer, or downloading.\n\nThe related fees are used to support the time and labor invested by the creator, including the manual lyric synchronization and the guided creative participation process.\n\nIf you only wish to listen to music, please visit major music streaming platforms.\nHere, it is not about purchasing songs, but inviting you to support creation.",
     interactive_btn_participate: "I Understand & Select Track",
 
     interactive_gate_ticket: "Access Ticket",
@@ -191,9 +193,9 @@ const TRANSLATIONS = {
     interactive_recording_turn_landscape: "Landscape",
 
     interactive_finished_title: "Creation Complete",
-    interactive_finished_subtitle: "Success",
+    interactive_finished_subtitle: "Thank You",
     interactive_finished_warning: "⚠️ Download your video now.",
-    interactive_finished_desc: "Here is your dynamic lyric video.",
+    interactive_finished_desc: "Every beginning is trust;\nEvery ending is gratitude.\nThank you for giving this song new life.",
     interactive_input_name: "Your Name (For Certificate)",
     interactive_btn_save_video: "Download Video",
     interactive_btn_get_cert: "Get Certificate",
@@ -273,7 +275,7 @@ const TRANSLATIONS = {
     home_col_support_li3: "✦ 直接挹注貢獻",
     home_btn_support: "投食",
 
-    // Guide Section (UPDATED FOR INTERACTIVE FLOW)
+    // Guide Section
     guide_section_subtitle: "Workflow",
     guide_section_title: "如何參與創作",
     
@@ -374,8 +376,8 @@ const TRANSLATIONS = {
     interactive_admin_lab: "[管理] 實驗室",
     interactive_back_menu: "← 回選單",
 
-    interactive_intro_method: "重要聲明",
-    interactive_intro_title: "本平台非販售商品",
+    interactive_intro_method: "本平台重要聲明",
+    interactive_intro_title: "支持創作 非購買商品",
     interactive_intro_desc: "本平台所提供之內容\n並非購買歌曲、歌詞或任何數位商品\n亦不涉及著作權授權、轉讓或下載行為\n\n相關費用係用於支持創作者投入之人工時間\n包含手工歌詞對位與創作引導之參與過程\n\n如僅需聆聽音樂，請至各大音樂平台收聽\n這裡不是購買歌曲，而是邀請您支持創作",
     interactive_btn_participate: "我了解 • 選擇曲目",
 
@@ -419,9 +421,9 @@ const TRANSLATIONS = {
     interactive_recording_turn_landscape: "請轉橫屏",
 
     interactive_finished_title: "製作完成",
-    interactive_finished_subtitle: "成功",
+    interactive_finished_subtitle: "謝謝您",
     interactive_finished_warning: "⚠️ 請立即下載您的影片。",
-    interactive_finished_desc: "這是專屬於您的動態歌詞影片。",
+    interactive_finished_desc: "每一次的開始，都是信任；\n每一次的結束，都是感謝。\n謝謝您讓這首歌有了新的生命。\n願 Willwi 的創作能繼續陪伴您。",
     interactive_input_name: "輸入您的名字 (製作證書用)",
     interactive_btn_save_video: "下載影片 (MP4)",
     interactive_btn_get_cert: "領取證書",

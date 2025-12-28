@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useData } from '../context/DataContext';
@@ -93,11 +94,6 @@ const Database: React.FC = () => {
                                   <a href={song.youtubeUrl} target="_blank" rel="noopener noreferrer" className="flex-1 py-3 border border-red-900/50 text-red-500 hover:bg-red-600 hover:text-white hover:border-red-600 transition-all text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 rounded">
                                       <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 24 24"><path d="M19.615 3.184c-3.604-.246-11.631-.245-15.23 0-3.897.266-4.356 2.62-4.385 8.816.029 6.185.484 8.549 4.385 8.816 3.6.245 11.626.246 15.23 0 3.897-.266 4.356-2.62 4.385-8.816-.029-6.185-.484-8.549-4.385-8.816zm-10.615 12.816v-8l8 3.993-8 4.007z"/></svg>
                                       YouTube
-                                  </a>
-                              )}
-                              {song.smartLink && (
-                                  <a href={song.smartLink} target="_blank" rel="noopener noreferrer" className="flex-1 py-3 border border-blue-900/50 text-blue-400 hover:bg-blue-600 hover:text-white hover:border-blue-600 transition-all text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 rounded">
-                                      Link
                                   </a>
                               )}
                           </div>
