@@ -65,13 +65,14 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
       {!isEmbed && (
         <div className="fixed inset-0 z-[-1] pointer-events-none h-full w-full bg-slate-950">
             <div 
-                className="absolute inset-0 bg-cover bg-no-repeat transition-all duration-1000 transform scale-[1.02] bg-[position:center_20%] md:bg-center"
+                className="absolute inset-0 bg-cover bg-no-repeat transition-all duration-1000 transform scale-[1.02] bg-[position:right_center] md:bg-right"
                 style={{ backgroundImage: `url(${bgImage})` }}
             ></div>
-            <div className={`absolute inset-0 transition-all duration-700 ${isHome ? 'bg-slate-950/20' : 'bg-slate-950/60 backdrop-blur-[2px]'}`}></div>
-            <div className={`absolute inset-0 transition-opacity duration-1000 ${isHome ? 'opacity-20' : 'opacity-50'} bg-[radial-gradient(circle_at_center,_transparent_0%,_rgba(2,6,23,0.8)_100%)]`}></div>
+            {/* 首頁時顯著降低遮蓋透明度，從 20% 降至 5% */}
+            <div className={`absolute inset-0 transition-all duration-700 ${isHome ? 'bg-slate-950/5' : 'bg-slate-950/60 backdrop-blur-[2px]'}`}></div>
+            <div className={`absolute inset-0 transition-opacity duration-1000 ${isHome ? 'opacity-10' : 'opacity-50'} bg-[radial-gradient(circle_at_center,_transparent_0%,_rgba(2,6,23,0.8)_100%)]`}></div>
             <div className="absolute inset-x-0 bottom-0 h-1/3 bg-gradient-to-t from-slate-950 to-transparent"></div>
-            {isHome && <div className="absolute inset-y-0 left-0 w-full md:w-2/3 bg-gradient-to-r from-slate-950/70 via-slate-950/20 to-transparent"></div>}
+            {isHome && <div className="absolute inset-y-0 left-0 w-full md:w-1/2 bg-gradient-to-r from-slate-950/40 via-transparent to-transparent"></div>}
         </div>
       )}
 
@@ -96,7 +97,6 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
 
             <div className="hidden md:flex items-center">
               <div className="ml-10 flex items-center space-x-10 text-sm uppercase drop-shadow-md font-semibold">
-                {/* Updated Navigation Order: Home -> Interactive -> Database */}
                 <Link to={isEmbed ? "/?embed=true" : "/"} className={isActive('/')}>{t('nav_home')}</Link>
                 <Link to={isEmbed ? "/interactive?embed=true" : "/interactive"} className={isActive('/interactive')}>{t('nav_interactive')}</Link>
                 <Link to={isEmbed ? "/database?embed=true" : "/database"} className={isActive('/database')}>{t('nav_catalog')}</Link>
@@ -113,7 +113,6 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
             </div>
 
             <div className="hidden md:flex items-center gap-4">
-                {/* Admin Quick Exit */}
                 {isAdmin && (
                     <button 
                         onClick={handleExitAdmin}
