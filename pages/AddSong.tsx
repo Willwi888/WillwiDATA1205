@@ -272,6 +272,19 @@ const AddSong: React.FC = () => {
              <div className="space-y-2"><label className="text-[10px] text-slate-500 font-black uppercase tracking-widest">Title</label><input name="title" className="w-full bg-slate-900 border border-white/10 px-4 py-3 text-white text-sm focus:border-brand-accent outline-none" value={formData.title} onChange={handleChange} required /></div>
              <div className="space-y-2"><label className="text-[10px] text-slate-500 font-black uppercase tracking-widest">Date</label><input type="date" name="releaseDate" className="w-full bg-slate-900 border border-white/10 px-4 py-3 text-white text-xs focus:border-brand-accent outline-none" value={formData.releaseDate} onChange={handleChange} /></div>
         </div>
+
+        {/* CRITICAL: Interactive Toggle UI Update */}
+        <div className="p-4 bg-emerald-950/20 border border-emerald-500/30 rounded flex items-center justify-between">
+            <div className="flex-1">
+                <h4 className="text-white text-xs font-black uppercase tracking-widest">Interactive Availability (啟動創作)</h4>
+                <p className="text-[9px] text-emerald-400 font-bold uppercase tracking-widest">ON = Appear in Interactive Lab</p>
+            </div>
+            <label className="relative inline-flex items-center cursor-pointer">
+                <input type="checkbox" name="isInteractiveActive" checked={formData.isInteractiveActive} onChange={handleChange} className="sr-only peer" />
+                <div className="w-11 h-6 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-500"></div>
+            </label>
+        </div>
+
         <div className="space-y-2"><label className="text-[10px] text-brand-accent font-black uppercase tracking-widest">Audio Source</label><input name="audioUrl" className="w-full bg-slate-800 border border-brand-accent/30 px-4 py-3 text-brand-accent text-xs font-mono outline-none" value={formData.audioUrl} onChange={handleChange} placeholder="Paste Dropbox direct link here..." /></div>
         <div className="pt-6 border-t border-white/10 flex justify-end gap-4"><button type="submit" disabled={isSaving} className="px-8 py-3 bg-brand-accent text-slate-900 font-black text-[10px] uppercase tracking-widest hover:bg-white transition-all shadow-lg">{isSaving ? '...' : t('form_btn_save')}</button></div>
       </form>
