@@ -1,27 +1,32 @@
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useData } from '../context/DataContext';
 import { Song, LyricConfig } from '../types';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useTranslation } from '../context/LanguageContext';
 import PaymentModal from '../components/PaymentModal';
 
-// Link Converter
+// 統一的音檔轉換工具
 const convertToDirectStream = (url: string) => {
     try {
         if (!url) return '';
         const u = new URL(url);
+        
         if (u.hostname.includes('dropbox.com')) {
             u.searchParams.set('raw', '1');
             u.searchParams.delete('dl');
             return u.toString();
         }
+        
         if (u.hostname.includes('drive.google.com') && u.pathname.includes('/file/d/')) {
             const id = u.pathname.split('/file/d/')[1].split('/')[0];
             return `https://docs.google.com/uc?export=download&id=${id}`;
         }
+        
         return url;
-    } catch (e) { return url; }
+    } catch (e) {
+        return url;
+    }
 };
 
 // New Mode State Machine
@@ -52,6 +57,7 @@ const Interactive: React.FC = () => {
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
+  const [isAudioLoading, setIsAudioLoading] = useState(false);
   
   // Visual Config
   const [config, setConfig] = useState<LyricConfig>({
@@ -104,6 +110,7 @@ const Interactive: React.FC = () => {
       if (!selectedSong?.audioUrl) return;
       const url = convertToDirectStream(selectedSong.audioUrl);
       setAudioSrc(url);
+      setIsAudioLoading(true);
   }, [selectedSong]);
 
   const handleSelectSong = (song: Song) => {
@@ -127,20 +134,15 @@ const Interactive: React.FC = () => {
       setMode('configure');
       lineIndexRef.current = 0;
       smoothIndexRef.current = 0;
-      
-      // Trigger autoplay if possible
-      setTimeout(() => {
-          if(audioRef.current) {
-              audioRef.current.currentTime = 0;
-              audioRef.current.play().catch(() => {});
-          }
-      }, 500);
   };
 
   const togglePreviewPlay = () => {
       if(audioRef.current) {
-          if(isPlaying) audioRef.current.pause();
-          else audioRef.current.play();
+          if(isPlaying) {
+              audioRef.current.pause();
+          } else {
+              audioRef.current.play().catch(e => console.error("Play Failed", e));
+          }
       }
   };
 
@@ -153,6 +155,7 @@ const Interactive: React.FC = () => {
   };
 
   const formatTime = (time: number) => {
+      if (isNaN(time)) return "0:00";
       const min = Math.floor(time / 60);
       const sec = Math.floor(time % 60).toString().padStart(2, '0');
       return `${min}:${sec}`;
@@ -198,20 +201,29 @@ const Interactive: React.FC = () => {
           }
       };
       
-      const onLoadedMetadata = () => setDuration(audio.duration);
+      const onLoadedMetadata = () => {
+          setDuration(audio.duration);
+          setIsAudioLoading(false);
+      };
       const onPlay = () => setIsPlaying(true);
       const onPause = () => setIsPlaying(false);
+      const onWaiting = () => setIsAudioLoading(true);
+      const onPlaying = () => setIsAudioLoading(false);
 
       audio.addEventListener('timeupdate', onTimeUpdate);
       audio.addEventListener('loadedmetadata', onLoadedMetadata);
       audio.addEventListener('play', onPlay);
       audio.addEventListener('pause', onPause);
+      audio.addEventListener('waiting', onWaiting);
+      audio.addEventListener('playing', onPlaying);
 
       return () => {
           audio.removeEventListener('timeupdate', onTimeUpdate);
           audio.removeEventListener('loadedmetadata', onLoadedMetadata);
           audio.removeEventListener('play', onPlay);
           audio.removeEventListener('pause', onPause);
+          audio.removeEventListener('waiting', onWaiting);
+          audio.removeEventListener('playing', onPlaying);
       };
   }, [config.motion]);
 
@@ -491,9 +503,12 @@ const Interactive: React.FC = () => {
                           <button onClick={() => { if(audioRef.current) audioRef.current.currentTime = 0 }} className="text-slate-400 hover:text-white transition-all"><svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 19l-7-7 7-7m8 14l-7-7 7-7" /></svg></button>
                           <button 
                             onClick={togglePreviewPlay} 
-                            className="w-12 h-12 rounded-full bg-white text-black flex items-center justify-center hover:scale-105 transition-all shadow-[0_0_20px_rgba(255,255,255,0.2)]"
+                            className="w-12 h-12 rounded-full bg-white text-black flex items-center justify-center hover:scale-105 transition-all shadow-[0_0_20px_rgba(255,255,255,0.2)] disabled:opacity-50"
+                            disabled={isAudioLoading}
                           >
-                              {isPlaying ? (
+                              {isAudioLoading ? (
+                                  <div className="w-5 h-5 border-2 border-slate-300 border-t-slate-800 rounded-full animate-spin"></div>
+                              ) : isPlaying ? (
                                   <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
                               ) : (
                                   <svg className="w-5 h-5 ml-1" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
@@ -578,7 +593,7 @@ const Interactive: React.FC = () => {
           </div>
       )}
 
-      {selectedSong && <audio ref={audioRef} src={audioSrc} crossOrigin="anonymous" className="hidden" loop />}
+      {audioSrc && <audio ref={audioRef} src={audioSrc} crossOrigin="anonymous" className="hidden" loop />}
     </div>
   );
 };

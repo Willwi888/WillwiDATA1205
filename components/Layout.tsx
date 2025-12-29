@@ -78,7 +78,6 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
                 className="absolute inset-0 bg-cover bg-no-repeat transition-all duration-1000 transform scale-[1.02] bg-[position:right_center] md:bg-right"
                 style={{ backgroundImage: `url(${bgImage})` }}
             ></div>
-            {/* 首頁時顯著降低遮蓋透明度，從 20% 降至 5% */}
             <div className={`absolute inset-0 transition-all duration-700 ${isHome ? 'bg-slate-950/5' : 'bg-slate-950/60 backdrop-blur-[2px]'}`}></div>
             <div className={`absolute inset-0 transition-opacity duration-1000 ${isHome ? 'opacity-10' : 'opacity-50'} bg-[radial-gradient(circle_at_center,_transparent_0%,_rgba(2,6,23,0.8)_100%)]`}></div>
             <div className="absolute inset-x-0 bottom-0 h-1/3 bg-gradient-to-t from-slate-950 to-transparent"></div>
@@ -107,22 +106,14 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
 
             <div className="hidden md:flex items-center">
               <div className="ml-10 flex items-center space-x-10 text-sm uppercase drop-shadow-md font-semibold">
-                {/* System Structure: Entrance -> Fact Library -> Production Line -> Value Prop -> Authority */}
                 <Link to={isEmbed ? "/?embed=true" : "/"} className={isActive('/')}>{t('nav_home')}</Link>
-                
-                {/* Catalog (Fact Library) - Always Visible for Transparency */}
                 <Link to="/database" className={isActive('/database')}>{t('nav_catalog')}</Link>
-                
-                {/* Add Song (Production Line) - Always Visible, Gated by Code */}
+                <Link to="/streaming" className={isActive('/streaming')}>{t('nav_streaming')}</Link>
                 <Link to={isEmbed ? "/add?embed=true" : "/add"} className="text-slate-300 hover:text-brand-accent transition-colors font-bold tracking-wider">
                     {t('nav_add')}
                 </Link>
-
                 <Link to={isEmbed ? "/interactive?embed=true" : "/interactive"} className={isActive('/interactive')}>{t('nav_interactive')}</Link>
-                
                 <Link to={isEmbed ? "/about?embed=true" : "/about"} className={isActive('/about')}>{t('nav_about')}</Link>
-                
-                {/* Manager (Authority) - Text Only */}
                 <Link to="/admin" className={isActive('/admin')}>{t('nav_admin')}</Link>
               </div>
             </div>
@@ -189,6 +180,7 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
             <div className="px-2 pt-2 pb-3 space-y-1 sm:px-3">
               <Link to="/" onClick={() => setIsMenuOpen(false)} className={mobileLinkClass('/')}>{t('nav_home')}</Link>
               <Link to="/database" onClick={() => setIsMenuOpen(false)} className={mobileLinkClass('/database')}>{t('nav_catalog')}</Link>
+              <Link to="/streaming" onClick={() => setIsMenuOpen(false)} className={mobileLinkClass('/streaming')}>{t('nav_streaming')}</Link>
               <Link to="/add" onClick={() => setIsMenuOpen(false)} className={mobileLinkClass('/add')}>{t('nav_add')}</Link>
               <Link to="/interactive" onClick={() => setIsMenuOpen(false)} className={mobileLinkClass('/interactive')}>{t('nav_interactive')}</Link>
               <Link to="/about" onClick={() => setIsMenuOpen(false)} className={mobileLinkClass('/about')}>{t('nav_about')}</Link>
@@ -217,10 +209,13 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
                 </p>
             </div>
             
-            {/* Social Links in Footer */}
             <div className="flex space-x-6">
-                <a href="https://open.spotify.com/artist/3ascZ8Rb2KDw4QyCy29Om4" target="_blank" rel="noreferrer" className="text-slate-500 hover:text-white transition-colors"><svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.66 0 12 0zm-2 17V7l7 5-7 5z"/></svg></a>
-                <a href="https://www.youtube.com/@Willwi888" target="_blank" rel="noreferrer" className="text-slate-500 hover:text-white transition-colors"><svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M19.615 3.184c-3.604-.246-11.631-.245-15.23 0-3.897.266-4.356 2.62-4.385 8.816.029 6.185.484 8.549 4.385 8.816 3.6.245 11.626.246 15.23 0 3.897-.266 4.356-2.62 4.385-8.816-.029-6.185-.484-8.549-4.385-8.816zm-10.615 12.816v-8l8 3.993-8 4.007z"/></svg></a>
+                <Link to="/streaming" className="text-slate-500 hover:text-white transition-colors" title="Listen on Platforms">
+                  <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.66 0 12 0zm-2 17V7l7 5-7 5z"/></svg>
+                </Link>
+                <Link to="/streaming" className="text-slate-500 hover:text-white transition-colors" title="YouTube Official">
+                  <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M19.615 3.184c-3.604-.246-11.631-.245-15.23 0-3.897.266-4.356 2.62-4.385 8.816.029 6.185.484 8.549 4.385 8.816 3.6.245 11.626.246 15.23 0 3.897-.266 4.356-2.62 4.385-8.816-.029-6.185-.484-8.549-4.385-8.816zm-10.615 12.816v-8l8 3.993-8 4.007z"/></svg>
+                </Link>
             </div>
 
             <div className="flex space-x-6 text-slate-500 opacity-20 hover:opacity-100 transition-opacity">

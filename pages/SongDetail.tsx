@@ -7,25 +7,29 @@ import { generateMusicCritique } from '../services/geminiService';
 import { useTranslation } from '../context/LanguageContext';
 import { useUser } from '../context/UserContext';
 
-// SMART LINK CONVERTER
+// 統一的音檔轉換工具
 const convertToDirectStream = (url: string) => {
     try {
         if (!url) return '';
-        if (url.includes('drive.google.com') && url.includes('/file/d/')) {
-            const id = url.split('/file/d/')[1].split('/')[0];
+        const u = new URL(url);
+        
+        // Dropbox 處理
+        if (u.hostname.includes('dropbox.com')) {
+            u.searchParams.set('raw', '1');
+            u.searchParams.delete('dl');
+            return u.toString();
+        }
+        
+        // Google Drive 處理
+        if (u.hostname.includes('drive.google.com') && u.pathname.includes('/file/d/')) {
+            const id = u.pathname.split('/file/d/')[1].split('/')[0];
             return `https://docs.google.com/uc?export=download&id=${id}`;
         }
-        if (url.includes('dropbox.com')) {
-            let newUrl = url;
-            if (newUrl.includes('dl=0')) newUrl = newUrl.replace('dl=0', 'raw=1');
-            else if (newUrl.includes('dl=1')) newUrl = newUrl.replace('dl=1', 'raw=1');
-            else if (!newUrl.includes('raw=1')) {
-                 newUrl += (newUrl.includes('?') ? '&' : '?') + 'raw=1';
-            }
-            return newUrl;
-        }
+        
         return url;
-    } catch (e) { return url; }
+    } catch (e) {
+        return url;
+    }
 };
 
 interface LyricsLine {
@@ -69,30 +73,53 @@ const ImmersivePlayer: React.FC<{ song: Song; onClose: () => void }> = ({ song, 
     const [currentTime, setCurrentTime] = useState(0);
     const [duration, setDuration] = useState(0);
     const [isPlaying, setIsPlaying] = useState(false);
+    const [isLoading, setIsLoading] = useState(true);
     const [activeLineIndex, setActiveLineIndex] = useState(0);
 
     const { lines, hasTime } = useMemo(() => parseLyrics(song.lyrics || ''), [song.lyrics]);
+    const convertedUrl = useMemo(() => convertToDirectStream(song.audioUrl || ''), [song.audioUrl]);
 
     useEffect(() => {
         const audio = audioRef.current;
         if (!audio) return;
 
         const updateTime = () => setCurrentTime(audio.currentTime);
-        const updateDuration = () => setDuration(audio.duration);
-        
+        const updateDuration = () => {
+            setDuration(audio.duration);
+            setIsLoading(false);
+        };
+        const handlePlay = () => setIsPlaying(true);
+        const handlePause = () => setIsPlaying(false);
+        const handleError = () => {
+            setIsLoading(false);
+            console.error("Audio Load Error");
+        };
+
         audio.addEventListener('timeupdate', updateTime);
         audio.addEventListener('loadedmetadata', updateDuration);
-        audio.addEventListener('play', () => setIsPlaying(true));
-        audio.addEventListener('pause', () => setIsPlaying(false));
-        audio.addEventListener('ended', () => setIsPlaying(false));
+        audio.addEventListener('play', handlePlay);
+        audio.addEventListener('pause', handlePause);
+        audio.addEventListener('ended', handlePause);
+        audio.addEventListener('error', handleError);
+        audio.addEventListener('waiting', () => setIsLoading(true));
+        audio.addEventListener('playing', () => setIsLoading(false));
 
-        if (song.audioUrl) audio.play().catch(() => {});
+        // 啟動播放
+        if (convertedUrl) {
+            audio.play().catch(err => {
+                console.warn("Autoplay blocked or failed:", err);
+                setIsLoading(false);
+            });
+        }
 
         return () => {
             audio.removeEventListener('timeupdate', updateTime);
             audio.removeEventListener('loadedmetadata', updateDuration);
+            audio.removeEventListener('play', handlePlay);
+            audio.removeEventListener('pause', handlePause);
+            audio.removeEventListener('error', handleError);
         };
-    }, [song.audioUrl]);
+    }, [convertedUrl]);
 
     useEffect(() => {
         if (!hasTime) return;
@@ -121,7 +148,7 @@ const ImmersivePlayer: React.FC<{ song: Song; onClose: () => void }> = ({ song, 
     const togglePlay = () => {
         if (audioRef.current) {
             if (isPlaying) audioRef.current.pause();
-            else audioRef.current.play();
+            else audioRef.current.play().catch(() => {});
         }
     };
 
@@ -152,6 +179,7 @@ const ImmersivePlayer: React.FC<{ song: Song; onClose: () => void }> = ({ song, 
 
             <div className="relative z-10 flex-1 overflow-hidden flex items-center justify-center">
                 <div ref={lyricsContainerRef} className="w-full max-w-2xl h-full overflow-y-auto custom-scrollbar px-6 py-20 text-center space-y-12" style={{ scrollBehavior: 'smooth' }}>
+                    {isLoading && <div className="text-brand-gold animate-pulse text-xs font-black tracking-[0.3em] uppercase mb-10">Loading Audio Stream...</div>}
                     {lines.length > 0 ? lines.map((line, i) => (
                         <p key={i} onClick={() => { if (hasTime && audioRef.current && line.time >= 0) audioRef.current.currentTime = line.time; }}
                             className={`transition-all duration-700 cursor-pointer font-bold leading-tight ${
@@ -167,10 +195,19 @@ const ImmersivePlayer: React.FC<{ song: Song; onClose: () => void }> = ({ song, 
             <div className="relative z-20 bg-gradient-to-t from-black via-black/90 to-transparent p-8 md:p-12">
                 <div className="max-w-3xl mx-auto space-y-6">
                     <div className="flex items-center gap-6">
-                         <img src={song.coverUrl} className="w-16 h-16 rounded-lg shadow-2xl object-cover border border-white/10" alt="" />
+                         <div className="relative">
+                            <img src={song.coverUrl} className="w-16 h-16 rounded-lg shadow-2xl object-cover border border-white/10" alt="" />
+                            {isPlaying && (
+                                <div className="absolute -right-1 -bottom-1 flex gap-0.5 items-end h-4 bg-black/60 p-1 rounded">
+                                    <div className="w-1 bg-brand-gold animate-[playing-wave_0.8s_ease-in-out_infinite]"></div>
+                                    <div className="w-1 bg-brand-gold animate-[playing-wave_0.8s_ease-in-out_infinite_0.2s]"></div>
+                                    <div className="w-1 bg-brand-gold animate-[playing-wave_0.8s_ease-in-out_infinite_0.4s]"></div>
+                                </div>
+                            )}
+                         </div>
                          <div>
                              <h3 className="text-xl font-black text-white leading-none mb-1">{song.title}</h3>
-                             <p className="text-xs text-brand-gold uppercase tracking-widest font-bold">Willwi • {currentTime.toFixed(1)}s</p>
+                             <p className="text-xs text-brand-gold uppercase tracking-widest font-bold">Willwi • {formatTime(currentTime)}</p>
                          </div>
                     </div>
 
@@ -179,18 +216,24 @@ const ImmersivePlayer: React.FC<{ song: Song; onClose: () => void }> = ({ song, 
                             <input type="range" min={0} max={duration || 100} value={currentTime} onChange={handleSeek} className="w-full h-1 bg-white/10 rounded-lg appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:bg-brand-gold [&::-webkit-slider-thumb]:rounded-full transition-all" />
                             <div className="flex justify-between text-[10px] text-slate-400 font-mono"><span>{formatTime(currentTime)}</span><span>{formatTime(duration)}</span></div>
                         </div>
-                    ) : <div className="p-3 bg-red-900/20 border border-red-900/50 rounded text-center"><p className="text-[10px] text-red-400 uppercase tracking-widest">Audio Unavailable</p></div>}
+                    ) : <div className="p-3 bg-red-900/20 border border-red-900/50 rounded text-center"><p className="text-[10px] text-red-400 uppercase tracking-widest">Audio URL Missing</p></div>}
 
-                    {song.audioUrl && (
-                        <div className="flex justify-center items-center gap-8">
-                            <button onClick={() => { if(audioRef.current) audioRef.current.currentTime -= 5 }} className="text-white/50 hover:text-white transition-all"><svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12.066 11.2a1 1 0 000 1.6l5.334 4A1 1 0 0019 16V8a1 1 0 00-1.6-.8l-5.333 4zM4.066 11.2a1 1 0 000 1.6l5.334 4A1 1 0 0011 16V8a1 1 0 00-1.6-.8l-5.334 4z" /></svg></button>
-                            <button onClick={togglePlay} className="w-16 h-16 rounded-full bg-white text-black flex items-center justify-center hover:scale-105 transition-all shadow-[0_0_20px_rgba(255,255,255,0.3)]">{isPlaying ? <svg className="w-6 h-6 ml-0.5" fill="currentColor" viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg> : <svg className="w-6 h-6 ml-1" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>}</button>
-                            <button onClick={() => { if(audioRef.current) audioRef.current.currentTime += 5 }} className="text-white/50 hover:text-white transition-all"><svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg></button>
-                        </div>
-                    )}
+                    <div className="flex justify-center items-center gap-8">
+                        <button onClick={() => { if(audioRef.current) audioRef.current.currentTime -= 5 }} className="text-white/50 hover:text-white transition-all"><svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12.066 11.2a1 1 0 000 1.6l5.334 4A1 1 0 0019 16V8a1 1 0 00-1.6-.8l-5.333 4zM4.066 11.2a1 1 0 000 1.6l5.334 4A1 1 0 0011 16V8a1 1 0 00-1.6-.8l-5.334 4z" /></svg></button>
+                        <button onClick={togglePlay} className="w-16 h-16 rounded-full bg-white text-black flex items-center justify-center hover:scale-105 transition-all shadow-[0_0_20px_rgba(255,255,255,0.3)] disabled:opacity-50" disabled={isLoading || !song.audioUrl}>
+                            {isLoading ? (
+                                <div className="w-6 h-6 border-4 border-slate-300 border-t-slate-800 rounded-full animate-spin"></div>
+                            ) : isPlaying ? (
+                                <svg className="w-6 h-6 ml-0.5" fill="currentColor" viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
+                            ) : (
+                                <svg className="w-6 h-6 ml-1" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+                            )}
+                        </button>
+                        <button onClick={() => { if(audioRef.current) audioRef.current.currentTime += 5 }} className="text-white/50 hover:text-white transition-all"><svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg></button>
+                    </div>
                 </div>
             </div>
-            {song.audioUrl && <audio ref={audioRef} src={song.audioUrl} crossOrigin="anonymous" />}
+            {convertedUrl && <audio ref={audioRef} src={convertedUrl} crossOrigin="anonymous" />}
         </div>
     );
 };
@@ -307,6 +350,12 @@ const SongDetail: React.FC = () => {
 
   return (
     <div className="animate-fade pb-32 max-w-7xl mx-auto px-6 pt-10">
+        <style>{`
+            @keyframes playing-wave {
+                0%, 100% { height: 4px; }
+                50% { height: 12px; }
+            }
+        `}</style>
         {showLyricsPlayer && <ImmersivePlayer song={song} onClose={() => setShowLyricsPlayer(false)} />}
         <div className="mb-6 flex justify-between items-center">
             <Link to="/database" className="text-[10px] text-slate-500 hover:text-white uppercase tracking-widest">{t('detail_back_link')}</Link>
@@ -431,11 +480,10 @@ const SongDetail: React.FC = () => {
                             ) : (
                                 <>
                                     <div className="mt-8 flex flex-wrap gap-4">
-                                        <button onClick={() => setShowLyricsPlayer(true)} className="group flex items-center gap-3 px-6 py-3 bg-white/5 border border-white/10 hover:bg-white hover:text-black transition-all rounded-full">
+                                        <button onClick={() => setShowLyricsPlayer(true)} className="group flex items-center gap-3 px-6 py-3 bg-white/5 border border-white/10 hover:bg-white hover:text-black transition-all rounded-full" disabled={!song.audioUrl}>
                                             <div className="w-8 h-8 rounded-full bg-brand-gold flex items-center justify-center text-black shadow-[0_0_15px_rgba(251,191,36,0.5)]"><svg className="w-4 h-4 ml-0.5" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 14H9V8h2v8zm4 0h-2V8h2v8z" /></svg></div>
                                             <span className="text-[10px] font-black uppercase tracking-[0.2em]">{t('detail_btn_immersive')}</span>
                                         </button>
-                                        {/* Smart Link Removed from frontend as per request (used for internal audition) */}
                                     </div>
                                     <div className="mt-6 flex flex-col gap-4 max-w-sm">
                                         {isAdmin ? (

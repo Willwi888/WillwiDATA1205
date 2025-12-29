@@ -9,12 +9,23 @@ const TRANSLATIONS = {
     nav_home: "Home",
     nav_interactive: "Interactive Lab", 
     nav_catalog: "Catalog",
+    nav_streaming: "Listen",
     nav_add: "Add",
     nav_about: "About",
     nav_admin: "Manager",
     nav_exit_admin: "Exit Admin",
     footer_rights: "Willwi Music. All rights reserved.",
     
+    // Streaming Page
+    streaming_title: "Streaming Channels",
+    streaming_subtitle: "Official Audio & Video Platforms",
+    streaming_spotify_title: "Spotify Artist",
+    streaming_spotify_desc: "Interactive Preview Player",
+    streaming_youtube_title: "YouTube Official",
+    streaming_youtube_desc: "Exclusive Music Videos",
+    streaming_youtube_exclusive: "OFFICIAL EXCLUSIVE",
+    streaming_btn_subscribe: "SUBSCRIBE",
+
     // Hero Generic
     hero_title: "WILLWI STUDIO",
     hero_verified: "OFFICIAL VERIFIED",
@@ -254,12 +265,23 @@ const TRANSLATIONS = {
     nav_home: "首頁",
     nav_interactive: "互動創作", 
     nav_catalog: "作品庫",
+    nav_streaming: "串流頻道",
     nav_add: "登錄",
     nav_about: "關於",
     nav_admin: "後台管理",
     nav_exit_admin: "登出管理",
     footer_rights: "Willwi Music. 版權所有",
     
+    // Streaming Page
+    streaming_title: "串流頻道",
+    streaming_subtitle: "官方音樂與影音平台",
+    streaming_spotify_title: "Spotify 歌手頁面",
+    streaming_spotify_desc: "嵌入式互動試聽播放器",
+    streaming_youtube_title: "YouTube 官方頻道",
+    streaming_youtube_desc: "官網獨家影音專區",
+    streaming_youtube_exclusive: "官方獨家認證",
+    streaming_btn_subscribe: "訂閱頻道",
+
     // Hero Generic
     hero_title: "WILLWI STUDIO",
     hero_verified: "官方認證",
