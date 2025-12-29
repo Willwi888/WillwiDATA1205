@@ -74,7 +74,6 @@ const ImmersivePlayer: React.FC<{ song: Song; onClose: () => void }> = ({ song, 
     const [isPlaying, setIsPlaying] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
     const [activeLineIndex, setActiveLineIndex] = useState(0);
-    // Added missing audioError state
     const [audioError, setAudioError] = useState<string | null>(null);
 
     const { lines, hasTime } = useMemo(() => parseLyrics(song.lyrics || ''), [song.lyrics]);
@@ -93,9 +92,7 @@ const ImmersivePlayer: React.FC<{ song: Song; onClose: () => void }> = ({ song, 
         const handlePause = () => setIsPlaying(false);
         const handleError = () => {
             setIsLoading(false);
-            // Updated to use setAudioError
             setAudioError("音訊加載失敗。");
-            console.error("Audio Load Error for URL:", convertedUrl);
         };
 
         audio.addEventListener('timeupdate', updateTime);
@@ -105,9 +102,7 @@ const ImmersivePlayer: React.FC<{ song: Song; onClose: () => void }> = ({ song, 
         audio.addEventListener('ended', handlePause);
         audio.addEventListener('error', handleError);
         audio.addEventListener('waiting', () => setIsLoading(true));
-        // setAudioError is now defined in this scope
         audio.addEventListener('playing', () => { setIsLoading(false); setAudioError(null); });
-        audio.addEventListener('error', handleError);
 
         if (convertedUrl) {
             audio.play().catch(err => {
@@ -254,7 +249,6 @@ const SongDetail: React.FC = () => {
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [editForm, setEditForm] = useState<Partial<Song>>({});
-  const [loadingAi, setLoadingAi] = useState(false);
   const [showLyricsPlayer, setShowLyricsPlayer] = useState(false); 
 
   useEffect(() => {
@@ -406,6 +400,37 @@ const SongDetail: React.FC = () => {
                 </div>
             </div>
         </div>
+
+        {/* 官網獨家影音區塊 */}
+        {!isEditing && song.isOfficialExclusive && song.cloudVideoUrl && (
+            <div className="mt-12 bg-slate-900 border border-brand-gold/30 rounded-2xl overflow-hidden shadow-2xl animate-fade-in">
+                <div className="bg-brand-gold/10 px-8 py-4 border-b border-brand-gold/20 flex items-center justify-between">
+                    <h3 className="text-[10px] font-black text-brand-gold uppercase tracking-[0.4em]">官網獨家影音 VAULT</h3>
+                    <span className="text-[8px] text-brand-gold/50 font-bold uppercase tracking-widest">AUTHENTIC CONTENT</span>
+                </div>
+                <div className="p-10 flex flex-col md:flex-row items-center gap-10">
+                    <div className="w-20 h-20 bg-brand-gold/10 rounded-full flex items-center justify-center text-brand-gold border border-brand-gold/30 flex-shrink-0">
+                        <svg className="w-10 h-10" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                        </svg>
+                    </div>
+                    <div className="flex-grow text-center md:text-left">
+                        <h4 className="text-2xl font-black text-white uppercase tracking-tight mb-2">專屬高品質影像檔案</h4>
+                        <p className="text-sm text-slate-400 font-light leading-relaxed">
+                            這是為官網贊助者與聽眾準備的獨家高品質影片檔案。點擊下方按鈕即可在受保護的空間中欣賞完整作品。
+                        </p>
+                    </div>
+                    <a 
+                        href={song.cloudVideoUrl} 
+                        target="_blank" 
+                        rel="noopener noreferrer" 
+                        className="w-full md:w-auto px-12 py-5 bg-brand-gold text-slate-950 font-black text-xs uppercase tracking-[0.3em] hover:bg-white transition-all shadow-lg rounded-full text-center"
+                    >
+                        立即觀看
+                    </a>
+                </div>
+            </div>
+        )}
         
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-12 mt-12">
             <div className="lg:col-span-2 space-y-12">

@@ -16,7 +16,12 @@ const LOCAL_STORAGE_KEY = 'willwi_music_db_v3';
 // 品牌色彩：#020617 (深藍), #fbbf24 (金)
 export const ASSETS = {
     willwiPortrait: "https://drive.google.com/thumbnail?id=18rpLhJQKHKK5EeonFqutlOoKAI2Eq_Hd&sz=w2000",
-    defaultCover: (title: string) => `https://placehold.co/1000x1000/020617/fbbf24?text=${encodeURIComponent(title || 'Willwi')}+STUDIO`
+    defaultCover: (title: string) => {
+        // placehold.co 不支援非英文字元，如果標題包含中文，預設顯示 "WILLWI STUDIO"
+        const isEnglishOnly = /^[A-Za-z0-9\s\-!@#$%^&*()_+={}[\]:;"'<>,.?/|~`]+$/.test(title);
+        const safeText = isEnglishOnly ? title : 'WILLWI';
+        return `https://placehold.co/1000x1000/020617/fbbf24?text=${encodeURIComponent(safeText || 'Willwi')}+STUDIO`;
+    }
 };
 
 export const INITIAL_DATA: Song[] = [
@@ -81,7 +86,6 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             }
         }
 
-        // 封面圖片防呆處理：如果沒有 coverUrl，自動補上品牌預設圖
         const processedSongs = loadedSongs.map(s => ({
             ...s,
             coverUrl: s.coverUrl || ASSETS.defaultCover(s.title)
