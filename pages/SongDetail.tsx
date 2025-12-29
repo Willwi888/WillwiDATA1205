@@ -74,6 +74,8 @@ const ImmersivePlayer: React.FC<{ song: Song; onClose: () => void }> = ({ song, 
     const [isPlaying, setIsPlaying] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
     const [activeLineIndex, setActiveLineIndex] = useState(0);
+    // Added missing audioError state
+    const [audioError, setAudioError] = useState<string | null>(null);
 
     const { lines, hasTime } = useMemo(() => parseLyrics(song.lyrics || ''), [song.lyrics]);
     const convertedUrl = useMemo(() => convertToDirectStream(song.audioUrl || ''), [song.audioUrl]);
@@ -91,6 +93,8 @@ const ImmersivePlayer: React.FC<{ song: Song; onClose: () => void }> = ({ song, 
         const handlePause = () => setIsPlaying(false);
         const handleError = () => {
             setIsLoading(false);
+            // Updated to use setAudioError
+            setAudioError("音訊加載失敗。");
             console.error("Audio Load Error for URL:", convertedUrl);
         };
 
@@ -101,7 +105,9 @@ const ImmersivePlayer: React.FC<{ song: Song; onClose: () => void }> = ({ song, 
         audio.addEventListener('ended', handlePause);
         audio.addEventListener('error', handleError);
         audio.addEventListener('waiting', () => setIsLoading(true));
-        audio.addEventListener('playing', () => setIsLoading(false));
+        // setAudioError is now defined in this scope
+        audio.addEventListener('playing', () => { setIsLoading(false); setAudioError(null); });
+        audio.addEventListener('error', handleError);
 
         if (convertedUrl) {
             audio.play().catch(err => {
@@ -178,6 +184,7 @@ const ImmersivePlayer: React.FC<{ song: Song; onClose: () => void }> = ({ song, 
             <div className="relative z-10 flex-1 overflow-hidden flex items-center justify-center">
                 <div ref={lyricsContainerRef} className="w-full max-w-2xl h-full overflow-y-auto custom-scrollbar px-6 py-20 text-center space-y-12" style={{ scrollBehavior: 'smooth' }}>
                     {isLoading && <div className="text-brand-gold animate-pulse text-xs font-black tracking-[0.3em] uppercase mb-10">Loading Audio Stream...</div>}
+                    {audioError && <div className="text-red-500 text-xs font-black tracking-[0.3em] uppercase mb-10">{audioError}</div>}
                     {lines.length > 0 ? lines.map((line, i) => (
                         <p key={i} onClick={() => { if (hasTime && audioRef.current && line.time >= 0) audioRef.current.currentTime = line.time; }}
                             className={`transition-all duration-700 cursor-pointer font-bold leading-tight ${
@@ -327,6 +334,8 @@ const SongDetail: React.FC = () => {
                                     <span className={`px-3 py-1 text-[10px] font-black uppercase tracking-[0.2em] text-white ${getLanguageColor(song.language)}`}>{song.language}</span>
                                     <span className="text-slate-500 text-[10px] font-bold uppercase tracking-[0.3em]">{song.releaseDate}</span>
                                     {song.isOfficialExclusive && <span className="bg-red-600 text-white text-[9px] font-black px-2 py-1 rounded uppercase tracking-widest">官網獨家</span>}
+                                    {song.isrc && <span className="text-slate-500 text-[10px] font-mono tracking-widest">ISRC: {song.isrc}</span>}
+                                    {song.upc && <span className="text-slate-500 text-[10px] font-mono tracking-widest">UPC: {song.upc}</span>}
                                 </div>
                             )}
 
@@ -343,6 +352,17 @@ const SongDetail: React.FC = () => {
                                                 <input type="checkbox" name="isOfficialExclusive" checked={editForm.isOfficialExclusive} onChange={handleEditChange} className="w-4 h-4 accent-brand-gold" />
                                                 <span className="text-[10px] text-brand-gold font-black">標註為 EXCLUSIVE</span>
                                             </label>
+                                        </div>
+                                    </div>
+
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div className="space-y-1">
+                                            <label className="text-[9px] text-slate-400 uppercase font-bold">ISRC</label>
+                                            <input name="isrc" className="w-full bg-black/50 border border-white/10 p-2 text-white text-xs font-mono outline-none focus:border-brand-accent" value={editForm.isrc || ''} onChange={handleEditChange} placeholder="ISRC Code" />
+                                        </div>
+                                        <div className="space-y-1">
+                                            <label className="text-[9px] text-slate-400 uppercase font-bold">UPC</label>
+                                            <input name="upc" className="w-full bg-black/50 border border-white/10 p-2 text-white text-xs font-mono outline-none focus:border-brand-accent" value={editForm.upc || ''} onChange={handleEditChange} placeholder="UPC Code" />
                                         </div>
                                     </div>
 
