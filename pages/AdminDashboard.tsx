@@ -11,23 +11,46 @@ type Tab = 'catalog' | 'settings' | 'payment' | 'curation';
 type SortKey = 'releaseDate' | 'title' | 'language';
 
 const AdminDashboard: React.FC = () => {
-  const { songs, updateSong, deleteSong, bulkAddSongs, dbStatus, storageUsage, lastSyncTime } = useData();
+  const { songs, updateSong, deleteSong, bulkAddSongs, dbStatus } = useData();
   const { isAdmin, enableAdmin, logoutAdmin, getAllUsers, getAllTransactions } = useUser();
   const { t } = useTranslation();
   const navigate = useNavigate();
   const fileInputRef = useRef<HTMLInputElement>(null);
   
+  // UI State
   const [activeTab, setActiveTab] = useState<Tab>('catalog');
   const [passwordInput, setPasswordInput] = useState('');
   const [loginError, setLoginError] = useState('');
+  const [playingId, setPlayingId] = useState<string | null>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+
+  // Filters & Sorting
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState<'all' | 'active' | 'inactive' | 'missing_assets'>('all');
   const [sortConfig, setSortConfig] = useState<{ key: SortKey; direction: 'asc' | 'desc' }>({ key: 'releaseDate', direction: 'desc' });
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
-  const [qrImages, setQrImages] = useState({ global_payment: '', production: '', cinema: '', support: '', line: '' });
-  const [accessCode, setAccessCode] = useState('8888');
-  const [adminPassword, setAdminPassword] = useState('8520');
+  // Stats
+  const [stats, setStats] = useState({
+      totalUsers: 0,
+      incomeProduction: 0,
+      incomeDonation: 0,
+      activeSongs: 0,
+      missingDataSongs: 0
+  });
+
+  // QR Code & Security State
+  const [qrImages, setQrImages] = useState({
+      global_payment: '',
+      production: '',
+      cinema: '',
+      support: '',
+      line: ''
+  });
+  const [accessCode, setAccessCode] = useState('8888'); // User Access Code
+  const [adminPassword, setAdminPassword] = useState('8520'); // Admin Login Password
+  
+  // Import Options
   const [importStrategy, setImportStrategy] = useState<'merge' | 'overwrite'>('merge');
 
   useEffect(() => {
@@ -38,9 +61,29 @@ const AdminDashboard: React.FC = () => {
           support: localStorage.getItem('qr_support') || '',
           line: localStorage.getItem('qr_line') || ''
       });
+
+      // Load both distinct passwords
       setAccessCode(localStorage.getItem('willwi_access_code') || '8888');
       setAdminPassword(localStorage.getItem('willwi_admin_password') || '8520');
-  }, [isAdmin]);
+      
+      if (isAdmin) {
+          const users = getAllUsers();
+          const txs = getAllTransactions();
+          const prodIncome = txs.filter(t => t.type === 'production').reduce((acc, t) => acc + t.amount, 0);
+          const donaIncome = txs.filter(t => t.type === 'donation').reduce((acc, t) => acc + t.amount, 0);
+          
+          const activeCount = songs.filter(s => s.isInteractiveActive).length;
+          const missingCount = songs.filter(s => !s.lyrics || !s.audioUrl).length;
+
+          setStats({
+              totalUsers: users.length,
+              incomeProduction: prodIncome,
+              incomeDonation: donaIncome,
+              activeSongs: activeCount,
+              missingDataSongs: missingCount
+          });
+      }
+  }, [isAdmin, getAllUsers, getAllTransactions, songs]);
 
   const handleSort = (key: SortKey) => {
       setSortConfig(prev => ({
@@ -49,17 +92,62 @@ const AdminDashboard: React.FC = () => {
       }));
   };
 
+  const handleSelectAll = () => {
+      if (selectedIds.size === filteredSongs.length) setSelectedIds(new Set());
+      else setSelectedIds(new Set(filteredSongs.map(s => s.id)));
+  };
+
+  const handleSelectOne = (id: string) => {
+      const newSet = new Set(selectedIds);
+      if (newSet.has(id)) newSet.delete(id);
+      else newSet.add(id);
+      setSelectedIds(newSet);
+  };
+
+  const handleBulkDelete = async () => {
+      if (selectedIds.size === 0) return;
+      if (!window.confirm(`警告：確定要刪除選取的 ${selectedIds.size} 首歌曲嗎？此動作不可逆。`)) return;
+      for (const id of selectedIds) { await deleteSong(id); }
+      setSelectedIds(new Set());
+  };
+
+  const togglePreview = (url: string | undefined, id: string) => {
+      if (!url) return alert("無音檔連結");
+      
+      if (playingId === id) {
+          audioRef.current?.pause();
+          setPlayingId(null);
+      } else {
+          if (audioRef.current) {
+              audioRef.current.src = url;
+              audioRef.current.play();
+              setPlayingId(id);
+          } else {
+              const audio = new Audio(url);
+              audioRef.current = audio;
+              audio.play();
+              setPlayingId(id);
+              audio.onended = () => setPlayingId(null);
+          }
+      }
+  };
+
   const downloadFullBackup = async () => {
       const allSongs = await dbService.getAllSongs();
       const exportData = {
-          metadata: { version: '3.0', exportedAt: new Date().toISOString(), count: allSongs.length },
+          metadata: {
+              version: '3.0',
+              exportedAt: new Date().toISOString(),
+              count: allSongs.length,
+              dbStatus: dbStatus
+          },
           songs: allSongs
       };
       const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `WILLWI_DATA_BACKUP_${new Date().toISOString().split('T')[0]}.json`;
+      a.download = `WILLWI_CORE_DUMP_${new Date().toISOString().split('T')[0]}.json`;
       a.click();
   };
 
@@ -73,27 +161,59 @@ const AdminDashboard: React.FC = () => {
             if (typeof result !== 'string') return;
             const parsed = JSON.parse(result);
             const rawSongs = Array.isArray(parsed) ? parsed : (parsed.songs || []);
+            
             if (!Array.isArray(rawSongs)) throw new Error("Invalid Format");
 
-            if (window.confirm(`確認匯入 ${rawSongs.length} 筆作品？\n模式: ${importStrategy === 'overwrite' ? '覆寫' : '合併'}`)) {
+            if (window.confirm(`確認匯入 ${rawSongs.length} 筆資料？\n模式: ${importStrategy === 'overwrite' ? '覆寫 (清除舊資料)' : '合併 (保留舊資料)'}`)) {
                 if (importStrategy === 'overwrite') await dbService.clearAllSongs();
                 await bulkAddSongs(rawSongs);
                 alert("Import Successful.");
                 window.location.reload();
             }
           } catch (e) { alert("Import Failed. Invalid JSON."); }
+          finally { if (fileInputRef.current) fileInputRef.current.value = ''; }
       };
       reader.readAsText(file);
   };
 
+  const handleQrUpload = (key: keyof typeof qrImages) => (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0];
+      if (file) {
+          const reader = new FileReader();
+          reader.onloadend = () => {
+              const base64 = reader.result as string;
+              setQrImages(prev => ({ ...prev, [key]: base64 }));
+              localStorage.setItem(`qr_${String(key)}`, base64);
+          };
+          reader.readAsDataURL(file);
+      }
+  };
+
+  const saveAccessCode = () => {
+      if (accessCode.length < 4) return alert("通行碼太短");
+      localStorage.setItem('willwi_access_code', accessCode);
+      alert("✅ 使用者通行碼已更新 (User Code Updated)");
+  };
+
+  const saveAdminPassword = () => {
+      if (adminPassword.length < 4) return alert("密碼請至少設定 4 位數");
+      localStorage.setItem('willwi_admin_password', adminPassword);
+      alert("✅ 後台管理密碼已更新 (Admin Password Updated)");
+  };
+
   const filteredSongs = useMemo(() => {
-      let result = songs.filter(s => s.title.toLowerCase().includes(searchTerm.toLowerCase()));
+      let result = songs.filter(s => 
+          s.title.toLowerCase().includes(searchTerm.toLowerCase()) || 
+          (s.isrc && s.isrc.includes(searchTerm))
+      );
       if (filterStatus === 'active') result = result.filter(s => s.isInteractiveActive);
       if (filterStatus === 'inactive') result = result.filter(s => !s.isInteractiveActive);
+      if (filterStatus === 'missing_assets') result = result.filter(s => !s.lyrics || !s.audioUrl);
       return result.sort((a, b) => {
           let valA = a[sortConfig.key] || '';
           let valB = b[sortConfig.key] || '';
-          return sortConfig.direction === 'asc' ? (valA > valB ? 1 : -1) : (valA < valB ? 1 : -1);
+          if (sortConfig.direction === 'asc') return valA > valB ? 1 : -1;
+          return valA < valB ? 1 : -1;
       });
   }, [songs, searchTerm, filterStatus, sortConfig]);
 
@@ -108,7 +228,7 @@ const AdminDashboard: React.FC = () => {
                        if (passwordInput === correctPwd) enableAdmin(); 
                        else setLoginError(t('admin_login_error')); 
                    }} className="space-y-6">
-                       <input type="password" placeholder="ACCESS CODE" className="w-full bg-black border border-slate-700 rounded px-4 py-4 text-white text-center tracking-[0.8em] font-mono outline-none focus:border-brand-gold" value={passwordInput} onChange={(e) => setPasswordInput(e.target.value)} />
+                       <input type="password" placeholder="ACCESS CODE" className="w-full bg-black border border-slate-700 rounded px-4 py-4 text-white text-center tracking-[0.8em] font-mono outline-none focus:border-brand-gold transition-all" value={passwordInput} onChange={(e) => setPasswordInput(e.target.value)} />
                        {loginError && <p className="text-red-500 text-[10px] font-bold uppercase tracking-widest">{loginError}</p>}
                        <button className="w-full py-4 bg-brand-gold text-slate-950 font-black rounded uppercase tracking-widest text-xs hover:bg-white transition-all">{t('admin_login_btn')}</button>
                    </form>
@@ -119,96 +239,218 @@ const AdminDashboard: React.FC = () => {
 
   return (
     <div className="max-w-screen-2xl mx-auto px-6 py-12 animate-fade-in pb-40">
+      
+      {/* HEADER */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-10 gap-6 border-b border-white/10 pb-8">
           <div>
-            <h1 className="text-4xl font-black text-white uppercase tracking-tighter">DATA OPERATIONS CENTER</h1>
-            <p className="text-slate-500 text-[10px] font-bold uppercase tracking-[0.4em] mt-2">Database Integrity & Sync Control</p>
+            <h1 className="text-4xl font-black text-white uppercase tracking-tighter">{t('admin_title')}</h1>
+            <p className="text-slate-500 text-[10px] font-bold uppercase tracking-[0.4em] mt-2">{t('admin_subtitle')}</p>
           </div>
           <div className="flex items-center gap-3">
-            <button onClick={() => navigate('/add')} className="h-10 px-6 bg-brand-accent text-slate-950 text-[10px] font-black uppercase tracking-widest rounded hover:bg-white transition-all shadow-lg">New Song</button>
-            <button onClick={logoutAdmin} className="h-10 px-6 border border-slate-700 text-slate-400 text-[10px] font-black uppercase tracking-widest rounded hover:bg-slate-800">Exit</button>
+            <button onClick={() => navigate('/add')} className="h-10 px-6 bg-brand-accent text-slate-950 text-[10px] font-black uppercase tracking-widest rounded hover:bg-white transition-all shadow-lg flex items-center gap-2">
+                <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M12 4v16m8-8H4" /></svg>
+                {t('admin_btn_new')}
+            </button>
+            <button onClick={logoutAdmin} className="h-10 px-6 border border-slate-700 text-slate-400 text-[10px] font-black uppercase tracking-widest rounded hover:bg-slate-800 hover:text-white transition-all">{t('admin_btn_exit')}</button>
           </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-12">
-          <div className="bg-slate-950 border border-white/10 p-6 rounded-lg">
-              <span className="text-[10px] text-slate-500 font-bold uppercase tracking-widest mb-2 block">DB STATUS</span>
-              <div className="flex items-center gap-2">
-                  <div className={`w-3 h-3 rounded-full ${dbStatus === 'ONLINE' ? 'bg-emerald-500 animate-pulse' : 'bg-red-500'}`}></div>
-                  <span className="text-xl font-black text-white tracking-widest">{dbStatus}</span>
-              </div>
+      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4 mb-10">
+          <div className={`bg-slate-900 border p-5 rounded-xl cursor-pointer hover:bg-slate-800 ${activeTab === 'catalog' ? 'border-white bg-slate-800' : 'border-white/5'}`} onClick={() => setActiveTab('catalog')}>
+              <div className="text-[10px] text-slate-500 font-bold uppercase tracking-widest mb-2">{t('admin_stat_total')}</div>
+              <div className="text-3xl font-black text-white">{songs.length}</div>
           </div>
-          <div className="bg-slate-950 border border-white/10 p-6 rounded-lg">
-              <span className="text-[10px] text-slate-500 font-bold uppercase tracking-widest mb-2 block">CATALOG SIZE</span>
-              <div className="text-xl font-black text-white tracking-widest">{songs.length} WORKS</div>
+          <div className={`bg-slate-900 border p-5 rounded-xl border-l-4 border-l-emerald-500 cursor-pointer hover:bg-slate-800 ${activeTab === 'curation' ? 'bg-slate-800' : 'border-white/5'}`} onClick={() => setActiveTab('curation')}>
+              <div className="text-[10px] text-emerald-400 font-bold uppercase tracking-widest mb-2">{t('admin_stat_active')}</div>
+              <div className="text-3xl font-black text-emerald-400">{stats.activeSongs}</div>
           </div>
-          <div className="bg-slate-950 border border-white/10 p-6 rounded-lg">
-              <span className="text-[10px] text-slate-500 font-bold uppercase tracking-widest mb-2 block">STORAGE LOAD</span>
-              <div className="text-xl font-black text-white tracking-widest">{(storageUsage / 1024 / 1024).toFixed(2)} MB</div>
+          <div className={`bg-slate-900 border p-5 rounded-xl border-l-4 border-l-brand-gold cursor-pointer hover:bg-slate-800 ${activeTab === 'payment' ? 'bg-slate-800' : 'border-white/5'}`} onClick={() => setActiveTab('payment')}>
+              <div className="text-[10px] text-brand-gold font-bold uppercase tracking-widest mb-2">{t('admin_stat_payment')}</div>
+              <div className="text-3xl font-black text-white">QR</div>
           </div>
-          <div className="bg-slate-950 border border-white/10 p-6 rounded-lg">
-              <span className="text-[10px] text-slate-500 font-bold uppercase tracking-widest mb-2 block">LAST SYNC</span>
-              <div className="text-xl font-black text-white tracking-widest">{lastSyncTime ? lastSyncTime.toLocaleTimeString() : '--'}</div>
+          <div className={`bg-slate-900 border p-5 rounded-xl border-l-4 border-l-brand-accent cursor-pointer hover:bg-slate-800 ${activeTab === 'settings' ? 'bg-slate-800' : 'border-white/5'}`} onClick={() => setActiveTab('settings')}>
+              <div className="text-[10px] text-brand-accent font-bold uppercase tracking-widest mb-2">{t('admin_stat_data')}</div>
+              <div className="text-3xl font-black text-white">SET</div>
           </div>
-      </div>
-
-      <div className="flex gap-4 mb-8">
-          <button onClick={() => setActiveTab('catalog')} className={`px-8 py-3 text-[10px] font-black uppercase tracking-widest border transition-all ${activeTab === 'catalog' ? 'bg-white text-black border-white' : 'text-slate-500 border-white/10 hover:border-white/30'}`}>Song Management</button>
-          <button onClick={() => setActiveTab('settings')} className={`px-8 py-3 text-[10px] font-black uppercase tracking-widest border transition-all ${activeTab === 'settings' ? 'bg-brand-accent text-black border-brand-accent' : 'text-slate-500 border-white/10 hover:border-white/30'}`}>Data Ops & JSON</button>
-          <button onClick={() => setActiveTab('payment')} className={`px-8 py-3 text-[10px] font-black uppercase tracking-widest border transition-all ${activeTab === 'payment' ? 'bg-brand-gold text-black border-brand-gold' : 'text-slate-500 border-white/10 hover:border-white/30'}`}>Payment Setup</button>
       </div>
 
       {activeTab === 'catalog' && (
-          <div className="bg-slate-950 border border-white/10 rounded-lg overflow-hidden">
-              <table className="w-full text-left text-xs">
-                  <thead className="bg-white/5 text-slate-500 uppercase font-black tracking-widest">
-                      <tr>
-                          <th className="p-4">Title</th>
-                          <th className="p-4">Date</th>
-                          <th className="p-4">Lab Status</th>
-                          <th className="p-4 text-right">Actions</th>
-                      </tr>
-                  </thead>
-                  <tbody className="divide-y divide-white/5">
-                      {filteredSongs.map(s => (
-                          <tr key={s.id} className="hover:bg-white/[0.02]">
-                              <td className="p-4 font-bold text-white">{s.title}</td>
-                              <td className="p-4 text-slate-500 font-mono">{s.releaseDate}</td>
-                              <td className="p-4">
-                                  <span className={`px-3 py-1 rounded-sm font-black text-[9px] ${s.isInteractiveActive ? 'bg-emerald-900/40 text-emerald-400' : 'bg-red-900/40 text-red-400'}`}>
-                                      {s.isInteractiveActive ? 'OPEN' : 'CLOSED'}
-                                  </span>
-                              </td>
-                              <td className="p-4 text-right">
-                                  <button onClick={() => navigate(`/song/${s.id}`)} className="text-brand-accent font-bold hover:underline uppercase text-[10px]">Edit Details</button>
-                              </td>
+          <div className="space-y-4">
+              <div className="bg-slate-900/50 border border-white/10 p-2 rounded-lg flex flex-col md:flex-row gap-2">
+                  <div className="flex-1 relative">
+                      <input type="text" placeholder="搜尋作品或 ISRC..." className="w-full bg-black/50 border border-transparent focus:border-brand-accent/50 rounded-md pl-10 pr-4 py-3 text-white text-xs font-bold outline-none" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
+                      <svg className="w-4 h-4 text-slate-500 absolute left-3 top-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+                  </div>
+                  <select className="bg-black/50 text-slate-300 text-xs font-bold px-4 py-3 rounded-md outline-none cursor-pointer" value={filterStatus} onChange={(e) => setFilterStatus(e.target.value as any)}>
+                      <option value="all">所有狀態</option>
+                      <option value="active">已開放互動</option>
+                      <option value="missing_assets">⚠️ 缺音檔或歌詞</option>
+                  </select>
+                  {selectedIds.size > 0 && <button onClick={handleBulkDelete} className="bg-red-600 text-white text-[10px] font-black uppercase tracking-widest px-6 py-3 rounded-md">刪除選取 ({selectedIds.size})</button>}
+              </div>
+
+              <div className="bg-slate-900 border border-white/5 rounded-xl overflow-hidden shadow-2xl">
+                  <table className="w-full text-left border-collapse table-auto">
+                      <thead className="bg-black text-[9px] font-black text-slate-500 uppercase tracking-widest">
+                          <tr>
+                              <th className="p-4 w-12 text-center"><input type="checkbox" onChange={handleSelectAll} checked={selectedIds.size > 0 && selectedIds.size === filteredSongs.length} /></th>
+                              <th className="p-4 w-12">{t('admin_table_play')}</th>
+                              <th className="p-4 cursor-pointer" onClick={() => handleSort('title')}>{t('admin_table_info')}</th>
+                              <th className="p-4 text-center">{t('admin_table_links')}</th>
+                              <th className="p-4 hidden md:table-cell" onClick={() => handleSort('releaseDate')}>{t('admin_table_date')}</th>
+                              <th className="p-4 text-center">{t('admin_table_mode')}</th>
+                              <th className="p-4 text-right">{t('admin_table_action')}</th>
                           </tr>
-                      ))}
-                  </tbody>
-              </table>
+                      </thead>
+                      <tbody className="divide-y divide-white/5">
+                          {filteredSongs.map(song => (
+                              <tr key={song.id} className={`group transition-all ${selectedIds.has(song.id) ? 'bg-brand-gold/10' : 'hover:bg-white/[0.03]'}`} onClick={() => navigate(`/song/${song.id}`)}>
+                                  <td className="p-4 text-center" onClick={(e) => { e.stopPropagation(); handleSelectOne(song.id); }}><input type="checkbox" checked={selectedIds.has(song.id)} readOnly /></td>
+                                  
+                                  {/* Audio Preview Column */}
+                                  <td className="p-4 text-center" onClick={(e) => e.stopPropagation()}>
+                                      <button 
+                                        onClick={() => togglePreview(song.audioUrl, song.id)}
+                                        className={`w-8 h-8 rounded-full flex items-center justify-center border transition-all ${playingId === song.id ? 'bg-brand-gold text-black border-brand-gold' : 'bg-slate-800 text-white border-white/20 hover:border-white'}`}
+                                      >
+                                          {playingId === song.id ? 
+                                              <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg> : 
+                                              <svg className="w-3 h-3 ml-0.5" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+                                          }
+                                      </button>
+                                  </td>
+
+                                  <td className="p-4"><div className="flex items-center gap-4"><img src={song.coverUrl} className="w-10 h-10 object-cover rounded" alt="" /><div className="font-bold text-sm text-white">{song.title}</div></div></td>
+                                  
+                                  {/* External Links Column */}
+                                  <td className="p-4 text-center" onClick={(e) => e.stopPropagation()}>
+                                      <div className="flex gap-2 justify-center">
+                                          {song.spotifyLink ? <a href={song.spotifyLink} target="_blank" rel="noopener noreferrer" className="text-green-500 hover:text-white" title="Spotify"><svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.66 0 12 0zm-2 17V7l7 5-7 5z"/></svg></a> : <span className="text-slate-700">●</span>}
+                                          {song.youtubeUrl ? <a href={song.youtubeUrl} target="_blank" rel="noopener noreferrer" className="text-red-500 hover:text-white" title="YouTube"><svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M19.615 3.184c-3.604-.246-11.631-.245-15.23 0-3.897.266-4.356 2.62-4.385 8.816.029 6.185.484 8.549 4.385 8.816 3.6.245 11.626.246 15.23 0 3.897-.266 4.356-2.62 4.385-8.816-.029-6.185-.484-8.549-4.385-8.816zm-10.615 12.816v-8l8 3.993-8 4.007z"/></svg></a> : <span className="text-slate-700">●</span>}
+                                          {song.smartLink ? <a href={song.smartLink} target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:text-white" title="SmartLink"><svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" /></svg></a> : <span className="text-slate-700">●</span>}
+                                      </div>
+                                  </td>
+
+                                  <td className="p-4 hidden md:table-cell text-xs font-mono text-slate-400">{song.releaseDate}</td>
+                                  <td className="p-4 text-center" onClick={(e) => e.stopPropagation()}><button onClick={() => updateSong(song.id, { isInteractiveActive: !song.isInteractiveActive })} className={`px-4 py-1 text-[9px] font-black uppercase border rounded ${song.isInteractiveActive ? 'bg-emerald-500 text-black border-emerald-500' : 'text-slate-500 border-white/10'}`}>{song.isInteractiveActive ? 'ON' : 'OFF'}</button></td>
+                                  <td className="p-4 text-right"><button onClick={(e) => { e.stopPropagation(); navigate(`/song/${song.id}`); }} className="text-[10px] font-black text-slate-400 hover:text-white">編輯</button></td>
+                              </tr>
+                          ))}
+                      </tbody>
+                  </table>
+              </div>
           </div>
       )}
 
       {activeTab === 'settings' && (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 animate-fade-in">
-              <div className="bg-slate-950 border border-white/10 p-10 rounded-lg flex flex-col justify-between">
-                  <div>
-                      <h4 className="text-xl font-black text-white uppercase tracking-widest mb-4">Export Data (備份)</h4>
-                      <p className="text-xs text-slate-500 leading-relaxed mb-8">將目前本地的所有資料導出為 JSON 檔案。您可以使用此檔案在其他電腦上匯入，以確保資料一致性。</p>
-                  </div>
-                  <button onClick={downloadFullBackup} className="w-full py-5 bg-white text-black font-black uppercase text-[10px] tracking-widest hover:bg-brand-accent transition-all">Download JSON Backup</button>
-              </div>
-              <div className="bg-slate-950 border border-white/10 p-10 rounded-lg flex flex-col justify-between">
-                  <div>
-                      <h4 className="text-xl font-black text-brand-gold uppercase tracking-widest mb-4">Import Data (同步)</h4>
-                      <div className="mb-6 flex gap-2 bg-black p-1 rounded border border-white/5">
-                          <button onClick={() => setImportStrategy('merge')} className={`flex-1 py-2 text-[10px] font-black uppercase rounded ${importStrategy === 'merge' ? 'bg-white/10 text-white' : 'text-slate-500'}`}>Smart Merge</button>
-                          <button onClick={() => setImportStrategy('overwrite')} className={`flex-1 py-2 text-[10px] font-black uppercase rounded ${importStrategy === 'overwrite' ? 'bg-red-900/40 text-red-400' : 'text-slate-500'}`}>Force Overwrite</button>
+          <div className="max-w-4xl mx-auto animate-fade-in space-y-8">
+              <div className="bg-slate-900 border border-brand-accent/30 p-10 rounded-xl shadow-[0_0_50px_rgba(56,189,248,0.1)]">
+                  <h3 className="text-xl font-black text-brand-accent uppercase tracking-[0.3em] mb-8 flex items-center gap-4">
+                      <span className="w-8 h-8 bg-brand-accent text-black rounded-full flex items-center justify-center text-sm">SET</span>
+                      {t('admin_settings_system')}
+                  </h3>
+                  
+                  {/* SECURITY & ACCESS CONTROL - SPLIT INTO TWO DISTINCT ZONES */}
+                  <div className="p-8 bg-black/40 border border-white/5 rounded-lg mb-8">
+                      <h4 className="text-white text-base font-bold mb-6 flex items-center gap-2">
+                          <span className="text-brand-accent">🔐</span> 
+                          {t('admin_settings_security')}
+                      </h4>
+                      
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                          {/* ADMIN ZONE (RED) */}
+                          <div className="p-6 bg-red-950/20 border border-red-900/50 rounded-lg">
+                              <h5 className="text-red-400 font-bold text-xs uppercase tracking-widest mb-2 flex items-center gap-2">
+                                  <span>🛡️</span> {t('admin_sec_admin_pwd')}
+                              </h5>
+                              <p className="text-[10px] text-slate-500 mb-4 leading-relaxed">
+                                  {t('admin_sec_admin_desc')}
+                              </p>
+                              <div className="flex flex-col gap-2">
+                                  <input 
+                                      type="text" 
+                                      value={adminPassword} 
+                                      onChange={(e) => setAdminPassword(e.target.value)} 
+                                      className="bg-black border border-red-900/30 px-4 py-3 text-white font-mono text-center w-full outline-none focus:border-red-500 transition-all rounded tracking-widest" 
+                                  />
+                                  <button onClick={saveAdminPassword} className="w-full py-3 bg-red-900/50 border border-red-500 text-red-100 font-bold text-[10px] uppercase tracking-widest hover:bg-red-600 hover:text-white transition-all rounded shadow-lg">
+                                      {t('admin_btn_update')}
+                                  </button>
+                              </div>
+                          </div>
+
+                          {/* USER ZONE (GREEN) */}
+                          <div className="p-6 bg-emerald-950/20 border border-emerald-900/50 rounded-lg">
+                              <h5 className="text-emerald-400 font-bold text-xs uppercase tracking-widest mb-2 flex items-center gap-2">
+                                  <span>🔑</span> {t('admin_sec_user_code')}
+                              </h5>
+                              <p className="text-[10px] text-slate-500 mb-4 leading-relaxed">
+                                  {t('admin_sec_user_desc')}
+                              </p>
+                              <div className="flex flex-col gap-2">
+                                  <input 
+                                      value={accessCode} 
+                                      onChange={(e) => setAccessCode(e.target.value)} 
+                                      className="bg-black border border-emerald-900/30 px-4 py-3 text-white font-mono text-center w-full outline-none focus:border-emerald-500 transition-all rounded tracking-widest" 
+                                  />
+                                  <button onClick={saveAccessCode} className="w-full py-3 bg-emerald-900/50 border border-emerald-500 text-emerald-100 font-bold text-[10px] uppercase tracking-widest hover:bg-emerald-600 hover:text-white transition-all rounded shadow-lg">
+                                      {t('admin_btn_update')}
+                                  </button>
+                              </div>
+                          </div>
                       </div>
-                      <p className="text-xs text-slate-500 leading-relaxed mb-8">上傳先前備份的 JSON 檔案。此動作會將檔案內的資料同步到目前的瀏覽器中。</p>
                   </div>
-                  <button onClick={() => fileInputRef.current?.click()} className="w-full py-5 border border-white/20 text-white font-black uppercase text-[10px] tracking-widest hover:bg-white hover:text-black transition-all">Upload JSON & Sync</button>
-                  <input ref={fileInputRef} type="file" className="hidden" accept=".json" onChange={handleImportFile} />
+
+                  {/* DATA CENTER */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-8 border-t border-white/5 pt-8">
+                      <div className="p-8 bg-black/40 border border-white/5 rounded-lg flex flex-col justify-between">
+                          <div>
+                              <h4 className="text-white text-base font-bold mb-3">{t('admin_data_export')}</h4>
+                              <p className="text-xs text-slate-500 leading-relaxed mb-8">{t('admin_data_export_desc')}</p>
+                          </div>
+                          <button onClick={downloadFullBackup} className="w-full py-4 bg-slate-800 text-white font-black text-[11px] uppercase tracking-widest hover:bg-white hover:text-black transition-all rounded shadow-xl">
+                              {t('admin_btn_download')}
+                          </button>
+                      </div>
+                      <div className="p-8 bg-black/40 border border-white/5 rounded-lg flex flex-col justify-between">
+                          <div>
+                              <h4 className="text-white text-base font-bold mb-3">{t('admin_data_import')}</h4>
+                              <p className="text-xs text-slate-500 leading-relaxed mb-8">{t('admin_data_import_desc')}</p>
+                          </div>
+                          <div className="relative">
+                              <button onClick={() => fileInputRef.current?.click()} className="w-full py-4 border border-white/20 text-slate-300 font-black text-[11px] uppercase tracking-widest hover:bg-white hover:text-black transition-all rounded">
+                                  {t('admin_btn_overwrite')}
+                              </button>
+                              <input ref={fileInputRef} type="file" className="hidden" accept=".json" onChange={handleImportFile} />
+                          </div>
+                      </div>
+                  </div>
+              </div>
+          </div>
+      )}
+
+      {activeTab === 'payment' && (
+          <div className="max-w-4xl mx-auto animate-fade-in space-y-8">
+              <div className="bg-slate-900 border border-white/10 p-10 rounded-xl">
+                  <h3 className="text-xl font-black text-brand-gold uppercase tracking-[0.3em] mb-8">{t('admin_payment_setup')}</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                      {/* Only QR Codes here now, Access Code moved to Settings */}
+                      {[
+                          { key: 'global_payment', label: '主要收款 QR (Line Pay)' },
+                          { key: 'line', label: 'LINE 官方帳號 QR' }
+                      ].map((item) => (
+                          <div key={item.key} className="p-6 bg-black/40 border border-white/5 rounded-xl text-center">
+                              <h4 className="text-xs font-bold text-white uppercase mb-4">{item.label}</h4>
+                              <div className="aspect-square bg-slate-900 border border-white/10 rounded-lg flex items-center justify-center overflow-hidden mb-4">
+                                  {qrImages[item.key as keyof typeof qrImages] ? <img src={qrImages[item.key as keyof typeof qrImages]} className="w-full h-full object-contain" /> : <span className="text-slate-700 text-[9px]">未上傳</span>}
+                              </div>
+                              <label className="block w-full cursor-pointer py-3 border border-white/20 text-slate-300 font-black text-[9px] uppercase tracking-widest hover:bg-white hover:text-black transition-all rounded">
+                                  選擇圖片上傳
+                                  <input type="file" className="hidden" accept="image/*" onChange={handleQrUpload(item.key as keyof typeof qrImages)} />
+                              </label>
+                          </div>
+                      ))}
+                  </div>
               </div>
           </div>
       )}

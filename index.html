@@ -1,37 +1,27 @@
-
 <!DOCTYPE html>
 <html lang="zh-TW">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Willwi Music Database | Official Platform</title>
+    <title>Willwi Music Database</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;600;700;900&family=Noto+Sans+TC:wght@300;400;700;900&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;600;700;900&display=swap" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
       tailwind.config = {
         theme: {
           extend: {
             fontFamily: {
-              sans: ['Montserrat', 'Noto Sans TC', 'sans-serif'],
+              sans: ['Montserrat', 'sans-serif'],
             },
             colors: {
               brand: {
-                dark: '#0f172a',
-                darker: '#020617',
-                accent: '#38bdf8',
-                gold: '#fbbf24',
-                surface: '#1e293b'
-              }
-            },
-            animation: {
-              'slow-zoom': 'slowZoom 20s linear infinite',
-            },
-            keyframes: {
-              slowZoom: {
-                '0%, 100%': { transform: 'scale(1.1)' },
-                '50%': { transform: 'scale(1.2)' },
+                dark: '#0f172a', // Slate 900
+                darker: '#020617', // Slate 950
+                accent: '#38bdf8', // Sky 400
+                gold: '#fbbf24', // Amber 400
+                surface: '#1e293b' // Slate 800
               }
             }
           }
@@ -48,34 +38,34 @@
         to { opacity: 1; }
       }
       @keyframes glowPulse {
-        0%, 100% { filter: drop-shadow(0 0 20px rgba(251, 191, 36, 0.3)); }
-        50% { filter: drop-shadow(0 0 40px rgba(251, 191, 36, 0.6)); }
+        0%, 100% { filter: drop-shadow(0 0 20px rgba(251, 191, 36, 0.4)); }
+        50% { filter: drop-shadow(0 0 40px rgba(251, 191, 36, 0.7)); }
       }
       .animate-fade-in-up {
-        animation: fadeInUp 1s cubic-bezier(0.23, 1, 0.32, 1) forwards;
+        animation: fadeInUp 0.8s ease-out forwards;
       }
       .animate-fade-in {
-        animation: fadeIn 0.8s ease-out forwards;
+        animation: fadeIn 0.5s ease-out forwards;
       }
       .text-gold-glow {
         color: white;
-        filter: drop-shadow(0 0 25px rgba(251, 191, 36, 0.4));
-        animation: glowPulse 5s ease-in-out infinite;
+        filter: drop-shadow(0 0 25px rgba(251, 191, 36, 0.6));
+        animation: glowPulse 4s ease-in-out infinite;
       }
+      /* Custom Scrollbar */
       .custom-scrollbar::-webkit-scrollbar {
-        width: 4px;
+        width: 6px;
       }
       .custom-scrollbar::-webkit-scrollbar-track {
-        background: rgba(0,0,0,0.5);
+        background: rgba(0,0,0,0.3);
       }
       .custom-scrollbar::-webkit-scrollbar-thumb {
-        background: rgba(251,191,36,0.3);
-        border-radius: 2px;
+        background: rgba(255,255,255,0.2);
+        border-radius: 3px;
       }
       .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-        background: rgba(251,191,36,0.6);
+        background: rgba(255,255,255,0.4);
       }
-      body { background-color: #020617; }
     </style>
   <script type="importmap">
 {
@@ -90,7 +80,7 @@
 }
 </script>
 </head>
-  <body class="text-slate-100 antialiased font-sans">
+  <body class="text-slate-100 antialiased font-sans bg-transparent">
     <div id="root"></div>
   </body>
 </html>
