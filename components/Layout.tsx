@@ -202,24 +202,12 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
 
       {!isEmbed && (
         <footer className="bg-slate-950 border-t border-slate-800/50 mt-auto relative z-10">
-            <div className="max-w-7xl mx-auto py-8 px-4 sm:px-6 lg:px-8 flex flex-col md:flex-row justify-between items-center gap-6">
-            <div className="text-center md:text-left">
-                <p className="text-slate-500 text-xs tracking-widest uppercase">
-                &copy; {new Date().getFullYear()} {t('footer_rights')}
-                </p>
-            </div>
-            
-            <div className="flex space-x-6">
-                <Link to="/streaming" className="text-slate-500 hover:text-white transition-colors" title="Listen on Platforms">
-                  <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.66 0 12 0zm-2 17V7l7 5-7 5z"/></svg>
-                </Link>
-                <Link to="/streaming" className="text-slate-500 hover:text-white transition-colors" title="YouTube Official">
-                  <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M19.615 3.184c-3.604-.246-11.631-.245-15.23 0-3.897.266-4.356 2.62-4.385 8.816.029 6.185.484 8.549 4.385 8.816 3.6.245 11.626.246 15.23 0 3.897-.266 4.356-2.62 4.385-8.816-.029-6.185-.484-8.549-4.385-8.816zm-10.615 12.816v-8l8 3.993-8 4.007z"/></svg>
-                </Link>
-            </div>
-
-            <div className="flex space-x-6 text-slate-500 opacity-20 hover:opacity-100 transition-opacity">
-            </div>
+            <div className="max-w-7xl mx-auto py-8 px-4 sm:px-6 lg:px-8 flex justify-center items-center">
+                <div className="text-center">
+                    <p className="text-slate-500 text-xs tracking-widest uppercase">
+                    &copy; {new Date().getFullYear()} {t('footer_rights')}
+                    </p>
+                </div>
             </div>
         </footer>
       )}
