@@ -32,6 +32,8 @@ export const INITIAL_DATA: Song[] = [
     releaseDate: '2023-01-20',
     isEditorPick: true,
     isInteractiveActive: true,
+    // Fixed: Added missing isOfficialExclusive property
+    isOfficialExclusive: false,
     isrc: 'QZNWQ2392729',
     upc: '198004739563',
     spotifyId: '5g5X2x1T9bZqQ1v8K3k9J2',
@@ -64,6 +66,8 @@ export const INITIAL_DATA: Song[] = [
     releaseDate: '2023-06-15',
     isEditorPick: false,
     isInteractiveActive: true,
+    // Fixed: Added missing isOfficialExclusive property
+    isOfficialExclusive: false,
     description: 'A drive through the cyberpunk city at 3 AM. \n充滿未來感的合成器聲響，模擬深夜在霓虹城市漫遊的孤寂與自由。',
     lyrics: `[INTRO]
 (Instrumental Build up)
@@ -96,6 +100,8 @@ Fading out...`,
     releaseDate: '2023-11-20',
     isEditorPick: true,
     isInteractiveActive: true,
+    // Fixed: Added missing isOfficialExclusive property
+    isOfficialExclusive: false,
     description: '有時候，不說話才是最大聲的控訴。\n一把吉他，一個聲音，最純粹的表達。',
     lyrics: `[VERSE]
 你說的我都懂
@@ -128,6 +134,8 @@ Fading out...`,
     releaseDate: '2024-01-01',
     isEditorPick: false,
     isInteractiveActive: false,
+    // Fixed: Added missing isOfficialExclusive property
+    isOfficialExclusive: false,
     description: '捕捉日落前最美的那一刻光影。',
     lyrics: `[INSTRUMENTAL TRACK]
 (No Lyrics)

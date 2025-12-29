@@ -35,7 +35,8 @@ export interface Song {
   publisher?: string; 
   releaseDate: string;
   isEditorPick: boolean;
-  isInteractiveActive: boolean; // New: Controls if song appears in Interactive Lab
+  isInteractiveActive: boolean; 
+  isOfficialExclusive: boolean; // New: Flag for website-exclusive video section
   isrc?: string;
   upc?: string;
   spotifyId?: string;
