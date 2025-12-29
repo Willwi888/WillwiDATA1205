@@ -7,66 +7,6 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;600;700;900&display=swap" rel="stylesheet">
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-      tailwind.config = {
-        theme: {
-          extend: {
-            fontFamily: {
-              sans: ['Montserrat', 'sans-serif'],
-            },
-            colors: {
-              brand: {
-                dark: '#0f172a', // Slate 900
-                darker: '#020617', // Slate 950
-                accent: '#38bdf8', // Sky 400
-                gold: '#fbbf24', // Amber 400
-                surface: '#1e293b' // Slate 800
-              }
-            }
-          }
-        }
-      }
-    </script>
-    <style>
-      @keyframes fadeInUp {
-        from { opacity: 0; transform: translate3d(0, 20px, 0); }
-        to { opacity: 1; transform: translate3d(0, 0, 0); }
-      }
-      @keyframes fadeIn {
-        from { opacity: 0; }
-        to { opacity: 1; }
-      }
-      @keyframes glowPulse {
-        0%, 100% { filter: drop-shadow(0 0 20px rgba(251, 191, 36, 0.4)); }
-        50% { filter: drop-shadow(0 0 40px rgba(251, 191, 36, 0.7)); }
-      }
-      .animate-fade-in-up {
-        animation: fadeInUp 0.8s ease-out forwards;
-      }
-      .animate-fade-in {
-        animation: fadeIn 0.5s ease-out forwards;
-      }
-      .text-gold-glow {
-        color: white;
-        filter: drop-shadow(0 0 25px rgba(251, 191, 36, 0.6));
-        animation: glowPulse 4s ease-in-out infinite;
-      }
-      /* Custom Scrollbar */
-      .custom-scrollbar::-webkit-scrollbar {
-        width: 6px;
-      }
-      .custom-scrollbar::-webkit-scrollbar-track {
-        background: rgba(0,0,0,0.3);
-      }
-      .custom-scrollbar::-webkit-scrollbar-thumb {
-        background: rgba(255,255,255,0.2);
-        border-radius: 3px;
-      }
-      .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-        background: rgba(255,255,255,0.4);
-      }
-    </style>
   <script type="importmap">
 {
   "imports": {
@@ -82,5 +22,6 @@
 </head>
   <body class="text-slate-100 antialiased font-sans bg-transparent">
     <div id="root"></div>
+    <script type="module" src="/index.tsx"></script>
   </body>
 </html>
