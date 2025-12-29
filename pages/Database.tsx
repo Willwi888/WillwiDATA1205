@@ -1,5 +1,5 @@
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useData } from '../context/DataContext';
 import { Language } from '../types';
@@ -14,32 +14,39 @@ const Database: React.FC = () => {
   
   const [searchTerm, setSearchTerm] = useState('');
   const [filterLang, setFilterLang] = useState<string>('All');
+  const [playingId, setPlayingId] = useState<string | null>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
 
   const filteredSongs = useMemo(() => {
     return songs.filter(song => {
-      const matchesSearch = song.title.toLowerCase().includes(searchTerm.toLowerCase());
+      const matchesSearch = song.title.toLowerCase().includes(searchTerm.toLowerCase()) || (song.isrc && song.isrc.toLowerCase().includes(searchTerm.toLowerCase()));
       const matchesLang = filterLang === 'All' || song.language === filterLang;
       return matchesSearch && matchesLang;
     });
   }, [songs, searchTerm, filterLang]);
 
-  const handleStartSession = (songId: string) => {
-      const s = songs.find(x => x.id === songId);
-      if (!s?.isInteractiveActive && !isAdmin) {
-          alert("此作品互動模組暫未對外開放。");
-          return;
-      }
-      navigate('/interactive', { state: { targetSongId: songId } });
+  const togglePreview = (url: string | undefined, id: string) => {
+    if (!url) return alert("目前此曲暫無試聽音檔連結。");
+    if (playingId === id) {
+        audioRef.current?.pause();
+        setPlayingId(null);
+    } else {
+        if (!audioRef.current) audioRef.current = new Audio();
+        audioRef.current.src = url;
+        audioRef.current.play();
+        setPlayingId(id);
+        audioRef.current.onended = () => setPlayingId(null);
+    }
   };
 
   return (
     <div className="animate-fade-in max-w-7xl mx-auto px-6 pt-12 pb-40">
       <div className="mb-20 text-center">
-           <h2 className="text-7xl font-black text-white tracking-tighter uppercase mb-4 text-gold-glow">{t('db_title')}</h2>
+           <h2 className="text-7xl font-black text-white tracking-tighter uppercase mb-4 text-gold-glow">DATABASE</h2>
            <p className="text-slate-600 text-[10px] font-bold tracking-[0.8em] uppercase">{t('db_subtitle')}</p>
       </div>
 
-      <div className="flex flex-col md:flex-row gap-px mb-16 bg-white/5 p-px border border-white/10">
+      <div className="flex flex-col md:flex-row gap-px mb-12 bg-white/5 p-px border border-white/10">
         <input
           type="text"
           placeholder={t('db_search_placeholder')}
@@ -57,69 +64,65 @@ const Database: React.FC = () => {
         </select>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-1 bg-white/10 border border-white/10">
-          {filteredSongs.map(song => (
-              <div key={song.id} className="group relative bg-black p-8 transition-all hover:bg-slate-900/50 flex flex-col h-full">
-                  <div className="flex flex-col gap-6 relative z-10 flex-grow">
-                      {/* Cover Art */}
-                      <div className="aspect-square w-full relative overflow-hidden bg-slate-900 border border-white/5 shadow-lg group-hover:border-brand-gold/30 transition-all">
-                          <img src={song.coverUrl} className="w-full h-full object-cover transition-all duration-700 group-hover:scale-105" alt="" />
-                      </div>
-                      
-                      <div className="flex flex-col flex-grow">
-                          <div className="flex justify-between items-start mb-2">
-                               <span className="text-[9px] text-brand-gold font-black uppercase tracking-widest border border-brand-gold/30 px-2 py-0.5">{song.language}</span>
-                               <span className="text-[9px] text-slate-600 font-mono">{song.releaseDate}</span>
-                          </div>
-                          <h4 className="text-2xl font-black text-white uppercase truncate mb-6 group-hover:text-brand-gold transition-colors" title={song.title}>{song.title}</h4>
-                          
-                          {/* Player Always Visible */}
-                          {song.spotifyId ? (
-                              <div className="mb-6 rounded-lg overflow-hidden bg-black shadow-lg">
-                                  <iframe 
-                                    src={`https://open.spotify.com/embed/track/${song.spotifyId}?utm_source=generator&theme=0`} 
-                                    width="100%" height="80" frameBorder="0" allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture" loading="lazy"
-                                    className="bg-slate-800"
-                                  ></iframe>
+      <div className="overflow-x-auto custom-scrollbar">
+          <table className="w-full text-left min-w-[1000px]">
+              <thead className="bg-black/50 border-b border-white/10">
+                  <tr className="text-[9px] font-black text-slate-500 uppercase tracking-[0.2em]">
+                      <th className="px-6 py-6 w-16">Preview</th>
+                      <th className="px-6 py-6">{t('form_label_title')}</th>
+                      <th className="px-6 py-6">ISRC</th>
+                      <th className="px-6 py-6">{t('form_label_category')}</th>
+                      <th className="px-6 py-6">{t('form_label_lang')}</th>
+                      <th className="px-6 py-6">{t('form_label_date')}</th>
+                      <th className="px-6 py-6">{t('form_label_publisher') || 'Company'}</th>
+                      <th className="px-6 py-6 text-right">Actions</th>
+                  </tr>
+              </thead>
+              <tbody className="divide-y divide-white/5">
+                  {filteredSongs.map(song => (
+                      <tr key={song.id} className="group hover:bg-white/[0.03] transition-all">
+                          <td className="px-6 py-8">
+                              <button 
+                                onClick={() => togglePreview(song.audioUrl, song.id)}
+                                className={`w-10 h-10 rounded-full flex items-center justify-center border transition-all ${playingId === song.id ? 'bg-brand-gold text-black border-brand-gold shadow-[0_0_15px_rgba(251,191,36,0.6)]' : 'bg-slate-900 text-white border-white/10 hover:border-white'}`}
+                              >
+                                  {playingId === song.id ? <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg> : <svg className="w-4 h-4 ml-0.5" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>}
+                              </button>
+                          </td>
+                          <td className="px-6 py-8">
+                              <div className="flex items-center gap-4">
+                                  <img src={song.coverUrl} className="w-12 h-12 object-cover rounded shadow-md group-hover:scale-110 transition-transform" alt="" />
+                                  <div>
+                                      <div className="text-sm font-black text-white uppercase tracking-tight group-hover:text-brand-gold transition-colors">{song.title}</div>
+                                      {song.versionLabel && <div className="text-[9px] text-slate-500 font-bold uppercase mt-1">{song.versionLabel}</div>}
+                                  </div>
                               </div>
-                          ) : (
-                               <div className="mb-6 h-20 bg-slate-900/50 border border-white/5 flex items-center justify-center text-[9px] text-slate-600 uppercase tracking-widest">
-                                   {t('db_spotify_unavailable')}
-                               </div>
-                          )}
-
-                          {/* External Links Buttons */}
-                          <div className="flex gap-2 mb-4">
-                              {song.youtubeUrl && (
-                                  <a href={song.youtubeUrl} target="_blank" rel="noopener noreferrer" className="flex-1 py-3 border border-red-900/50 text-red-500 hover:bg-red-600 hover:text-white hover:border-red-600 transition-all text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 rounded">
-                                      <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 24 24"><path d="M19.615 3.184c-3.604-.246-11.631-.245-15.23 0-3.897.266-4.356 2.62-4.385 8.816.029 6.185.484 8.549 4.385 8.816 3.6.245 11.626.246 15.23 0 3.897-.266 4.356-2.62 4.385-8.816-.029-6.185-.484-8.549-4.385-8.816zm-10.615 12.816v-8l8 3.993-8 4.007z"/></svg>
-                                      YouTube
-                                  </a>
-                              )}
-                          </div>
-
-                          <div className="flex gap-1 mt-auto pt-4 border-t border-white/10">
-                              <button 
-                                onClick={() => handleStartSession(song.id)} 
-                                className="flex-grow bg-white text-black py-4 text-[10px] font-black uppercase tracking-[0.2em] hover:bg-brand-gold transition-all"
-                              >
-                                  {t('db_btn_enter_lab')}
-                              </button>
-                              <button 
-                                onClick={() => navigate(`/song/${song.id}`)} 
-                                className="px-6 bg-slate-900 text-slate-400 py-4 text-[10px] font-black uppercase hover:text-white transition-all"
-                              >
-                                  {t('db_btn_info')}
-                              </button>
-                          </div>
-                      </div>
-                  </div>
-              </div>
-          ))}
+                          </td>
+                          <td className="px-6 py-8">
+                              <span className="text-[10px] font-mono text-slate-400 group-hover:text-brand-gold transition-colors">{song.isrc || '--'}</span>
+                          </td>
+                          <td className="px-6 py-8 text-[10px] font-bold text-slate-500 uppercase tracking-widest">
+                              {song.releaseCategory || '--'}
+                          </td>
+                          <td className="px-6 py-8">
+                              <span className="px-2 py-0.5 text-[9px] font-black uppercase text-white bg-slate-800 rounded-sm">{song.language}</span>
+                          </td>
+                          <td className="px-6 py-8 text-[10px] font-mono text-slate-500">{song.releaseDate}</td>
+                          <td className="px-6 py-8 text-[10px] font-bold text-slate-500 uppercase tracking-widest">{song.releaseCompany || '--'}</td>
+                          <td className="px-6 py-8 text-right">
+                              <div className="flex justify-end gap-2">
+                                  <button onClick={() => navigate(`/song/${song.id}`)} className="px-4 py-2 border border-white/10 text-slate-400 hover:text-white hover:border-white text-[9px] font-black uppercase tracking-widest transition-all">Info</button>
+                                  <button onClick={() => navigate('/interactive', { state: { targetSongId: song.id } })} className="px-4 py-2 bg-white text-black text-[9px] font-black uppercase tracking-widest hover:bg-brand-gold transition-all">Start Lab</button>
+                              </div>
+                          </td>
+                      </tr>
+                  ))}
+              </tbody>
+          </table>
       </div>
 
       {filteredSongs.length === 0 && (
-          <div className="py-60 text-center border border-white/10">
+          <div className="py-60 text-center border border-white/10 rounded-sm">
               <p className="text-slate-700 text-[10px] font-black uppercase tracking-[1em]">{t('db_empty')}</p>
           </div>
       )}
