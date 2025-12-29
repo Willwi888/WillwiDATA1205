@@ -15,21 +15,23 @@ const LOCAL_STORAGE_KEY = 'willwi_music_db_v3';
 
 // 品牌色彩：#020617 (深藍), #fbbf24 (金)
 export const ASSETS = {
-    willwiPortrait: "https://drive.google.com/thumbnail?id=18rpLhJQKHKK5EeonFqutlOoKAI2Eq_Hd&sz=w2000",
+    willwiPortrait: "https://drive.google.com/thumbnail?id=18rpLhJQKHKK5EeonFqutlOoKAI2Eq_Hd&sz=w2560",
     defaultCover: (title: string) => {
-        // placehold.co 不支援非英文字元，如果標題包含中文，預設顯示 "WILLWI STUDIO"
+        // 核心修復： placehold.co 不支援非英文字元。
+        // 如果標題包含中文，固定顯示 "WILLWI STUDIO" 以維護視覺專業感。
         const isEnglishOnly = /^[A-Za-z0-9\s\-!@#$%^&*()_+={}[\]:;"'<>,.?/|~`]+$/.test(title);
-        const safeText = isEnglishOnly ? title : 'WILLWI';
-        return `https://placehold.co/1000x1000/020617/fbbf24?text=${encodeURIComponent(safeText || 'Willwi')}+STUDIO`;
+        const safeText = isEnglishOnly ? title.replace(/\s+/g, '+') : 'WILLWI';
+        return `https://placehold.co/1000x1000/020617/fbbf24?text=${safeText}+STUDIO`;
     }
 };
 
+// 聽眾預設能看到的作品清單
 export const INITIAL_DATA: Song[] = [
   {
     id: 'seed-001',
     title: '再愛一次 (Love Again)',
     versionLabel: 'Original',
-    coverUrl: 'https://placehold.co/1000x1000/0f172a/fbbf24?text=Love+Again',
+    coverUrl: 'https://placehold.co/1000x1000/020617/fbbf24?text=Love+Again',
     language: Language.Mandarin,
     projectType: ProjectType.Indie,
     releaseCategory: ReleaseCategory.Single,
@@ -70,29 +72,18 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         setDbStatus('ONLINE');
         let loadedSongs = await dbService.getAllSongs();
         
-        if (loadedSongs.length === 0) {
-            const localData = localStorage.getItem(LOCAL_STORAGE_KEY);
-            if (localData) {
-                loadedSongs = JSON.parse(localData);
-                await dbService.bulkAdd(loadedSongs);
-            }
-        }
+        // 合併初始資料與本地資料
+        const songMap = new Map<string, Song>();
+        INITIAL_DATA.forEach(s => songMap.set(s.id, s));
+        loadedSongs.forEach(s => songMap.set(s.id, s));
 
-        const currentIds = new Set(loadedSongs.map(s => s.id));
-        for (const seed of INITIAL_DATA) {
-            if (!currentIds.has(seed.id)) {
-                await dbService.addSong(seed);
-                loadedSongs.push(seed);
-            }
-        }
-
-        const processedSongs = loadedSongs.map(s => ({
+        const finalSongs = Array.from(songMap.values()).map(s => ({
             ...s,
             coverUrl: s.coverUrl || ASSETS.defaultCover(s.title)
         }));
 
-        processedSongs.sort((a, b) => new Date(b.releaseDate).getTime() - new Date(a.releaseDate).getTime());
-        setSongs(processedSongs);
+        finalSongs.sort((a, b) => new Date(b.releaseDate).getTime() - new Date(a.releaseDate).getTime());
+        setSongs(finalSongs);
         setLastSyncTime(new Date());
         setIsReady(true);
 
@@ -114,11 +105,9 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const addSong = async (song: Song) => {
     const songWithCover = { ...song, coverUrl: song.coverUrl || ASSETS.defaultCover(song.title) };
     try {
-      if (dbStatus === 'ERROR') {
-          setSongs(prev => [songWithCover, ...prev]);
-          return true;
+      if (dbStatus !== 'ERROR') {
+          await dbService.addSong(songWithCover);
       }
-      await dbService.addSong(songWithCover);
       setSongs(prev => [songWithCover, ...prev]);
       setLastSyncTime(new Date());
       return true;
@@ -128,11 +117,9 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const bulkAddSongs = async (newSongs: Song[]) => {
     const processed = newSongs.map(s => ({ ...s, coverUrl: s.coverUrl || ASSETS.defaultCover(s.title) }));
     try {
-        if (dbStatus === 'ERROR') {
-            setSongs(processed);
-            return true;
+        if (dbStatus !== 'ERROR') {
+            await dbService.bulkAdd(processed);
         }
-        await dbService.bulkAdd(processed);
         setSongs(prev => {
             const map = new Map<string, Song>(prev.map(s => [s.id, s]));
             processed.forEach(s => map.set(s.id, s));
@@ -153,9 +140,9 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       
       if (dbStatus !== 'ERROR') {
           await dbService.updateSong(newSong);
-          setLastSyncTime(new Date());
       }
       setSongs(prev => prev.map(s => s.id === id ? newSong : s));
+      setLastSyncTime(new Date());
       return true;
     } catch (error) { return false; }
   };
@@ -164,9 +151,9 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     try {
       if (dbStatus !== 'ERROR') {
           await dbService.deleteSong(id);
-          setLastSyncTime(new Date());
       }
       setSongs(prev => prev.filter(s => s.id !== id));
+      setLastSyncTime(new Date());
     } catch (error) {}
   };
 

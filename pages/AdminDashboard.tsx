@@ -47,8 +47,8 @@ const AdminDashboard: React.FC = () => {
       support: '',
       line: ''
   });
-  const [accessCode, setAccessCode] = useState('8888'); // User Access Code
-  const [adminPassword, setAdminPassword] = useState('8520'); // Admin Login Password
+  const [accessCode, setAccessCode] = useState('8888'); 
+  const [adminPassword, setAdminPassword] = useState('8520'); 
   
   // Import Options
   const [importStrategy, setImportStrategy] = useState<'merge' | 'overwrite'>('merge');
@@ -62,7 +62,6 @@ const AdminDashboard: React.FC = () => {
           line: localStorage.getItem('qr_line') || ''
       });
 
-      // Load both distinct passwords
       setAccessCode(localStorage.getItem('willwi_access_code') || '8888');
       setAdminPassword(localStorage.getItem('willwi_admin_password') || '8520');
       
@@ -106,14 +105,13 @@ const AdminDashboard: React.FC = () => {
 
   const handleBulkDelete = async () => {
       if (selectedIds.size === 0) return;
-      if (!window.confirm(`警告：確定要刪除選取的 ${selectedIds.size} 首歌曲嗎？此動作不可逆。`)) return;
+      if (!window.confirm(`警告：確定要刪除選取的 ${selectedIds.size} 首歌曲嗎？`)) return;
       for (const id of selectedIds) { await deleteSong(id); }
       setSelectedIds(new Set());
   };
 
   const togglePreview = (url: string | undefined, id: string) => {
       if (!url) return alert("無音檔連結");
-      
       if (playingId === id) {
           audioRef.current?.pause();
           setPlayingId(null);
@@ -138,8 +136,7 @@ const AdminDashboard: React.FC = () => {
           metadata: {
               version: '3.0',
               exportedAt: new Date().toISOString(),
-              count: allSongs.length,
-              dbStatus: dbStatus
+              count: allSongs.length
           },
           songs: allSongs
       };
@@ -147,7 +144,7 @@ const AdminDashboard: React.FC = () => {
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `WILLWI_CORE_DUMP_${new Date().toISOString().split('T')[0]}.json`;
+      a.download = `WILLWI_DATABASE_${new Date().toISOString().split('T')[0]}.json`;
       a.click();
   };
 
@@ -161,17 +158,11 @@ const AdminDashboard: React.FC = () => {
             if (typeof result !== 'string') return;
             const parsed = JSON.parse(result);
             const rawSongs = Array.isArray(parsed) ? parsed : (parsed.songs || []);
-            
-            if (!Array.isArray(rawSongs)) throw new Error("Invalid Format");
-
-            if (window.confirm(`確認匯入 ${rawSongs.length} 筆資料？\n模式: ${importStrategy === 'overwrite' ? '覆寫 (清除舊資料)' : '合併 (保留舊資料)'}`)) {
-                if (importStrategy === 'overwrite') await dbService.clearAllSongs();
-                await bulkAddSongs(rawSongs);
-                alert("Import Successful.");
-                window.location.reload();
-            }
-          } catch (e) { alert("Import Failed. Invalid JSON."); }
-          finally { if (fileInputRef.current) fileInputRef.current.value = ''; }
+            if (importStrategy === 'overwrite') await dbService.clearAllSongs();
+            await bulkAddSongs(rawSongs);
+            alert("匯入成功！");
+            window.location.reload();
+          } catch (e) { alert("匯入失敗，請檢查格式。"); }
       };
       reader.readAsText(file);
   };
@@ -190,15 +181,13 @@ const AdminDashboard: React.FC = () => {
   };
 
   const saveAccessCode = () => {
-      if (accessCode.length < 4) return alert("通行碼太短");
       localStorage.setItem('willwi_access_code', accessCode);
-      alert("✅ 使用者通行碼已更新 (User Code Updated)");
+      alert("✅ 通行碼已更新");
   };
 
   const saveAdminPassword = () => {
-      if (adminPassword.length < 4) return alert("密碼請至少設定 4 位數");
       localStorage.setItem('willwi_admin_password', adminPassword);
-      alert("✅ 後台管理密碼已更新 (Admin Password Updated)");
+      alert("✅ 管理密碼已更新");
   };
 
   const filteredSongs = useMemo(() => {
@@ -240,7 +229,6 @@ const AdminDashboard: React.FC = () => {
   return (
     <div className="max-w-screen-2xl mx-auto px-6 py-12 animate-fade-in pb-40">
       
-      {/* HEADER */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-10 gap-6 border-b border-white/10 pb-8">
           <div>
             <h1 className="text-4xl font-black text-white uppercase tracking-tighter">{t('admin_title')}</h1>
@@ -260,10 +248,6 @@ const AdminDashboard: React.FC = () => {
               <div className="text-[10px] text-slate-500 font-bold uppercase tracking-widest mb-2">{t('admin_stat_total')}</div>
               <div className="text-3xl font-black text-white">{songs.length}</div>
           </div>
-          <div className={`bg-slate-900 border p-5 rounded-xl border-l-4 border-l-emerald-500 cursor-pointer hover:bg-slate-800 ${activeTab === 'curation' ? 'bg-slate-800' : 'border-white/5'}`} onClick={() => setActiveTab('curation')}>
-              <div className="text-[10px] text-emerald-400 font-bold uppercase tracking-widest mb-2">{t('admin_stat_active')}</div>
-              <div className="text-3xl font-black text-emerald-400">{stats.activeSongs}</div>
-          </div>
           <div className={`bg-slate-900 border p-5 rounded-xl border-l-4 border-l-brand-gold cursor-pointer hover:bg-slate-800 ${activeTab === 'payment' ? 'bg-slate-800' : 'border-white/5'}`} onClick={() => setActiveTab('payment')}>
               <div className="text-[10px] text-brand-gold font-bold uppercase tracking-widest mb-2">{t('admin_stat_payment')}</div>
               <div className="text-3xl font-black text-white">QR</div>
@@ -274,21 +258,22 @@ const AdminDashboard: React.FC = () => {
           </div>
       </div>
 
+      {/* 核心功能：發布同步提醒 */}
+      <div className="mb-10 bg-emerald-950/20 border border-emerald-500/30 p-8 rounded-2xl flex flex-col md:flex-row items-center gap-8 shadow-xl">
+          <div className="w-16 h-16 bg-emerald-500 text-slate-950 rounded-full flex items-center justify-center text-2xl animate-pulse">📢</div>
+          <div className="flex-grow">
+              <h4 className="text-lg font-black text-white uppercase tracking-tight mb-2">同步資料至全站 (聽眾端)</h4>
+              <p className="text-sm text-slate-400 font-light leading-relaxed">
+                威威，您目前新增的作品儲存在「您的瀏覽器」中。若要讓全球聽眾也看到這些作品：<br/>
+                1. 點擊下方按鈕 <span className="text-brand-accent font-bold">「導出作品 JSON」</span>。<br/>
+                2. 將下載的檔案傳送給開發工程師（AI），由我為您更新至全站 INITIAL_DATA 中。
+              </p>
+          </div>
+          <button onClick={downloadFullBackup} className="px-8 py-4 bg-emerald-600 text-white font-black text-[10px] uppercase tracking-widest rounded-full hover:bg-white hover:text-emerald-900 transition-all shadow-lg">導出作品 JSON</button>
+      </div>
+
       {activeTab === 'catalog' && (
           <div className="space-y-4">
-              <div className="bg-slate-900/50 border border-white/10 p-2 rounded-lg flex flex-col md:flex-row gap-2">
-                  <div className="flex-1 relative">
-                      <input type="text" placeholder="搜尋作品或 ISRC..." className="w-full bg-black/50 border border-transparent focus:border-brand-accent/50 rounded-md pl-10 pr-4 py-3 text-white text-xs font-bold outline-none" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
-                      <svg className="w-4 h-4 text-slate-500 absolute left-3 top-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
-                  </div>
-                  <select className="bg-black/50 text-slate-300 text-xs font-bold px-4 py-3 rounded-md outline-none cursor-pointer" value={filterStatus} onChange={(e) => setFilterStatus(e.target.value as any)}>
-                      <option value="all">所有狀態</option>
-                      <option value="active">已開放互動</option>
-                      <option value="missing_assets">⚠️ 缺音檔或歌詞</option>
-                  </select>
-                  {selectedIds.size > 0 && <button onClick={handleBulkDelete} className="bg-red-600 text-white text-[10px] font-black uppercase tracking-widest px-6 py-3 rounded-md">刪除選取 ({selectedIds.size})</button>}
-              </div>
-
               <div className="bg-slate-900 border border-white/5 rounded-xl overflow-hidden shadow-2xl">
                   <table className="w-full text-left border-collapse table-auto">
                       <thead className="bg-black text-[9px] font-black text-slate-500 uppercase tracking-widest">
@@ -296,7 +281,6 @@ const AdminDashboard: React.FC = () => {
                               <th className="p-4 w-12 text-center"><input type="checkbox" onChange={handleSelectAll} checked={selectedIds.size > 0 && selectedIds.size === filteredSongs.length} /></th>
                               <th className="p-4 w-12">{t('admin_table_play')}</th>
                               <th className="p-4 cursor-pointer" onClick={() => handleSort('title')}>{t('admin_table_info')}</th>
-                              <th className="p-4 text-center">{t('admin_table_links')}</th>
                               <th className="p-4 hidden md:table-cell" onClick={() => handleSort('releaseDate')}>{t('admin_table_date')}</th>
                               <th className="p-4 text-center">{t('admin_table_mode')}</th>
                               <th className="p-4 text-right">{t('admin_table_action')}</th>
@@ -306,31 +290,12 @@ const AdminDashboard: React.FC = () => {
                           {filteredSongs.map(song => (
                               <tr key={song.id} className={`group transition-all ${selectedIds.has(song.id) ? 'bg-brand-gold/10' : 'hover:bg-white/[0.03]'}`} onClick={() => navigate(`/song/${song.id}`)}>
                                   <td className="p-4 text-center" onClick={(e) => { e.stopPropagation(); handleSelectOne(song.id); }}><input type="checkbox" checked={selectedIds.has(song.id)} readOnly /></td>
-                                  
-                                  {/* Audio Preview Column */}
                                   <td className="p-4 text-center" onClick={(e) => e.stopPropagation()}>
-                                      <button 
-                                        onClick={() => togglePreview(song.audioUrl, song.id)}
-                                        className={`w-8 h-8 rounded-full flex items-center justify-center border transition-all ${playingId === song.id ? 'bg-brand-gold text-black border-brand-gold' : 'bg-slate-800 text-white border-white/20 hover:border-white'}`}
-                                      >
-                                          {playingId === song.id ? 
-                                              <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg> : 
-                                              <svg className="w-3 h-3 ml-0.5" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
-                                          }
+                                      <button onClick={() => togglePreview(song.audioUrl, song.id)} className={`w-8 h-8 rounded-full flex items-center justify-center border transition-all ${playingId === song.id ? 'bg-brand-gold text-black border-brand-gold' : 'bg-slate-800 text-white border-white/20'}`}>
+                                          {playingId === song.id ? <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg> : <svg className="w-3 h-3 ml-0.5" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>}
                                       </button>
                                   </td>
-
                                   <td className="p-4"><div className="flex items-center gap-4"><img src={song.coverUrl} className="w-10 h-10 object-cover rounded" alt="" /><div className="font-bold text-sm text-white">{song.title}</div></div></td>
-                                  
-                                  {/* External Links Column */}
-                                  <td className="p-4 text-center" onClick={(e) => e.stopPropagation()}>
-                                      <div className="flex gap-2 justify-center">
-                                          {song.spotifyLink ? <a href={song.spotifyLink} target="_blank" rel="noopener noreferrer" className="text-green-500 hover:text-white" title="Spotify"><svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.66 0 12 0zm-2 17V7l7 5-7 5z"/></svg></a> : <span className="text-slate-700">●</span>}
-                                          {song.youtubeUrl ? <a href={song.youtubeUrl} target="_blank" rel="noopener noreferrer" className="text-red-500 hover:text-white" title="YouTube"><svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M19.615 3.184c-3.604-.246-11.631-.245-15.23 0-3.897.266-4.356 2.62-4.385 8.816.029 6.185.484 8.549 4.385 8.816 3.6.245 11.626.246 15.23 0 3.897-.266 4.356-2.62 4.385-8.816-.029-6.185-.484-8.549-4.385-8.816zm-10.615 12.816v-8l8 3.993-8 4.007z"/></svg></a> : <span className="text-slate-700">●</span>}
-                                          {song.smartLink ? <a href={song.smartLink} target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:text-white" title="SmartLink"><svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" /></svg></a> : <span className="text-slate-700">●</span>}
-                                      </div>
-                                  </td>
-
                                   <td className="p-4 hidden md:table-cell text-xs font-mono text-slate-400">{song.releaseDate}</td>
                                   <td className="p-4 text-center" onClick={(e) => e.stopPropagation()}><button onClick={() => updateSong(song.id, { isInteractiveActive: !song.isInteractiveActive })} className={`px-4 py-1 text-[9px] font-black uppercase border rounded ${song.isInteractiveActive ? 'bg-emerald-500 text-black border-emerald-500' : 'text-slate-500 border-white/10'}`}>{song.isInteractiveActive ? 'ON' : 'OFF'}</button></td>
                                   <td className="p-4 text-right"><button onClick={(e) => { e.stopPropagation(); navigate(`/song/${song.id}`); }} className="text-[10px] font-black text-slate-400 hover:text-white">編輯</button></td>
@@ -344,85 +309,18 @@ const AdminDashboard: React.FC = () => {
 
       {activeTab === 'settings' && (
           <div className="max-w-4xl mx-auto animate-fade-in space-y-8">
-              <div className="bg-slate-900 border border-brand-accent/30 p-10 rounded-xl shadow-[0_0_50px_rgba(56,189,248,0.1)]">
-                  <h3 className="text-xl font-black text-brand-accent uppercase tracking-[0.3em] mb-8 flex items-center gap-4">
-                      <span className="w-8 h-8 bg-brand-accent text-black rounded-full flex items-center justify-center text-sm">SET</span>
-                      {t('admin_settings_system')}
-                  </h3>
-                  
-                  {/* SECURITY & ACCESS CONTROL - SPLIT INTO TWO DISTINCT ZONES */}
-                  <div className="p-8 bg-black/40 border border-white/5 rounded-lg mb-8">
-                      <h4 className="text-white text-base font-bold mb-6 flex items-center gap-2">
-                          <span className="text-brand-accent">🔐</span> 
-                          {t('admin_settings_security')}
-                      </h4>
-                      
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                          {/* ADMIN ZONE (RED) */}
-                          <div className="p-6 bg-red-950/20 border border-red-900/50 rounded-lg">
-                              <h5 className="text-red-400 font-bold text-xs uppercase tracking-widest mb-2 flex items-center gap-2">
-                                  <span>🛡️</span> {t('admin_sec_admin_pwd')}
-                              </h5>
-                              <p className="text-[10px] text-slate-500 mb-4 leading-relaxed">
-                                  {t('admin_sec_admin_desc')}
-                              </p>
-                              <div className="flex flex-col gap-2">
-                                  <input 
-                                      type="text" 
-                                      value={adminPassword} 
-                                      onChange={(e) => setAdminPassword(e.target.value)} 
-                                      className="bg-black border border-red-900/30 px-4 py-3 text-white font-mono text-center w-full outline-none focus:border-red-500 transition-all rounded tracking-widest" 
-                                  />
-                                  <button onClick={saveAdminPassword} className="w-full py-3 bg-red-900/50 border border-red-500 text-red-100 font-bold text-[10px] uppercase tracking-widest hover:bg-red-600 hover:text-white transition-all rounded shadow-lg">
-                                      {t('admin_btn_update')}
-                                  </button>
-                              </div>
-                          </div>
-
-                          {/* USER ZONE (GREEN) */}
-                          <div className="p-6 bg-emerald-950/20 border border-emerald-900/50 rounded-lg">
-                              <h5 className="text-emerald-400 font-bold text-xs uppercase tracking-widest mb-2 flex items-center gap-2">
-                                  <span>🔑</span> {t('admin_sec_user_code')}
-                              </h5>
-                              <p className="text-[10px] text-slate-500 mb-4 leading-relaxed">
-                                  {t('admin_sec_user_desc')}
-                              </p>
-                              <div className="flex flex-col gap-2">
-                                  <input 
-                                      value={accessCode} 
-                                      onChange={(e) => setAccessCode(e.target.value)} 
-                                      className="bg-black border border-emerald-900/30 px-4 py-3 text-white font-mono text-center w-full outline-none focus:border-emerald-500 transition-all rounded tracking-widest" 
-                                  />
-                                  <button onClick={saveAccessCode} className="w-full py-3 bg-emerald-900/50 border border-emerald-500 text-emerald-100 font-bold text-[10px] uppercase tracking-widest hover:bg-emerald-600 hover:text-white transition-all rounded shadow-lg">
-                                      {t('admin_btn_update')}
-                                  </button>
-                              </div>
-                          </div>
+              <div className="bg-slate-900 border border-brand-accent/30 p-10 rounded-xl">
+                  <h3 className="text-xl font-black text-brand-accent uppercase tracking-[0.3em] mb-8">系統權限管理</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                      <div className="p-6 bg-red-950/20 border border-red-900/50 rounded-lg">
+                          <h5 className="text-red-400 font-bold text-xs mb-4">後台登入密碼</h5>
+                          <input type="text" value={adminPassword} onChange={(e) => setAdminPassword(e.target.value)} className="bg-black border border-red-900/30 px-4 py-3 text-white font-mono w-full mb-4" />
+                          <button onClick={saveAdminPassword} className="w-full py-3 bg-red-900 text-white text-[10px] font-black uppercase">更新管理密碼</button>
                       </div>
-                  </div>
-
-                  {/* DATA CENTER */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-8 border-t border-white/5 pt-8">
-                      <div className="p-8 bg-black/40 border border-white/5 rounded-lg flex flex-col justify-between">
-                          <div>
-                              <h4 className="text-white text-base font-bold mb-3">{t('admin_data_export')}</h4>
-                              <p className="text-xs text-slate-500 leading-relaxed mb-8">{t('admin_data_export_desc')}</p>
-                          </div>
-                          <button onClick={downloadFullBackup} className="w-full py-4 bg-slate-800 text-white font-black text-[11px] uppercase tracking-widest hover:bg-white hover:text-black transition-all rounded shadow-xl">
-                              {t('admin_btn_download')}
-                          </button>
-                      </div>
-                      <div className="p-8 bg-black/40 border border-white/5 rounded-lg flex flex-col justify-between">
-                          <div>
-                              <h4 className="text-white text-base font-bold mb-3">{t('admin_data_import')}</h4>
-                              <p className="text-xs text-slate-500 leading-relaxed mb-8">{t('admin_data_import_desc')}</p>
-                          </div>
-                          <div className="relative">
-                              <button onClick={() => fileInputRef.current?.click()} className="w-full py-4 border border-white/20 text-slate-300 font-black text-[11px] uppercase tracking-widest hover:bg-white hover:text-black transition-all rounded">
-                                  {t('admin_btn_overwrite')}
-                              </button>
-                              <input ref={fileInputRef} type="file" className="hidden" accept=".json" onChange={handleImportFile} />
-                          </div>
+                      <div className="p-6 bg-emerald-950/20 border border-emerald-900/50 rounded-lg">
+                          <h5 className="text-emerald-400 font-bold text-xs mb-4">前台通行碼</h5>
+                          <input value={accessCode} onChange={(e) => setAccessCode(e.target.value)} className="bg-black border border-emerald-900/30 px-4 py-3 text-white font-mono w-full mb-4" />
+                          <button onClick={saveAccessCode} className="w-full py-3 bg-emerald-900 text-white text-[10px] font-black uppercase">更新通行碼</button>
                       </div>
                   </div>
               </div>
@@ -432,20 +330,19 @@ const AdminDashboard: React.FC = () => {
       {activeTab === 'payment' && (
           <div className="max-w-4xl mx-auto animate-fade-in space-y-8">
               <div className="bg-slate-900 border border-white/10 p-10 rounded-xl">
-                  <h3 className="text-xl font-black text-brand-gold uppercase tracking-[0.3em] mb-8">{t('admin_payment_setup')}</h3>
+                  <h3 className="text-xl font-black text-brand-gold uppercase tracking-[0.3em] mb-8">收款 QR Code</h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                      {/* Only QR Codes here now, Access Code moved to Settings */}
                       {[
-                          { key: 'global_payment', label: '主要收款 QR (Line Pay)' },
+                          { key: 'global_payment', label: '主要收款 QR' },
                           { key: 'line', label: 'LINE 官方帳號 QR' }
                       ].map((item) => (
                           <div key={item.key} className="p-6 bg-black/40 border border-white/5 rounded-xl text-center">
                               <h4 className="text-xs font-bold text-white uppercase mb-4">{item.label}</h4>
                               <div className="aspect-square bg-slate-900 border border-white/10 rounded-lg flex items-center justify-center overflow-hidden mb-4">
-                                  {qrImages[item.key as keyof typeof qrImages] ? <img src={qrImages[item.key as keyof typeof qrImages]} className="w-full h-full object-contain" /> : <span className="text-slate-700 text-[9px]">未上傳</span>}
+                                  {qrImages[item.key as keyof typeof qrImages] ? <img src={qrImages[item.key as keyof typeof qrImages]} className="w-full h-full object-contain" /> : <span className="text-slate-700">未上傳</span>}
                               </div>
-                              <label className="block w-full cursor-pointer py-3 border border-white/20 text-slate-300 font-black text-[9px] uppercase tracking-widest hover:bg-white hover:text-black transition-all rounded">
-                                  選擇圖片上傳
+                              <label className="block w-full cursor-pointer py-3 border border-white/20 text-slate-300 font-black text-[9px] uppercase hover:bg-white hover:text-black transition-all">
+                                  上傳圖片
                                   <input type="file" className="hidden" accept="image/*" onChange={handleQrUpload(item.key as keyof typeof qrImages)} />
                               </label>
                           </div>

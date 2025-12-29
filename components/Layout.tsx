@@ -21,7 +21,6 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const searchParams = new URLSearchParams(location.search);
   const isEmbed = searchParams.get('embed') === 'true';
 
-  // Global Background Image Sync
   useEffect(() => {
       const savedBg = localStorage.getItem('willwi_global_bg');
       if (savedBg && savedBg.trim() !== '') {
@@ -29,14 +28,12 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
       }
   }, [location.pathname]);
 
-  // Scroll Effect
   useEffect(() => {
     const handleScroll = () => setScrolled(window.scrollY > 50);
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
-  // System Integrity: Disable Right Click globally
   useEffect(() => {
     const handleContextMenu = (e: MouseEvent) => e.preventDefault();
     document.addEventListener('contextmenu', handleContextMenu);
@@ -69,7 +66,6 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   return (
     <div className={`min-h-screen flex flex-col relative font-sans selection:bg-brand-accent selection:text-brand-darker text-slate-100 overflow-x-hidden ${isEmbed ? 'bg-transparent' : 'bg-slate-950'}`}>
       
-      {/* Snowfall Component */}
       {isSnowing && <Snowfall />}
 
       {!isEmbed && (
@@ -78,10 +74,10 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
                 className="absolute inset-0 bg-cover bg-no-repeat transition-all duration-1000 transform scale-[1.02] bg-[position:right_center] md:bg-right"
                 style={{ backgroundImage: `url(${bgImage})` }}
             ></div>
+            {/* 首頁時顯著降低背景遮罩濃度，確保形象照乾淨明亮 */}
             <div className={`absolute inset-0 transition-all duration-700 ${isHome ? 'bg-slate-950/5' : 'bg-slate-950/60 backdrop-blur-[2px]'}`}></div>
-            <div className={`absolute inset-0 transition-opacity duration-1000 ${isHome ? 'opacity-10' : 'opacity-50'} bg-[radial-gradient(circle_at_center,_transparent_0%,_rgba(2,6,23,0.8)_100%)]`}></div>
-            <div className="absolute inset-x-0 bottom-0 h-1/3 bg-gradient-to-t from-slate-950 to-transparent"></div>
-            {isHome && <div className="absolute inset-y-0 left-0 w-full md:w-1/2 bg-gradient-to-r from-slate-950/40 via-transparent to-transparent"></div>}
+            <div className={`absolute inset-0 transition-opacity duration-1000 ${isHome ? 'opacity-10' : 'opacity-50'} bg-[radial-gradient(circle_at_center,_transparent_0%,_rgba(2,6,23,0.4)_100%)]`}></div>
+            <div className={`absolute inset-x-0 bottom-0 h-1/3 bg-gradient-to-t from-slate-950 to-transparent ${isHome ? 'opacity-50' : 'opacity-100'}`}></div>
         </div>
       )}
 
@@ -93,7 +89,7 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
                 <span className="text-2xl font-black tracking-[0.25em] text-white uppercase group-hover:text-brand-accent transition-colors duration-500 drop-shadow-lg">
                     Willwi
                 </span>
-                <span className="text-[0.5rem] px-1.5 py-0.5 border border-slate-500 text-slate-300 rounded group-hover:border-brand-accent group-hover:text-brand-accent transition-colors tracking-widest bg-black/20 backdrop-blur-md">
+                <span className="text-[0.4rem] px-1 py-0.5 border border-slate-500 text-slate-300 rounded group-hover:border-brand-accent group-hover:text-brand-accent transition-colors tracking-widest bg-black/20 backdrop-blur-md">
                     STUDIO
                 </span>
               </Link>
@@ -105,15 +101,13 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
             </div>
 
             <div className="hidden md:flex items-center">
-              <div className="ml-10 flex items-center space-x-10 text-sm uppercase drop-shadow-md font-semibold">
+              <div className="ml-10 flex items-center space-x-8 text-[11px] uppercase drop-shadow-md font-semibold">
+                {/* 使用者指定的排序：首頁、關於、作品庫、互動創作、串流頻道、後台管理 */}
                 <Link to={isEmbed ? "/?embed=true" : "/"} className={isActive('/')}>{t('nav_home')}</Link>
-                <Link to="/database" className={isActive('/database')}>{t('nav_catalog')}</Link>
-                <Link to="/streaming" className={isActive('/streaming')}>{t('nav_streaming')}</Link>
-                <Link to={isEmbed ? "/add?embed=true" : "/add"} className="text-slate-300 hover:text-brand-accent transition-colors font-bold tracking-wider">
-                    {t('nav_add')}
-                </Link>
-                <Link to={isEmbed ? "/interactive?embed=true" : "/interactive"} className={isActive('/interactive')}>{t('nav_interactive')}</Link>
                 <Link to={isEmbed ? "/about?embed=true" : "/about"} className={isActive('/about')}>{t('nav_about')}</Link>
+                <Link to="/database" className={isActive('/database')}>{t('nav_catalog')}</Link>
+                <Link to={isEmbed ? "/interactive?embed=true" : "/interactive"} className={isActive('/interactive')}>{t('nav_interactive')}</Link>
+                <Link to="/streaming" className={isActive('/streaming')}>{t('nav_streaming')}</Link>
                 <Link to="/admin" className={isActive('/admin')}>{t('nav_admin')}</Link>
               </div>
             </div>
@@ -127,7 +121,6 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
                         {t('nav_exit_admin')}
                     </button>
                 )}
-                
                 <button 
                   onClick={toggleSnow}
                   title="Let it Snow"
@@ -144,19 +137,6 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
             </div>
 
             <div className="md:hidden flex items-center gap-4">
-               {isAdmin && <span className="text-[8px] bg-brand-accent text-slate-950 px-1 py-0.5 rounded font-black">ADM</span>}
-               <button 
-                  onClick={toggleSnow}
-                  className={`text-sm p-1 ${isSnowing ? 'opacity-100' : 'opacity-40'}`}
-                >
-                  ❄️
-                </button>
-               <button 
-                  onClick={toggleLang}
-                  className="text-xs font-bold text-slate-400 hover:text-white border border-slate-600 px-2 py-1 rounded transition-all uppercase tracking-wider"
-                >
-                  {lang === 'en' ? '中' : 'EN'}
-                </button>
               <button
                 onClick={() => setIsMenuOpen(!isMenuOpen)}
                 className="inline-flex items-center justify-center p-2 rounded-md text-slate-400 hover:text-white hover:bg-slate-700 focus:outline-none"
@@ -179,13 +159,11 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
           <div className="md:hidden bg-slate-900/95 backdrop-blur-xl border-t border-slate-800 absolute w-full left-0 top-full shadow-2xl animate-fade-in-down">
             <div className="px-2 pt-2 pb-3 space-y-1 sm:px-3">
               <Link to="/" onClick={() => setIsMenuOpen(false)} className={mobileLinkClass('/')}>{t('nav_home')}</Link>
-              <Link to="/database" onClick={() => setIsMenuOpen(false)} className={mobileLinkClass('/database')}>{t('nav_catalog')}</Link>
-              <Link to="/streaming" onClick={() => setIsMenuOpen(false)} className={mobileLinkClass('/streaming')}>{t('nav_streaming')}</Link>
-              <Link to="/add" onClick={() => setIsMenuOpen(false)} className={mobileLinkClass('/add')}>{t('nav_add')}</Link>
-              <Link to="/interactive" onClick={() => setIsMenuOpen(false)} className={mobileLinkClass('/interactive')}>{t('nav_interactive')}</Link>
               <Link to="/about" onClick={() => setIsMenuOpen(false)} className={mobileLinkClass('/about')}>{t('nav_about')}</Link>
+              <Link to="/database" onClick={() => setIsMenuOpen(false)} className={mobileLinkClass('/database')}>{t('nav_catalog')}</Link>
+              <Link to="/interactive" onClick={() => setIsMenuOpen(false)} className={mobileLinkClass('/interactive')}>{t('nav_interactive')}</Link>
+              <Link to="/streaming" onClick={() => setIsMenuOpen(false)} className={mobileLinkClass('/streaming')}>{t('nav_streaming')}</Link>
               <Link to="/admin" onClick={() => setIsMenuOpen(false)} className={mobileLinkClass('/admin')}>{t('nav_admin')}</Link>
-              
               {isAdmin && (
                   <button onClick={handleExitAdmin} className="w-full text-left px-3 py-3 text-lg font-medium text-red-500 border-l-2 border-transparent">{t('nav_exit_admin')}</button>
               )}
