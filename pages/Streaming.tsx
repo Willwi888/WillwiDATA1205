@@ -72,16 +72,31 @@ const Streaming: React.FC = () => {
                     src={`https://www.youtube.com/embed/${getEmbedId(featuredVideo.youtubeUrl!)}?rel=0&showinfo=0&modestbranding=1`} 
                     title="YouTube video player" 
                     frameBorder="0" 
-                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" 
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture; web-share" 
                     allowFullScreen
                     className="opacity-90 group-hover:opacity-100 transition-opacity"
                   ></iframe>
                 </div>
                 
                 <div className="p-10 bg-gradient-to-b from-slate-900 to-black">
-                  <h4 className="text-2xl font-black text-white uppercase mb-4 leading-tight group-hover:text-red-500 transition-colors">
-                    {featuredVideo.title}
-                  </h4>
+                  <div className="flex justify-between items-start gap-4 mb-4">
+                    <h4 className="text-2xl font-black text-white uppercase leading-tight group-hover:text-red-500 transition-colors">
+                      {featuredVideo.title}
+                    </h4>
+                    {featuredVideo.cloudVideoUrl && (
+                      <a 
+                        href={featuredVideo.cloudVideoUrl} 
+                        target="_blank" 
+                        rel="noopener noreferrer" 
+                        className="flex-shrink-0 bg-white/5 border border-white/10 p-3 rounded hover:bg-white/10 transition-all text-brand-gold"
+                        title="Open HQ Cloud Video"
+                      >
+                        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0 10-9.78 2.096A4.001 4.001 0 003 15z" />
+                        </svg>
+                      </a>
+                    )}
+                  </div>
                   <p className="text-slate-400 text-sm leading-relaxed mb-10 max-w-xl font-light">
                     {featuredVideo.description || '這是 Willwi 為官網聽眾準備的獨家視聽內容。直接在此觀看完整作品。'}
                   </p>
@@ -94,6 +109,16 @@ const Streaming: React.FC = () => {
                     >
                       {t('streaming_btn_subscribe')}
                     </a>
+                    {featuredVideo.cloudVideoUrl && (
+                      <a 
+                        href={featuredVideo.cloudVideoUrl} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="px-10 py-4 border border-white/20 text-white font-black text-xs uppercase tracking-[0.3em] hover:bg-white hover:text-black transition-all rounded-full"
+                      >
+                        CLOUD ACCESS
+                      </a>
+                    )}
                   </div>
                 </div>
               </div>
@@ -116,7 +141,16 @@ const Streaming: React.FC = () => {
                         frameBorder="0" allowFullScreen 
                     />
                   </div>
-                  <h5 className="text-sm font-black text-white uppercase mb-2 truncate">{item.title}</h5>
+                  <div className="flex justify-between items-start gap-2 mb-2">
+                    <h5 className="text-sm font-black text-white uppercase truncate">{item.title}</h5>
+                    {item.cloudVideoUrl && (
+                      <a href={item.cloudVideoUrl} target="_blank" rel="noopener noreferrer" className="text-slate-500 hover:text-brand-gold">
+                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0 10-9.78 2.096A4.001 4.001 0 003 15z" />
+                        </svg>
+                      </a>
+                    )}
+                  </div>
                   <p className="text-[10px] text-slate-500 mt-auto">{item.releaseDate}</p>
                 </div>
               ))}

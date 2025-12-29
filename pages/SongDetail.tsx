@@ -370,7 +370,8 @@ const SongDetail: React.FC = () => {
                                         <label className="text-[9px] text-brand-accent uppercase font-bold">External Links</label>
                                         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                                             <input name="youtubeUrl" className="bg-black/50 border border-white/10 p-2 text-white text-xs font-mono outline-none focus:border-brand-accent" value={editForm.youtubeUrl || ''} onChange={handleEditChange} placeholder="YouTube Video URL" />
-                                            <input name="spotifyId" className="bg-black/50 border border-white/10 p-2 text-white text-xs font-mono outline-none focus:border-brand-accent" value={editForm.spotifyId || ''} onChange={handleEditChange} placeholder="Spotify Track ID" />
+                                            <input name="cloudVideoUrl" className="bg-black/50 border border-white/10 p-2 text-white text-xs font-mono outline-none focus:border-brand-accent" value={editForm.cloudVideoUrl || ''} onChange={handleEditChange} placeholder="Cloud Video Download Link" />
+                                            <input name="spotifyId" className="bg-black/50 border border-white/10 p-2 text-white text-xs md:col-span-2 font-mono outline-none focus:border-brand-accent" value={editForm.spotifyId || ''} onChange={handleEditChange} placeholder="Spotify Track ID" />
                                         </div>
                                     </div>
 

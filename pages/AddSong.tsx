@@ -97,6 +97,7 @@ const AddSong: React.FC = () => {
     musicBrainzId: '',
     audioUrl: '',
     youtubeUrl: '',
+    cloudVideoUrl: '',
   });
 
   const handleAdminLogin = (e: React.FormEvent) => {
@@ -219,6 +220,7 @@ const AddSong: React.FC = () => {
       isOfficialExclusive: !!formData.isOfficialExclusive,
       audioUrl: convertToDirectStream(formData.audioUrl || ''),
       youtubeUrl: formData.youtubeUrl,
+      cloudVideoUrl: formData.cloudVideoUrl,
       spotifyId: formData.spotifyId,
       lyrics: formData.lyrics,
       description: formData.description,
@@ -264,7 +266,8 @@ const AddSong: React.FC = () => {
         <div className="space-y-2"><label className="text-[10px] text-slate-500 font-black uppercase tracking-widest">{t('form_label_links')}</label>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <input name="youtubeUrl" className="bg-slate-900 border border-white/10 px-4 py-3 text-white text-xs focus:border-brand-accent outline-none font-mono" value={formData.youtubeUrl} onChange={handleChange} placeholder="YouTube Video URL (required for Exclusive section)" />
-                <input name="spotifyId" className="bg-slate-900 border border-white/10 px-4 py-3 text-white text-xs focus:border-brand-accent outline-none font-mono" value={formData.spotifyId} onChange={handleChange} placeholder="Spotify Track ID (e.g. 5Lqex...)" />
+                <input name="cloudVideoUrl" className="bg-slate-900 border border-white/10 px-4 py-3 text-white text-xs focus:border-brand-accent outline-none font-mono" value={formData.cloudVideoUrl} onChange={handleChange} placeholder="Cloud Video Download URL (Google Drive/Dropbox)" />
+                <input name="spotifyId" className="bg-slate-900 border border-white/10 px-4 py-3 text-white text-xs md:col-span-2 focus:border-brand-accent outline-none font-mono" value={formData.spotifyId} onChange={handleChange} placeholder="Spotify Track ID (e.g. 5Lqex...)" />
             </div>
         </div>
 

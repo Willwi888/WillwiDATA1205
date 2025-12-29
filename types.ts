@@ -42,6 +42,7 @@ export interface Song {
   spotifyId?: string;
   musicBrainzId?: string;
   youtubeUrl?: string;
+  cloudVideoUrl?: string; // New: Cloud storage link for HQ video files
   musixmatchUrl?: string; 
   youtubeMusicUrl?: string;
   spotifyLink?: string;
