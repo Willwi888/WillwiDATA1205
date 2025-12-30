@@ -1,16 +1,26 @@
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from '../context/LanguageContext';
 import { ASSETS } from '../context/DataContext';
+import { fetchWillwiTrends, TrendResult } from '../services/geminiService';
 
 const Home: React.FC = () => {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const [trends, setTrends] = useState<TrendResult | null>(null);
 
   const handleNavigateToMode = (mode: string) => {
       navigate('/interactive', { state: { initialMode: mode } });
   };
+
+  useEffect(() => {
+    const loadTrends = async () => {
+      const data = await fetchWillwiTrends();
+      if (data) setTrends(data);
+    };
+    loadTrends();
+  }, []);
 
   return (
     <div className="min-h-screen relative flex flex-col items-center">
@@ -87,6 +97,38 @@ const Home: React.FC = () => {
                     </button>
                 </div>
             </div>
+
+            {/* Google Search Grounding: Latest Intelligence */}
+            {trends && (
+              <div className="mt-20 w-full max-w-5xl bg-slate-900/50 border-l-2 border-brand-gold p-8 backdrop-blur-md animate-fade-in relative overflow-hidden">
+                <div className="absolute top-0 right-0 w-20 h-20 bg-brand-gold/5 blur-2xl rounded-full"></div>
+                <div className="relative z-10">
+                  <h3 className="text-[10px] font-black text-brand-gold uppercase tracking-[0.4em] mb-4 flex items-center gap-2">
+                    <span className="w-2 h-2 bg-brand-gold rounded-full animate-pulse"></span>
+                    LATEST NEWS • 最新快訊
+                  </h3>
+                  <p className="text-xs md:text-sm text-slate-300 leading-relaxed font-light tracking-wide mb-6">
+                    {trends.content}
+                  </p>
+                  
+                  {trends.sources.length > 0 && (
+                    <div className="flex flex-wrap gap-3">
+                      {trends.sources.map((source, idx) => (
+                        <a 
+                          key={idx} 
+                          href={source.uri} 
+                          target="_blank" 
+                          rel="noopener noreferrer"
+                          className="px-3 py-1 bg-black/40 border border-white/10 hover:border-brand-gold/50 text-[9px] text-slate-400 hover:text-white uppercase tracking-wider rounded-sm transition-all truncate max-w-[200px]"
+                        >
+                          Source {idx + 1}: {source.title}
+                        </a>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
         </div>
       </section>
     </div>

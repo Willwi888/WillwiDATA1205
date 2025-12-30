@@ -1,3 +1,4 @@
+
 import { GoogleGenAI } from "@google/genai";
 import { Song } from "../types";
 
@@ -115,4 +116,49 @@ export const generateAiVideo = async (prompt: string): Promise<string | null> =>
   const res = await fetch(`${videoUri}&key=${process.env.API_KEY}`);
   const blob = await res.blob();
   return URL.createObjectURL(blob);
+};
+
+export interface TrendResult {
+  content: string;
+  sources: { title: string; uri: string }[];
+}
+
+export const fetchWillwiTrends = async (): Promise<TrendResult | null> => {
+  const client = getClient();
+  if (!client) return null;
+
+  try {
+    const response = await client.models.generateContent({
+      model: 'gemini-3-pro-preview', // Using Pro for better grounding capabilities
+      contents: "Search for the latest public news, social discussions, or creative updates regarding 'Willwi Official Creative Participation Platform' or 'Willwi Music'. \n\nTask: Draft a **Media News Brief (媒體快訊)** in Traditional Chinese (zh-TW).\n\nRequirements:\n1. **Style**: Journalistic, objective, and professional (新聞稿風格).\n2. **Formatting**: Single coherent paragraph. STRICTLY NO emojis, NO bullet points, NO Markdown bolding (**text**).\n3. **Content**: Focus on recent developments, market reception, or the platform's positioning in the interactive music industry.\n4. **Fallback**: If no specific recent news is found, write a general industry observation describing Willwi's 'Resonance Sync' model as an emerging trend.\n5. **Tone**: Remove all AI-like conversational fillers.",
+      config: {
+        tools: [{ googleSearch: {} }],
+      },
+    });
+
+    // Extract grounding sources
+    const sources: { title: string; uri: string }[] = [];
+    const chunks = response.candidates?.[0]?.groundingMetadata?.groundingChunks || [];
+    
+    chunks.forEach((chunk: any) => {
+      if (chunk.web) {
+        sources.push({
+          title: chunk.web.title || 'Source',
+          uri: chunk.web.uri
+        });
+      }
+    });
+
+    // Remove duplicates
+    const uniqueSources = sources.filter((v, i, a) => a.findIndex(t => t.uri === v.uri) === i);
+
+    return {
+      content: response.text || "目前暫無最新情報。",
+      sources: uniqueSources.slice(0, 3) // Limit to top 3 sources
+    };
+
+  } catch (error) {
+    console.error("Trend Search Error:", error);
+    return null;
+  }
 };
