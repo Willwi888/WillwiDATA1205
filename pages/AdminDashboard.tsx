@@ -4,10 +4,10 @@ import { useNavigate } from 'react-router-dom';
 import { useData } from '../context/DataContext';
 import { useUser } from '../context/UserContext';
 import { dbService } from '../services/db';
-import { Song, ProjectType } from '../types';
+import { Song, ProjectType, Language } from '../types';
 import { useTranslation } from '../context/LanguageContext';
 
-type Tab = 'catalog' | 'settings' | 'payment' | 'curation';
+type Tab = 'catalog' | 'settings' | 'payment' | 'security';
 type SortKey = 'releaseDate' | 'title' | 'language';
 
 const AdminDashboard: React.FC = () => {
@@ -23,6 +23,10 @@ const AdminDashboard: React.FC = () => {
   const [playingId, setPlayingId] = useState<string | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
+  // Security States
+  const [newAdminPassword, setNewAdminPassword] = useState('');
+  const [userAccessCode, setUserAccessCode] = useState('');
+
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState<'all' | 'active' | 'inactive' | 'missing_assets'>('all');
   const [sortConfig, setSortConfig] = useState<{ key: SortKey; direction: 'asc' | 'desc' }>({ key: 'releaseDate', direction: 'desc' });
@@ -35,16 +39,19 @@ const AdminDashboard: React.FC = () => {
       support: '',
       line: ''
   });
-  const [importStrategy, setImportStrategy] = useState<'merge' | 'overwrite'>('merge');
 
   useEffect(() => {
-      setQrImages({
-          global_payment: localStorage.getItem('qr_global_payment') || '',
-          production: localStorage.getItem('qr_production') || '',
-          cinema: localStorage.getItem('qr_cinema') || '',
-          support: localStorage.getItem('qr_support') || '',
-          line: localStorage.getItem('qr_line') || ''
-      });
+      if (isAdmin) {
+          setQrImages({
+              global_payment: localStorage.getItem('qr_global_payment') || '',
+              production: localStorage.getItem('qr_production') || '',
+              cinema: localStorage.getItem('qr_cinema') || '',
+              support: localStorage.getItem('qr_support') || '',
+              line: localStorage.getItem('qr_line') || ''
+          });
+          setUserAccessCode(localStorage.getItem('willwi_access_code') || '8888');
+          setNewAdminPassword(localStorage.getItem('willwi_admin_password') || '8520');
+      }
   }, [isAdmin]);
 
   const handleSort = (key: SortKey) => {
@@ -68,11 +75,17 @@ const AdminDashboard: React.FC = () => {
       }
   };
 
+  const saveSecuritySettings = () => {
+      localStorage.setItem('willwi_admin_password', newAdminPassword);
+      localStorage.setItem('willwi_access_code', userAccessCode);
+      alert("安全設定已成功更新！");
+  };
+
   const downloadFullBackup = async () => {
       const allSongs = await dbService.getAllSongs();
       const exportData = {
           metadata: {
-              version: '3.2',
+              version: '3.3',
               exportedAt: new Date().toISOString(),
               count: allSongs.length
           },
@@ -96,19 +109,11 @@ const AdminDashboard: React.FC = () => {
             if (typeof result !== 'string') return;
             const parsed = JSON.parse(result);
             const rawSongs = Array.isArray(parsed) ? parsed : (parsed.songs || []);
-            
-            if (importStrategy === 'overwrite') {
-                if (!window.confirm("確定要「覆蓋」現有資料嗎？此動作將清除目前所有手動新增的作品。")) return;
-                await dbService.clearAllSongs();
-            }
-            
+            await dbService.clearAllSongs();
             await bulkAddSongs(rawSongs);
             alert(`成功匯入 ${rawSongs.length} 筆作品！`);
             window.location.reload();
-          } catch (e) { 
-              console.error(e);
-              alert("匯入失敗，請檢查 JSON 檔案格式是否正確。"); 
-          }
+          } catch (e) { alert("匯入失敗"); }
       };
       reader.readAsText(file);
   };
@@ -132,8 +137,6 @@ const AdminDashboard: React.FC = () => {
           (s.isrc && s.isrc.includes(searchTerm))
       );
       if (filterStatus === 'active') result = result.filter(s => s.isInteractiveActive);
-      if (filterStatus === 'inactive') result = result.filter(s => !s.isInteractiveActive);
-      if (filterStatus === 'missing_assets') result = result.filter(s => !s.lyrics || !s.audioUrl);
       return result.sort((a, b) => {
           let valA = a[sortConfig.key] || '';
           let valB = b[sortConfig.key] || '';
@@ -171,21 +174,23 @@ const AdminDashboard: React.FC = () => {
             <p className="text-slate-500 text-[10px] font-bold uppercase tracking-[0.4em] mt-2">Willwi Music Central Control</p>
           </div>
           <div className="flex items-center gap-3">
-            <button onClick={() => navigate('/add')} className="h-10 px-6 bg-brand-accent text-slate-950 text-[10px] font-black uppercase tracking-widest rounded hover:bg-white transition-all shadow-lg flex items-center gap-2">
-                New Song
-            </button>
+            <button onClick={() => navigate('/add')} className="h-10 px-6 bg-brand-accent text-slate-950 text-[10px] font-black uppercase tracking-widest rounded hover:bg-white transition-all shadow-lg flex items-center gap-2">New Song</button>
             <button onClick={logoutAdmin} className="h-10 px-6 border border-slate-700 text-slate-400 text-[10px] font-black uppercase tracking-widest rounded hover:bg-slate-800 hover:text-white transition-all">Exit</button>
           </div>
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4 mb-10">
+      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-4 gap-4 mb-10">
           <div className={`bg-slate-900 border p-5 rounded-xl cursor-pointer hover:bg-slate-800 ${activeTab === 'catalog' ? 'border-brand-accent bg-slate-800' : 'border-white/5'}`} onClick={() => setActiveTab('catalog')}>
               <div className="text-[10px] text-slate-500 font-bold uppercase tracking-widest mb-2">Total Songs</div>
               <div className="text-3xl font-black text-white">{songs.length}</div>
           </div>
           <div className={`bg-slate-900 border p-5 rounded-xl border-l-4 border-l-brand-gold cursor-pointer hover:bg-slate-800 ${activeTab === 'payment' ? 'border-brand-gold bg-slate-800' : 'border-white/5'}`} onClick={() => setActiveTab('payment')}>
-              <div className="text-[10px] text-brand-gold font-bold uppercase tracking-widest mb-2">Payment Setup</div>
+              <div className="text-[10px] text-brand-gold font-bold uppercase tracking-widest mb-2">QR Management</div>
               <div className="text-3xl font-black text-white">QR</div>
+          </div>
+          <div className={`bg-slate-900 border p-5 rounded-xl border-l-4 border-l-emerald-500 cursor-pointer hover:bg-slate-800 ${activeTab === 'security' ? 'border-emerald-500 bg-slate-800' : 'border-white/5'}`} onClick={() => setActiveTab('security')}>
+              <div className="text-[10px] text-emerald-500 font-bold uppercase tracking-widest mb-2">Security</div>
+              <div className="text-3xl font-black text-white">🔒</div>
           </div>
           <div className={`bg-slate-900 border p-5 rounded-xl border-l-4 border-l-brand-accent cursor-pointer hover:bg-slate-800 ${activeTab === 'settings' ? 'border-brand-accent bg-slate-800' : 'border-white/5'}`} onClick={() => setActiveTab('settings')}>
               <div className="text-[10px] text-brand-accent font-bold uppercase tracking-widest mb-2">Data Sync</div>
@@ -213,10 +218,10 @@ const AdminDashboard: React.FC = () => {
                                       {playingId === song.id ? <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg> : <svg className="w-3 h-3 ml-0.5" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>}
                                   </button>
                               </td>
-                              <td className="p-4"><div className="flex items-center gap-4"><img src={song.coverUrl} className="w-10 h-10 object-cover rounded" alt="" /><div className="font-bold text-sm text-white">{song.title}</div></div></td>
+                              <td className="p-4 flex items-center gap-4"><img src={song.coverUrl} className="w-10 h-10 object-cover rounded" alt="" /><div className="font-bold text-sm text-white">{song.title}</div></td>
                               <td className="p-4 hidden md:table-cell text-xs font-mono text-slate-400">{song.releaseDate}</td>
                               <td className="p-4 text-center" onClick={(e) => e.stopPropagation()}><button onClick={() => updateSong(song.id, { isInteractiveActive: !song.isInteractiveActive })} className={`px-4 py-1 text-[9px] font-black uppercase border rounded ${song.isInteractiveActive ? 'bg-emerald-500 text-black border-emerald-500' : 'text-slate-500 border-white/10'}`}>{song.isInteractiveActive ? 'ON' : 'OFF'}</button></td>
-                              <td className="p-4 text-right"><button onClick={(e) => { e.stopPropagation(); navigate(`/song/${song.id}`); }} className="text-[10px] font-black text-slate-400 hover:text-white">INFO</button></td>
+                              <td className="p-4 text-right"><button onClick={(e) => { e.stopPropagation(); navigate(`/song/${song.id}`); }} className="text-[10px] font-black text-slate-400 hover:text-white uppercase tracking-widest">EDIT</button></td>
                           </tr>
                       ))}
                   </tbody>
@@ -224,28 +229,56 @@ const AdminDashboard: React.FC = () => {
           </div>
       )}
 
+      {activeTab === 'security' && (
+          <div className="max-w-4xl mx-auto animate-fade-in space-y-8">
+              <div className="bg-slate-900 border border-emerald-500/30 p-10 rounded-xl shadow-xl">
+                  <h3 className="text-xl font-black text-emerald-500 uppercase tracking-[0.3em] mb-8">安全與權限設定 (Security)</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
+                      <div className="space-y-6">
+                          <div>
+                              <label className="block text-[10px] text-slate-500 font-black uppercase tracking-widest mb-3">後台登入密碼 (Admin Password)</label>
+                              <input 
+                                type="text" 
+                                className="w-full bg-black border border-white/10 p-4 text-white text-base font-mono focus:border-emerald-500 outline-none transition-all tracking-widest"
+                                value={newAdminPassword}
+                                onChange={(e) => setNewAdminPassword(e.target.value)}
+                              />
+                              <p className="text-[9px] text-slate-600 mt-2 uppercase">變更後下次登入需使用新密碼</p>
+                          </div>
+                      </div>
+                      <div className="space-y-6">
+                          <div>
+                              <label className="block text-[10px] text-brand-gold font-black uppercase tracking-widest mb-3">用戶解鎖通行碼 (User Access Code)</label>
+                              <input 
+                                type="text" 
+                                className="w-full bg-black border border-brand-gold/20 p-4 text-brand-gold text-base font-mono focus:border-brand-gold outline-none transition-all tracking-widest"
+                                value={userAccessCode}
+                                onChange={(e) => setUserAccessCode(e.target.value)}
+                              />
+                              <p className="text-[9px] text-slate-600 mt-2 uppercase">提供給完成付款用戶的萬用解鎖碼</p>
+                          </div>
+                      </div>
+                  </div>
+                  <div className="mt-12 pt-8 border-t border-white/5 flex justify-end">
+                      <button onClick={saveSecuritySettings} className="px-10 py-4 bg-emerald-600 text-white font-black text-xs uppercase tracking-[0.2em] rounded hover:bg-white hover:text-black transition-all shadow-xl">儲存所有設定</button>
+                  </div>
+              </div>
+          </div>
+      )}
+
       {activeTab === 'settings' && (
           <div className="max-w-4xl mx-auto animate-fade-in space-y-8">
               <div className="bg-slate-900 border border-brand-accent/30 p-10 rounded-xl shadow-xl">
-                  <h3 className="text-xl font-black text-brand-accent uppercase tracking-[0.3em] mb-8">JSON 資料同步中心</h3>
+                  <h3 className="text-xl font-black text-brand-accent uppercase tracking-[0.3em] mb-8">數據管理與備份</h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                       <div className="p-8 bg-black/40 border border-white/5 rounded-lg flex flex-col justify-between">
-                          <div>
-                              <h4 className="text-white text-base font-bold mb-3">備份數據 (Export)</h4>
-                              <p className="text-xs text-slate-500 leading-relaxed mb-8">將目前資料庫所有作品資訊下載為 JSON 備份檔。</p>
-                          </div>
-                          <button onClick={downloadFullBackup} className="w-full py-4 bg-slate-800 text-white font-black text-[11px] uppercase tracking-widest hover:bg-white hover:text-black transition-all rounded shadow-xl">立即導出</button>
+                          <div><h4 className="text-white text-base font-bold mb-3">導出 JSON 備份</h4><p className="text-xs text-slate-500 leading-relaxed mb-8">將目前所有作品數據下載為 JSON 檔案。</p></div>
+                          <button onClick={downloadFullBackup} className="w-full py-4 bg-slate-800 text-white font-black text-[11px] uppercase tracking-widest hover:bg-white hover:text-black transition-all rounded">立即導出</button>
                       </div>
                       <div className="p-8 bg-black/40 border border-brand-accent/30 rounded-lg flex flex-col justify-between">
-                          <div className="mb-4">
-                              <h4 className="text-brand-accent text-base font-bold mb-3">恢復數據 (Import)</h4>
-                              <div className="flex gap-2 mb-4 bg-slate-900 p-1 rounded">
-                                  <button onClick={() => setImportStrategy('merge')} className={`flex-1 py-2 text-[9px] font-black uppercase rounded ${importStrategy === 'merge' ? 'bg-brand-accent text-black' : 'text-slate-500'}`}>合併 (Merge)</button>
-                                  <button onClick={() => setImportStrategy('overwrite')} className={`flex-1 py-2 text-[9px] font-black uppercase rounded ${importStrategy === 'overwrite' ? 'bg-red-500 text-white' : 'text-slate-500'}`}>覆蓋 (Overwrite)</button>
-                              </div>
-                          </div>
+                          <div><h4 className="text-brand-accent text-base font-bold mb-3">匯入 JSON 檔案</h4><p className="text-xs text-slate-500 leading-relaxed mb-8">匯入外部 JSON 數據並覆蓋目前內容。</p></div>
                           <div className="relative">
-                              <button onClick={() => fileInputRef.current?.click()} className="w-full py-4 border border-brand-accent text-brand-accent font-black text-[11px] uppercase tracking-widest hover:bg-brand-accent hover:text-black transition-all rounded">選擇 JSON 檔案</button>
+                              <button onClick={() => fileInputRef.current?.click()} className="w-full py-4 border border-brand-accent text-brand-accent font-black text-[11px] uppercase tracking-widest hover:bg-brand-accent hover:text-black transition-all rounded">選擇檔案匯入</button>
                               <input ref={fileInputRef} type="file" className="hidden" accept=".json" onChange={handleImportFile} />
                           </div>
                       </div>
@@ -265,9 +298,7 @@ const AdminDashboard: React.FC = () => {
                               <div className="aspect-square bg-slate-900 border border-white/10 rounded-lg flex items-center justify-center overflow-hidden mb-4">
                                   {qrImages[item.key as keyof typeof qrImages] ? <img src={qrImages[item.key as keyof typeof qrImages]} className="w-full h-full object-contain" /> : <span className="text-slate-700 text-[10px]">未上傳</span>}
                               </div>
-                              <label className="block w-full cursor-pointer py-3 border border-white/20 text-slate-300 font-black text-[9px] uppercase tracking-widest hover:bg-white hover:text-black transition-all rounded">
-                                  上傳圖片<input type="file" className="hidden" accept="image/*" onChange={handleQrUpload(item.key as keyof typeof qrImages)} />
-                              </label>
+                              <label className="block w-full cursor-pointer py-3 border border-white/20 text-slate-300 font-black text-[9px] uppercase tracking-widest hover:bg-white hover:text-black transition-all rounded">上傳圖片<input type="file" className="hidden" accept="image/*" onChange={handleQrUpload(item.key as keyof typeof qrImages)} /></label>
                           </div>
                       ))}
                   </div>
