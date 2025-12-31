@@ -265,6 +265,16 @@ const SongDetail: React.FC = () => {
                                     <input className="w-full bg-black/50 border border-white/10 p-3 text-white text-xs font-mono" value={editForm.customAudioLink || ''} name="customAudioLink" placeholder="備用音源或外部連結" onChange={handleEditChange} />
                                 </div>
                             </div>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div className="space-y-1">
+                                    <label className="text-[9px] text-emerald-500 uppercase tracking-widest">Spotify Track ID</label>
+                                    <input className="w-full bg-black/50 border border-emerald-500/20 p-3 text-white text-xs font-mono" value={editForm.spotifyId || ''} name="spotifyId" placeholder="Spotify Track ID" onChange={handleEditChange} />
+                                </div>
+                                <div className="space-y-1">
+                                    <label className="text-[9px] text-emerald-500 uppercase tracking-widest">Spotify Link</label>
+                                    <input className="w-full bg-black/50 border border-emerald-500/20 p-3 text-white text-xs font-mono" value={editForm.spotifyLink || ''} name="spotifyLink" placeholder="Full Spotify URL" onChange={handleEditChange} />
+                                </div>
+                            </div>
                             
                             <div className="pt-4 flex justify-end gap-3">
                                 <button onClick={() => setIsEditing(false)} className="px-6 py-2 text-xs text-slate-400 font-bold uppercase tracking-widest">取消</button>
@@ -288,13 +298,30 @@ const SongDetail: React.FC = () => {
                                 )}
                             </div>
 
-                            {/* Persistent Audio Player */}
-                            <div className="mt-8 bg-black/40 p-4 rounded-xl border border-white/5 backdrop-blur-md max-w-md">
-                                <p className="text-[9px] text-slate-500 font-bold uppercase tracking-[0.4em] mb-3">Official Stream Preview</p>
-                                {convertedAudioUrl ? (
-                                    <audio src={convertedAudioUrl} controls className="w-full h-8 accent-brand-gold" />
-                                ) : (
-                                    <p className="text-[10px] text-slate-600 italic">No audio preview link available.</p>
+                            {/* Multi-source Audio Section */}
+                            <div className="mt-8 flex flex-col md:flex-row gap-6 max-w-4xl">
+                                {/* Local/Cloud Stream */}
+                                <div className="flex-1 bg-black/40 p-4 rounded-xl border border-white/5 backdrop-blur-md">
+                                    <p className="text-[9px] text-slate-500 font-bold uppercase tracking-[0.4em] mb-3">Official Stream Preview</p>
+                                    {convertedAudioUrl ? (
+                                        <audio src={convertedAudioUrl} controls className="w-full h-8 accent-brand-gold" />
+                                    ) : (
+                                        <p className="text-[10px] text-slate-600 italic">No direct audio preview available.</p>
+                                    )}
+                                </div>
+                                
+                                {/* Spotify Mini Player */}
+                                {song.spotifyId && (
+                                    <div className="flex-1 bg-[#1DB954]/10 p-2 rounded-xl border border-[#1DB954]/20 backdrop-blur-md">
+                                        <iframe 
+                                            src={`https://open.spotify.com/embed/track/${song.spotifyId}?utm_source=generator&theme=0`} 
+                                            width="100%" 
+                                            height="80" 
+                                            frameBorder="0" 
+                                            allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture" 
+                                            loading="lazy"
+                                        ></iframe>
+                                    </div>
                                 )}
                             </div>
 
@@ -303,6 +330,14 @@ const SongDetail: React.FC = () => {
                                     <div className="w-8 h-8 rounded-full bg-brand-gold flex items-center justify-center text-black shadow-[0_0_15px_rgba(251,191,36,0.5)]"><svg className="w-4 h-4 ml-0.5" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 14H9V8h2v8zm4 0h-2V8h2v8z" /></svg></div>
                                     <span className="text-[10px] font-black uppercase tracking-[0.2em]">{t('detail_btn_immersive')}</span>
                                 </button>
+                                {song.spotifyLink && (
+                                    <a href={song.spotifyLink} target="_blank" rel="noopener noreferrer" className="group flex items-center gap-3 px-6 py-3 bg-[#1DB954]/10 border border-[#1DB954]/20 hover:bg-[#1DB954] hover:text-black transition-all rounded-full">
+                                        <div className="w-6 h-6 bg-[#1DB954] text-white rounded-full flex items-center justify-center p-1 group-hover:bg-white group-hover:text-black transition-colors">
+                                            <svg className="w-full h-full" fill="currentColor" viewBox="0 0 24 24"><path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.508 17.302c-.218.358-.686.469-1.044.25-2.887-1.764-6.521-2.163-10.803-1.183-.41.094-.82-.163-.914-.573-.094-.41.163-.82.573-.914 4.69-1.072 8.706-.613 11.938 1.36.358.218.469.686.25 1.06zm1.468-3.257c-.274.446-.856.586-1.302.312-3.305-2.031-8.344-2.62-12.253-1.434-.504.153-1.036-.135-1.189-.639-.153-.504.135-1.036.639-1.189 4.475-1.357 10.038-.703 13.793 1.608.446.274.586.856.312 1.302zm.126-3.41c-3.963-2.353-10.512-2.57-14.305-1.417-.608.184-1.25-.164-1.434-.772-.184-.608.164-1.25.772-1.434 4.356-1.323 11.583-1.063 16.142 1.643.547.324.726 1.033.402 1.58-.324.547-1.033.726-1.58.402z"/></svg>
+                                        </div>
+                                        <span className="text-[10px] font-black uppercase tracking-[0.2em]">Open on Spotify</span>
+                                    </a>
+                                )}
                                 {song.customAudioLink && (
                                     <a href={song.customAudioLink} target="_blank" rel="noopener noreferrer" className="px-6 py-3 border border-white/20 text-slate-400 hover:text-white rounded-full text-[10px] font-bold uppercase tracking-widest transition-all">
                                         外部連結

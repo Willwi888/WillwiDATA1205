@@ -89,6 +89,7 @@ const AddSong: React.FC = () => {
     description: '',
     credits: DEFAULT_CREDITS, 
     spotifyId: '',
+    spotifyLink: '',
     audioUrl: '',
     customAudioLink: '',
     youtubeUrl: '',
@@ -166,6 +167,7 @@ const AddSong: React.FC = () => {
           coverUrl: track.album.images[0]?.url,
           releaseDate: track.album.release_date,
           spotifyId: track.id,
+          spotifyLink: track.external_urls.spotify,
           isrc: track.external_ids.isrc,
           upc: fullAlbum?.external_ids?.upc,
           releaseCompany: fullAlbum?.label || track.album.name,
@@ -196,6 +198,7 @@ const AddSong: React.FC = () => {
               isrc: track.external_ids.isrc,
               upc: fullAlbum?.external_ids?.upc,
               spotifyId: track.id,
+              spotifyLink: track.external_urls.spotify,
               credits: formatCreditsFromSpotify(track, fullAlbum || undefined),
               isEditorPick: false,
               isInteractiveActive: false,
@@ -257,6 +260,7 @@ const AddSong: React.FC = () => {
       youtubeUrl: formData.youtubeUrl,
       cloudVideoUrl: formData.cloudVideoUrl,
       spotifyId: formData.spotifyId,
+      spotifyLink: formData.spotifyLink,
       lyrics: formData.lyrics,
       description: formData.description,
       credits: formData.credits
@@ -389,12 +393,29 @@ const AddSong: React.FC = () => {
             </div>
         </div>
 
-        <div className="space-y-2"><label className="text-[10px] text-slate-500 font-black uppercase tracking-widest">影音資源連結</label>
+        <div className="space-y-2">
+            <label className="text-[10px] text-slate-500 font-black uppercase tracking-widest">影音資源連結</label>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <input name="coverUrl" className="bg-slate-900 border border-white/10 px-4 py-3 text-white text-xs focus:border-brand-accent outline-none font-mono" value={formData.coverUrl} onChange={handleChange} placeholder="封面圖片網址 (Cover URL)" />
-                <input name="spotifyId" className="bg-slate-900 border border-white/10 px-4 py-3 text-white text-xs focus:border-brand-accent outline-none font-mono" value={formData.spotifyId} onChange={handleChange} placeholder="Spotify Track ID" />
-                <input name="youtubeUrl" className="bg-slate-900 border border-white/10 px-4 py-3 text-white text-xs focus:border-brand-accent outline-none font-mono" value={formData.youtubeUrl} onChange={handleChange} placeholder="YouTube URL" />
-                <input name="cloudVideoUrl" className="bg-slate-900 border border-white/10 px-4 py-3 text-white text-xs focus:border-brand-accent outline-none font-mono" value={formData.cloudVideoUrl} onChange={handleChange} placeholder="Cloud Video URL (4K Vault)" />
+                <div className="space-y-1">
+                    <label className="text-[9px] text-slate-600 uppercase">Cover URL</label>
+                    <input name="coverUrl" className="w-full bg-slate-900 border border-white/10 px-4 py-3 text-white text-xs focus:border-brand-accent outline-none font-mono" value={formData.coverUrl} onChange={handleChange} />
+                </div>
+                <div className="space-y-1">
+                    <label className="text-[9px] text-slate-600 uppercase">YouTube URL</label>
+                    <input name="youtubeUrl" className="w-full bg-slate-900 border border-white/10 px-4 py-3 text-white text-xs focus:border-brand-accent outline-none font-mono" value={formData.youtubeUrl} onChange={handleChange} />
+                </div>
+                <div className="space-y-1">
+                    <label className="text-[9px] text-emerald-500 uppercase">Spotify Track ID</label>
+                    <input name="spotifyId" className="w-full bg-slate-900 border border-emerald-500/20 px-4 py-3 text-white text-xs focus:border-brand-accent outline-none font-mono" value={formData.spotifyId} onChange={handleChange} placeholder="e.g. 5g5X2x1T9bZ..." />
+                </div>
+                <div className="space-y-1">
+                    <label className="text-[9px] text-emerald-500 uppercase">Spotify Web Link</label>
+                    <input name="spotifyLink" className="w-full bg-slate-900 border border-emerald-500/20 px-4 py-3 text-white text-xs focus:border-brand-accent outline-none font-mono" value={formData.spotifyLink} onChange={handleChange} placeholder="e.g. https://open.spotify.com/track/..." />
+                </div>
+                <div className="space-y-1 col-span-full">
+                    <label className="text-[9px] text-slate-600 uppercase">Cloud Video URL (4K Vault)</label>
+                    <input name="cloudVideoUrl" className="w-full bg-slate-900 border border-white/10 px-4 py-3 text-white text-xs focus:border-brand-accent outline-none font-mono" value={formData.cloudVideoUrl} onChange={handleChange} />
+                </div>
             </div>
         </div>
 
