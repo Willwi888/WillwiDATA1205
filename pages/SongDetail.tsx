@@ -216,7 +216,16 @@ const SongDetail: React.FC = () => {
                 <div className="flex-grow w-full">
                     {isEditing ? (
                         <div className="space-y-4">
-                            <input className="text-3xl font-black text-white bg-black/50 border-b border-white/20 px-4 py-2 w-full outline-none focus:border-brand-accent" value={editForm.title} name="title" onChange={handleEditChange} />
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div className="space-y-1">
+                                    <label className="text-[9px] text-slate-500 uppercase tracking-widest">{t('form_label_title')}</label>
+                                    <input className="text-xl font-bold text-white bg-black/50 border border-white/10 px-4 py-2 w-full outline-none focus:border-brand-accent" value={editForm.title} name="title" onChange={handleEditChange} />
+                                </div>
+                                <div className="space-y-1">
+                                    <label className="text-[9px] text-slate-500 uppercase tracking-widest">{t('form_label_version')}</label>
+                                    <input className="text-xl font-bold text-white bg-black/50 border border-white/10 px-4 py-2 w-full outline-none focus:border-brand-accent" value={editForm.versionLabel || ''} name="versionLabel" onChange={handleEditChange} placeholder="e.g. Acoustic" />
+                                </div>
+                            </div>
                             <div className="grid grid-cols-2 gap-4">
                                 <input className="bg-black/50 border border-white/10 p-3 text-white text-xs" value={editForm.releaseDate} name="releaseDate" type="date" onChange={handleEditChange} />
                                 <div className="flex items-center gap-3 p-3 bg-slate-800 rounded">
@@ -234,6 +243,10 @@ const SongDetail: React.FC = () => {
                                     <input className="w-full bg-black/50 border border-white/10 p-3 text-white text-xs font-mono" value={editForm.upc || ''} name="upc" placeholder="UPC Code" onChange={handleEditChange} />
                                 </div>
                             </div>
+                            <div className="space-y-1">
+                                <label className="text-[9px] text-slate-500 uppercase tracking-widest">{t('form_label_custom_audio')}</label>
+                                <input className="w-full bg-black/50 border border-white/10 p-3 text-white text-xs font-mono" value={editForm.customAudioLink || ''} name="customAudioLink" placeholder="備用音源或自定義連結" onChange={handleEditChange} />
+                            </div>
                             <input className="w-full bg-black/50 border border-white/10 p-3 text-white text-xs font-mono" value={editForm.cloudVideoUrl} name="cloudVideoUrl" placeholder="雲端影音網址 (僅供線上觀看)" onChange={handleEditChange} />
                             <div className="pt-4 flex justify-end gap-3">
                                 <button onClick={() => setIsEditing(false)} className="px-6 py-2 text-xs text-slate-400">取消</button>
@@ -242,7 +255,8 @@ const SongDetail: React.FC = () => {
                         </div>
                     ) : (
                         <>
-                            <h1 className="text-5xl md:text-7xl font-black text-white uppercase tracking-tighter mb-4 leading-none">{song.title}</h1>
+                            <h1 className="text-5xl md:text-7xl font-black text-white uppercase tracking-tighter mb-2 leading-none">{song.title}</h1>
+                            {song.versionLabel && <h2 className="text-xl md:text-2xl font-bold text-slate-500 uppercase tracking-widest mb-4">{song.versionLabel}</h2>}
                             <div className="flex flex-wrap items-center gap-4 mt-6">
                                 <span className={`px-3 py-1 text-[10px] font-black uppercase tracking-[0.2em] text-white ${getLanguageColor(song.language)}`}>{song.language}</span>
                                 <span className="text-slate-500 text-[10px] font-bold uppercase tracking-[0.3em]">{song.releaseDate}</span>
@@ -264,6 +278,11 @@ const SongDetail: React.FC = () => {
                                     <div className="w-8 h-8 rounded-full bg-brand-gold flex items-center justify-center text-black shadow-[0_0_15px_rgba(251,191,36,0.5)]"><svg className="w-4 h-4 ml-0.5" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 14H9V8h2v8zm4 0h-2V8h2v8z" /></svg></div>
                                     <span className="text-[10px] font-black uppercase tracking-[0.2em]">{t('detail_btn_immersive')}</span>
                                 </button>
+                                {song.customAudioLink && (
+                                    <a href={song.customAudioLink} target="_blank" rel="noopener noreferrer" className="px-6 py-3 border border-white/20 text-slate-400 hover:text-white rounded-full text-[10px] font-bold uppercase tracking-widest transition-all">
+                                        外部音源連結
+                                    </a>
+                                )}
                             </div>
                         </>
                     )}

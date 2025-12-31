@@ -9,19 +9,15 @@ import { useTranslation } from '../context/LanguageContext';
 import { useUser } from '../context/UserContext';
 import { GoogleGenAI, Type } from "@google/genai";
 
-// 強化版連結轉換器
 const convertToDirectStream = (url: string) => {
     try {
         if (!url) return '';
         const u = new URL(url);
-        
-        // Dropbox 處理 (包含 scl 與 www)
         if (u.hostname.includes('dropbox.com')) {
             u.searchParams.set('raw', '1');
             u.searchParams.delete('dl');
             return u.toString();
         }
-        // Google Drive
         if (u.hostname.includes('drive.google.com') && u.pathname.includes('/file/d/')) {
             const id = u.pathname.split('/file/d/')[1].split('/')[0];
             return `https://docs.google.com/uc?export=download&id=${id}`;
@@ -41,35 +37,22 @@ Label : Willwi Music`;
 
 const AddSong: React.FC = () => {
   const navigate = useNavigate();
-  const { addSong, bulkAddSongs } = useData();
+  const { addSong } = useData();
   const { t } = useTranslation();
   const { isAdmin, enableAdmin } = useUser();
 
   const [passwordInput, setPasswordInput] = useState('');
   const [loginError, setLoginError] = useState('');
-  const [importMode, setImportMode] = useState<'smart' | 'manual' | 'spotify-search' | 'mb'>('smart'); 
+  const [importMode, setImportMode] = useState<'smart' | 'manual' | 'spotify' | 'mb'>('smart'); 
   const [searchQuery, setSearchQuery] = useState('');
   const [isSearching, setIsSearching] = useState(false);
-  const [progressMsg, setProgressMsg] = useState('');
   
   const [trackResults, setTrackResults] = useState<SpotifyTrack[]>([]);
-  const [albumResults, setAlbumResults] = useState<SpotifyAlbum[]>([]);
-  
-  const [selectedAlbumForBatch, setSelectedAlbumForBatch] = useState<SpotifyAlbum | null>(null);
-  const [batchTracks, setBatchTracks] = useState<SpotifyTrack[]>([]);
-  const [batchDropboxLink, setBatchDropboxLink] = useState('');
-  const [isProcessingBatch, setIsProcessingBatch] = useState(false);
-
   const [mbResults, setMbResults] = useState<MBReleaseGroup[]>([]);
-  const [selectedMBGroup, setSelectedMBGroup] = useState<MBReleaseGroup | null>(null);
-  const [mbImportData, setMbImportData] = useState<MBImportData | null>(null);
-  const [mbCoverUrl, setMbCoverUrl] = useState<string>('');
-
   const [searchError, setSearchError] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   
   const audioPreviewRef = useRef<HTMLAudioElement>(null);
-  const [playingPreviewId, setPlayingPreviewId] = useState<string | null>(null);
 
   const [formData, setFormData] = useState<Partial<Song>>({
     title: '',
@@ -84,18 +67,12 @@ const AddSong: React.FC = () => {
     isInteractiveActive: false,
     isOfficialExclusive: false,
     coverUrl: '', 
-    coverOverlayText: '',
     lyrics: '',
     description: '',
     credits: DEFAULT_CREDITS, 
-    spotifyLink: '',
-    appleMusicLink: '',
-    youtubeMusicUrl: '',
-    musixmatchUrl: '', 
-    smartLink: '', 
-    distrokidManageUrl: '',
-    musicBrainzId: '',
+    spotifyId: '',
     audioUrl: '',
+    customAudioLink: '',
     youtubeUrl: '',
     cloudVideoUrl: '',
   });
@@ -107,36 +84,6 @@ const AddSong: React.FC = () => {
       else { setLoginError('Invalid Access Code'); }
   };
 
-  const playPreview = (url: string | null | undefined, id: string) => {
-      if (!url) return;
-      if (playingPreviewId === id) {
-          audioPreviewRef.current?.pause();
-          setPlayingPreviewId(null);
-          return;
-      }
-      setPlayingPreviewId(id);
-      if (audioPreviewRef.current) {
-          audioPreviewRef.current.src = url;
-          audioPreviewRef.current.play().catch(() => setPlayingPreviewId(null));
-      }
-  };
-
-  if (!isAdmin) {
-      return (
-          <div className="min-h-[70vh] flex items-center justify-center px-4 animate-fade-in">
-               <div className="bg-slate-900 border border-slate-800 rounded-xl p-8 max-w-md w-full shadow-2xl text-center">
-                   <h2 className="text-2xl font-bold text-white mb-2">{t('form_title_add')}</h2>
-                   <p className="text-slate-400 text-sm mb-6">請輸入存取密碼以新增作品。</p>
-                   <form onSubmit={handleAdminLogin} className="space-y-4">
-                       <input type="password" placeholder="Code" className="w-full bg-black border border-slate-700 rounded-lg px-4 py-3 text-white text-center tracking-[0.5em] font-mono outline-none" value={passwordInput} onChange={(e) => setPasswordInput(e.target.value)} />
-                       {loginError && <p className="text-red-500 text-xs">{loginError}</p>}
-                       <button className="w-full py-3 bg-brand-accent text-slate-900 font-bold rounded-lg hover:bg-white transition-colors uppercase tracking-widest">Unlock</button>
-                   </form>
-               </div>
-          </div>
-      );
-  }
-
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value, type } = e.target;
     if (type === 'checkbox') {
@@ -147,22 +94,13 @@ const AddSong: React.FC = () => {
     }
   };
 
-  const detectLanguage = (text: string): Language => {
-      if (/[\u3040-\u30ff]/.test(text)) return Language.Japanese;
-      if (/[\uac00-\ud7af]/.test(text)) return Language.Korean;
-      if (/[\u4e00-\u9fa5]/.test(text)) return Language.Mandarin;
-      return Language.English;
-  };
-
   const handleSearch = async () => {
-    setTrackResults([]); setAlbumResults([]); setMbResults([]); setSelectedMBGroup(null);
-    setSearchError('');
-    setSelectedAlbumForBatch(null);
+    setTrackResults([]); setMbResults([]); setSearchError('');
+    if (!searchQuery.trim() && importMode !== 'mb') return setSearchError('Please enter a query');
     
-    if (importMode === 'smart') {
-        if (!searchQuery.trim()) return setSearchError('Please enter a URL');
-        setIsSearching(true);
-        try {
+    setIsSearching(true);
+    try {
+        if (importMode === 'smart') {
             const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
             const bridgeResponse = await ai.models.generateContent({
                 model: 'gemini-3-flash-preview',
@@ -180,25 +118,49 @@ const AddSong: React.FC = () => {
                     const tracks = await searchSpotifyTracks(id);
                     setTrackResults(tracks);
                 }
-            }
-        } catch (e) { setSearchError("Smart Import failed."); }
-        finally { setIsSearching(false); }
-        return;
-    }
-
-    setIsSearching(true);
-    try {
-        if (importMode === 'mb') {
-            const results = await getWillwiReleases();
-            setMbResults(results);
-        } else if (importMode === 'spotify-search') {
+            } else { setSearchError("Smart Import could not find a match."); }
+        } else if (importMode === 'spotify') {
             const results = await searchSpotifyTracks(searchQuery);
             setTrackResults(results);
-            const albums = await searchSpotifyAlbums(searchQuery);
-            setAlbumResults(albums);
+        } else if (importMode === 'mb') {
+            const results = await getWillwiReleases();
+            setMbResults(results);
         }
-    } catch (err) { setSearchError('Search connection failed.'); } 
+    } catch (err) { setSearchError('Search failed.'); } 
     finally { setIsSearching(false); }
+  };
+
+  const importSpotifyTrack = (track: SpotifyTrack) => {
+      setFormData(prev => ({
+          ...prev,
+          title: track.name,
+          coverUrl: track.album.images[0]?.url,
+          releaseDate: track.album.release_date,
+          spotifyId: track.id,
+          isrc: track.external_ids.isrc,
+          releaseCompany: track.album.name,
+      }));
+      setTrackResults([]);
+      alert(`已填入: ${track.name}`);
+  };
+
+  const importMBRelease = async (group: MBReleaseGroup) => {
+      setIsSearching(true);
+      const details = await getReleaseGroupDetails(group.id, group['primary-type']);
+      const cover = await getCoverArtUrl(group.id);
+      if (details) {
+          setFormData(prev => ({
+              ...prev,
+              title: group.title,
+              releaseDate: details.releaseDate,
+              coverUrl: cover || prev.coverUrl,
+              releaseCompany: details.releaseCompany,
+              releaseCategory: details.category,
+          }));
+      }
+      setMbResults([]);
+      setIsSearching(false);
+      alert(`已從 MusicBrainz 填入: ${group.title}`);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -219,6 +181,7 @@ const AddSong: React.FC = () => {
       isInteractiveActive: !!formData.isInteractiveActive,
       isOfficialExclusive: !!formData.isOfficialExclusive,
       audioUrl: convertToDirectStream(formData.audioUrl || ''),
+      customAudioLink: formData.customAudioLink || '',
       youtubeUrl: formData.youtubeUrl,
       cloudVideoUrl: formData.cloudVideoUrl,
       spotifyId: formData.spotifyId,
@@ -230,15 +193,79 @@ const AddSong: React.FC = () => {
     else { alert(t('msg_save_error')); setIsSaving(false); }
   };
 
+  if (!isAdmin) {
+      return (
+          <div className="min-h-[70vh] flex items-center justify-center px-4 animate-fade-in">
+               <div className="bg-slate-900 border border-slate-800 rounded-xl p-8 max-w-md w-full shadow-2xl text-center">
+                   <h2 className="text-2xl font-bold text-white mb-2">{t('nav_add')}</h2>
+                   <p className="text-slate-400 text-sm mb-6">請輸入管理員存取密碼。</p>
+                   <form onSubmit={handleAdminLogin} className="space-y-4">
+                       <input type="password" placeholder="Code" className="w-full bg-black border border-slate-700 rounded-lg px-4 py-3 text-white text-center tracking-[0.5em] font-mono outline-none" value={passwordInput} onChange={(e) => setPasswordInput(e.target.value)} />
+                       {loginError && <p className="text-red-500 text-xs">{loginError}</p>}
+                       <button className="w-full py-3 bg-brand-gold text-slate-900 font-bold rounded-lg hover:bg-white transition-colors uppercase tracking-widest">Unlock</button>
+                   </form>
+               </div>
+          </div>
+      );
+  }
+
   return (
     <div className="max-w-4xl mx-auto pb-12 px-6">
       <div className="flex flex-col md:flex-row justify-between items-center mb-10 gap-4">
-          <h2 className="text-3xl font-black text-white uppercase tracking-tighter">{t('form_title_add')}</h2>
+          <h2 className="text-3xl font-black text-white uppercase tracking-tighter">登錄作品</h2>
           <div className="bg-slate-800 p-1 rounded flex border border-slate-700">
               <button onClick={() => setImportMode('smart')} className={`px-4 py-2 rounded text-[10px] font-black uppercase tracking-widest ${importMode === 'smart' ? 'bg-white text-black' : 'text-slate-500'}`}>Smart</button>
+              <button onClick={() => setImportMode('spotify')} className={`px-4 py-2 rounded text-[10px] font-black uppercase tracking-widest ${importMode === 'spotify' ? 'bg-emerald-500 text-white' : 'text-slate-500'}`}>Spotify</button>
+              <button onClick={() => setImportMode('mb')} className={`px-4 py-2 rounded text-[10px] font-black uppercase tracking-widest ${importMode === 'mb' ? 'bg-blue-500 text-white' : 'text-slate-500'}`}>MusicBrainz</button>
               <button onClick={() => setImportMode('manual')} className={`px-4 py-2 rounded text-[10px] font-black uppercase tracking-widest ${importMode === 'manual' ? 'bg-slate-700 text-white' : 'text-slate-500'}`}>Manual</button>
           </div>
       </div>
+
+      {importMode !== 'manual' && (
+          <div className="mb-12 bg-slate-900/50 p-6 border border-white/5 rounded-xl">
+             <div className="flex gap-2">
+                 <input 
+                    type="text" 
+                    placeholder={importMode === 'smart' ? "貼上網址或輸入描述..." : (importMode === 'mb' ? "搜尋威威的 MBID 作品..." : "輸入歌曲名稱或 Spotify URL...")} 
+                    className="flex-grow bg-black border border-white/10 px-4 py-3 text-white text-sm outline-none focus:border-brand-accent"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+                 />
+                 <button 
+                    onClick={handleSearch} 
+                    disabled={isSearching}
+                    className="px-6 bg-brand-accent text-slate-950 font-black text-xs uppercase tracking-widest disabled:opacity-50"
+                 >
+                     {isSearching ? 'Searching...' : 'Search'}
+                 </button>
+             </div>
+             {searchError && <p className="text-red-500 text-[10px] mt-2 font-bold">{searchError}</p>}
+             
+             {/* 搜尋結果列表 */}
+             <div className="mt-4 space-y-2 max-h-60 overflow-y-auto custom-scrollbar">
+                 {trackResults.map(track => (
+                     <div key={track.id} onClick={() => importSpotifyTrack(track)} className="flex items-center gap-4 p-3 bg-black/40 hover:bg-white/10 cursor-pointer border border-white/5 transition-all">
+                         <img src={track.album.images[0]?.url} className="w-10 h-10 object-cover" alt="" />
+                         <div className="flex-grow">
+                             <div className="text-white text-xs font-bold">{track.name}</div>
+                             <div className="text-slate-500 text-[9px] uppercase">{track.album.name} • {track.album.release_date}</div>
+                         </div>
+                         <div className="text-emerald-500 text-[9px] font-bold uppercase tracking-widest">Import Spotify</div>
+                     </div>
+                 ))}
+                 {mbResults.map(group => (
+                     <div key={group.id} onClick={() => importMBRelease(group)} className="flex items-center gap-4 p-3 bg-black/40 hover:bg-white/10 cursor-pointer border border-white/5 transition-all">
+                         <div className="flex-grow">
+                             <div className="text-white text-xs font-bold">{group.title}</div>
+                             <div className="text-slate-500 text-[9px] uppercase">{group['primary-type']} • {group['first-release-date']}</div>
+                         </div>
+                         <div className="text-blue-500 text-[9px] font-bold uppercase tracking-widest">Import MB</div>
+                     </div>
+                 ))}
+             </div>
+          </div>
+      )}
 
       <form onSubmit={handleSubmit} className="space-y-6">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -249,48 +276,39 @@ const AddSong: React.FC = () => {
         <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
              <div className="space-y-2"><label className="text-[10px] text-slate-500 font-black uppercase tracking-widest">{t('form_label_lang')}</label><select name="language" className="w-full bg-slate-900 border border-white/10 px-4 py-3 text-white text-xs focus:border-brand-accent outline-none appearance-none" value={formData.language} onChange={handleChange}>{Object.values(Language).map(l => <option key={l} value={l}>{l}</option>)}</select></div>
              <div className="space-y-2"><label className="text-[10px] text-slate-500 font-black uppercase tracking-widest">{t('form_label_date')}</label><input type="date" name="releaseDate" className="w-full bg-slate-900 border border-white/10 px-4 py-3 text-white text-xs focus:border-brand-accent outline-none" value={formData.releaseDate} onChange={handleChange} /></div>
-             <div className="space-y-2"><label className="text-[10px] text-brand-gold font-black uppercase tracking-widest">官網獨家影音</label>
-                <label className="flex items-center gap-3 cursor-pointer p-3 bg-slate-800/50 border border-brand-gold/30 rounded">
-                    <input type="checkbox" name="isOfficialExclusive" checked={formData.isOfficialExclusive} onChange={handleChange} className="w-4 h-4 accent-brand-gold" />
-                    <span className="text-[10px] text-brand-gold font-black uppercase">Yes, Exclusive</span>
-                </label>
+             <div className="space-y-2">
+                <label className="text-[10px] text-brand-gold font-black uppercase tracking-widest block mb-2">官網獨家</label>
+                <input type="checkbox" name="isOfficialExclusive" checked={formData.isOfficialExclusive} onChange={handleChange} className="w-4 h-4 accent-brand-gold" />
              </div>
-             <div className="space-y-2"><label className="text-[10px] text-emerald-500 font-black uppercase tracking-widest">互動實驗室開放</label>
-                <label className="flex items-center gap-3 cursor-pointer p-3 bg-emerald-950/20 border border-emerald-500/30 rounded">
-                    <input type="checkbox" name="isInteractiveActive" checked={formData.isInteractiveActive} onChange={handleChange} className="w-4 h-4 accent-emerald-500" />
-                    <span className="text-[10px] text-emerald-400 font-black uppercase">Open</span>
-                </label>
+             <div className="space-y-2">
+                <label className="text-[10px] text-emerald-500 font-black uppercase tracking-widest block mb-2">互動實驗室</label>
+                <input type="checkbox" name="isInteractiveActive" checked={formData.isInteractiveActive} onChange={handleChange} className="w-4 h-4 accent-emerald-500" />
              </div>
         </div>
 
-        <div className="space-y-2"><label className="text-[10px] text-slate-500 font-black uppercase tracking-widest">{t('form_label_links')}</label>
+        <div className="space-y-2"><label className="text-[10px] text-slate-500 font-black uppercase tracking-widest">外部資源連結</label>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <input name="youtubeUrl" className="bg-slate-900 border border-white/10 px-4 py-3 text-white text-xs focus:border-brand-accent outline-none font-mono" value={formData.youtubeUrl} onChange={handleChange} placeholder="YouTube Video URL (required for Exclusive section)" />
-                <input name="cloudVideoUrl" className="bg-slate-900 border border-white/10 px-4 py-3 text-white text-xs focus:border-brand-accent outline-none font-mono" value={formData.cloudVideoUrl} onChange={handleChange} placeholder="Cloud Video Download URL (Google Drive/Dropbox)" />
-                <input name="spotifyId" className="bg-slate-900 border border-white/10 px-4 py-3 text-white text-xs md:col-span-2 focus:border-brand-accent outline-none font-mono" value={formData.spotifyId} onChange={handleChange} placeholder="Spotify Track ID (e.g. 5Lqex...)" />
+                <input name="coverUrl" className="bg-slate-900 border border-white/10 px-4 py-3 text-white text-xs focus:border-brand-accent outline-none font-mono" value={formData.coverUrl} onChange={handleChange} placeholder="封面圖片網址 (Cover URL)" />
+                <input name="spotifyId" className="bg-slate-900 border border-white/10 px-4 py-3 text-white text-xs focus:border-brand-accent outline-none font-mono" value={formData.spotifyId} onChange={handleChange} placeholder="Spotify Track ID" />
+                <input name="youtubeUrl" className="bg-slate-900 border border-white/10 px-4 py-3 text-white text-xs focus:border-brand-accent outline-none font-mono" value={formData.youtubeUrl} onChange={handleChange} placeholder="YouTube URL" />
+                <input name="cloudVideoUrl" className="bg-slate-900 border border-white/10 px-4 py-3 text-white text-xs focus:border-brand-accent outline-none font-mono" value={formData.cloudVideoUrl} onChange={handleChange} placeholder="Cloud Video URL (4K Vault)" />
             </div>
         </div>
 
-        <div className="space-y-2">
-            <label className="text-[10px] text-brand-accent font-black uppercase tracking-widest">{t('form_label_audio')}</label>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="space-y-2">
-                <input name="audioUrl" className="w-full bg-slate-800 border border-brand-accent/30 px-4 py-3 text-brand-accent text-xs focus:border-brand-accent outline-none font-mono" value={formData.audioUrl} onChange={handleChange} placeholder={t('form_placeholder_audio')} />
-                {formData.audioUrl && (
-                    <div className="bg-black/50 p-4 border border-white/10 flex flex-col gap-3">
-                        <div className="flex items-center justify-between">
-                            <span className="text-[9px] text-brand-accent font-bold uppercase tracking-widest">Audio Verification Player</span>
-                            <span className="text-[8px] text-slate-600 font-mono">Real-time Stream Test</span>
-                        </div>
-                        <audio controls src={convertToDirectStream(formData.audioUrl)} className="w-full h-10 filter invert grayscale" />
-                        <p className="text-[9px] text-slate-500 italic">If player is 0:00, ensure Dropbox link has "?raw=1" or use "Copy Link" again.</p>
-                    </div>
-                )}
+                <label className="text-[10px] text-brand-accent font-black uppercase tracking-widest">音檔來源網址 (Stream Source)</label>
+                <input name="audioUrl" className="w-full bg-slate-800 border border-brand-accent/30 px-4 py-3 text-brand-accent text-xs focus:border-brand-accent outline-none font-mono" value={formData.audioUrl} onChange={handleChange} placeholder="貼上直連音檔連結 (Dropbox ?raw=1)" />
+            </div>
+            <div className="space-y-2">
+                <label className="text-[10px] text-slate-400 font-black uppercase tracking-widest">備用音源 / 自定義連結 (Backup/Custom Link)</label>
+                <input name="customAudioLink" className="w-full bg-slate-900 border border-white/10 px-4 py-3 text-white text-xs focus:border-brand-accent outline-none font-mono" value={formData.customAudioLink} onChange={handleChange} placeholder="任何您想附加的外部連結" />
             </div>
         </div>
 
         <div className="pt-6 border-t border-white/10 flex justify-end gap-4">
             <button type="button" onClick={() => navigate('/database')} className="px-8 py-3 text-slate-400 hover:text-white text-[10px] font-black uppercase tracking-widest">{t('form_btn_cancel')}</button>
-            <button type="submit" disabled={isSaving} className="px-8 py-3 bg-brand-accent text-slate-900 font-black text-[10px] uppercase tracking-widest hover:bg-white transition-all shadow-lg">{isSaving ? t('form_btn_saving') : t('form_btn_save')}</button>
+            <button type="submit" disabled={isSaving} className="px-8 py-3 bg-brand-accent text-slate-950 font-black text-[10px] uppercase tracking-widest hover:bg-white transition-all shadow-lg">{isSaving ? t('form_btn_saving') : t('form_btn_save')}</button>
         </div>
       </form>
       <audio ref={audioPreviewRef} className="hidden" />

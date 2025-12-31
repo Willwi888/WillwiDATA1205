@@ -36,13 +36,14 @@ export interface Song {
   releaseDate: string;
   isEditorPick: boolean;
   isInteractiveActive: boolean; 
-  isOfficialExclusive: boolean; // New: Flag for website-exclusive video section
+  isOfficialExclusive: boolean; 
   isrc?: string;
   upc?: string;
   spotifyId?: string;
   musicBrainzId?: string;
   youtubeUrl?: string;
-  cloudVideoUrl?: string; // New: Cloud storage link for HQ video files
+  cloudVideoUrl?: string; 
+  customAudioLink?: string; // 新增：自定義音源或備用連結
   musixmatchUrl?: string; 
   youtubeMusicUrl?: string;
   spotifyLink?: string;
