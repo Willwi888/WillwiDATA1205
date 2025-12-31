@@ -33,10 +33,24 @@ const convertToDirectStream = (url: string) => {
     } catch (e) { return url; }
 };
 
+const DEFAULT_CREDITS = `© 2025 Willwi Music
+℗ 2025 Willwi Music
+
+Main Artist : Willwi 陳威兒
+Composer : Tsung Yu Chen
+Lyricist : Tsung Yu Chen
+Arranger : Willwi
+Producer : Will Chen
+Recording Engineer | Will Chen
+Mixing Engineer | Will Chen
+Mastering Engineer | Will Chen
+Recording Studio | Willwi Studio, Taipei
+Label | Willwi Music`;
+
 const formatCreditsFromSpotify = (track: SpotifyTrack, album?: SpotifyAlbum) => {
     const artistList = track.artists.map(a => a.name).join(', ');
     const label = album?.label || track.album.name || 'Willwi Music';
-    return `Main Artist : ${artistList}\nComposer : Tsung Yu Chen\nLyricist : Tsung Yu Chen\nArranger : Willwi\nProducer : Will Chen\nLabel : ${label}\nRecording | Mixing | Mastering : Willwi Studio`;
+    return `© 2025 Willwi Music\n℗ 2025 Willwi Music\n\nMain Artist : ${artistList}\nComposer : Tsung Yu Chen\nLyricist : Tsung Yu Chen\nArranger : Willwi\nProducer : Will Chen\nLabel : ${label}\nRecording Studio | Willwi Studio, Taipei`;
 };
 
 const AddSong: React.FC = () => {
@@ -73,7 +87,7 @@ const AddSong: React.FC = () => {
     coverUrl: '', 
     lyrics: '',
     description: '',
-    credits: '', 
+    credits: DEFAULT_CREDITS, 
     spotifyId: '',
     audioUrl: '',
     customAudioLink: '',
@@ -145,7 +159,6 @@ const AddSong: React.FC = () => {
   };
 
   const importSpotifyTrack = async (track: SpotifyTrack) => {
-      // Get full album for extra data (Label/UPC)
       const fullAlbum = await getFullSpotifyAlbum(track.album.id);
       setFormData(prev => ({
           ...prev,

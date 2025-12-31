@@ -6,7 +6,6 @@ import { Song, getLanguageColor, Language, ReleaseCategory, ProjectType } from '
 import { useTranslation } from '../context/LanguageContext';
 import { useUser } from '../context/UserContext';
 
-// 強化版直連轉換器
 const convertToDirectStream = (url: string) => {
     try {
         if (!url) return '';
@@ -165,6 +164,10 @@ const SongDetail: React.FC = () => {
     }
   }, [id, getSong]);
 
+  const convertedAudioUrl = useMemo(() => {
+      return song?.audioUrl ? convertToDirectStream(song.audioUrl) : '';
+  }, [song?.audioUrl]);
+
   if (!song) return null;
 
   const handleEditChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
@@ -212,6 +215,12 @@ const SongDetail: React.FC = () => {
             <div className="relative z-10 p-10 flex flex-col md:flex-row gap-12 items-start">
                 <div className="w-full md:w-80 flex-shrink-0">
                      <img src={song.coverUrl} className="w-full aspect-square object-cover shadow-2xl border border-white/10 rounded-lg" alt="cover" />
+                     {isEditing && (
+                         <div className="mt-4 space-y-1">
+                             <label className="text-[9px] text-slate-500 uppercase tracking-widest">封面圖片網址</label>
+                             <input className="w-full bg-black/50 border border-white/10 p-3 text-white text-xs font-mono" value={editForm.coverUrl || ''} name="coverUrl" placeholder="Cover Image URL" onChange={handleEditChange} />
+                         </div>
+                     )}
                 </div>
                 <div className="flex-grow w-full">
                     {isEditing ? (
@@ -227,9 +236,12 @@ const SongDetail: React.FC = () => {
                                 </div>
                             </div>
                             <div className="grid grid-cols-2 gap-4">
-                                <input className="bg-black/50 border border-white/10 p-3 text-white text-xs" value={editForm.releaseDate} name="releaseDate" type="date" onChange={handleEditChange} />
-                                <div className="flex items-center gap-3 p-3 bg-slate-800 rounded">
-                                    <input type="checkbox" name="isOfficialExclusive" checked={editForm.isOfficialExclusive} onChange={handleEditChange} className="w-4 h-4" />
+                                <div className="space-y-1">
+                                    <label className="text-[9px] text-slate-500 uppercase tracking-widest">發行日期</label>
+                                    <input className="bg-black/50 border border-white/10 p-3 w-full text-white text-xs" value={editForm.releaseDate} name="releaseDate" type="date" onChange={handleEditChange} />
+                                </div>
+                                <div className="flex items-center gap-3 p-3 bg-slate-800/50 rounded mt-4">
+                                    <input type="checkbox" name="isOfficialExclusive" checked={editForm.isOfficialExclusive} onChange={handleEditChange} className="w-4 h-4 accent-brand-gold" />
                                     <span className="text-xs text-brand-gold font-bold">官網獨家作品</span>
                                 </div>
                             </div>
@@ -243,36 +255,49 @@ const SongDetail: React.FC = () => {
                                     <input className="w-full bg-black/50 border border-white/10 p-3 text-white text-xs font-mono" value={editForm.upc || ''} name="upc" placeholder="UPC Code" onChange={handleEditChange} />
                                 </div>
                             </div>
-                            <div className="space-y-1">
-                                <label className="text-[9px] text-slate-500 uppercase tracking-widest">{t('form_label_custom_audio')}</label>
-                                <input className="w-full bg-black/50 border border-white/10 p-3 text-white text-xs font-mono" value={editForm.customAudioLink || ''} name="customAudioLink" placeholder="備用音源或自定義連結" onChange={handleEditChange} />
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div className="space-y-1">
+                                    <label className="text-[9px] text-brand-accent uppercase tracking-widest">主音源網址 (Audio URL)</label>
+                                    <input className="w-full bg-black/50 border border-brand-accent/30 p-3 text-white text-xs font-mono" value={editForm.audioUrl || ''} name="audioUrl" placeholder="Direct Audio Link" onChange={handleEditChange} />
+                                </div>
+                                <div className="space-y-1">
+                                    <label className="text-[9px] text-slate-500 uppercase tracking-widest">外部/自定義連結</label>
+                                    <input className="w-full bg-black/50 border border-white/10 p-3 text-white text-xs font-mono" value={editForm.customAudioLink || ''} name="customAudioLink" placeholder="備用音源或外部連結" onChange={handleEditChange} />
+                                </div>
                             </div>
-                            <input className="w-full bg-black/50 border border-white/10 p-3 text-white text-xs font-mono" value={editForm.cloudVideoUrl} name="cloudVideoUrl" placeholder="雲端影音網址 (僅供線上觀看)" onChange={handleEditChange} />
+                            
                             <div className="pt-4 flex justify-end gap-3">
-                                <button onClick={() => setIsEditing(false)} className="px-6 py-2 text-xs text-slate-400">取消</button>
-                                <button onClick={handleSave} className="px-8 py-2 bg-brand-accent text-slate-950 text-xs font-black uppercase rounded shadow-lg">儲存變更</button>
+                                <button onClick={() => setIsEditing(false)} className="px-6 py-2 text-xs text-slate-400 font-bold uppercase tracking-widest">取消</button>
+                                <button onClick={handleSave} className="px-8 py-2 bg-brand-accent text-slate-950 text-xs font-black uppercase rounded shadow-lg tracking-widest">儲存變更</button>
                             </div>
                         </div>
                     ) : (
                         <>
                             <h1 className="text-5xl md:text-7xl font-black text-white uppercase tracking-tighter mb-2 leading-none">{song.title}</h1>
                             {song.versionLabel && <h2 className="text-xl md:text-2xl font-bold text-slate-500 uppercase tracking-widest mb-4">{song.versionLabel}</h2>}
+                            
                             <div className="flex flex-wrap items-center gap-4 mt-6">
                                 <span className={`px-3 py-1 text-[10px] font-black uppercase tracking-[0.2em] text-white ${getLanguageColor(song.language)}`}>{song.language}</span>
                                 <span className="text-slate-500 text-[10px] font-bold uppercase tracking-[0.3em]">{song.releaseDate}</span>
                                 {song.isOfficialExclusive && <span className="bg-brand-gold text-slate-950 text-[9px] font-black px-2 py-1 rounded uppercase tracking-widest shadow-[0_0_10px_rgba(251,191,36,0.5)]">官網獨家</span>}
                                 
                                 {song.isrc && (
-                                    <span className="bg-brand-gold/20 border border-brand-gold/80 text-brand-gold text-[10px] font-mono px-3 py-1 rounded-sm uppercase tracking-widest animate-[glowPulse_4s_infinite] shadow-[0_0_20px_rgba(251,191,36,0.4)] font-bold">
+                                    <span className="bg-brand-gold/20 border border-brand-gold/80 text-brand-gold text-[10px] font-mono px-3 py-1 rounded-sm uppercase tracking-widest font-bold">
                                         ISRC: {song.isrc}
                                     </span>
                                 )}
-                                {song.upc && (
-                                    <span className="bg-brand-gold/20 border border-brand-gold/80 text-brand-gold text-[10px] font-mono px-3 py-1 rounded-sm uppercase tracking-widest animate-[glowPulse_4s_infinite] shadow-[0_0_20px_rgba(251,191,36,0.4)] font-bold delay-500">
-                                        UPC: {song.upc}
-                                    </span>
+                            </div>
+
+                            {/* Persistent Audio Player */}
+                            <div className="mt-8 bg-black/40 p-4 rounded-xl border border-white/5 backdrop-blur-md max-w-md">
+                                <p className="text-[9px] text-slate-500 font-bold uppercase tracking-[0.4em] mb-3">Official Stream Preview</p>
+                                {convertedAudioUrl ? (
+                                    <audio src={convertedAudioUrl} controls className="w-full h-8 accent-brand-gold" />
+                                ) : (
+                                    <p className="text-[10px] text-slate-600 italic">No audio preview link available.</p>
                                 )}
                             </div>
+
                             <div className="mt-8 flex flex-wrap gap-4">
                                 <button onClick={() => setShowLyricsPlayer(true)} className="group flex items-center gap-3 px-6 py-3 bg-white/5 border border-white/10 hover:bg-white hover:text-black transition-all rounded-full" disabled={!song.audioUrl}>
                                     <div className="w-8 h-8 rounded-full bg-brand-gold flex items-center justify-center text-black shadow-[0_0_15px_rgba(251,191,36,0.5)]"><svg className="w-4 h-4 ml-0.5" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 14H9V8h2v8zm4 0h-2V8h2v8z" /></svg></div>
@@ -280,7 +305,7 @@ const SongDetail: React.FC = () => {
                                 </button>
                                 {song.customAudioLink && (
                                     <a href={song.customAudioLink} target="_blank" rel="noopener noreferrer" className="px-6 py-3 border border-white/20 text-slate-400 hover:text-white rounded-full text-[10px] font-bold uppercase tracking-widest transition-all">
-                                        外部音源連結
+                                        外部連結
                                     </a>
                                 )}
                             </div>
@@ -290,52 +315,33 @@ const SongDetail: React.FC = () => {
             </div>
         </div>
 
-        {/* 官網獨家影音區塊 - 線上欣賞模式 */}
-        {!isEditing && song.isOfficialExclusive && song.cloudVideoUrl && (
-            <div className="mt-12 bg-slate-900 border border-brand-gold/30 rounded-2xl overflow-hidden shadow-2xl animate-fade-in">
-                <div className="bg-brand-gold/10 px-8 py-4 border-b border-brand-gold/20 flex items-center justify-between">
-                    <h3 className="text-[10px] font-black text-brand-gold uppercase tracking-[0.4em]">官網獨家影音 VAULT</h3>
-                    <span className="text-[8px] text-brand-gold/50 font-bold uppercase tracking-widest">AUTHENTIC CONTENT</span>
-                </div>
-                <div className="p-10 flex flex-col md:flex-row items-center gap-10">
-                    <div className="w-20 h-20 bg-brand-gold/10 rounded-full flex items-center justify-center text-brand-gold border border-brand-gold/30 flex-shrink-0">
-                        <svg className="w-10 h-10" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                        </svg>
-                    </div>
-                    <div className="flex-grow text-center md:text-left">
-                        <h4 className="text-2xl font-black text-white uppercase tracking-tight mb-2">專屬高品質影像檔案</h4>
-                        <p className="text-sm text-slate-400 font-light leading-relaxed">
-                            這是為官網贊助者與聽眾準備的獨家高品質影片檔案。點擊下方按鈕即可在受保護的空間中「立即觀賞」完整作品。
-                        </p>
-                    </div>
-                    <a 
-                        href={song.cloudVideoUrl} 
-                        target="_blank" 
-                        rel="noopener noreferrer" 
-                        className="w-full md:w-auto px-12 py-5 bg-brand-gold text-slate-950 font-black text-xs uppercase tracking-[0.3em] hover:bg-white transition-all shadow-lg rounded-full text-center"
-                    >
-                        立即觀賞
-                    </a>
-                </div>
-            </div>
-        )}
-        
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-12 mt-12">
             <div className="lg:col-span-2 space-y-12">
                 <div className="bg-slate-900/50 p-10 border border-white/5 rounded-xl">
                     <h3 className="text-sm font-black text-white uppercase tracking-[0.4em] mb-8">{t('detail_section_context')}</h3>
-                    <div className="text-slate-400 text-sm font-light leading-relaxed whitespace-pre-line">{song.description || t('detail_empty_desc')}</div>
+                    {isEditing ? (
+                        <textarea name="description" className="w-full h-40 bg-black/50 border border-white/10 p-4 text-white text-sm outline-none focus:border-brand-accent font-light leading-relaxed" value={editForm.description || ''} onChange={handleEditChange} placeholder="作品創作背景描述..." />
+                    ) : (
+                        <div className="text-slate-400 text-sm font-light leading-relaxed whitespace-pre-line">{song.description || t('detail_empty_desc')}</div>
+                    )}
                 </div>
                 <div className="bg-slate-900/50 p-10 border border-white/5 rounded-xl">
                     <h3 className="text-sm font-black text-white uppercase tracking-[0.4em] mb-8">{t('detail_section_lyrics')}</h3>
-                    <div className="font-mono text-xs text-slate-500 whitespace-pre-line leading-loose border-l border-white/5 pl-8">{song.lyrics || t('detail_empty_lyrics')}</div>
+                    {isEditing ? (
+                        <textarea name="lyrics" className="w-full h-80 bg-black/50 border border-white/10 p-6 text-brand-accent text-xs font-mono leading-loose outline-none focus:border-brand-accent" value={editForm.lyrics || ''} onChange={handleEditChange} placeholder="[00:10.00] 歌詞內容..." />
+                    ) : (
+                        <div className="font-mono text-xs text-slate-500 whitespace-pre-line leading-loose border-l border-white/5 pl-8">{song.lyrics || t('detail_empty_lyrics')}</div>
+                    )}
                 </div>
             </div>
             <div className="bg-slate-900 p-8 border border-white/5 rounded-xl">
                 <h3 className="text-[10px] font-black text-white uppercase tracking-[0.4em] mb-6">{t('detail_section_credits')}</h3>
-                <div className="text-[10px] text-slate-500 font-mono leading-loose uppercase tracking-wider whitespace-pre-line">{song.credits || t('detail_empty_credits')}</div>
-                {isAdmin && (
+                {isEditing ? (
+                    <textarea name="credits" className="w-full h-80 bg-black/50 border border-white/10 p-4 text-slate-400 text-[10px] font-mono leading-loose outline-none focus:border-brand-accent uppercase tracking-wider" value={editForm.credits || ''} onChange={handleEditChange} placeholder="Production Credits..." />
+                ) : (
+                    <div className="text-[10px] text-slate-500 font-mono leading-loose uppercase tracking-wider whitespace-pre-line">{song.credits || t('detail_empty_credits')}</div>
+                )}
+                {isAdmin && !isEditing && (
                     <div className="mt-10 pt-10 border-t border-white/5">
                         <button onClick={handleDelete} className="text-red-900 hover:text-red-500 text-[10px] font-black uppercase tracking-widest">{t('detail_delete')}</button>
                     </div>

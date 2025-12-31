@@ -80,15 +80,28 @@ const Streaming: React.FC = () => {
           </div>
 
           <div className="bg-slate-900/50 rounded-3xl overflow-hidden shadow-2xl border border-white/5 p-4 group transition-all duration-700 hover:border-emerald-500/30">
-            <iframe 
-              src="https://open.spotify.com/embed/artist/3ascZ8Rb2KDw4QyCy29Om4?utm_source=generator&theme=0" 
-              width="100%" 
-              height="600" 
-              frameBorder="0" 
-              allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture" 
-              loading="lazy"
-              className="rounded-2xl transition-all duration-1000"
-            ></iframe>
+            <div className="bg-black/80 p-2 rounded-2xl shadow-inner">
+                <iframe 
+                src="https://open.spotify.com/embed/artist/3ascZ8Rb2KDw4QyCy29Om4?utm_source=generator&theme=0" 
+                width="100%" 
+                height="600" 
+                frameBorder="0" 
+                allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture" 
+                loading="lazy"
+                className="rounded-xl transition-all duration-1000"
+                ></iframe>
+            </div>
+            <div className="mt-4 px-4 flex items-center justify-between">
+                <div className="flex flex-col">
+                    <span className="text-[9px] text-slate-500 font-bold uppercase tracking-[0.2em]">Official Verified Artist</span>
+                    <span className="text-[10px] text-white font-black uppercase tracking-widest">Willwi 陳威兒</span>
+                </div>
+                <div className="flex gap-1">
+                    <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse shadow-[0_0_8px_rgba(16,185,129,0.8)]"></span>
+                    <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse delay-75 shadow-[0_0_8px_rgba(16,185,129,0.8)]"></span>
+                    <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse delay-150 shadow-[0_0_8px_rgba(16,185,129,0.8)]"></span>
+                </div>
+            </div>
           </div>
         </div>
       </div>
