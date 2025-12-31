@@ -235,10 +235,16 @@ const SongDetail: React.FC = () => {
                                     <input className="text-xl font-bold text-white bg-black/50 border border-white/10 px-4 py-2 w-full outline-none focus:border-brand-accent" value={editForm.versionLabel || ''} name="versionLabel" onChange={handleEditChange} placeholder="e.g. Acoustic" />
                                 </div>
                             </div>
-                            <div className="grid grid-cols-2 gap-4">
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                                 <div className="space-y-1">
                                     <label className="text-[9px] text-slate-500 uppercase tracking-widest">發行日期</label>
                                     <input className="bg-black/50 border border-white/10 p-3 w-full text-white text-xs" value={editForm.releaseDate} name="releaseDate" type="date" onChange={handleEditChange} />
+                                </div>
+                                <div className="space-y-1">
+                                    <label className="text-[9px] text-slate-500 uppercase tracking-widest">語系</label>
+                                    <select name="language" className="w-full bg-black/50 border border-white/10 p-3 text-white text-xs outline-none focus:border-brand-accent appearance-none" value={editForm.language} onChange={handleEditChange}>
+                                        {Object.values(Language).map(l => <option key={l} value={l}>{l}</option>)}
+                                    </select>
                                 </div>
                                 <div className="flex items-center gap-3 p-3 bg-slate-800/50 rounded mt-4">
                                     <input type="checkbox" name="isOfficialExclusive" checked={editForm.isOfficialExclusive} onChange={handleEditChange} className="w-4 h-4 accent-brand-gold" />
