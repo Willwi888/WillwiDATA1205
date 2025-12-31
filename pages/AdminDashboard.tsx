@@ -35,7 +35,6 @@ const AdminDashboard: React.FC = () => {
       support: '',
       line: ''
   });
-  const [accessCode, setAccessCode] = useState('8888'); 
   const [importStrategy, setImportStrategy] = useState<'merge' | 'overwrite'>('merge');
 
   useEffect(() => {
@@ -46,7 +45,6 @@ const AdminDashboard: React.FC = () => {
           support: localStorage.getItem('qr_support') || '',
           line: localStorage.getItem('qr_line') || ''
       });
-      setAccessCode(localStorage.getItem('willwi_access_code') || '8888');
   }, [isAdmin]);
 
   const handleSort = (key: SortKey) => {
@@ -74,7 +72,7 @@ const AdminDashboard: React.FC = () => {
       const allSongs = await dbService.getAllSongs();
       const exportData = {
           metadata: {
-              version: '3.1',
+              version: '3.2',
               exportedAt: new Date().toISOString(),
               count: allSongs.length
           },
@@ -84,7 +82,7 @@ const AdminDashboard: React.FC = () => {
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `WILLWI_DATABASE_BACKUP_${new Date().toISOString().split('T')[0]}.json`;
+      a.download = `WILLWI_DB_BACKUP_${new Date().toISOString().split('T')[0]}.json`;
       a.click();
   };
 
@@ -100,7 +98,7 @@ const AdminDashboard: React.FC = () => {
             const rawSongs = Array.isArray(parsed) ? parsed : (parsed.songs || []);
             
             if (importStrategy === 'overwrite') {
-                if (!window.confirm("確定要「覆蓋」現有資料嗎？目前資料將被清空。")) return;
+                if (!window.confirm("確定要「覆蓋」現有資料嗎？此動作將清除目前所有手動新增的作品。")) return;
                 await dbService.clearAllSongs();
             }
             
@@ -109,7 +107,7 @@ const AdminDashboard: React.FC = () => {
             window.location.reload();
           } catch (e) { 
               console.error(e);
-              alert("匯入失敗，請檢查格式。"); 
+              alert("匯入失敗，請檢查 JSON 檔案格式是否正確。"); 
           }
       };
       reader.readAsText(file);
@@ -229,22 +227,25 @@ const AdminDashboard: React.FC = () => {
       {activeTab === 'settings' && (
           <div className="max-w-4xl mx-auto animate-fade-in space-y-8">
               <div className="bg-slate-900 border border-brand-accent/30 p-10 rounded-xl shadow-xl">
-                  <h3 className="text-xl font-black text-brand-accent uppercase tracking-[0.3em] mb-8">JSON 資料管理中心</h3>
+                  <h3 className="text-xl font-black text-brand-accent uppercase tracking-[0.3em] mb-8">JSON 資料同步中心</h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                       <div className="p-8 bg-black/40 border border-white/5 rounded-lg flex flex-col justify-between">
-                          <div><h4 className="text-white text-base font-bold mb-3">導出作品集</h4><p className="text-xs text-slate-500 mb-8">下載目前資料庫所有作品為 JSON 檔案。</p></div>
+                          <div>
+                              <h4 className="text-white text-base font-bold mb-3">備份數據 (Export)</h4>
+                              <p className="text-xs text-slate-500 leading-relaxed mb-8">將目前資料庫所有作品資訊下載為 JSON 備份檔。</p>
+                          </div>
                           <button onClick={downloadFullBackup} className="w-full py-4 bg-slate-800 text-white font-black text-[11px] uppercase tracking-widest hover:bg-white hover:text-black transition-all rounded shadow-xl">立即導出</button>
                       </div>
                       <div className="p-8 bg-black/40 border border-brand-accent/30 rounded-lg flex flex-col justify-between">
                           <div className="mb-4">
-                              <h4 className="text-brand-accent text-base font-bold mb-3">匯入作品集</h4>
+                              <h4 className="text-brand-accent text-base font-bold mb-3">恢復數據 (Import)</h4>
                               <div className="flex gap-2 mb-4 bg-slate-900 p-1 rounded">
-                                  <button onClick={() => setImportStrategy('merge')} className={`flex-1 py-2 text-[9px] font-black uppercase rounded ${importStrategy === 'merge' ? 'bg-brand-accent text-black' : 'text-slate-500'}`}>合併</button>
-                                  <button onClick={() => setImportStrategy('overwrite')} className={`flex-1 py-2 text-[9px] font-black uppercase rounded ${importStrategy === 'overwrite' ? 'bg-red-500 text-white' : 'text-slate-500'}`}>覆蓋</button>
+                                  <button onClick={() => setImportStrategy('merge')} className={`flex-1 py-2 text-[9px] font-black uppercase rounded ${importStrategy === 'merge' ? 'bg-brand-accent text-black' : 'text-slate-500'}`}>合併 (Merge)</button>
+                                  <button onClick={() => setImportStrategy('overwrite')} className={`flex-1 py-2 text-[9px] font-black uppercase rounded ${importStrategy === 'overwrite' ? 'bg-red-500 text-white' : 'text-slate-500'}`}>覆蓋 (Overwrite)</button>
                               </div>
                           </div>
                           <div className="relative">
-                              <button onClick={() => fileInputRef.current?.click()} className="w-full py-4 border border-brand-accent text-brand-accent font-black text-[11px] uppercase tracking-widest hover:bg-brand-accent hover:text-black transition-all rounded">選擇檔案並匯入</button>
+                              <button onClick={() => fileInputRef.current?.click()} className="w-full py-4 border border-brand-accent text-brand-accent font-black text-[11px] uppercase tracking-widest hover:bg-brand-accent hover:text-black transition-all rounded">選擇 JSON 檔案</button>
                               <input ref={fileInputRef} type="file" className="hidden" accept=".json" onChange={handleImportFile} />
                           </div>
                       </div>
@@ -256,15 +257,15 @@ const AdminDashboard: React.FC = () => {
       {activeTab === 'payment' && (
           <div className="max-w-4xl mx-auto animate-fade-in space-y-8">
               <div className="bg-slate-900 border border-white/10 p-10 rounded-xl">
-                  <h3 className="text-xl font-black text-brand-gold uppercase tracking-[0.3em] mb-8">QR Code 設定</h3>
+                  <h3 className="text-xl font-black text-brand-gold uppercase tracking-[0.3em] mb-8">QR Code 管理</h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                      {[{ key: 'global_payment', label: '主要收款 (Line Pay)' }, { key: 'line', label: 'LINE 官方帳號' }].map((item) => (
+                      {[{ key: 'global_payment', label: '主要付款 (Line Pay)' }, { key: 'line', label: 'LINE 官方帳號' }].map((item) => (
                           <div key={item.key} className="p-6 bg-black/40 border border-white/5 rounded-xl text-center">
                               <h4 className="text-xs font-bold text-white uppercase mb-4">{item.label}</h4>
                               <div className="aspect-square bg-slate-900 border border-white/10 rounded-lg flex items-center justify-center overflow-hidden mb-4">
-                                  {qrImages[item.key as keyof typeof qrImages] ? <img src={qrImages[item.key as keyof typeof qrImages]} className="w-full h-full object-contain" /> : <span className="text-slate-700">未上傳</span>}
+                                  {qrImages[item.key as keyof typeof qrImages] ? <img src={qrImages[item.key as keyof typeof qrImages]} className="w-full h-full object-contain" /> : <span className="text-slate-700 text-[10px]">未上傳</span>}
                               </div>
-                              <label className="block w-full cursor-pointer py-3 border border-white/20 text-slate-300 font-black text-[9px] uppercase hover:bg-white hover:text-black transition-all">
+                              <label className="block w-full cursor-pointer py-3 border border-white/20 text-slate-300 font-black text-[9px] uppercase tracking-widest hover:bg-white hover:text-black transition-all rounded">
                                   上傳圖片<input type="file" className="hidden" accept="image/*" onChange={handleQrUpload(item.key as keyof typeof qrImages)} />
                               </label>
                           </div>

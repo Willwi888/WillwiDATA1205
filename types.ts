@@ -43,7 +43,7 @@ export interface Song {
   musicBrainzId?: string;
   youtubeUrl?: string;
   cloudVideoUrl?: string; 
-  customAudioLink?: string; // 新增：自定義音源或備用連結
+  customAudioLink?: string; 
   musixmatchUrl?: string; 
   youtubeMusicUrl?: string;
   spotifyLink?: string;

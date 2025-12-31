@@ -1,8 +1,6 @@
+
 import { Song } from "../types";
 
-// 注意：在正式生產環境中，Client Secret 不應直接暴露在前端代碼中。
-// 建議透過後端 Proxy 處理 Token 交換。
-// 但為了符合目前的純前端架構需求，我們將在此處直接使用。
 const CLIENT_ID = 'a64ec262abd745eeaf4db5faf597d19b';
 const CLIENT_SECRET = '67657590909b48afbf1fd45e09400b6b';
 
@@ -14,16 +12,17 @@ export interface SpotifyTrack {
   name: string;
   artists: { name: string }[];
   album: {
-    id: string; // Ensure ID is available
+    id: string;
     name: string;
     release_date: string;
     images: { url: string }[];
-    external_ids?: { upc?: string; ean?: string };
+    label?: string;
+    external_ids?: { upc?: string };
   };
   external_ids: { isrc?: string };
   external_urls: { spotify: string };
   uri: string;
-  track_number?: number;
+  track_number: number;
   preview_url?: string | null;
 }
 
@@ -35,17 +34,15 @@ export interface SpotifyAlbum {
   total_tracks: number;
   images: { url: string }[];
   external_urls: { spotify: string };
-  label?: string; // New
-  external_ids?: { upc?: string; ean?: string }; // New
-  album_type?: 'album' | 'single' | 'compilation'; // New
-  copyrights?: { text: string; type: string }[]; // New
+  label?: string;
+  external_ids?: { upc?: string };
+  album_type: 'album' | 'single' | 'compilation';
 }
 
 export const getSpotifyToken = async () => {
   if (accessToken && Date.now() < tokenExpiration) {
     return accessToken;
   }
-
   try {
     const response = await fetch('https://accounts.spotify.com/api/token', {
       method: 'POST',
@@ -55,47 +52,37 @@ export const getSpotifyToken = async () => {
       },
       body: 'grant_type=client_credentials'
     });
-
-    if (!response.ok) {
-        const errorText = await response.text();
-        console.error(`Spotify Token Error: ${response.status}`, errorText);
-        throw new Error(`Token fetch failed: ${response.statusText}`);
-    }
-
     const data = await response.json();
     accessToken = data.access_token;
-    // Set expiration (usually 3600 seconds, subtract a bit for safety)
     tokenExpiration = Date.now() + ((data.expires_in - 60) * 1000);
     return accessToken;
   } catch (error) {
-    console.error("Spotify Auth Critical Error:", error);
+    console.error("Spotify Auth Error:", error);
     return null;
   }
 };
 
 export const searchSpotifyTracks = async (query: string): Promise<SpotifyTrack[]> => {
   const token = await getSpotifyToken();
-  if (!token) {
-    console.error("Failed to get Spotify access token, cannot search.");
-    return [];
-  }
-
+  if (!token) return [];
   try {
-    const response = await fetch(`https://api.spotify.com/v1/search?q=${encodeURIComponent(query)}&type=track&limit=5`, {
-      headers: {
-        'Authorization': `Bearer ${token}`
-      }
-    });
-
-    if (!response.ok) {
-        console.error(`Spotify Search Error: ${response.status}`);
-        return [];
+    // If query is a URL, extract ID
+    let finalQuery = query;
+    if (query.includes('spotify.com/track/')) {
+        finalQuery = query.split('/track/')[1].split('?')[0];
+        const res = await fetch(`https://api.spotify.com/v1/tracks/${finalQuery}`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const data = await res.json();
+        return data.id ? [data] : [];
     }
 
+    const response = await fetch(`https://api.spotify.com/v1/search?q=${encodeURIComponent(finalQuery)}&type=track&limit=10`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
     const data = await response.json();
     return data.tracks?.items || [];
   } catch (error) {
-    console.error("Spotify Search Network Error:", error);
     return [];
   }
 };
@@ -103,34 +90,36 @@ export const searchSpotifyTracks = async (query: string): Promise<SpotifyTrack[]
 export const searchSpotifyAlbums = async (query: string): Promise<SpotifyAlbum[]> => {
   const token = await getSpotifyToken();
   if (!token) return [];
-
   try {
-    const response = await fetch(`https://api.spotify.com/v1/search?q=${encodeURIComponent(query)}&type=album&limit=5`, {
+    let finalQuery = query;
+    if (query.includes('spotify.com/album/')) {
+        finalQuery = query.split('/album/')[1].split('?')[0];
+        const res = await fetch(`https://api.spotify.com/v1/albums/${finalQuery}`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const data = await res.json();
+        return data.id ? [data] : [];
+    }
+
+    const response = await fetch(`https://api.spotify.com/v1/search?q=${encodeURIComponent(finalQuery)}&type=album&limit=10`, {
       headers: { 'Authorization': `Bearer ${token}` }
     });
-
-    if (!response.ok) return [];
     const data = await response.json();
     return data.albums?.items || [];
   } catch (error) {
-    console.error("Spotify Album Search Error:", error);
     return [];
   }
 };
 
-export const getSpotifyAlbum = async (albumId: string): Promise<SpotifyAlbum | null> => {
+export const getFullSpotifyAlbum = async (albumId: string): Promise<SpotifyAlbum | null> => {
   const token = await getSpotifyToken();
   if (!token) return null;
-
   try {
     const response = await fetch(`https://api.spotify.com/v1/albums/${albumId}`, {
       headers: { 'Authorization': `Bearer ${token}` }
     });
-
-    if (!response.ok) return null;
     return await response.json();
   } catch (error) {
-    console.error("Get Spotify Album Error:", error);
     return null;
   }
 };
@@ -138,39 +127,18 @@ export const getSpotifyAlbum = async (albumId: string): Promise<SpotifyAlbum | n
 export const getSpotifyAlbumTracks = async (albumId: string): Promise<SpotifyTrack[]> => {
   const token = await getSpotifyToken();
   if (!token) return [];
-
   try {
-    // 1. Get Simplified Track Objects first (limit 50)
-    // The simplified object DOES NOT contain ISRC.
-    const albumResponse = await fetch(`https://api.spotify.com/v1/albums/${albumId}/tracks?limit=50`, {
+    const albumRes = await fetch(`https://api.spotify.com/v1/albums/${albumId}/tracks?limit=50`, {
       headers: { 'Authorization': `Bearer ${token}` }
     });
-
-    if (!albumResponse.ok) return [];
-    const albumData = await albumResponse.json();
-    const simplifiedTracks = albumData.items || [];
-
-    if (simplifiedTracks.length === 0) return [];
-
-    // 2. Extract IDs to fetch Full Track Objects
-    // The full object DOES contain ISRC.
-    const trackIds = simplifiedTracks.map((t: any) => t.id).join(',');
-
-    const fullTracksResponse = await fetch(`https://api.spotify.com/v1/tracks?ids=${trackIds}`, {
+    const albumData = await albumRes.json();
+    const ids = albumData.items.map((t: any) => t.id).join(',');
+    const tracksRes = await fetch(`https://api.spotify.com/v1/tracks?ids=${ids}`, {
       headers: { 'Authorization': `Bearer ${token}` }
     });
-
-    if (!fullTracksResponse.ok) {
-        console.error("Failed to fetch full track details");
-        // Fallback to simplified if full fetch fails (though ISRC will be missing)
-        return simplifiedTracks;
-    }
-
-    const fullTracksData = await fullTracksResponse.json();
-    return fullTracksData.tracks || [];
-
+    const tracksData = await tracksRes.json();
+    return tracksData.tracks || [];
   } catch (error) {
-    console.error("Spotify Album Tracks Error:", error);
     return [];
   }
 };
