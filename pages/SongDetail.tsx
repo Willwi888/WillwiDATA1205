@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { useData } from '../context/DataContext';
+import { useData, ASSETS } from '../context/DataContext';
 import { Song, getLanguageColor, Language, ReleaseCategory, ProjectType } from '../types';
 import { useTranslation } from '../context/LanguageContext';
 import { useUser } from '../context/UserContext';
@@ -225,7 +225,7 @@ const SongDetail: React.FC = () => {
                                 src={convertedVideoUrl} 
                                 className="w-full h-full object-contain" 
                                 controls 
-                                poster={song.coverUrl}
+                                poster={ASSETS.willwiPortrait}
                              />
                              <div className="absolute top-2 left-2 px-2 py-0.5 bg-brand-gold text-black text-[8px] font-black uppercase tracking-widest rounded">Exclusive Video</div>
                          </div>

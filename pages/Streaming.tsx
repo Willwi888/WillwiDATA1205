@@ -1,7 +1,7 @@
 
 import React, { useMemo, useState, useEffect } from 'react';
 import { useTranslation } from '../context/LanguageContext';
-import { useData } from '../context/DataContext';
+import { useData, ASSETS } from '../context/DataContext';
 import { Song, ProjectType } from '../types';
 
 const Streaming: React.FC = () => {
@@ -97,7 +97,7 @@ const Streaming: React.FC = () => {
                       src={convertToDirectStream(featuredVideo.videoUrl)} 
                       controls 
                       className="w-full h-full object-contain" 
-                      poster={featuredVideo.coverUrl}
+                      poster={ASSETS.willwiPortrait}
                     />
                   ) : (
                     <iframe 
@@ -155,9 +155,9 @@ const Streaming: React.FC = () => {
                           <div className="aspect-video relative overflow-hidden bg-black">
                             {video.videoUrl ? (
                               <div className="w-full h-full relative group/vid">
-                                <video src={convertToDirectStream(video.videoUrl)} className="w-full h-full object-cover opacity-60" />
+                                <video src={convertToDirectStream(video.videoUrl)} className="w-full h-full object-cover opacity-60" poster={ASSETS.willwiPortrait} />
                                 <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-black/40">
-                                   <div className="px-4 py-2 border border-white text-white text-[10px] font-black uppercase tracking-widest" onClick={() => window.open(`/song/${video.id}`, '_self')}>Go to Cinema</div>
+                                   <div className="px-4 py-2 border border-white text-white text-[10px] font-black uppercase tracking-widest cursor-pointer" onClick={() => window.open(`/song/${video.id}`, '_self')}>Go to Cinema</div>
                                 </div>
                               </div>
                             ) : (
