@@ -30,7 +30,6 @@ const AdminDashboard: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState<'all' | 'active' | 'inactive' | 'missing_assets'>('all');
   const [sortConfig, setSortConfig] = useState<{ key: SortKey; direction: 'asc' | 'desc' }>({ key: 'releaseDate', direction: 'desc' });
-  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
   const [qrImages, setQrImages] = useState({
       global_payment: '',
@@ -145,6 +144,14 @@ const AdminDashboard: React.FC = () => {
       });
   }, [songs, searchTerm, filterStatus, sortConfig]);
 
+  // Data Integrity Helper
+  const isSongComplete = (song: Song) => {
+      const hasAudio = !!song.audioUrl;
+      const hasLyrics = !!song.lyrics || song.language === Language.Instrumental;
+      const hasCover = !!song.coverUrl;
+      return hasAudio && hasLyrics && hasCover;
+  };
+
   if (!isAdmin) {
       return (
           <div className="min-h-[60vh] flex items-center justify-center px-4">
@@ -190,7 +197,12 @@ const AdminDashboard: React.FC = () => {
           </div>
           <div className={`bg-slate-900 border p-5 rounded-xl border-l-4 border-l-emerald-500 cursor-pointer hover:bg-slate-800 ${activeTab === 'security' ? 'border-emerald-500 bg-slate-800' : 'border-white/5'}`} onClick={() => setActiveTab('security')}>
               <div className="text-[10px] text-emerald-500 font-bold uppercase tracking-widest mb-2">Security</div>
-              <div className="text-3xl font-black text-white">🔒</div>
+              <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 text-emerald-500">
+                      <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
+                  </div>
+                  <span className="text-xl font-black text-white">PASSWORD</span>
+              </div>
           </div>
           <div className={`bg-slate-900 border p-5 rounded-xl border-l-4 border-l-brand-accent cursor-pointer hover:bg-slate-800 ${activeTab === 'settings' ? 'border-brand-accent bg-slate-800' : 'border-white/5'}`} onClick={() => setActiveTab('settings')}>
               <div className="text-[10px] text-brand-accent font-bold uppercase tracking-widest mb-2">Data Sync</div>
@@ -204,6 +216,7 @@ const AdminDashboard: React.FC = () => {
                   <thead className="bg-black text-[9px] font-black text-slate-500 uppercase tracking-widest">
                       <tr>
                           <th className="p-4 w-12 text-center">Play</th>
+                          <th className="p-4 w-16 text-center">狀態</th>
                           <th className="p-4 cursor-pointer" onClick={() => handleSort('title')}>作品資訊</th>
                           <th className="p-4 hidden md:table-cell" onClick={() => handleSort('releaseDate')}>日期</th>
                           <th className="p-4 text-center">互動模式</th>
@@ -211,19 +224,33 @@ const AdminDashboard: React.FC = () => {
                       </tr>
                   </thead>
                   <tbody className="divide-y divide-white/5">
-                      {filteredSongs.map(song => (
+                      {filteredSongs.map(song => {
+                          const complete = isSongComplete(song);
+                          return (
                           <tr key={song.id} className="group hover:bg-white/[0.03] transition-all cursor-pointer" onClick={() => navigate(`/song/${song.id}`)}>
                               <td className="p-4 text-center" onClick={(e) => e.stopPropagation()}>
                                   <button onClick={() => togglePreview(song.audioUrl, song.id)} className={`w-8 h-8 rounded-full flex items-center justify-center border transition-all ${playingId === song.id ? 'bg-brand-gold text-black border-brand-gold' : 'bg-slate-800 text-white border-white/20'}`}>
                                       {playingId === song.id ? <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg> : <svg className="w-3 h-3 ml-0.5" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>}
                                   </button>
                               </td>
-                              <td className="p-4 flex items-center gap-4"><img src={song.coverUrl} className="w-10 h-10 object-cover rounded" alt="" /><div className="font-bold text-sm text-white">{song.title}</div></td>
+                              <td className="p-4 text-center">
+                                  <div className={`w-3 h-3 rounded-full mx-auto shadow-sm ${complete ? 'bg-emerald-500 shadow-emerald-500/50' : 'bg-red-500 shadow-red-500/50 animate-pulse'}`} title={complete ? '資料登錄完成' : '資料未完成（缺音檔或歌詞）'}></div>
+                              </td>
+                              <td className="p-4">
+                                  <div className="flex items-center gap-4">
+                                      <img src={song.coverUrl} className="w-10 h-10 object-cover rounded" alt="" />
+                                      <div>
+                                          <div className="font-bold text-sm text-white">{song.title}</div>
+                                          {!complete && <div className="text-[8px] text-red-500 font-bold uppercase mt-1">Incomplete</div>}
+                                      </div>
+                                  </div>
+                              </td>
                               <td className="p-4 hidden md:table-cell text-xs font-mono text-slate-400">{song.releaseDate}</td>
                               <td className="p-4 text-center" onClick={(e) => e.stopPropagation()}><button onClick={() => updateSong(song.id, { isInteractiveActive: !song.isInteractiveActive })} className={`px-4 py-1 text-[9px] font-black uppercase border rounded ${song.isInteractiveActive ? 'bg-emerald-500 text-black border-emerald-500' : 'text-slate-500 border-white/10'}`}>{song.isInteractiveActive ? 'ON' : 'OFF'}</button></td>
                               <td className="p-4 text-right"><button onClick={(e) => { e.stopPropagation(); navigate(`/song/${song.id}`); }} className="text-[10px] font-black text-slate-400 hover:text-white uppercase tracking-widest">EDIT</button></td>
                           </tr>
-                      ))}
+                          );
+                      })}
                   </tbody>
               </table>
           </div>

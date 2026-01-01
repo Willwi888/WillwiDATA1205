@@ -64,55 +64,57 @@ const Database: React.FC = () => {
         </select>
       </div>
 
-      <div className="overflow-x-auto custom-scrollbar">
-          <table className="w-full text-left min-w-[1000px]">
-              <thead className="bg-black/50 border-b border-white/10">
+      <div className="overflow-x-auto custom-scrollbar border border-white/5 rounded-sm bg-black/20">
+          <table className="w-full text-left min-w-[1000px] border-collapse">
+              <thead className="bg-black/80 border-b border-white/10">
                   <tr className="text-[9px] font-black text-slate-500 uppercase tracking-[0.2em]">
-                      <th className="px-6 py-6 w-16">Preview</th>
-                      <th className="px-6 py-6">{t('form_label_title')}</th>
-                      <th className="px-6 py-6">ISRC</th>
-                      <th className="px-6 py-6">{t('form_label_category')}</th>
-                      <th className="px-6 py-6">{t('form_label_lang')}</th>
-                      <th className="px-6 py-6">{t('form_label_date')}</th>
-                      <th className="px-6 py-6">{t('form_label_publisher') || 'Company'}</th>
-                      <th className="px-6 py-6 text-right">Actions</th>
+                      <th className="px-4 py-6 w-16 text-center">Preview</th>
+                      <th className="px-4 py-6">作品名稱</th>
+                      <th className="px-4 py-6">ISRC</th>
+                      <th className="px-4 py-6">類別</th>
+                      <th className="px-4 py-6">語系</th>
+                      <th className="px-4 py-6">日期</th>
+                      <th className="px-4 py-6">發行公司</th>
+                      <th className="px-4 py-6 text-right">Actions</th>
                   </tr>
               </thead>
               <tbody className="divide-y divide-white/5">
                   {filteredSongs.map(song => (
-                      <tr key={song.id} className="group hover:bg-white/[0.03] transition-all">
-                          <td className="px-6 py-8">
+                      <tr key={song.id} className="group hover:bg-white/[0.02] transition-all">
+                          <td className="px-4 py-6 text-center">
                               <button 
                                 onClick={() => togglePreview(song.audioUrl, song.id)}
-                                className={`w-10 h-10 rounded-full flex items-center justify-center border transition-all ${playingId === song.id ? 'bg-brand-gold text-black border-brand-gold shadow-[0_0_15px_rgba(251,191,36,0.6)]' : 'bg-slate-900 text-white border-white/10 hover:border-white'}`}
+                                className={`w-9 h-9 rounded-full flex items-center justify-center border transition-all ${playingId === song.id ? 'bg-brand-gold text-black border-brand-gold shadow-[0_0_15px_rgba(251,191,36,0.6)]' : 'bg-slate-900 text-white border-white/10 hover:border-white'}`}
                               >
                                   {playingId === song.id ? <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg> : <svg className="w-4 h-4 ml-0.5" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>}
                               </button>
                           </td>
-                          <td className="px-6 py-8">
-                              <div className="flex items-center gap-4">
-                                  <img src={song.coverUrl} className="w-12 h-12 object-cover rounded shadow-md group-hover:scale-110 transition-transform" alt="" />
-                                  <div>
-                                      <div className="text-sm font-black text-white uppercase tracking-tight group-hover:text-brand-gold transition-colors">{song.title}</div>
-                                      {song.versionLabel && <div className="text-[9px] text-slate-500 font-bold uppercase mt-1">{song.versionLabel}</div>}
+                          <td className="px-4 py-6">
+                              <div className="flex items-center gap-3">
+                                  <img src={song.coverUrl} className="w-10 h-10 object-cover rounded shadow-md group-hover:scale-105 transition-transform" alt="" />
+                                  <div className="max-w-[200px]">
+                                      <div className="text-[11px] font-black text-white uppercase tracking-tight group-hover:text-brand-gold transition-colors truncate">{song.title}</div>
+                                      {song.versionLabel && <div className="text-[8px] text-slate-500 font-bold uppercase mt-0.5">{song.versionLabel}</div>}
                                   </div>
                               </div>
                           </td>
-                          <td className="px-6 py-8">
-                              <span className="text-[10px] font-mono text-slate-400 group-hover:text-brand-gold transition-colors">{song.isrc || '--'}</span>
+                          <td className="px-4 py-6">
+                              <span className="text-[10px] font-mono text-slate-500 group-hover:text-brand-gold transition-colors">{song.isrc || '--'}</span>
                           </td>
-                          <td className="px-6 py-8 text-[10px] font-bold text-slate-500 uppercase tracking-widest">
-                              {song.releaseCategory || '--'}
+                          <td className="px-4 py-6">
+                              <span className="text-[9px] font-bold text-slate-600 uppercase tracking-widest">{song.releaseCategory?.split(' ')[0] || '--'}</span>
                           </td>
-                          <td className="px-6 py-8">
-                              <span className="px-2 py-0.5 text-[9px] font-black uppercase text-white bg-slate-800 rounded-sm">{song.language}</span>
+                          <td className="px-4 py-6">
+                              <span className="px-2 py-0.5 text-[8px] font-black uppercase text-slate-400 border border-slate-800 rounded-sm">{song.language}</span>
                           </td>
-                          <td className="px-6 py-8 text-[10px] font-mono text-slate-500">{song.releaseDate}</td>
-                          <td className="px-6 py-8 text-[10px] font-bold text-slate-500 uppercase tracking-widest">{song.releaseCompany || '--'}</td>
-                          <td className="px-6 py-8 text-right">
+                          <td className="px-4 py-6 text-[9px] font-mono text-slate-500">{song.releaseDate}</td>
+                          <td className="px-4 py-6">
+                              <span className="text-[9px] font-bold text-slate-500 uppercase tracking-wider truncate block max-w-[120px]">{song.releaseCompany || '--'}</span>
+                          </td>
+                          <td className="px-4 py-6 text-right">
                               <div className="flex justify-end gap-2">
-                                  <button onClick={() => navigate(`/song/${song.id}`)} className="px-4 py-2 border border-white/10 text-slate-400 hover:text-white hover:border-white text-[9px] font-black uppercase tracking-widest transition-all">Info</button>
-                                  <button onClick={() => navigate('/interactive', { state: { targetSongId: song.id } })} className="px-4 py-2 bg-white text-black text-[9px] font-black uppercase tracking-widest hover:bg-brand-gold transition-all">Start Lab</button>
+                                  <button onClick={() => navigate(`/song/${song.id}`)} className="px-3 py-1.5 border border-white/5 text-slate-500 hover:text-white hover:border-white text-[8px] font-black uppercase tracking-widest transition-all">Info</button>
+                                  <button onClick={() => navigate('/interactive', { state: { targetSongId: song.id } })} className="px-3 py-1.5 bg-white text-black text-[8px] font-black uppercase tracking-widest hover:bg-brand-gold transition-all">Start Lab</button>
                               </div>
                           </td>
                       </tr>
