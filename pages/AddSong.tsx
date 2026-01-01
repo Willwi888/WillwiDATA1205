@@ -19,7 +19,7 @@ import { GoogleGenAI, Type } from "@google/genai";
 const convertToDirectStream = (url: string) => {
     try {
         if (!url) return '';
-        const u = new URL(url);
+        const u = new URL(url.trim());
         if (u.hostname.includes('dropbox.com')) {
             u.searchParams.set('raw', '1');
             u.searchParams.delete('dl');
@@ -71,6 +71,7 @@ const AddSong: React.FC = () => {
   const [mbResults, setMbResults] = useState<MBReleaseGroup[]>([]);
   const [searchError, setSearchError] = useState('');
   const [isSaving, setIsSaving] = useState(false);
+  const [formErrors, setFormErrors] = useState<Record<string, string>>({});
 
   const [formData, setFormData] = useState<Partial<Song>>({
     title: '',
@@ -110,7 +111,26 @@ const AddSong: React.FC = () => {
       setFormData(prev => ({ ...prev, [name]: checked }));
     } else {
       setFormData(prev => ({ ...prev, [name]: value }));
+      if (formErrors[name]) {
+          setFormErrors(prev => {
+              const newErrors = { ...prev };
+              delete newErrors[name];
+              return newErrors;
+          });
+      }
     }
+  };
+
+  const validateForm = () => {
+      const errors: Record<string, string> = {};
+      if (!formData.title?.trim()) errors.title = "標題為必填項目 (Title is required)";
+      if (!formData.releaseDate) errors.releaseDate = "發行日期為必填項目 (Release date is required)";
+      if (!formData.coverUrl?.trim()) errors.coverUrl = "封面圖片網址為必填項目 (Cover URL is required)";
+      if (formData.isInteractiveActive && !formData.audioUrl?.trim()) {
+          errors.audioUrl = "開啟互動模式需提供音檔網址 (Audio URL required for interactive mode)";
+      }
+      setFormErrors(errors);
+      return Object.keys(errors).length === 0;
   };
 
   const handleSearch = async () => {
@@ -176,6 +196,7 @@ const AddSong: React.FC = () => {
       }));
       setTrackResults([]);
       setAlbumResults([]);
+      setFormErrors({});
       alert(`已帶入歌曲: ${track.name}`);
   };
 
@@ -232,39 +253,42 @@ const AddSong: React.FC = () => {
       }
       setMbResults([]);
       setIsSearching(false);
+      setFormErrors({});
       alert(`已從 MusicBrainz 填入: ${group.title}`);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.title) return alert("Please enter a Title.");
+    if (!validateForm()) return;
+    
     setIsSaving(true);
     const newSong: Song = {
       id: Date.now().toString(),
-      title: formData.title!,
-      versionLabel: formData.versionLabel || '',
-      coverUrl: formData.coverUrl || '',
+      title: formData.title!.trim(),
+      versionLabel: formData.versionLabel?.trim() || '',
+      coverUrl: formData.coverUrl?.trim() || '',
       language: formData.language as Language,
       projectType: formData.projectType as ProjectType,
       releaseCategory: formData.releaseCategory as ReleaseCategory,
-      releaseCompany: formData.releaseCompany || '',
-      publisher: formData.publisher || '',
+      releaseCompany: formData.releaseCompany?.trim() || '',
+      publisher: formData.publisher?.trim() || '',
       releaseDate: formData.releaseDate || new Date().toISOString().split('T')[0],
       isEditorPick: !!formData.isEditorPick,
       isInteractiveActive: !!formData.isInteractiveActive,
       isOfficialExclusive: !!formData.isOfficialExclusive,
-      isrc: formData.isrc,
-      upc: formData.upc,
-      audioUrl: convertToDirectStream(formData.audioUrl || ''),
-      customAudioLink: formData.customAudioLink || '',
-      youtubeUrl: formData.youtubeUrl,
-      cloudVideoUrl: formData.cloudVideoUrl,
-      spotifyId: formData.spotifyId,
-      spotifyLink: formData.spotifyLink,
-      lyrics: formData.lyrics,
-      description: formData.description,
-      credits: formData.credits
+      isrc: formData.isrc?.trim(),
+      upc: formData.upc?.trim(),
+      audioUrl: convertToDirectStream(formData.audioUrl?.trim() || ''),
+      customAudioLink: formData.customAudioLink?.trim() || '',
+      youtubeUrl: formData.youtubeUrl?.trim(),
+      cloudVideoUrl: formData.cloudVideoUrl?.trim(),
+      spotifyId: formData.spotifyId?.trim(),
+      spotifyLink: formData.spotifyLink?.trim(),
+      lyrics: formData.lyrics?.trim(),
+      description: formData.description?.trim(),
+      credits: formData.credits?.trim()
     };
+    
     if (await addSong(newSong)) navigate('/database');
     else { alert(t('msg_save_error')); setIsSaving(false); }
   };
@@ -321,6 +345,8 @@ const AddSong: React.FC = () => {
                  </div>
              </div>
              
+             {searchError && <p className="text-red-500 text-xs mb-4">{searchError}</p>}
+             
              <div className="mt-4 space-y-2 max-h-60 overflow-y-auto custom-scrollbar">
                  {trackResults.map(track => (
                      <div key={track.id} onClick={() => importSpotifyTrack(track)} className="flex items-center gap-4 p-3 bg-black/40 hover:bg-white/10 cursor-pointer border border-white/5 transition-all">
@@ -357,13 +383,28 @@ const AddSong: React.FC = () => {
 
       <form onSubmit={handleSubmit} className="space-y-6">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-             <div className="space-y-2"><label className="text-[10px] text-slate-500 font-black uppercase tracking-widest">作品名稱</label><input name="title" className="w-full bg-slate-900 border border-white/10 px-4 py-3 text-white text-sm focus:border-brand-accent outline-none" value={formData.title} onChange={handleChange} required /></div>
-             <div className="space-y-2"><label className="text-[10px] text-slate-500 font-black uppercase tracking-widest">版本標記</label><input name="versionLabel" className="w-full bg-slate-900 border border-white/10 px-4 py-3 text-white text-sm focus:border-brand-accent outline-none" value={formData.versionLabel} onChange={handleChange} placeholder="e.g. Acoustic, Remix" /></div>
+             <div className="space-y-2">
+                 <label className={`text-[10px] font-black uppercase tracking-widest ${formErrors.title ? 'text-red-500' : 'text-slate-500'}`}>
+                     作品名稱 {formErrors.title && '*'}
+                 </label>
+                 <input name="title" className={`w-full bg-slate-900 border px-4 py-3 text-white text-sm outline-none transition-all ${formErrors.title ? 'border-red-500 focus:border-red-400' : 'border-white/10 focus:border-brand-accent'}`} value={formData.title} onChange={handleChange} />
+                 {formErrors.title && <p className="text-red-500 text-[9px] font-bold uppercase tracking-widest">{formErrors.title}</p>}
+             </div>
+             <div className="space-y-2">
+                 <label className="text-[10px] text-slate-500 font-black uppercase tracking-widest">版本標記 (Version Label)</label>
+                 <input name="versionLabel" className="w-full bg-slate-900 border border-white/10 px-4 py-3 text-white text-sm focus:border-brand-accent outline-none" value={formData.versionLabel} onChange={handleChange} placeholder="e.g. Acoustic, Remix, Live" />
+             </div>
         </div>
 
         <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
              <div className="space-y-2"><label className="text-[10px] text-slate-500 font-black uppercase tracking-widest">語系</label><select name="language" className="w-full bg-slate-900 border border-white/10 px-4 py-3 text-white text-xs focus:border-brand-accent outline-none appearance-none" value={formData.language} onChange={handleChange}>{Object.values(Language).map(l => <option key={l} value={l}>{l}</option>)}</select></div>
-             <div className="space-y-2"><label className="text-[10px] text-slate-500 font-black uppercase tracking-widest">日期</label><input type="date" name="releaseDate" className="w-full bg-slate-900 border border-white/10 px-4 py-3 text-white text-xs focus:border-brand-accent outline-none" value={formData.releaseDate} onChange={handleChange} /></div>
+             <div className="space-y-2">
+                 <label className={`text-[10px] font-black uppercase tracking-widest ${formErrors.releaseDate ? 'text-red-500' : 'text-slate-500'}`}>
+                     日期 {formErrors.releaseDate && '*'}
+                 </label>
+                 <input type="date" name="releaseDate" className={`w-full bg-slate-900 border px-4 py-3 text-white text-xs outline-none transition-all ${formErrors.releaseDate ? 'border-red-500 focus:border-red-400' : 'border-white/10 focus:border-brand-accent'}`} value={formData.releaseDate} onChange={handleChange} />
+                 {formErrors.releaseDate && <p className="text-red-500 text-[9px] font-bold uppercase tracking-widest">{formErrors.releaseDate}</p>}
+             </div>
              <div className="space-y-2">
                 <label className="text-[10px] text-brand-gold font-black uppercase tracking-widest block mb-2">官網獨家</label>
                 <input type="checkbox" name="isOfficialExclusive" checked={formData.isOfficialExclusive} onChange={handleChange} className="w-4 h-4 accent-brand-gold" />
@@ -384,8 +425,11 @@ const AddSong: React.FC = () => {
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="space-y-2">
-                <label className="text-[10px] text-brand-accent font-black uppercase tracking-widest">音檔來源網址</label>
-                <input name="audioUrl" className="w-full bg-slate-800 border border-brand-accent/30 px-4 py-3 text-brand-accent text-xs focus:border-brand-accent outline-none font-mono" value={formData.audioUrl} onChange={handleChange} placeholder="貼上直連音檔連結 (Dropbox ?raw=1)" />
+                <label className={`text-[10px] font-black uppercase tracking-widest ${formErrors.audioUrl ? 'text-red-500 font-bold' : 'text-brand-accent'}`}>
+                    音檔來源網址 {formData.isInteractiveActive && '*'}
+                </label>
+                <input name="audioUrl" className={`w-full bg-slate-800 border px-4 py-3 text-brand-accent text-xs outline-none font-mono transition-all ${formErrors.audioUrl ? 'border-red-500 focus:border-red-400' : 'border-brand-accent/30 focus:border-brand-accent'}`} value={formData.audioUrl} onChange={handleChange} placeholder="貼上直連音檔連結 (Dropbox ?raw=1)" />
+                {formErrors.audioUrl && <p className="text-red-500 text-[9px] font-bold uppercase tracking-widest">{formErrors.audioUrl}</p>}
             </div>
             <div className="space-y-2">
                 <label className="text-[10px] text-slate-400 font-black uppercase tracking-widest">備用音源 / 自定義連結</label>
@@ -397,8 +441,9 @@ const AddSong: React.FC = () => {
             <label className="text-[10px] text-slate-500 font-black uppercase tracking-widest">影音資源連結</label>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-1">
-                    <label className="text-[9px] text-slate-600 uppercase">Cover URL</label>
-                    <input name="coverUrl" className="w-full bg-slate-900 border border-white/10 px-4 py-3 text-white text-xs focus:border-brand-accent outline-none font-mono" value={formData.coverUrl} onChange={handleChange} />
+                    <label className={`text-[9px] uppercase ${formErrors.coverUrl ? 'text-red-500' : 'text-slate-600'}`}>Cover URL *</label>
+                    <input name="coverUrl" className={`w-full bg-slate-900 border px-4 py-3 text-white text-xs outline-none font-mono transition-all ${formErrors.coverUrl ? 'border-red-500 focus:border-red-400' : 'border-white/10 focus:border-brand-accent'}`} value={formData.coverUrl} onChange={handleChange} />
+                    {formErrors.coverUrl && <p className="text-red-500 text-[9px] font-bold uppercase tracking-widest">{formErrors.coverUrl}</p>}
                 </div>
                 <div className="space-y-1">
                     <label className="text-[9px] text-slate-600 uppercase">YouTube URL</label>

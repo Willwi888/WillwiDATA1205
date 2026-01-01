@@ -119,6 +119,7 @@ const ImmersivePlayer: React.FC<{ song: Song; onClose: () => void }> = ({ song, 
                 </button>
                 <div className="text-center">
                     <h4 className="text-xs font-black text-white uppercase tracking-widest text-shadow-gold">{song.title}</h4>
+                    {song.versionLabel && <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest mt-1">{song.versionLabel}</p>}
                 </div>
                 <div className="w-10"></div>
             </div>
@@ -231,8 +232,8 @@ const SongDetail: React.FC = () => {
                                     <input className="text-xl font-bold text-white bg-black/50 border border-white/10 px-4 py-2 w-full outline-none focus:border-brand-accent" value={editForm.title} name="title" onChange={handleEditChange} />
                                 </div>
                                 <div className="space-y-1">
-                                    <label className="text-[9px] text-slate-500 uppercase tracking-widest">{t('form_label_version')}</label>
-                                    <input className="text-xl font-bold text-white bg-black/50 border border-white/10 px-4 py-2 w-full outline-none focus:border-brand-accent" value={editForm.versionLabel || ''} name="versionLabel" onChange={handleEditChange} placeholder="e.g. Acoustic" />
+                                    <label className="text-[9px] text-slate-500 uppercase tracking-widest">版本標記 (Version Label)</label>
+                                    <input className="text-xl font-bold text-white bg-black/50 border border-white/10 px-4 py-2 w-full outline-none focus:border-brand-accent" value={editForm.versionLabel || ''} name="versionLabel" onChange={handleEditChange} placeholder="e.g. Acoustic, Remix" />
                                 </div>
                             </div>
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -369,7 +370,7 @@ const SongDetail: React.FC = () => {
                 <div className="bg-slate-900/50 p-10 border border-white/5 rounded-xl">
                     <h3 className="text-sm font-black text-white uppercase tracking-[0.4em] mb-8">{t('detail_section_lyrics')}</h3>
                     {isEditing ? (
-                        <textarea name="lyrics" className="w-full h-80 bg-black/50 border border-white/10 p-6 text-brand-accent text-xs font-mono leading-loose outline-none focus:border-brand-accent" value={editForm.lyrics || ''} onChange={handleEditChange} placeholder="[00:10.00] 歌詞內容..." />
+                        <textarea name="lyrics" className="w-full h-80 bg-black/50 border border-white/10 p-6 text-brand-accent text-xs font-mono translation-all duration-300 leading-loose outline-none focus:border-brand-accent" value={editForm.lyrics || ''} onChange={handleEditChange} placeholder="[00:10.00] 歌詞內容..." />
                     ) : (
                         <div className="font-mono text-xs text-slate-500 whitespace-pre-line leading-loose border-l border-white/5 pl-8">{song.lyrics || t('detail_empty_lyrics')}</div>
                     )}
