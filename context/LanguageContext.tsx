@@ -16,6 +16,17 @@ const TRANSLATIONS = {
     nav_exit_admin: "Exit Admin",
     footer_rights: "Willwi Music. All rights reserved.",
     
+    // About Page Content
+    about_title: "ABOUT WILLWI",
+    about_subtitle: "BEYOND MUSIC & CREATION",
+    about_section_1_title: "THE VISION",
+    about_section_1_content: "Willwi is an independent music project founded by musician Will Chen. We believe music is not just a digital file to be consumed, but a connection of labor and soul between the artist and the listener. This platform serves as a bridge, inviting you to witness the craftsmanship behind every melody.",
+    about_section_2_title: "RESONANCE SYNC",
+    about_section_2_content: "In the 'Interactive Lab', we invite you to participate in the most delicate part of production: the rhythm of words. By manually syncing lyrics, you are not just watching a video; you are supporting the artist's creative labor and claiming your identity as a co-creator.",
+    about_section_3_title: "CLOUD CINEMA",
+    about_section_3_content: "For those who seek the ultimate experience, Cloud Cinema offers 4K high-definition rendering paired with digital artist signatures. It is a digital vault where music meets cinematography, creating a lasting legacy for the tracks you love.",
+    about_social_title: "FOLLOW THE JOURNEY",
+
     // Streaming Page
     streaming_title: "STREAMING",
     streaming_subtitle: "Official Audio & Video Platforms",
@@ -103,6 +114,17 @@ const TRANSLATIONS = {
     nav_admin: "後台管理",
     nav_exit_admin: "登出管理",
     footer_rights: "Willwi Music. 版權所有",
+
+    // About Page Content
+    about_title: "關於 威威",
+    about_subtitle: "超越音樂與創作的連結",
+    about_section_1_title: "創作願景",
+    about_section_1_content: "Willwi 是由音樂人陳威兒（Will Chen）發起的獨立音樂計畫。我們相信音樂不只是被消費的數位檔案，而是創作者與聽眾之間靈魂與勞動的交換。這個平台作為橋樑，邀請您一同見證每一段旋律背後的工藝與堅持。",
+    about_section_2_title: "共鳴實驗室",
+    about_section_2_content: "在『互動創作』中，我們邀請您參與製作中最細膩的部分：文字的律動。透過手動對齊歌詞，您不只是在觀看影片，而是在支持藝術家的創作勞動，並確立您作為『共創者』的身份。",
+    about_section_3_title: "雲端影院",
+    about_section_3_content: "對於追求極致體驗的聽眾，雲端影院提供 4K 高畫質重製與數位簽名。這是一個將音樂與影視美學結合的數位保險庫，為您喜愛的作品留下永恆且專屬的印記。",
+    about_social_title: "追蹤創作軌跡",
     
     // Streaming Page
     streaming_title: "STREAMING",
@@ -137,6 +159,7 @@ const TRANSLATIONS = {
     home_col_support_desc: "純粹創作能量挹注",
     home_col_support_price: "NT$ 100",
     home_col_support_li1: "✦ 贊助一份餐點",
+    home_col_support_li2: "✦ 創作者社群感謝",
     home_col_support_li3: "✦ 創作者社群感謝",
     home_btn_support: "投食",
 

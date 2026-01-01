@@ -1,5 +1,5 @@
 
-import React, { useMemo } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { useTranslation } from '../context/LanguageContext';
 import { useData } from '../context/DataContext';
 import { Song, ProjectType } from '../types';
@@ -7,6 +7,7 @@ import { Song, ProjectType } from '../types';
 const Streaming: React.FC = () => {
   const { t } = useTranslation();
   const { songs } = useData();
+  const [expandedPlaylists, setExpandedPlaylists] = useState<Record<string, boolean>>({});
 
   // Filter and sort exclusive content
   const exclusiveVideos = useMemo(() => {
@@ -27,6 +28,18 @@ const Streaming: React.FC = () => {
     });
     return Object.entries(playlists);
   }, [exclusiveVideos]);
+
+  // Expand the first playlist by default
+  useEffect(() => {
+    if (projectPlaylists.length > 0) {
+      const firstProjectName = projectPlaylists[0][0];
+      setExpandedPlaylists({ [firstProjectName]: true });
+    }
+  }, [projectPlaylists.length]);
+
+  const togglePlaylist = (name: string) => {
+    setExpandedPlaylists(prev => ({ ...prev, [name]: !prev[name] }));
+  };
 
   const getEmbedId = (url: string) => {
     try {
@@ -96,54 +109,74 @@ const Streaming: React.FC = () => {
             )}
           </section>
 
-          {/* Section 2: Project Playlists */}
+          {/* Section 2: Collapsible Project Playlists */}
           {projectPlaylists.length > 0 ? (
-            <div className="space-y-16">
-              {projectPlaylists.map(([projectName, videos]) => (
-                <section key={projectName} className="space-y-8">
-                  <div className="flex items-center justify-between border-b border-white/5 pb-4">
-                    <h3 className="text-xl font-black text-white uppercase tracking-[0.2em] flex items-center gap-3">
-                      {projectName}
-                      <span className="text-[10px] text-slate-500 font-bold">{videos.length} VIDEOS</span>
-                    </h3>
-                    <div className="h-px flex-grow mx-8 bg-gradient-to-r from-white/10 to-transparent"></div>
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                    {videos.map(video => (
-                      <div key={video.id} className="group bg-slate-950/40 border border-white/5 rounded-xl overflow-hidden hover:border-brand-accent/30 transition-all duration-500 hover:shadow-[0_10px_40px_rgba(0,0,0,0.4)]">
-                        <div className="aspect-video relative overflow-hidden bg-black">
-                          <img 
-                            src={`https://img.youtube.com/vi/${getEmbedId(video.youtubeUrl!)}/maxresdefault.jpg`} 
-                            className="w-full h-full object-cover opacity-60 group-hover:opacity-40 group-hover:scale-105 transition-all duration-700"
-                            alt={video.title}
-                          />
-                          <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                             <a 
-                                href={video.youtubeUrl} 
-                                target="_blank" 
-                                rel="noopener noreferrer"
-                                className="w-12 h-12 bg-white text-black rounded-full flex items-center justify-center hover:scale-110 transition-transform shadow-2xl"
-                             >
-                               <svg className="w-6 h-6 ml-1" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z" /></svg>
-                             </a>
-                          </div>
-                          <div className="absolute bottom-3 right-3 bg-black/80 px-2 py-1 rounded text-[8px] font-mono text-white tracking-widest border border-white/10 uppercase">
-                             {video.releaseCategory || 'Video'}
-                          </div>
+            <div className="space-y-10">
+              {projectPlaylists.map(([projectName, videos]) => {
+                const isExpanded = expandedPlaylists[projectName];
+                return (
+                  <section key={projectName} className="bg-slate-900/20 border border-white/5 rounded-2xl overflow-hidden transition-all duration-300">
+                    <button 
+                      onClick={() => togglePlaylist(projectName)}
+                      className="w-full flex items-center justify-between p-6 hover:bg-white/[0.02] transition-all group"
+                    >
+                      <div className="flex items-center gap-6">
+                        <div className={`w-10 h-10 rounded-full flex items-center justify-center border transition-all duration-500 ${isExpanded ? 'bg-brand-gold border-brand-gold text-black' : 'bg-slate-800 border-white/10 text-slate-400'}`}>
+                           <svg className={`w-4 h-4 transition-transform duration-500 ${isExpanded ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M19 9l-7 7-7-7" />
+                           </svg>
                         </div>
-                        <div className="p-5 border-t border-white/5">
-                          <h5 className="text-white font-bold text-xs uppercase tracking-wider mb-1 group-hover:text-brand-accent transition-colors truncate">{video.title}</h5>
-                          <div className="flex justify-between items-center">
-                            <span className="text-[9px] text-slate-500 font-bold uppercase">{video.releaseDate}</span>
-                            <span className="text-[8px] text-brand-accent font-black uppercase tracking-tighter">Official Release</span>
-                          </div>
+                        <div className="text-left">
+                          <h3 className={`text-xl font-black uppercase tracking-[0.2em] transition-colors ${isExpanded ? 'text-brand-gold' : 'text-white'}`}>
+                            {projectName}
+                          </h3>
+                          <span className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">{videos.length} VIDEOS IN VAULT</span>
                         </div>
                       </div>
-                    ))}
-                  </div>
-                </section>
-              ))}
+                      <div className="hidden sm:block h-px flex-grow mx-8 bg-gradient-to-r from-white/10 to-transparent"></div>
+                      <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest group-hover:text-white transition-colors">
+                        {isExpanded ? 'COLLAPSE' : 'EXPAND'}
+                      </span>
+                    </button>
+
+                    <div className={`transition-all duration-500 overflow-hidden ${isExpanded ? 'max-h-[2000px] opacity-100 p-6 pt-0' : 'max-h-0 opacity-0'}`}>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-8 border-t border-white/5 pt-8">
+                        {videos.map(video => (
+                          <div key={video.id} className="group bg-slate-950/40 border border-white/5 rounded-xl overflow-hidden hover:border-brand-accent/30 transition-all duration-500 hover:shadow-[0_10px_40px_rgba(0,0,0,0.4)]">
+                            <div className="aspect-video relative overflow-hidden bg-black">
+                              <img 
+                                src={`https://img.youtube.com/vi/${getEmbedId(video.youtubeUrl!)}/maxresdefault.jpg`} 
+                                className="w-full h-full object-cover opacity-60 group-hover:opacity-40 group-hover:scale-105 transition-all duration-700"
+                                alt={video.title}
+                              />
+                              <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                                 <a 
+                                    href={video.youtubeUrl} 
+                                    target="_blank" 
+                                    rel="noopener noreferrer"
+                                    className="w-12 h-12 bg-white text-black rounded-full flex items-center justify-center hover:scale-110 transition-transform shadow-2xl"
+                                 >
+                                   <svg className="w-6 h-6 ml-1" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z" /></svg>
+                                 </a>
+                              </div>
+                              <div className="absolute bottom-3 right-3 bg-black/80 px-2 py-1 rounded text-[8px] font-mono text-white tracking-widest border border-white/10 uppercase">
+                                 {video.releaseCategory || 'Video'}
+                              </div>
+                            </div>
+                            <div className="p-5 border-t border-white/5">
+                              <h5 className="text-white font-bold text-xs uppercase tracking-wider mb-1 group-hover:text-brand-accent transition-colors truncate">{video.title}</h5>
+                              <div className="flex justify-between items-center">
+                                <span className="text-[9px] text-slate-500 font-bold uppercase">{video.releaseDate}</span>
+                                <span className="text-[8px] text-brand-accent font-black uppercase tracking-tighter">Official Release</span>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </section>
+                );
+              })}
             </div>
           ) : null}
         </div>
