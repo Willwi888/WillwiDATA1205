@@ -42,6 +42,7 @@ export interface Song {
   spotifyId?: string;
   musicBrainzId?: string;
   youtubeUrl?: string;
+  videoUrl?: string; 
   cloudVideoUrl?: string; 
   customAudioLink?: string; 
   musixmatchUrl?: string; 

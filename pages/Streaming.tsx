@@ -9,10 +9,28 @@ const Streaming: React.FC = () => {
   const { songs } = useData();
   const [expandedPlaylists, setExpandedPlaylists] = useState<Record<string, boolean>>({});
 
-  // Filter and sort exclusive content
+  const convertToDirectStream = (url: string) => {
+    try {
+        if (!url) return '';
+        let u = new URL(url.trim());
+        if (u.hostname.includes('dropbox.com')) {
+            u.hostname = 'dl.dropboxusercontent.com';
+            u.searchParams.set('raw', '1');
+            u.searchParams.delete('dl');
+            return u.toString();
+        }
+        if (u.hostname.includes('drive.google.com') && u.pathname.includes('/file/d/')) {
+            const id = u.pathname.split('/file/d/')[1].split('/')[0];
+            return `https://docs.google.com/uc?export=download&id=${id}`;
+        }
+        return url;
+    } catch (e) { return url; }
+  };
+
+  // Filter and sort exclusive content (YouTube or Direct Video)
   const exclusiveVideos = useMemo(() => {
     return songs
-      .filter(s => s.isOfficialExclusive && s.youtubeUrl)
+      .filter(s => s.isOfficialExclusive && (s.youtubeUrl || s.videoUrl))
       .sort((a, b) => new Date(b.releaseDate).getTime() - new Date(a.releaseDate).getTime());
   }, [songs]);
 
@@ -74,14 +92,23 @@ const Streaming: React.FC = () => {
             {featuredVideo ? (
               <div className="relative group bg-slate-900 border border-brand-gold/20 overflow-hidden rounded-2xl shadow-2xl">
                 <div className="aspect-video relative overflow-hidden bg-black">
-                  <iframe 
-                    width="100%" height="100%" 
-                    src={`https://www.youtube.com/embed/${getEmbedId(featuredVideo.youtubeUrl!)}?rel=0&modestbranding=1`} 
-                    title={featuredVideo.title}
-                    frameBorder="0" 
-                    allowFullScreen
-                    className="opacity-95"
-                  ></iframe>
+                  {featuredVideo.videoUrl ? (
+                    <video 
+                      src={convertToDirectStream(featuredVideo.videoUrl)} 
+                      controls 
+                      className="w-full h-full object-contain" 
+                      poster={featuredVideo.coverUrl}
+                    />
+                  ) : (
+                    <iframe 
+                      width="100%" height="100%" 
+                      src={`https://www.youtube.com/embed/${getEmbedId(featuredVideo.youtubeUrl!)}?rel=0&modestbranding=1`} 
+                      title={featuredVideo.title}
+                      frameBorder="0" 
+                      allowFullScreen
+                      className="opacity-95"
+                    ></iframe>
+                  )}
                 </div>
                 <div className="p-8 bg-black/60 backdrop-blur-xl">
                   <div className="flex flex-col md:flex-row justify-between items-start gap-4">
@@ -89,6 +116,7 @@ const Streaming: React.FC = () => {
                       <div className="flex items-center gap-2 mb-2">
                         <span className="text-[9px] bg-brand-gold text-black font-black px-2 py-0.5 rounded uppercase tracking-widest">Latest</span>
                         <span className="text-[9px] text-slate-500 font-bold uppercase tracking-widest">{featuredVideo.projectType}</span>
+                        {featuredVideo.videoUrl && <span className="text-[9px] bg-brand-accent text-black font-black px-2 py-0.5 rounded uppercase tracking-widest">Direct File</span>}
                       </div>
                       <h4 className="text-3xl font-black text-white uppercase mb-2 text-shadow-gold">{featuredVideo.title}</h4>
                       <p className="text-slate-400 text-sm font-light line-clamp-2">{featuredVideo.description}</p>
@@ -125,20 +153,34 @@ const Streaming: React.FC = () => {
                       {videos.map(video => (
                         <div key={video.id} className="group bg-slate-950/40 border border-white/5 rounded-xl overflow-hidden hover:border-brand-accent/30 transition-all">
                           <div className="aspect-video relative overflow-hidden bg-black">
-                            <img 
-                              src={`https://img.youtube.com/vi/${getEmbedId(video.youtubeUrl!)}/hqdefault.jpg`} 
-                              className="w-full h-full object-cover opacity-60 group-hover:opacity-100 transition-all"
-                              alt={video.title}
-                            />
-                            <a href={video.youtubeUrl} target="_blank" rel="noreferrer" className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                               <div className="w-12 h-12 bg-white text-black rounded-full flex items-center justify-center shadow-2xl">
-                                 <svg className="w-6 h-6 ml-1" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z" /></svg>
-                               </div>
-                            </a>
+                            {video.videoUrl ? (
+                              <div className="w-full h-full relative group/vid">
+                                <video src={convertToDirectStream(video.videoUrl)} className="w-full h-full object-cover opacity-60" />
+                                <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-black/40">
+                                   <div className="px-4 py-2 border border-white text-white text-[10px] font-black uppercase tracking-widest" onClick={() => window.open(`/song/${video.id}`, '_self')}>Go to Cinema</div>
+                                </div>
+                              </div>
+                            ) : (
+                              <>
+                                <img 
+                                  src={`https://img.youtube.com/vi/${getEmbedId(video.youtubeUrl!)}/hqdefault.jpg`} 
+                                  className="w-full h-full object-cover opacity-60 group-hover:opacity-100 transition-all"
+                                  alt={video.title}
+                                />
+                                <a href={video.youtubeUrl} target="_blank" rel="noreferrer" className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                                   <div className="w-12 h-12 bg-white text-black rounded-full flex items-center justify-center shadow-2xl">
+                                     <svg className="w-6 h-6 ml-1" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z" /></svg>
+                                   </div>
+                                </a>
+                              </>
+                            )}
                           </div>
                           <div className="p-4">
                             <h5 className="text-white font-bold text-xs uppercase truncate mb-1">{video.title}</h5>
-                            <span className="text-[9px] text-slate-500 font-bold uppercase tracking-widest">{video.releaseDate}</span>
+                            <div className="flex justify-between items-center">
+                              <span className="text-[9px] text-slate-500 font-bold uppercase tracking-widest">{video.releaseDate}</span>
+                              {video.videoUrl && <span className="text-[8px] border border-brand-accent/50 text-brand-accent px-1 rounded font-bold uppercase">Direct File</span>}
+                            </div>
                           </div>
                         </div>
                       ))}

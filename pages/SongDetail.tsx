@@ -169,6 +169,10 @@ const SongDetail: React.FC = () => {
       return song?.audioUrl ? convertToDirectStream(song.audioUrl) : '';
   }, [song?.audioUrl]);
 
+  const convertedVideoUrl = useMemo(() => {
+      return song?.videoUrl ? convertToDirectStream(song.videoUrl) : '';
+  }, [song?.videoUrl]);
+
   if (!song) return null;
 
   const handleEditChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
@@ -215,11 +219,30 @@ const SongDetail: React.FC = () => {
             <div className="absolute inset-0 bg-cover bg-center opacity-10 blur-2xl" style={{ backgroundImage: `url(${song.coverUrl})` }}></div>
             <div className="relative z-10 p-10 flex flex-col md:flex-row gap-12 items-start">
                 <div className="w-full md:w-80 flex-shrink-0">
-                     <img src={song.coverUrl} className="w-full aspect-square object-cover shadow-2xl border border-white/10 rounded-lg" alt="cover" />
+                     {convertedVideoUrl ? (
+                         <div className="w-full aspect-video bg-black rounded-lg overflow-hidden shadow-2xl border border-white/10 group relative">
+                             <video 
+                                src={convertedVideoUrl} 
+                                className="w-full h-full object-contain" 
+                                controls 
+                                poster={song.coverUrl}
+                             />
+                             <div className="absolute top-2 left-2 px-2 py-0.5 bg-brand-gold text-black text-[8px] font-black uppercase tracking-widest rounded">Exclusive Video</div>
+                         </div>
+                     ) : (
+                         <img src={song.coverUrl} className="w-full aspect-square object-cover shadow-2xl border border-white/10 rounded-lg" alt="cover" />
+                     )}
+                     
                      {isEditing && (
-                         <div className="mt-4 space-y-1">
-                             <label className="text-[9px] text-slate-500 uppercase tracking-widest">封面圖片網址</label>
-                             <input className="w-full bg-black/50 border border-white/10 p-3 text-white text-xs font-mono" value={editForm.coverUrl || ''} name="coverUrl" placeholder="Cover Image URL" onChange={handleEditChange} />
+                         <div className="mt-4 space-y-4">
+                             <div className="space-y-1">
+                                 <label className="text-[9px] text-slate-500 uppercase tracking-widest">封面圖片網址</label>
+                                 <input className="w-full bg-black/50 border border-white/10 p-3 text-white text-xs font-mono" value={editForm.coverUrl || ''} name="coverUrl" placeholder="Cover Image URL" onChange={handleEditChange} />
+                             </div>
+                             <div className="space-y-1">
+                                 <label className="text-[9px] text-brand-gold uppercase tracking-widest font-black">獨家影片檔案網址 (MP4/MOV)</label>
+                                 <input className="w-full bg-black/50 border border-brand-gold/30 p-3 text-white text-xs font-mono" value={editForm.videoUrl || ''} name="videoUrl" placeholder="Direct Video Link" onChange={handleEditChange} />
+                             </div>
                          </div>
                      )}
                 </div>
@@ -281,6 +304,10 @@ const SongDetail: React.FC = () => {
                                     <label className="text-[9px] text-emerald-500 uppercase tracking-widest">Spotify Link</label>
                                     <input className="w-full bg-black/50 border border-emerald-500/20 p-3 text-white text-xs font-mono" value={editForm.spotifyLink || ''} name="spotifyLink" placeholder="Full Spotify URL" onChange={handleEditChange} />
                                 </div>
+                            </div>
+                            <div className="space-y-1">
+                                <label className="text-[9px] text-slate-500 uppercase tracking-widest">YouTube 連結</label>
+                                <input className="w-full bg-black/50 border border-white/10 p-3 text-white text-xs font-mono" value={editForm.youtubeUrl || ''} name="youtubeUrl" placeholder="YouTube URL" onChange={handleEditChange} />
                             </div>
                             
                             <div className="pt-4 flex justify-end gap-3">
@@ -345,9 +372,12 @@ const SongDetail: React.FC = () => {
                                         <span className="text-[10px] font-black uppercase tracking-[0.2em]">Open on Spotify</span>
                                     </a>
                                 )}
-                                {song.customAudioLink && (
-                                    <a href={song.customAudioLink} target="_blank" rel="noopener noreferrer" className="px-6 py-3 border border-white/20 text-slate-400 hover:text-white rounded-full text-[10px] font-bold uppercase tracking-widest transition-all">
-                                        外部連結
+                                {song.youtubeUrl && (
+                                    <a href={song.youtubeUrl} target="_blank" rel="noopener noreferrer" className="group flex items-center gap-3 px-6 py-3 bg-red-600/10 border border-red-600/20 hover:bg-red-600 hover:text-white transition-all rounded-full">
+                                        <div className="w-6 h-6 bg-red-600 text-white rounded-full flex items-center justify-center p-1 group-hover:bg-white group-hover:text-red-600 transition-colors">
+                                            <svg className="w-full h-full" fill="currentColor" viewBox="0 0 24 24"><path d="M19.615 3.184c-3.604-.246-11.631-.245-15.23 0-3.897.266-4.356 2.62-4.385 8.816.029 6.185.484 8.549 4.385 8.816 3.6.245 11.626.246 15.23 0 3.897-.266 4.356-2.62 4.385-8.816-.029-6.185-.484-8.549-4.385-8.816zm-10.615 12.816v-8l8 4-8 4z"/></svg>
+                                        </div>
+                                        <span className="text-[10px] font-black uppercase tracking-[0.2em]">Watch on YouTube</span>
                                     </a>
                                 )}
                             </div>

@@ -3,7 +3,9 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useData } from '../context/DataContext';
 import { Language, ProjectType, ReleaseCategory, Song } from '../types';
+// Fixed: Added getSpotifyToken to imports
 import { 
+    getSpotifyToken,
     searchSpotifyTracks, 
     searchSpotifyAlbums, 
     getFullSpotifyAlbum, 
@@ -58,6 +60,8 @@ const AddSong: React.FC = () => {
     spotifyId: '',
     audioUrl: '',
     youtubeUrl: '',
+    videoUrl: '',
+    cloudVideoUrl: '',
   });
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
@@ -95,7 +99,7 @@ const AddSong: React.FC = () => {
     
     setIsSearching(true);
     try {
-        const token = await searchSpotifyTracks(searchQuery); // Refresh token
+        await getSpotifyToken(); // Refresh token
         if (searchType === 'track') {
             const results = await searchSpotifyTracks(searchQuery);
             setTrackResults(results);
@@ -178,6 +182,8 @@ const AddSong: React.FC = () => {
       upc: formData.upc?.trim(),
       audioUrl: formData.audioUrl?.trim(),
       youtubeUrl: formData.youtubeUrl?.trim(),
+      videoUrl: formData.videoUrl?.trim(),
+      cloudVideoUrl: formData.cloudVideoUrl?.trim(),
       spotifyId: formData.spotifyId?.trim(),
       lyrics: formData.lyrics?.trim(),
       description: formData.description?.trim(),
@@ -291,6 +297,25 @@ const AddSong: React.FC = () => {
         </div>
 
         <div className="space-y-2"><label className="text-[10px] text-slate-500 font-black uppercase tracking-widest">製作團隊 (Credits)</label><textarea name="credits" className="w-full h-32 bg-slate-900 border border-white/10 px-4 py-3 text-white text-[10px] font-mono" value={formData.credits} onChange={handleChange} /></div>
+
+        <div className="space-y-6 pt-4">
+            <h4 className="text-xs font-black text-white uppercase tracking-widest border-b border-white/10 pb-2">獨家影音資源</h4>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <div className="space-y-2">
+                    <label className="text-[10px] text-brand-gold font-black uppercase tracking-widest">YouTube 連結 (YouTube URL)</label>
+                    <input name="youtubeUrl" className="w-full bg-slate-900 border border-white/10 px-4 py-3 text-white text-xs font-mono" value={formData.youtubeUrl} onChange={handleChange} placeholder="https://www.youtube.com/watch?v=..." />
+                </div>
+                <div className="space-y-2">
+                    <label className="text-[10px] text-brand-gold font-black uppercase tracking-widest">獨家影片檔案網址 (Direct Video File URL)</label>
+                    <input name="videoUrl" className="w-full bg-slate-900 border border-white/10 px-4 py-3 text-white text-xs font-mono" value={formData.videoUrl} onChange={handleChange} placeholder="Direct MP4 link (Dropbox/GDrive)" />
+                    <p className="text-[9px] text-slate-600">提供官網獨家播放使用的直連影片檔</p>
+                </div>
+            </div>
+            <div className="space-y-2">
+                <label className="text-[10px] text-slate-500 font-black uppercase tracking-widest">4K 典藏雲端影片 (Cloud Video URL)</label>
+                <input name="cloudVideoUrl" className="w-full bg-slate-900 border border-white/10 px-4 py-3 text-white text-xs font-mono" value={formData.cloudVideoUrl} onChange={handleChange} />
+            </div>
+        </div>
 
         <div className="pt-10 flex justify-end gap-6">
             <button type="button" onClick={() => navigate('/database')} className="text-[10px] text-slate-500 font-black uppercase tracking-widest">Cancel</button>
