@@ -118,7 +118,7 @@ const ImmersivePlayer: React.FC<{ song: Song; onClose: () => void }> = ({ song, 
                     <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" /></svg>
                 </button>
                 <div className="text-center">
-                    <h4 className="text-xs font-black text-white uppercase tracking-widest">{song.title}</h4>
+                    <h4 className="text-xs font-black text-white uppercase tracking-widest text-shadow-gold">{song.title}</h4>
                 </div>
                 <div className="w-10"></div>
             </div>
@@ -137,7 +137,7 @@ const ImmersivePlayer: React.FC<{ song: Song; onClose: () => void }> = ({ song, 
                         <img src={song.coverUrl} className="w-12 h-12 rounded object-cover" alt="" />
                         <div><h3 className="text-white font-black text-sm">{song.title}</h3><p className="text-[10px] text-brand-gold uppercase">{formatTime(currentTime)}</p></div>
                     </div>
-                    {convertedUrl && <audio ref={audioRef} src={convertedUrl} crossOrigin="anonymous" className="w-full" controls />}
+                    {convertedUrl && <audio ref={audioRef} src={convertedUrl} controls className="w-full h-8 accent-brand-gold" />}
                 </div>
             </div>
         </div>
@@ -289,7 +289,7 @@ const SongDetail: React.FC = () => {
                         </div>
                     ) : (
                         <>
-                            <h1 className="text-5xl md:text-7xl font-black text-white uppercase tracking-tighter mb-2 leading-none">{song.title}</h1>
+                            <h1 className="text-5xl md:text-7xl font-black text-white uppercase tracking-tighter mb-2 leading-none text-shadow-gold">{song.title}</h1>
                             {song.versionLabel && <h2 className="text-xl md:text-2xl font-bold text-slate-500 uppercase tracking-widest mb-4">{song.versionLabel}</h2>}
                             
                             <div className="flex flex-wrap items-center gap-4 mt-6">
