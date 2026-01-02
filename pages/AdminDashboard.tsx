@@ -39,6 +39,37 @@ const AdminDashboard: React.FC = () => {
       line: ''
   });
 
+  // Calculate detailed stats
+  const stats = useMemo(() => {
+    if (!isAdmin) return null;
+    const users = getAllUsers();
+    const transactions = getAllTransactions();
+    
+    const prodIncome = transactions
+      .filter(t => t.type === 'production')
+      .reduce((sum, t) => sum + t.amount, 0);
+      
+    const donationIncome = transactions
+      .filter(t => t.type === 'donation')
+      .reduce((sum, t) => sum + t.amount, 0);
+
+    const activeSongs = songs.filter(s => s.isInteractiveActive).length;
+    const missingAssets = songs.filter(s => 
+      !s.audioUrl || 
+      (!s.lyrics && s.language !== Language.Instrumental)
+    ).length;
+
+    return {
+      totalUsers: users.length,
+      totalIncome: prodIncome + donationIncome,
+      prodIncome,
+      donationIncome,
+      activeSongs,
+      missingAssets,
+      catalogSize: songs.length
+    };
+  }, [isAdmin, songs, getAllUsers, getAllTransactions]);
+
   useEffect(() => {
       if (isAdmin) {
           setQrImages({
@@ -136,6 +167,8 @@ const AdminDashboard: React.FC = () => {
           (s.isrc && s.isrc.includes(searchTerm))
       );
       if (filterStatus === 'active') result = result.filter(s => s.isInteractiveActive);
+      if (filterStatus === 'missing_assets') result = result.filter(s => !s.audioUrl || (!s.lyrics && s.language !== Language.Instrumental));
+      
       return result.sort((a, b) => {
           let valA = a[sortConfig.key] || '';
           let valB = b[sortConfig.key] || '';
@@ -186,73 +219,119 @@ const AdminDashboard: React.FC = () => {
           </div>
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-4 gap-4 mb-10">
-          <div className={`bg-slate-900 border p-5 rounded-xl cursor-pointer hover:bg-slate-800 ${activeTab === 'catalog' ? 'border-brand-accent bg-slate-800' : 'border-white/5'}`} onClick={() => setActiveTab('catalog')}>
-              <div className="text-[10px] text-slate-500 font-bold uppercase tracking-widest mb-2">Total Songs</div>
-              <div className="text-3xl font-black text-white">{songs.length}</div>
+      {/* Stats Overview */}
+      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4 mb-10">
+          <div className={`bg-slate-900 border p-5 rounded-xl transition-all cursor-pointer hover:bg-slate-800 ${activeTab === 'catalog' ? 'border-brand-accent ring-1 ring-brand-accent/50' : 'border-white/5'}`} onClick={() => setActiveTab('catalog')}>
+              <div className="text-[10px] text-slate-500 font-bold uppercase tracking-widest mb-2">作品總數 (Catalog)</div>
+              <div className="text-3xl font-black text-white">{stats?.catalogSize}</div>
+              <div className="mt-2 text-[9px] text-emerald-500 font-bold uppercase">{stats?.activeSongs} 首已開放互動</div>
           </div>
-          <div className={`bg-slate-900 border p-5 rounded-xl border-l-4 border-l-brand-gold cursor-pointer hover:bg-slate-800 ${activeTab === 'payment' ? 'border-brand-gold bg-slate-800' : 'border-white/5'}`} onClick={() => setActiveTab('payment')}>
-              <div className="text-[10px] text-brand-gold font-bold uppercase tracking-widest mb-2">QR Management</div>
-              <div className="text-3xl font-black text-white">QR</div>
+          
+          <div className="bg-slate-900 border border-white/5 p-5 rounded-xl">
+              <div className="text-[10px] text-slate-500 font-bold uppercase tracking-widest mb-2">總用戶數 (Users)</div>
+              <div className="text-3xl font-black text-emerald-400">{stats?.totalUsers}</div>
+              <div className="mt-2 text-[9px] text-slate-600 font-bold uppercase">已登錄聯絡清單</div>
           </div>
-          <div className={`bg-slate-900 border p-5 rounded-xl border-l-4 border-l-emerald-500 cursor-pointer hover:bg-slate-800 ${activeTab === 'security' ? 'border-emerald-500 bg-slate-800' : 'border-white/5'}`} onClick={() => setActiveTab('security')}>
-              <div className="text-[10px] text-emerald-500 font-bold uppercase tracking-widest mb-2">Security</div>
-              <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 text-emerald-500">
-                      <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
-                  </div>
-                  <span className="text-xl font-black text-white">PASSWORD</span>
+
+          <div className="bg-slate-900 border border-white/5 p-5 rounded-xl col-span-2 lg:col-span-1">
+              <div className="text-[10px] text-brand-gold font-bold uppercase tracking-widest mb-2">總營收預估 (Income)</div>
+              <div className="text-3xl font-black text-brand-gold">NT$ {stats?.totalIncome.toLocaleString()}</div>
+              <div className="mt-2 flex gap-3 text-[8px] font-black uppercase">
+                <span className="text-slate-500">對位: {stats?.prodIncome.toLocaleString()}</span>
+                <span className="text-slate-500">投食: {stats?.donationIncome.toLocaleString()}</span>
               </div>
           </div>
-          <div className={`bg-slate-900 border p-5 rounded-xl border-l-4 border-l-brand-accent cursor-pointer hover:bg-slate-800 ${activeTab === 'settings' ? 'border-brand-accent bg-slate-800' : 'border-white/5'}`} onClick={() => setActiveTab('settings')}>
-              <div className="text-[10px] text-brand-accent font-bold uppercase tracking-widest mb-2">Data Sync</div>
-              <div className="text-3xl font-black text-white">JSON</div>
+
+          <div className={`bg-slate-900 border p-5 rounded-xl transition-all cursor-pointer hover:bg-slate-800 ${stats && stats.missingAssets > 0 ? 'border-red-500/50' : 'border-white/5'}`} onClick={() => { setActiveTab('catalog'); setFilterStatus('missing_assets'); }}>
+              <div className="text-[10px] text-slate-500 font-bold uppercase tracking-widest mb-2">需處理 (Alerts)</div>
+              <div className={`text-3xl font-black ${stats && stats.missingAssets > 0 ? 'text-red-500' : 'text-slate-400'}`}>{stats?.missingAssets}</div>
+              <div className="mt-2 text-[9px] text-slate-600 font-bold uppercase">缺漏音檔或歌詞</div>
+          </div>
+
+          <div className={`hidden lg:block bg-slate-900 border p-5 rounded-xl transition-all cursor-pointer hover:bg-slate-800 ${activeTab === 'security' ? 'border-emerald-500 ring-1 ring-emerald-500/50' : 'border-white/5'}`} onClick={() => setActiveTab('security')}>
+              <div className="text-[10px] text-emerald-500 font-bold uppercase tracking-widest mb-2">安全設定</div>
+              <div className="flex items-center gap-2 text-white">
+                  <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
+                  <span className="text-sm font-black uppercase">Protected</span>
+              </div>
           </div>
       </div>
 
+      {/* Tabs Menu */}
+      <div className="flex gap-4 mb-6 border-b border-white/5 pb-px">
+          <button onClick={() => setActiveTab('catalog')} className={`px-6 py-3 text-[10px] font-black uppercase tracking-widest transition-all ${activeTab === 'catalog' ? 'text-white border-b-2 border-brand-accent' : 'text-slate-500 hover:text-white'}`}>作品清單</button>
+          <button onClick={() => setActiveTab('payment')} className={`px-6 py-3 text-[10px] font-black uppercase tracking-widest transition-all ${activeTab === 'payment' ? 'text-white border-b-2 border-brand-accent' : 'text-slate-500 hover:text-white'}`}>金流 QR</button>
+          <button onClick={() => setActiveTab('security')} className={`px-6 py-3 text-[10px] font-black uppercase tracking-widest transition-all ${activeTab === 'security' ? 'text-white border-b-2 border-brand-accent' : 'text-slate-500 hover:text-white'}`}>通行碼設定</button>
+          <button onClick={() => setActiveTab('settings')} className={`px-6 py-3 text-[10px] font-black uppercase tracking-widest transition-all ${activeTab === 'settings' ? 'text-white border-b-2 border-brand-accent' : 'text-slate-500 hover:text-white'}`}>備份匯入</button>
+      </div>
+
       {activeTab === 'catalog' && (
-          <div className="bg-slate-900 border border-white/5 rounded-xl overflow-hidden shadow-2xl">
-              <table className="w-full text-left border-collapse table-auto">
-                  <thead className="bg-black text-[9px] font-black text-slate-500 uppercase tracking-widest">
-                      <tr>
-                          <th className="p-4 w-12 text-center">Play</th>
-                          <th className="p-4 w-16 text-center">狀態</th>
-                          <th className="p-4 cursor-pointer" onClick={() => handleSort('title')}>作品資訊</th>
-                          <th className="p-4 hidden md:table-cell" onClick={() => handleSort('releaseDate')}>日期</th>
-                          <th className="p-4 text-center">互動模式</th>
-                          <th className="p-4 text-right">管理</th>
-                      </tr>
-                  </thead>
-                  <tbody className="divide-y divide-white/5">
-                      {filteredSongs.map(song => {
-                          const complete = isSongComplete(song);
-                          return (
-                          <tr key={song.id} className="group hover:bg-white/[0.03] transition-all cursor-pointer" onClick={() => navigate(`/song/${song.id}`)}>
-                              <td className="p-4 text-center" onClick={(e) => e.stopPropagation()}>
-                                  <button onClick={() => togglePreview(song.audioUrl, song.id)} className={`w-8 h-8 rounded-full flex items-center justify-center border transition-all ${playingId === song.id ? 'bg-brand-gold text-black border-brand-gold' : 'bg-slate-800 text-white border-white/20'}`}>
-                                      {playingId === song.id ? <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg> : <svg className="w-3 h-3 ml-0.5" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>}
-                                  </button>
-                              </td>
-                              <td className="p-4 text-center">
-                                  <div className={`w-3 h-3 rounded-full mx-auto shadow-sm ${complete ? 'bg-emerald-500 shadow-emerald-500/50' : 'bg-red-500 shadow-red-500/50 animate-pulse'}`} title={complete ? '資料登錄完成' : '資料未完成（缺音檔或歌詞）'}></div>
-                              </td>
-                              <td className="p-4">
-                                  <div className="flex items-center gap-4">
-                                      <img src={song.coverUrl} className="w-10 h-10 object-cover rounded" alt="" />
-                                      <div>
-                                          <div className="font-bold text-sm text-white">{song.title}</div>
-                                          {!complete && <div className="text-[8px] text-red-500 font-bold uppercase mt-1">Incomplete</div>}
-                                      </div>
-                                  </div>
-                              </td>
-                              <td className="p-4 hidden md:table-cell text-xs font-mono text-slate-400">{song.releaseDate}</td>
-                              <td className="p-4 text-center" onClick={(e) => e.stopPropagation()}><button onClick={() => updateSong(song.id, { isInteractiveActive: !song.isInteractiveActive })} className={`px-4 py-1 text-[9px] font-black uppercase border rounded ${song.isInteractiveActive ? 'bg-emerald-500 text-black border-emerald-500' : 'text-slate-500 border-white/10'}`}>{song.isInteractiveActive ? 'ON' : 'OFF'}</button></td>
-                              <td className="p-4 text-right"><button onClick={(e) => { e.stopPropagation(); navigate(`/song/${song.id}`); }} className="text-[10px] font-black text-slate-400 hover:text-white uppercase tracking-widest">EDIT</button></td>
+          <div className="space-y-4">
+              <div className="flex flex-col md:flex-row gap-4 mb-4">
+                  <input 
+                    type="text" 
+                    placeholder="搜尋標題或 ISRC..." 
+                    className="bg-black/40 border border-white/10 rounded-lg px-4 py-2 text-sm text-white flex-grow outline-none focus:border-brand-accent"
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                  />
+                  <select 
+                    className="bg-black/40 border border-white/10 rounded-lg px-4 py-2 text-xs text-slate-400 outline-none cursor-pointer"
+                    value={filterStatus}
+                    onChange={(e) => setFilterStatus(e.target.value as any)}
+                  >
+                    <option value="all">所有類別 (All)</option>
+                    <option value="active">互動開放 (Active Lab)</option>
+                    <option value="missing_assets">⚠️ 資料缺漏 (Alerts)</option>
+                  </select>
+              </div>
+
+              <div className="bg-slate-900 border border-white/5 rounded-xl overflow-hidden shadow-2xl">
+                  <table className="w-full text-left border-collapse table-auto">
+                      <thead className="bg-black text-[9px] font-black text-slate-500 uppercase tracking-widest">
+                          <tr>
+                              <th className="p-4 w-12 text-center">Play</th>
+                              <th className="p-4 w-16 text-center">狀態</th>
+                              <th className="p-4 cursor-pointer" onClick={() => handleSort('title')}>作品資訊</th>
+                              <th className="p-4 hidden md:table-cell" onClick={() => handleSort('releaseDate')}>日期</th>
+                              <th className="p-4 text-center">互動模式</th>
+                              <th className="p-4 text-right">管理</th>
                           </tr>
-                          );
-                      })}
-                  </tbody>
-              </table>
+                      </thead>
+                      <tbody className="divide-y divide-white/5">
+                          {filteredSongs.map(song => {
+                              const complete = isSongComplete(song);
+                              return (
+                              <tr key={song.id} className="group hover:bg-white/[0.03] transition-all cursor-pointer" onClick={() => navigate(`/song/${song.id}`)}>
+                                  <td className="p-4 text-center" onClick={(e) => e.stopPropagation()}>
+                                      <button onClick={() => togglePreview(song.audioUrl, song.id)} className={`w-8 h-8 rounded-full flex items-center justify-center border transition-all ${playingId === song.id ? 'bg-brand-gold text-black border-brand-gold' : 'bg-slate-800 text-white border-white/20'}`}>
+                                          {playingId === song.id ? <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg> : <svg className="w-3 h-3 ml-0.5" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>}
+                                      </button>
+                                  </td>
+                                  <td className="p-4 text-center">
+                                      <div className={`w-3 h-3 rounded-full mx-auto shadow-sm ${complete ? 'bg-emerald-500 shadow-emerald-500/50' : 'bg-red-500 shadow-red-500/50 animate-pulse'}`} title={complete ? '資料登錄完成' : '資料未完成（缺音檔或歌詞）'}></div>
+                                  </td>
+                                  <td className="p-4">
+                                      <div className="flex items-center gap-4">
+                                          <img src={song.coverUrl} className="w-10 h-10 object-cover rounded" alt="" />
+                                          <div>
+                                              <div className="font-bold text-sm text-white">{song.title}</div>
+                                              {!complete && <div className="text-[8px] text-red-500 font-bold uppercase mt-1">Incomplete</div>}
+                                          </div>
+                                      </div>
+                                  </td>
+                                  <td className="p-4 hidden md:table-cell text-xs font-mono text-slate-400">{song.releaseDate}</td>
+                                  <td className="p-4 text-center" onClick={(e) => e.stopPropagation()}><button onClick={() => updateSong(song.id, { isInteractiveActive: !song.isInteractiveActive })} className={`px-4 py-1 text-[9px] font-black uppercase border rounded ${song.isInteractiveActive ? 'bg-emerald-500 text-black border-emerald-500' : 'text-slate-500 border-white/10'}`}>{song.isInteractiveActive ? 'ON' : 'OFF'}</button></td>
+                                  <td className="p-4 text-right"><button onClick={(e) => { e.stopPropagation(); navigate(`/song/${song.id}`); }} className="text-[10px] font-black text-slate-400 hover:text-white uppercase tracking-widest">EDIT</button></td>
+                              </tr>
+                              );
+                          })}
+                      </tbody>
+                  </table>
+                  {filteredSongs.length === 0 && (
+                      <div className="py-20 text-center text-slate-600 uppercase text-[10px] font-black tracking-widest">No entries found</div>
+                  )}
+              </div>
           </div>
       )}
 

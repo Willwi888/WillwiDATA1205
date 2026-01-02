@@ -3,7 +3,6 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useData } from '../context/DataContext';
 import { Language, ProjectType, ReleaseCategory, Song } from '../types';
-// Fixed: Added getSpotifyToken to imports
 import { 
     getSpotifyToken,
     searchSpotifyTracks, 
@@ -15,7 +14,6 @@ import {
 } from '../services/spotifyService';
 import { useTranslation } from '../context/LanguageContext';
 import { useUser } from '../context/UserContext';
-import { GoogleGenAI, Type } from "@google/genai";
 
 const formatCreditsFromSpotify = (track: SpotifyTrack, album?: SpotifyAlbum) => {
     const artistList = track.artists.map(a => a.name).join(', ');
@@ -38,7 +36,6 @@ const AddSong: React.FC = () => {
   
   const [trackResults, setTrackResults] = useState<SpotifyTrack[]>([]);
   const [albumResults, setAlbumResults] = useState<SpotifyAlbum[]>([]);
-  const [searchError, setSearchError] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
 
@@ -83,23 +80,20 @@ const AddSong: React.FC = () => {
 
   const validateForm = () => {
       const errors: Record<string, string> = {};
-      if (!formData.title?.trim()) errors.title = "作品標題為必填 (Title Required)";
-      if (!formData.releaseDate) errors.releaseDate = "發行日期為必填 (Date Required)";
-      if (!formData.coverUrl?.trim()) errors.coverUrl = "封面圖片為必填 (Cover Required)";
-      if (formData.isInteractiveActive && !formData.audioUrl?.trim()) {
-          errors.audioUrl = "互動模式需提供音檔網址 (Audio Required for Lab)";
-      }
+      if (!formData.title?.trim()) errors.title = "作品標題為必填";
+      if (!formData.releaseDate) errors.releaseDate = "發行日期為必填";
+      if (!formData.coverUrl?.trim()) errors.coverUrl = "封面圖片為必填";
       setFormErrors(errors);
       return Object.keys(errors).length === 0;
   };
 
   const handleSearch = async () => {
-    setTrackResults([]); setAlbumResults([]); setSearchError('');
-    if (!searchQuery.trim()) return setSearchError('Please enter a query');
+    setTrackResults([]); setAlbumResults([]); 
+    if (!searchQuery.trim()) return;
     
     setIsSearching(true);
     try {
-        await getSpotifyToken(); // Refresh token
+        await getSpotifyToken(); 
         if (searchType === 'track') {
             const results = await searchSpotifyTracks(searchQuery);
             setTrackResults(results);
@@ -107,7 +101,7 @@ const AddSong: React.FC = () => {
             const results = await searchSpotifyAlbums(searchQuery);
             setAlbumResults(results);
         }
-    } catch (err) { setSearchError('Spotify Search Failed'); } 
+    } catch (err) { alert('Spotify Search Failed'); } 
     finally { setIsSearching(false); }
   };
 
@@ -128,7 +122,6 @@ const AddSong: React.FC = () => {
       }));
       setTrackResults([]);
       setIsSearching(false);
-      alert(`已帶入單曲: ${track.name}`);
   };
 
   const importSpotifyAlbum = async (album: SpotifyAlbum) => {
@@ -155,7 +148,6 @@ const AddSong: React.FC = () => {
               isOfficialExclusive: false,
           }));
           await bulkAddSongs(newSongs);
-          alert(`批次匯入 ${newSongs.length} 首作品完成！`);
           navigate('/database');
       } catch (e) { alert("專輯匯入失敗"); }
       finally { setIsSearching(false); }
@@ -218,7 +210,7 @@ const AddSong: React.FC = () => {
       {importMode === 'spotify' && (
           <div className="mb-12 bg-slate-900/50 p-6 border border-white/5 rounded-xl">
              <div className="flex gap-4 mb-6">
-                 <select className="bg-slate-800 text-white text-[10px] font-black uppercase px-4 py-2" value={searchType} onChange={e => setSearchType(e.target.value as any)}>
+                 <select className="bg-slate-800 text-white text-[10px] font-black uppercase px-4 py-2 outline-none" value={searchType} onChange={e => setSearchType(e.target.value as any)}>
                      <option value="track">Track (單曲)</option>
                      <option value="album">Album (專輯)</option>
                  </select>
@@ -228,14 +220,14 @@ const AddSong: React.FC = () => {
                     value={searchQuery} onChange={e => setSearchQuery(e.target.value)}
                     onKeyDown={e => e.key === 'Enter' && handleSearch()}
                  />
-                 <button onClick={handleSearch} disabled={isSearching} className="px-6 bg-brand-accent text-black font-black text-xs uppercase tracking-widest">
+                 <button onClick={handleSearch} disabled={isSearching} className="px-6 bg-brand-accent text-black font-black text-xs uppercase tracking-widest transition-all">
                     {isSearching ? '...' : 'Search'}
                  </button>
              </div>
              
              <div className="space-y-2 max-h-60 overflow-y-auto custom-scrollbar">
                  {trackResults.map(track => (
-                     <div key={track.id} onClick={() => importSpotifyTrack(track)} className="flex items-center gap-4 p-3 bg-black/40 hover:bg-white/5 cursor-pointer border border-white/5">
+                     <div key={track.id} onClick={() => importSpotifyTrack(track)} className="flex items-center gap-4 p-3 bg-black/40 hover:bg-white/5 cursor-pointer border border-white/5 transition-all">
                          <img src={track.album.images[0]?.url} className="w-10 h-10 object-cover" alt="" />
                          <div className="flex-grow">
                              <div className="text-white text-xs font-bold">{track.name}</div>
@@ -245,7 +237,7 @@ const AddSong: React.FC = () => {
                      </div>
                  ))}
                  {albumResults.map(album => (
-                     <div key={album.id} onClick={() => importSpotifyAlbum(album)} className="flex items-center gap-4 p-3 bg-black/40 hover:bg-brand-accent/20 cursor-pointer border border-brand-accent/30">
+                     <div key={album.id} onClick={() => importSpotifyAlbum(album)} className="flex items-center gap-4 p-3 bg-black/40 hover:bg-brand-accent/20 cursor-pointer border border-brand-accent/30 transition-all">
                          <img src={album.images[0]?.url} className="w-10 h-10 object-cover" alt="" />
                          <div className="flex-grow">
                              <div className="text-white text-xs font-bold">{album.name}</div>
@@ -262,64 +254,73 @@ const AddSong: React.FC = () => {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
              <div className="space-y-2">
                  <label className={`text-[10px] font-black uppercase tracking-widest ${formErrors.title ? 'text-red-500' : 'text-slate-500'}`}>作品名稱 *</label>
-                 <input name="title" className={`w-full bg-slate-900 border px-4 py-3 text-white text-sm outline-none ${formErrors.title ? 'border-red-500' : 'border-white/10'}`} value={formData.title} onChange={handleChange} />
+                 <input name="title" className={`w-full bg-slate-900 border px-4 py-3 text-white text-sm outline-none transition-all ${formErrors.title ? 'border-red-500' : 'border-white/10'}`} value={formData.title} onChange={handleChange} />
              </div>
              <div className="space-y-2">
                  <label className="text-[10px] text-slate-500 font-black uppercase tracking-widest">版本標記 (e.g. Acoustic, Remix)</label>
-                 <input name="versionLabel" className="w-full bg-slate-900 border border-white/10 px-4 py-3 text-white text-sm outline-none" value={formData.versionLabel} onChange={handleChange} />
+                 <input name="versionLabel" className="w-full bg-slate-900 border border-white/10 px-4 py-3 text-white text-sm outline-none transition-all" value={formData.versionLabel} onChange={handleChange} />
              </div>
         </div>
 
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
-             <div className="space-y-2"><label className="text-[10px] text-slate-500 font-black uppercase tracking-widest">語系</label><select name="language" className="w-full bg-slate-900 border border-white/10 px-4 py-3 text-white text-xs" value={formData.language} onChange={handleChange}>{Object.values(Language).map(l => <option key={l} value={l}>{l}</option>)}</select></div>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+             <div className="space-y-2">
+                <label className="text-[10px] text-slate-500 font-black uppercase tracking-widest">專案類別 (Project Type)</label>
+                <select name="projectType" className="w-full bg-slate-900 border border-white/10 px-4 py-3 text-white text-xs outline-none" value={formData.projectType} onChange={handleChange}>
+                    {Object.values(ProjectType).map(p => <option key={p} value={p}>{p}</option>)}
+                </select>
+             </div>
+             <div className="space-y-2">
+                <label className="text-[10px] text-slate-500 font-black uppercase tracking-widest">語系</label>
+                <select name="language" className="w-full bg-slate-900 border border-white/10 px-4 py-3 text-white text-xs outline-none" value={formData.language} onChange={handleChange}>
+                    {Object.values(Language).map(l => <option key={l} value={l}>{l}</option>)}
+                </select>
+             </div>
              <div className="space-y-2">
                  <label className={`text-[10px] font-black uppercase tracking-widest ${formErrors.releaseDate ? 'text-red-500' : 'text-slate-500'}`}>發行日期 *</label>
-                 <input type="date" name="releaseDate" className={`w-full bg-slate-900 border px-4 py-3 text-white text-xs ${formErrors.releaseDate ? 'border-red-500' : 'border-white/10'}`} value={formData.releaseDate} onChange={handleChange} />
+                 <input type="date" name="releaseDate" className={`w-full bg-slate-900 border px-4 py-3 text-white text-xs outline-none ${formErrors.releaseDate ? 'border-red-500' : 'border-white/10'}`} value={formData.releaseDate} onChange={handleChange} />
              </div>
-             <div className="flex items-center gap-3 pt-8"><input type="checkbox" name="isOfficialExclusive" checked={formData.isOfficialExclusive} onChange={handleChange} className="w-4 h-4 accent-brand-gold" /><label className="text-[9px] text-brand-gold font-black uppercase">官網獨家</label></div>
-             <div className="flex items-center gap-3 pt-8"><input type="checkbox" name="isInteractiveActive" checked={formData.isInteractiveActive} onChange={handleChange} className="w-4 h-4 accent-emerald-500" /><label className="text-[9px] text-emerald-500 font-black uppercase">互動實驗室</label></div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-center bg-white/[0.02] p-4 rounded border border-white/5">
+             <div className="flex items-center gap-3"><input type="checkbox" name="isOfficialExclusive" checked={formData.isOfficialExclusive} onChange={handleChange} className="w-4 h-4 accent-brand-gold" /><label className="text-[9px] text-brand-gold font-black uppercase tracking-widest">官網獨家發行 (Official Exclusive)</label></div>
+             <div className="flex items-center gap-3"><input type="checkbox" name="isInteractiveActive" checked={formData.isInteractiveActive} onChange={handleChange} className="w-4 h-4 accent-emerald-500" /><label className="text-[9px] text-emerald-500 font-black uppercase tracking-widest">開放互動實驗室 (Interactive Ready)</label></div>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
              <div className="space-y-2">
                  <label className={`text-[10px] font-black uppercase tracking-widest ${formErrors.coverUrl ? 'text-red-500' : 'text-slate-500'}`}>封面網址 *</label>
-                 <input name="coverUrl" className={`w-full bg-slate-900 border px-4 py-3 text-white text-xs font-mono ${formErrors.coverUrl ? 'border-red-500' : 'border-white/10'}`} value={formData.coverUrl} onChange={handleChange} />
+                 <input name="coverUrl" className={`w-full bg-slate-900 border px-4 py-3 text-white text-xs font-mono outline-none ${formErrors.coverUrl ? 'border-red-500' : 'border-white/10'}`} value={formData.coverUrl} onChange={handleChange} />
              </div>
              <div className="space-y-2">
-                 <label className={`text-[10px] font-black uppercase tracking-widest ${formErrors.audioUrl ? 'text-red-500' : 'text-brand-accent'}`}>互動模式專用音檔網址</label>
-                 <input name="audioUrl" className={`w-full bg-slate-900 border px-4 py-3 text-brand-accent text-xs font-mono ${formErrors.audioUrl ? 'border-red-500' : 'border-white/10'}`} value={formData.audioUrl} onChange={handleChange} placeholder="Dropbox ?raw=1" />
+                 <label className="text-[10px] text-brand-accent font-black uppercase tracking-widest">互動模式專用音檔網址</label>
+                 <input name="audioUrl" className="w-full bg-slate-900 border border-white/10 px-4 py-3 text-brand-accent text-xs font-mono outline-none" value={formData.audioUrl} onChange={handleChange} placeholder="Dropbox ?raw=1" />
              </div>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-            <div className="space-y-2"><label className="text-[10px] text-slate-500 font-black uppercase tracking-widest">ISRC</label><input name="isrc" className="w-full bg-slate-900 border border-white/10 px-4 py-3 text-white text-xs font-mono" value={formData.isrc} onChange={handleChange} /></div>
-            <div className="space-y-2"><label className="text-[10px] text-slate-500 font-black uppercase tracking-widest">UPC</label><input name="upc" className="w-full bg-slate-900 border border-white/10 px-4 py-3 text-white text-xs font-mono" value={formData.upc} onChange={handleChange} /></div>
+            <div className="space-y-2"><label className="text-[10px] text-slate-500 font-black uppercase tracking-widest">ISRC</label><input name="isrc" className="w-full bg-slate-900 border border-white/10 px-4 py-3 text-white text-xs font-mono outline-none" value={formData.isrc} onChange={handleChange} /></div>
+            <div className="space-y-2"><label className="text-[10px] text-slate-500 font-black uppercase tracking-widest">UPC</label><input name="upc" className="w-full bg-slate-900 border border-white/10 px-4 py-3 text-white text-xs font-mono outline-none" value={formData.upc} onChange={handleChange} /></div>
         </div>
 
-        <div className="space-y-2"><label className="text-[10px] text-slate-500 font-black uppercase tracking-widest">製作團隊 (Credits)</label><textarea name="credits" className="w-full h-32 bg-slate-900 border border-white/10 px-4 py-3 text-white text-[10px] font-mono" value={formData.credits} onChange={handleChange} /></div>
+        <div className="space-y-2"><label className="text-[10px] text-slate-500 font-black uppercase tracking-widest">製作團隊 (Credits)</label><textarea name="credits" className="w-full h-32 bg-slate-900 border border-white/10 px-4 py-3 text-white text-[10px] font-mono outline-none focus:border-brand-accent transition-all" value={formData.credits} onChange={handleChange} /></div>
 
         <div className="space-y-6 pt-4">
             <h4 className="text-xs font-black text-white uppercase tracking-widest border-b border-white/10 pb-2">獨家影音資源</h4>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                 <div className="space-y-2">
-                    <label className="text-[10px] text-brand-gold font-black uppercase tracking-widest">YouTube 連結 (YouTube URL)</label>
-                    <input name="youtubeUrl" className="w-full bg-slate-900 border border-white/10 px-4 py-3 text-white text-xs font-mono" value={formData.youtubeUrl} onChange={handleChange} placeholder="https://www.youtube.com/watch?v=..." />
+                    <label className="text-[10px] text-brand-gold font-black uppercase tracking-widest">YouTube 連結</label>
+                    <input name="youtubeUrl" className="w-full bg-slate-900 border border-white/10 px-4 py-3 text-white text-xs font-mono outline-none" value={formData.youtubeUrl} onChange={handleChange} placeholder="https://www.youtube.com/watch?v=..." />
                 </div>
                 <div className="space-y-2">
-                    <label className="text-[10px] text-brand-gold font-black uppercase tracking-widest">獨家影片檔案網址 (Direct Video File URL)</label>
-                    <input name="videoUrl" className="w-full bg-slate-900 border border-white/10 px-4 py-3 text-white text-xs font-mono" value={formData.videoUrl} onChange={handleChange} placeholder="Direct MP4 link (Dropbox/GDrive)" />
-                    <p className="text-[9px] text-slate-600">提供官網獨家播放使用的直連影片檔</p>
+                    <label className="text-[10px] text-brand-gold font-black uppercase tracking-widest">獨家影片檔案網址 (Video File)</label>
+                    <input name="videoUrl" className="w-full bg-slate-900 border border-white/10 px-4 py-3 text-white text-xs font-mono outline-none" value={formData.videoUrl} onChange={handleChange} placeholder="Direct MP4 link" />
                 </div>
-            </div>
-            <div className="space-y-2">
-                <label className="text-[10px] text-slate-500 font-black uppercase tracking-widest">4K 典藏雲端影片 (Cloud Video URL)</label>
-                <input name="cloudVideoUrl" className="w-full bg-slate-900 border border-white/10 px-4 py-3 text-white text-xs font-mono" value={formData.cloudVideoUrl} onChange={handleChange} />
             </div>
         </div>
 
         <div className="pt-10 flex justify-end gap-6">
-            <button type="button" onClick={() => navigate('/database')} className="text-[10px] text-slate-500 font-black uppercase tracking-widest">Cancel</button>
-            <button type="submit" disabled={isSaving} className="px-10 py-4 bg-brand-gold text-black font-black text-xs uppercase tracking-[0.2em] shadow-2xl">
+            <button type="button" onClick={() => navigate('/database')} className="text-[10px] text-slate-500 font-black uppercase tracking-widest hover:text-white transition-all">Cancel</button>
+            <button type="submit" disabled={isSaving} className="px-10 py-4 bg-brand-gold text-black font-black text-xs uppercase tracking-[0.2em] shadow-2xl hover:bg-white transition-all">
                 {isSaving ? 'Saving...' : '儲存作品'}
             </button>
         </div>

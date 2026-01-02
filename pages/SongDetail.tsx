@@ -114,7 +114,7 @@ const ImmersivePlayer: React.FC<{ song: Song; onClose: () => void }> = ({ song, 
                 <div className="absolute inset-0 bg-black/60"></div>
             </div>
             <div className="relative z-10 flex justify-between items-center p-6">
-                <button onClick={onClose} className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center backdrop-blur-md">
+                <button onClick={onClose} className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center backdrop-blur-md hover:bg-white/20 transition-all">
                     <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" /></svg>
                 </button>
                 <div className="text-center">
@@ -132,11 +132,11 @@ const ImmersivePlayer: React.FC<{ song: Song; onClose: () => void }> = ({ song, 
                     ))}
                 </div>
             </div>
-            <div className="relative z-20 bg-black/80 p-8">
+            <div className="relative z-20 bg-black/80 p-8 border-t border-white/5">
                 <div className="max-w-3xl mx-auto flex flex-col gap-4">
                     <div className="flex items-center gap-4">
-                        <img src={song.coverUrl} className="w-12 h-12 rounded object-cover" alt="" />
-                        <div><h3 className="text-white font-black text-sm">{song.title}</h3><p className="text-[10px] text-brand-gold uppercase">{formatTime(currentTime)}</p></div>
+                        <img src={song.coverUrl} className="w-12 h-12 rounded object-cover shadow-lg" alt="" />
+                        <div><h3 className="text-white font-black text-sm uppercase">{song.title}</h3><p className="text-[10px] text-brand-gold font-mono uppercase tracking-widest">{formatTime(currentTime)} / {formatTime(duration)}</p></div>
                     </div>
                     {convertedUrl && <audio ref={audioRef} src={convertedUrl} controls className="w-full h-8 accent-brand-gold" />}
                 </div>
@@ -164,10 +164,6 @@ const SongDetail: React.FC = () => {
       if (found) { setSong(found); setEditForm(found); }
     }
   }, [id, getSong]);
-
-  const convertedAudioUrl = useMemo(() => {
-      return song?.audioUrl ? convertToDirectStream(song.audioUrl) : '';
-  }, [song?.audioUrl]);
 
   const convertedVideoUrl = useMemo(() => {
       return song?.videoUrl ? convertToDirectStream(song.videoUrl) : '';
@@ -207,7 +203,7 @@ const SongDetail: React.FC = () => {
     <div className="animate-fade pb-32 max-w-7xl mx-auto px-6 pt-10">
         {showLyricsPlayer && <ImmersivePlayer song={song} onClose={() => setShowLyricsPlayer(false)} />}
         <div className="mb-6 flex justify-between items-center">
-            <Link to="/database" className="text-[10px] text-slate-500 hover:text-white uppercase tracking-widest">{t('detail_back_link')}</Link>
+            <Link to="/database" className="text-[10px] text-slate-500 hover:text-white uppercase tracking-widest transition-colors">{t('detail_back_link')}</Link>
             {isAdmin && !isEditing && (
                 <button onClick={() => setIsEditing(true)} className="text-[10px] border border-brand-accent/50 text-brand-accent px-4 py-2 uppercase tracking-widest hover:bg-brand-accent hover:text-black transition-all font-bold">
                     {t('detail_edit_mode')}
@@ -215,8 +211,8 @@ const SongDetail: React.FC = () => {
             )}
         </div>
 
-        <div className="bg-slate-900 border border-white/5 relative overflow-hidden rounded-xl">
-            <div className="absolute inset-0 bg-cover bg-center opacity-10 blur-2xl" style={{ backgroundImage: `url(${song.coverUrl})` }}></div>
+        <div className="bg-slate-900 border border-white/5 relative overflow-hidden rounded-xl shadow-2xl">
+            <div className="absolute inset-0 bg-cover bg-center opacity-10 blur-3xl scale-110" style={{ backgroundImage: `url(${song.coverUrl})` }}></div>
             <div className="relative z-10 p-10 flex flex-col md:flex-row gap-12 items-start">
                 <div className="w-full md:w-80 flex-shrink-0">
                      {convertedVideoUrl ? (
@@ -227,124 +223,99 @@ const SongDetail: React.FC = () => {
                                 controls 
                                 poster={ASSETS.willwiPortrait}
                              />
-                             <div className="absolute top-2 left-2 px-2 py-0.5 bg-brand-gold text-black text-[8px] font-black uppercase tracking-widest rounded">Exclusive Video</div>
+                             <div className="absolute top-2 left-2 px-2 py-0.5 bg-brand-gold text-black text-[8px] font-black uppercase tracking-widest rounded shadow-lg">Exclusive Video</div>
                          </div>
                      ) : (
-                         <img src={song.coverUrl} className="w-full aspect-square object-cover shadow-2xl border border-white/10 rounded-lg" alt="cover" />
+                         <img src={song.coverUrl} className="w-full aspect-square object-cover shadow-2xl border border-white/10 rounded-lg transform transition-transform hover:scale-[1.02]" alt="cover" />
                      )}
                      
                      {isEditing && (
-                         <div className="mt-4 space-y-4">
+                         <div className="mt-6 space-y-4">
                              <div className="space-y-1">
-                                 <label className="text-[9px] text-slate-500 uppercase tracking-widest">封面圖片網址</label>
-                                 <input className="w-full bg-black/50 border border-white/10 p-3 text-white text-xs font-mono" value={editForm.coverUrl || ''} name="coverUrl" placeholder="Cover Image URL" onChange={handleEditChange} />
+                                 <label className="text-[9px] text-slate-500 uppercase tracking-widest font-black">封面圖片網址</label>
+                                 <input className="w-full bg-black/50 border border-white/10 p-3 text-white text-xs font-mono outline-none focus:border-brand-accent transition-all" value={editForm.coverUrl || ''} name="coverUrl" placeholder="Cover Image URL" onChange={handleEditChange} />
                              </div>
                              <div className="space-y-1">
-                                 <label className="text-[9px] text-brand-gold uppercase tracking-widest font-black">獨家影片檔案網址 (MP4/MOV)</label>
-                                 <input className="w-full bg-black/50 border border-brand-gold/30 p-3 text-white text-xs font-mono" value={editForm.videoUrl || ''} name="videoUrl" placeholder="Direct Video Link" onChange={handleEditChange} />
+                                 <label className="text-[9px] text-brand-gold uppercase tracking-widest font-black">獨家影片檔案網址</label>
+                                 <input className="w-full bg-black/50 border border-brand-gold/30 p-3 text-white text-xs font-mono outline-none focus:border-brand-gold transition-all" value={editForm.videoUrl || ''} name="videoUrl" placeholder="Direct Video Link" onChange={handleEditChange} />
                              </div>
                          </div>
                      )}
                 </div>
                 <div className="flex-grow w-full">
                     {isEditing ? (
-                        <div className="space-y-4">
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="space-y-6">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                 <div className="space-y-1">
-                                    <label className="text-[9px] text-slate-500 uppercase tracking-widest">{t('form_label_title')}</label>
+                                    <label className="text-[9px] text-slate-500 uppercase tracking-widest font-black">{t('form_label_title')}</label>
                                     <input className="text-xl font-bold text-white bg-black/50 border border-white/10 px-4 py-2 w-full outline-none focus:border-brand-accent" value={editForm.title} name="title" onChange={handleEditChange} />
                                 </div>
                                 <div className="space-y-1">
-                                    <label className="text-[9px] text-slate-500 uppercase tracking-widest">版本標記 (Version Label)</label>
-                                    <input className="text-xl font-bold text-white bg-black/50 border border-white/10 px-4 py-2 w-full outline-none focus:border-brand-accent" value={editForm.versionLabel || ''} name="versionLabel" onChange={handleEditChange} placeholder="e.g. Acoustic, Remix" />
+                                    <label className="text-[9px] text-slate-500 uppercase tracking-widest font-black">版本標記 (Acoustic/Remix)</label>
+                                    <input className="text-xl font-bold text-white bg-black/50 border border-white/10 px-4 py-2 w-full outline-none focus:border-brand-accent" value={editForm.versionLabel || ''} name="versionLabel" onChange={handleEditChange} placeholder="e.g. Acoustic" />
                                 </div>
                             </div>
-                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                                 <div className="space-y-1">
-                                    <label className="text-[9px] text-slate-500 uppercase tracking-widest">發行日期</label>
-                                    <input className="bg-black/50 border border-white/10 p-3 w-full text-white text-xs" value={editForm.releaseDate} name="releaseDate" type="date" onChange={handleEditChange} />
+                                    <label className="text-[9px] text-slate-500 uppercase tracking-widest font-black">專案類別</label>
+                                    <select name="projectType" className="w-full bg-black/50 border border-white/10 p-3 text-white text-xs outline-none focus:border-brand-accent appearance-none" value={editForm.projectType} onChange={handleEditChange}>
+                                        {Object.values(ProjectType).map(p => <option key={p} value={p}>{p}</option>)}
+                                    </select>
                                 </div>
                                 <div className="space-y-1">
-                                    <label className="text-[9px] text-slate-500 uppercase tracking-widest">語系</label>
+                                    <label className="text-[9px] text-slate-500 uppercase tracking-widest font-black">語系</label>
                                     <select name="language" className="w-full bg-black/50 border border-white/10 p-3 text-white text-xs outline-none focus:border-brand-accent appearance-none" value={editForm.language} onChange={handleEditChange}>
                                         {Object.values(Language).map(l => <option key={l} value={l}>{l}</option>)}
                                     </select>
                                 </div>
-                                <div className="flex items-center gap-3 p-3 bg-slate-800/50 rounded mt-4">
+                                <div className="space-y-1">
+                                    <label className="text-[9px] text-slate-500 uppercase tracking-widest font-black">發行日期</label>
+                                    <input className="bg-black/50 border border-white/10 p-3 w-full text-white text-xs outline-none" value={editForm.releaseDate} name="releaseDate" type="date" onChange={handleEditChange} />
+                                </div>
+                                <div className="flex items-center gap-3 p-3 bg-slate-800/50 rounded mt-4 h-[42px] border border-white/5">
                                     <input type="checkbox" name="isOfficialExclusive" checked={editForm.isOfficialExclusive} onChange={handleEditChange} className="w-4 h-4 accent-brand-gold" />
-                                    <span className="text-xs text-brand-gold font-bold">官網獨家作品</span>
+                                    <span className="text-[9px] text-brand-gold font-black uppercase tracking-widest">官網獨家</span>
                                 </div>
-                            </div>
-                            <div className="grid grid-cols-2 gap-4">
-                                <div className="space-y-1">
-                                    <label className="text-[9px] text-slate-500 uppercase tracking-widest">ISRC</label>
-                                    <input className="w-full bg-black/50 border border-white/10 p-3 text-white text-xs font-mono" value={editForm.isrc || ''} name="isrc" placeholder="ISRC Code" onChange={handleEditChange} />
-                                </div>
-                                <div className="space-y-1">
-                                    <label className="text-[9px] text-slate-500 uppercase tracking-widest">UPC</label>
-                                    <input className="w-full bg-black/50 border border-white/10 p-3 text-white text-xs font-mono" value={editForm.upc || ''} name="upc" placeholder="UPC Code" onChange={handleEditChange} />
-                                </div>
-                            </div>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <div className="space-y-1">
-                                    <label className="text-[9px] text-brand-accent uppercase tracking-widest">主音源網址 (Audio URL)</label>
-                                    <input className="w-full bg-black/50 border border-brand-accent/30 p-3 text-white text-xs font-mono" value={editForm.audioUrl || ''} name="audioUrl" placeholder="Direct Audio Link" onChange={handleEditChange} />
-                                </div>
-                                <div className="space-y-1">
-                                    <label className="text-[9px] text-slate-500 uppercase tracking-widest">外部/自定義連結</label>
-                                    <input className="w-full bg-black/50 border border-white/10 p-3 text-white text-xs font-mono" value={editForm.customAudioLink || ''} name="customAudioLink" placeholder="備用音源或外部連結" onChange={handleEditChange} />
-                                </div>
-                            </div>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <div className="space-y-1">
-                                    <label className="text-[9px] text-emerald-500 uppercase tracking-widest">Spotify Track ID</label>
-                                    <input className="w-full bg-black/50 border border-emerald-500/20 p-3 text-white text-xs font-mono" value={editForm.spotifyId || ''} name="spotifyId" placeholder="Spotify Track ID" onChange={handleEditChange} />
-                                </div>
-                                <div className="space-y-1">
-                                    <label className="text-[9px] text-emerald-500 uppercase tracking-widest">Spotify Link</label>
-                                    <input className="w-full bg-black/50 border border-emerald-500/20 p-3 text-white text-xs font-mono" value={editForm.spotifyLink || ''} name="spotifyLink" placeholder="Full Spotify URL" onChange={handleEditChange} />
-                                </div>
-                            </div>
-                            <div className="space-y-1">
-                                <label className="text-[9px] text-slate-500 uppercase tracking-widest">YouTube 連結</label>
-                                <input className="w-full bg-black/50 border border-white/10 p-3 text-white text-xs font-mono" value={editForm.youtubeUrl || ''} name="youtubeUrl" placeholder="YouTube URL" onChange={handleEditChange} />
                             </div>
                             
-                            <div className="pt-4 flex justify-end gap-3">
-                                <button onClick={() => setIsEditing(false)} className="px-6 py-2 text-xs text-slate-400 font-bold uppercase tracking-widest">取消</button>
-                                <button onClick={handleSave} className="px-8 py-2 bg-brand-accent text-slate-950 text-xs font-black uppercase rounded shadow-lg tracking-widest">儲存變更</button>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div className="space-y-1">
+                                    <label className="text-[9px] text-brand-accent uppercase tracking-widest font-black">音源網址 (Audio URL)</label>
+                                    <input className="w-full bg-black/50 border border-brand-accent/20 p-3 text-white text-xs font-mono outline-none focus:border-brand-accent" value={editForm.audioUrl || ''} name="audioUrl" onChange={handleEditChange} />
+                                </div>
+                                <div className="space-y-1">
+                                    <label className="text-[9px] text-slate-500 uppercase tracking-widest font-black">Spotify ID</label>
+                                    <input className="w-full bg-black/50 border border-white/10 p-3 text-white text-xs font-mono outline-none focus:border-brand-accent" value={editForm.spotifyId || ''} name="spotifyId" onChange={handleEditChange} />
+                                </div>
+                            </div>
+
+                            <div className="pt-6 border-t border-white/5 flex justify-end gap-3">
+                                <button onClick={() => setIsEditing(false)} className="px-6 py-2 text-[10px] text-slate-400 font-black uppercase tracking-widest hover:text-white transition-all">取消</button>
+                                <button onClick={handleSave} className="px-8 py-2 bg-brand-accent text-slate-950 text-[10px] font-black uppercase rounded shadow-lg tracking-widest hover:bg-white transition-all">儲存變更</button>
                             </div>
                         </div>
                     ) : (
                         <>
                             <h1 className="text-5xl md:text-7xl font-black text-white uppercase tracking-tighter mb-2 leading-none text-shadow-gold">{song.title}</h1>
-                            {song.versionLabel && <h2 className="text-xl md:text-2xl font-bold text-slate-500 uppercase tracking-widest mb-4">{song.versionLabel}</h2>}
+                            {song.versionLabel && <h2 className="text-xl md:text-2xl font-bold text-slate-500 uppercase tracking-widest mb-6 border-l-2 border-brand-gold/30 pl-4">{song.versionLabel}</h2>}
                             
                             <div className="flex flex-wrap items-center gap-4 mt-6">
-                                <span className={`px-3 py-1 text-[10px] font-black uppercase tracking-[0.2em] text-white ${getLanguageColor(song.language)}`}>{song.language}</span>
+                                <span className={`px-3 py-1 text-[10px] font-black uppercase tracking-[0.2em] text-white rounded-sm shadow-lg ${getLanguageColor(song.language)}`}>{song.language}</span>
                                 <span className="text-slate-500 text-[10px] font-bold uppercase tracking-[0.3em]">{song.releaseDate}</span>
-                                {song.isOfficialExclusive && <span className="bg-brand-gold text-slate-950 text-[9px] font-black px-2 py-1 rounded uppercase tracking-widest shadow-[0_0_10px_rgba(251,191,36,0.5)]">官網獨家</span>}
-                                
-                                {song.isrc && (
-                                    <span className="bg-brand-gold/20 border border-brand-gold/80 text-brand-gold text-[10px] font-mono px-3 py-1 rounded-sm uppercase tracking-widest font-bold">
-                                        ISRC: {song.isrc}
-                                    </span>
-                                )}
+                                <span className="text-slate-600 text-[9px] font-black uppercase tracking-[0.4em] border border-white/5 px-2 py-0.5 rounded">{song.projectType}</span>
+                                {song.isOfficialExclusive && <span className="bg-brand-gold text-slate-950 text-[9px] font-black px-2 py-1 rounded uppercase tracking-widest shadow-[0_0_15px_rgba(251,191,36,0.3)]">官方獨家</span>}
                             </div>
 
-                            {/* Multi-source Audio Section */}
                             <div className="mt-8 flex flex-col md:flex-row gap-6 max-w-4xl">
-                                {/* Local/Cloud Stream */}
-                                <div className="flex-1 bg-black/40 p-4 rounded-xl border border-white/5 backdrop-blur-md">
-                                    <p className="text-[9px] text-slate-500 font-bold uppercase tracking-[0.4em] mb-3">Official Stream Preview</p>
-                                    {convertedAudioUrl ? (
-                                        <audio src={convertedAudioUrl} controls className="w-full h-8 accent-brand-gold" />
+                                <div className="flex-1 bg-black/40 p-4 rounded-xl border border-white/5 backdrop-blur-md group hover:border-brand-gold/20 transition-all">
+                                    <p className="text-[9px] text-slate-500 font-bold uppercase tracking-[0.4em] mb-3">Official Preview</p>
+                                    {song.audioUrl ? (
+                                        <audio src={convertToDirectStream(song.audioUrl)} controls className="w-full h-8 accent-brand-gold" />
                                     ) : (
-                                        <p className="text-[10px] text-slate-600 italic">No direct audio preview available.</p>
+                                        <p className="text-[10px] text-slate-700 italic">No audio preview available.</p>
                                     )}
                                 </div>
                                 
-                                {/* Spotify Mini Player */}
                                 {song.spotifyId && (
                                     <div className="flex-1 bg-[#1DB954]/10 p-2 rounded-xl border border-[#1DB954]/20 backdrop-blur-md">
                                         <iframe 
@@ -359,25 +330,17 @@ const SongDetail: React.FC = () => {
                                 )}
                             </div>
 
-                            <div className="mt-8 flex flex-wrap gap-4">
-                                <button onClick={() => setShowLyricsPlayer(true)} className="group flex items-center gap-3 px-6 py-3 bg-white/5 border border-white/10 hover:bg-white hover:text-black transition-all rounded-full" disabled={!song.audioUrl}>
-                                    <div className="w-8 h-8 rounded-full bg-brand-gold flex items-center justify-center text-black shadow-[0_0_15px_rgba(251,191,36,0.5)]"><svg className="w-4 h-4 ml-0.5" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 14H9V8h2v8zm4 0h-2V8h2v8z" /></svg></div>
-                                    <span className="text-[10px] font-black uppercase tracking-[0.2em]">{t('detail_btn_immersive')}</span>
+                            <div className="mt-10 flex flex-wrap gap-4">
+                                <button onClick={() => setShowLyricsPlayer(true)} className="group flex items-center gap-3 px-8 py-3 bg-white/5 border border-white/10 hover:bg-white hover:text-black transition-all rounded-full shadow-2xl" disabled={!song.audioUrl}>
+                                    <div className="w-10 h-10 rounded-full bg-brand-gold flex items-center justify-center text-black shadow-[0_0_20px_rgba(251,191,36,0.5)] group-hover:scale-110 transition-transform"><svg className="w-5 h-5 ml-0.5" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 14H9V8h2v8zm4 0h-2V8h2v8z" /></svg></div>
+                                    <span className="text-[11px] font-black uppercase tracking-[0.3em]">{t('detail_btn_immersive')}</span>
                                 </button>
-                                {song.spotifyLink && (
-                                    <a href={song.spotifyLink} target="_blank" rel="noopener noreferrer" className="group flex items-center gap-3 px-6 py-3 bg-[#1DB954]/10 border border-[#1DB954]/20 hover:bg-[#1DB954] hover:text-black transition-all rounded-full">
-                                        <div className="w-6 h-6 bg-[#1DB954] text-white rounded-full flex items-center justify-center p-1 group-hover:bg-white group-hover:text-black transition-colors">
-                                            <svg className="w-full h-full" fill="currentColor" viewBox="0 0 24 24"><path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.508 17.302c-.218.358-.686.469-1.044.25-2.887-1.764-6.521-2.163-10.803-1.183-.41.094-.82-.163-.914-.573-.094-.41.163-.82.573-.914 4.69-1.072 8.706-.613 11.938 1.36.358.218.469.686.25 1.06zm1.468-3.257c-.274.446-.856.586-1.302.312-3.305-2.031-8.344-2.62-12.253-1.434-.504.153-1.036-.135-1.189-.639-.153-.504.135-1.036.639-1.189 4.475-1.357 10.038-.703 13.793 1.608.446.274.586.856.312 1.302zm.126-3.41c-3.963-2.353-10.512-2.57-14.305-1.417-.608.184-1.25-.164-1.434-.772-.184-.608.164-1.25.772-1.434 4.356-1.323 11.583-1.063 16.142 1.643.547.324.726 1.033.402 1.58-.324.547-1.033.726-1.58.402z"/></svg>
-                                        </div>
-                                        <span className="text-[10px] font-black uppercase tracking-[0.2em]">Open on Spotify</span>
-                                    </a>
-                                )}
                                 {song.youtubeUrl && (
                                     <a href={song.youtubeUrl} target="_blank" rel="noopener noreferrer" className="group flex items-center gap-3 px-6 py-3 bg-red-600/10 border border-red-600/20 hover:bg-red-600 hover:text-white transition-all rounded-full">
-                                        <div className="w-6 h-6 bg-red-600 text-white rounded-full flex items-center justify-center p-1 group-hover:bg-white group-hover:text-red-600 transition-colors">
+                                        <div className="w-6 h-6 bg-red-600 text-white rounded-full flex items-center justify-center p-1 group-hover:bg-white group-hover:text-red-600 transition-colors shadow-lg">
                                             <svg className="w-full h-full" fill="currentColor" viewBox="0 0 24 24"><path d="M19.615 3.184c-3.604-.246-11.631-.245-15.23 0-3.897.266-4.356 2.62-4.385 8.816.029 6.185.484 8.549 4.385 8.816 3.6.245 11.626.246 15.23 0 3.897-.266 4.356-2.62 4.385-8.816-.029-6.185-.484-8.549-4.385-8.816zm-10.615 12.816v-8l8 4-8 4z"/></svg>
                                         </div>
-                                        <span className="text-[10px] font-black uppercase tracking-[0.2em]">Watch on YouTube</span>
+                                        <span className="text-[10px] font-black uppercase tracking-[0.2em]">YouTube</span>
                                     </a>
                                 )}
                             </div>
@@ -389,33 +352,34 @@ const SongDetail: React.FC = () => {
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-12 mt-12">
             <div className="lg:col-span-2 space-y-12">
-                <div className="bg-slate-900/50 p-10 border border-white/5 rounded-xl">
-                    <h3 className="text-sm font-black text-white uppercase tracking-[0.4em] mb-8">{t('detail_section_context')}</h3>
+                <div className="bg-slate-900/50 p-10 border border-white/5 rounded-xl shadow-xl">
+                    <h3 className="text-[11px] font-black text-white uppercase tracking-[0.5em] mb-8 border-b border-white/5 pb-4">{t('detail_section_context')}</h3>
                     {isEditing ? (
-                        <textarea name="description" className="w-full h-40 bg-black/50 border border-white/10 p-4 text-white text-sm outline-none focus:border-brand-accent font-light leading-relaxed" value={editForm.description || ''} onChange={handleEditChange} placeholder="作品創作背景描述..." />
+                        <textarea name="description" className="w-full h-40 bg-black/50 border border-white/10 p-6 text-white text-sm outline-none focus:border-brand-accent font-light leading-relaxed transition-all" value={editForm.description || ''} onChange={handleEditChange} placeholder="作品創作背景描述..." />
                     ) : (
                         <div className="text-slate-400 text-sm font-light leading-relaxed whitespace-pre-line">{song.description || t('detail_empty_desc')}</div>
                     )}
                 </div>
-                <div className="bg-slate-900/50 p-10 border border-white/5 rounded-xl">
-                    <h3 className="text-sm font-black text-white uppercase tracking-[0.4em] mb-8">{t('detail_section_lyrics')}</h3>
+                <div className="bg-slate-900/50 p-10 border border-white/5 rounded-xl shadow-xl">
+                    <h3 className="text-[11px] font-black text-white uppercase tracking-[0.5em] mb-8 border-b border-white/5 pb-4">{t('detail_section_lyrics')}</h3>
                     {isEditing ? (
-                        <textarea name="lyrics" className="w-full h-80 bg-black/50 border border-white/10 p-6 text-brand-accent text-xs font-mono translation-all duration-300 leading-loose outline-none focus:border-brand-accent" value={editForm.lyrics || ''} onChange={handleEditChange} placeholder="[00:10.00] 歌詞內容..." />
+                        <textarea name="lyrics" className="w-full h-80 bg-black/50 border border-white/10 p-6 text-brand-accent text-xs font-mono leading-loose outline-none focus:border-brand-accent transition-all" value={editForm.lyrics || ''} onChange={handleEditChange} placeholder="[00:10.00] 歌詞內容..." />
                     ) : (
-                        <div className="font-mono text-xs text-slate-500 whitespace-pre-line leading-loose border-l border-white/5 pl-8">{song.lyrics || t('detail_empty_lyrics')}</div>
+                        <div className="font-mono text-xs text-slate-500 whitespace-pre-line leading-loose border-l-2 border-white/5 pl-10 transition-all hover:border-brand-gold/30">{song.lyrics || t('detail_empty_lyrics')}</div>
                     )}
                 </div>
             </div>
-            <div className="bg-slate-900 p-8 border border-white/5 rounded-xl">
-                <h3 className="text-[10px] font-black text-white uppercase tracking-[0.4em] mb-6">{t('detail_section_credits')}</h3>
+            <div className="bg-slate-900/80 p-8 border border-white/5 rounded-xl shadow-xl h-fit sticky top-24">
+                <h3 className="text-[10px] font-black text-white uppercase tracking-[0.5em] mb-8 border-b border-white/5 pb-4">{t('detail_section_credits')}</h3>
                 {isEditing ? (
-                    <textarea name="credits" className="w-full h-80 bg-black/50 border border-white/10 p-4 text-slate-400 text-[10px] font-mono leading-loose outline-none focus:border-brand-accent uppercase tracking-wider" value={editForm.credits || ''} onChange={handleEditChange} placeholder="Production Credits..." />
+                    <textarea name="credits" className="w-full h-80 bg-black/50 border border-white/10 p-4 text-slate-400 text-[10px] font-mono leading-loose outline-none focus:border-brand-accent transition-all uppercase tracking-wider" value={editForm.credits || ''} onChange={handleEditChange} placeholder="Production Credits..." />
                 ) : (
-                    <div className="text-[10px] text-slate-500 font-mono leading-loose uppercase tracking-wider whitespace-pre-line">{song.credits || t('detail_empty_credits')}</div>
+                    <div className="text-[10px] text-slate-500 font-mono leading-loose uppercase tracking-wider whitespace-pre-line italic">{song.credits || t('detail_empty_credits')}</div>
                 )}
                 {isAdmin && !isEditing && (
-                    <div className="mt-10 pt-10 border-t border-white/5">
-                        <button onClick={handleDelete} className="text-red-900 hover:text-red-500 text-[10px] font-black uppercase tracking-widest">{t('detail_delete')}</button>
+                    <div className="mt-12 pt-10 border-t border-white/10 flex justify-between items-center">
+                        <button onClick={handleDelete} className="text-red-900/50 hover:text-red-500 text-[9px] font-black uppercase tracking-widest transition-all">{t('detail_delete')}</button>
+                        <span className="text-[8px] text-slate-700 font-black tracking-widest">WILLWI DB ENGINE V3</span>
                     </div>
                 )}
             </div>

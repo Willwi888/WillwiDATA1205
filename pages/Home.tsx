@@ -121,7 +121,7 @@ const Home: React.FC = () => {
                           rel="noopener noreferrer"
                           className="px-3 py-1 bg-black/40 border border-white/10 hover:border-brand-gold/50 text-[9px] text-slate-400 hover:text-white uppercase tracking-wider rounded-sm transition-all truncate max-w-[200px]"
                         >
-                          Source {idx + 1}: {source.title}
+                          {source.title}
                         </a>
                       ))}
                     </div>

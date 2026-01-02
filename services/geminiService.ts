@@ -129,8 +129,8 @@ export const fetchWillwiTrends = async (): Promise<TrendResult | null> => {
 
   try {
     const response = await client.models.generateContent({
-      model: 'gemini-3-pro-preview', // Using Pro for better grounding capabilities
-      contents: "Search for the latest public news, social discussions, or creative updates regarding 'Willwi Official Creative Participation Platform' or 'Willwi Music'. \n\nTask: Draft a **Media News Brief (媒體快訊)** in Traditional Chinese (zh-TW).\n\nRequirements:\n1. **Style**: Journalistic, objective, and professional (新聞稿風格).\n2. **Formatting**: Single coherent paragraph. STRICTLY NO emojis, NO bullet points, NO Markdown bolding (**text**).\n3. **Content**: Focus on recent developments, market reception, or the platform's positioning in the interactive music industry.\n4. **Fallback**: If no specific recent news is found, write a general industry observation describing Willwi's 'Resonance Sync' model as an emerging trend.\n5. **Tone**: Remove all AI-like conversational fillers.",
+      model: 'gemini-3-pro-preview', 
+      contents: "Search for the latest public news, social media mentions, or industry updates regarding 'Willwi Official Creative Participation Platform' or 'Willwi Music (陳威兒)'. \n\nTask: Draft a short **Media News Brief (媒體快訊)** in Traditional Chinese (zh-TW).\n\nRequirements:\n1. **Focus**: Only include info relevant to Willwi's interactive music model or his specific career updates. Avoid generic tech news or unrelated global venture capital reports (e.g., skip a16z if irrelevant).\n2. **Style**: Objective, professional press release style.\n3. **Formatting**: Single coherent paragraph. NO emojis, NO bullet points.\n4. **Fallback**: If no new information is available from the last 30 days, summarize Willwi's 'Resonance Sync' concept as an innovative approach in the Taiwan independent music scene.",
       config: {
         tools: [{ googleSearch: {} }],
       },
@@ -142,19 +142,31 @@ export const fetchWillwiTrends = async (): Promise<TrendResult | null> => {
     
     chunks.forEach((chunk: any) => {
       if (chunk.web) {
+        let title = chunk.web.title || 'Source';
+        // Clean title if it's just a URL
+        try {
+          if (title.includes('http') || title.length > 50) {
+            const url = new URL(chunk.web.uri);
+            title = url.hostname.replace('www.', '');
+          }
+        } catch(e) {}
+
         sources.push({
-          title: chunk.web.title || 'Source',
+          title,
           uri: chunk.web.uri
         });
       }
     });
 
-    // Remove duplicates
-    const uniqueSources = sources.filter((v, i, a) => a.findIndex(t => t.uri === v.uri) === i);
+    // Remove duplicates and irrelevant domains (e.g. general tech news that AI might hallucinate relevance for)
+    const blacklist = ['a16z.com', 'techcrunch.com', 'theverge.com'];
+    const uniqueSources = sources
+      .filter((v, i, a) => a.findIndex(t => t.uri === v.uri) === i)
+      .filter(s => !blacklist.some(b => s.uri.toLowerCase().includes(b)));
 
     return {
       content: response.text || "目前暫無最新情報。",
-      sources: uniqueSources.slice(0, 3) // Limit to top 3 sources
+      sources: uniqueSources.slice(0, 3) 
     };
 
   } catch (error) {
