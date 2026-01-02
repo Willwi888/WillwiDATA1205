@@ -30,13 +30,17 @@ const Database: React.FC = () => {
 
   const togglePreview = (url: string | undefined, id: string) => {
     if (!url) return alert("目前此曲暫無試聽音檔連結。");
+    
     if (playingId === id) {
         audioRef.current?.pause();
         setPlayingId(null);
     } else {
         if (!audioRef.current) audioRef.current = new Audio();
-        audioRef.current.src = url;
-        audioRef.current.play();
+        // 如果是切換新歌曲才重新設定 src
+        if (audioRef.current.src !== url) {
+            audioRef.current.src = url;
+        }
+        audioRef.current.play().catch(e => console.error("Playback failed", e));
         setPlayingId(id);
         audioRef.current.onended = () => setPlayingId(null);
     }
@@ -50,7 +54,6 @@ const Database: React.FC = () => {
            <p className="text-slate-600 text-[10px] font-bold tracking-[0.8em] uppercase relative z-10">{t('db_subtitle')}</p>
       </div>
 
-      {/* 整合篩選列 */}
       <div className="flex flex-col md:flex-row gap-px mb-12 bg-white/5 p-px border border-white/10 shadow-2xl">
         <div className="relative flex-grow">
           <input
@@ -66,7 +69,6 @@ const Database: React.FC = () => {
         </div>
         
         <div className="flex bg-black">
-          {/* 專案類別篩選器 */}
           <select 
               className="bg-transparent text-slate-400 px-6 py-5 text-[11px] font-black uppercase tracking-widest outline-none cursor-pointer hover:text-white border-l border-white/10 transition-colors" 
               value={filterProject} 
@@ -76,7 +78,6 @@ const Database: React.FC = () => {
               {Object.values(ProjectType).map(p => <option key={p} value={p}>{p}</option>)}
           </select>
 
-          {/* 語言篩選器 */}
           <select 
               className="bg-transparent text-slate-400 px-6 py-5 text-[11px] font-black uppercase tracking-widest outline-none cursor-pointer hover:text-white border-l border-white/10 transition-colors" 
               value={filterLang} 
@@ -92,7 +93,7 @@ const Database: React.FC = () => {
           <table className="w-full text-left min-w-[1000px] border-collapse">
               <thead className="bg-black/80 border-b border-white/10">
                   <tr className="text-[9px] font-black text-slate-500 uppercase tracking-[0.2em]">
-                      <th className="px-4 py-6 w-16 text-center">Preview</th>
+                      <th className="px-4 py-6 w-16 text-center">Status</th>
                       <th className="px-4 py-6">作品名稱</th>
                       <th className="px-4 py-6">ISRC</th>
                       <th className="px-4 py-6">類別 / 專案</th>
@@ -108,16 +109,35 @@ const Database: React.FC = () => {
                           <td className="px-4 py-6 text-center">
                               <button 
                                 onClick={(e) => { e.stopPropagation(); togglePreview(song.audioUrl, song.id); }}
-                                className={`w-9 h-9 rounded-full flex items-center justify-center border transition-all ${playingId === song.id ? 'bg-brand-gold text-black border-brand-gold shadow-[0_0_15px_rgba(251,191,36,0.6)]' : 'bg-slate-900 text-white border-white/10 hover:border-white'}`}
+                                className={`w-9 h-9 rounded-full flex items-center justify-center border transition-all ${playingId === song.id ? 'bg-brand-gold text-black border-brand-gold shadow-[0_0_20px_rgba(251,191,36,0.8)] scale-110' : 'bg-slate-900 text-white border-white/10 hover:border-white'}`}
                               >
-                                  {playingId === song.id ? <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg> : <svg className="w-4 h-4 ml-0.5" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>}
+                                  {playingId === song.id ? (
+                                      <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                                          <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/>
+                                      </svg>
+                                  ) : (
+                                      <svg className="w-4 h-4 ml-0.5" fill="currentColor" viewBox="0 0 24 24">
+                                          <path d="M8 5v14l11-7z"/>
+                                      </svg>
+                                  )}
                               </button>
                           </td>
                           <td className="px-4 py-6">
                               <div className="flex items-center gap-3">
-                                  <img src={song.coverUrl} className="w-10 h-10 object-cover rounded shadow-md group-hover:scale-105 transition-transform" alt="" />
+                                  <div className="relative">
+                                      <img src={song.coverUrl} className={`w-10 h-10 object-cover rounded shadow-md transition-all duration-500 ${playingId === song.id ? 'ring-2 ring-brand-gold' : 'group-hover:scale-105'}`} alt="" />
+                                      {playingId === song.id && (
+                                          <div className="absolute inset-0 bg-black/40 flex items-center justify-center rounded">
+                                              <div className="flex gap-0.5 items-end h-3">
+                                                  <div className="w-0.5 bg-brand-gold animate-[bounce_0.8s_infinite_0s]"></div>
+                                                  <div className="w-0.5 bg-brand-gold animate-[bounce_0.8s_infinite_0.2s]"></div>
+                                                  <div className="w-0.5 bg-brand-gold animate-[bounce_0.8s_infinite_0.4s]"></div>
+                                              </div>
+                                          </div>
+                                      )}
+                                  </div>
                                   <div className="max-w-[200px]">
-                                      <div className="text-[11px] font-black text-white uppercase tracking-tight group-hover:text-brand-gold transition-colors truncate">{song.title}</div>
+                                      <div className={`text-[11px] font-black uppercase tracking-tight transition-colors truncate ${playingId === song.id ? 'text-brand-gold' : 'text-white group-hover:text-brand-gold'}`}>{song.title}</div>
                                       {song.versionLabel && <div className="text-[8px] text-slate-600 font-bold uppercase mt-0.5">{song.versionLabel}</div>}
                                   </div>
                               </div>
