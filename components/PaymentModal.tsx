@@ -2,11 +2,14 @@
 import React, { useState, useEffect } from 'react';
 import { useUser } from '../context/UserContext';
 import { useTranslation } from '../context/LanguageContext';
+import { submitECPayForm } from '../services/ecpayService';
+import { Song } from '../types';
 
 interface PaymentModalProps {
   isOpen: boolean;
   onClose: () => void;
   initialMode?: 'production' | 'support' | 'cinema';
+  song?: Song | null;
 }
 
 const UNIT_PRICE = 320;
@@ -22,7 +25,7 @@ const BANK_INFO = {
 // Paypal Link (From ChatWidget config)
 const PAYPAL_LINK = "https://www.paypal.com/ncp/payment/PNLV2V3PP47ZN";
 
-const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, initialMode = 'production' }) => {
+const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, initialMode = 'production', song }) => {
   const { user, login, addCredits, recordDonation } = useUser();
   const { t } = useTranslation();
   
@@ -97,6 +100,26 @@ const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, initialMod
       if (!isFormValid) { alert(t('modal_confirm_btn_invalid')); return; }
       login(name, email);
       setStep('verify');
+  };
+
+  const handleECPay = async () => {
+      if (!isFormValid) { alert(t('modal_confirm_btn_invalid')); return; }
+      
+      const itemName = supportMode === 'production' 
+          ? `Willwi Interactive - ${song?.title || 'Selected Track'}` 
+          : (supportMode === 'cinema' ? `Willwi Cinema - ${song?.title || 'Selected Track'}` : 'Willwi Music Support');
+      
+      const tradeDesc = `Support for Willwi Music via ${supportMode}`;
+      
+      setIsProcessing(true);
+      login(name, email); // Ensure user is logged in context before redirect
+      
+      await submitECPayForm(
+          totalAmount,
+          itemName,
+          tradeDesc,
+          { mode: supportMode, songId: song?.id, email }
+      );
   };
 
   const handleVerifyCode = async () => {
@@ -244,10 +267,21 @@ const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, initialMod
                                 </a>
                             </div>
 
+                            {/* ECPay ELECTRONIC PAYMENT BUTTON */}
+                            <button 
+                                onClick={handleECPay}
+                                disabled={!isFormValid || isProcessing}
+                                className={`w-full py-4 font-black text-xs uppercase tracking-[0.2em] transition-all shadow-lg flex justify-center items-center gap-2 mt-2 bg-emerald-600 text-white hover:bg-emerald-700
+                                    ${(!isFormValid || isProcessing) ? 'opacity-50 cursor-not-allowed' : ''}`}
+                            >
+                                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" /></svg>
+                                {isProcessing ? 'Redirecting...' : 'ECPay (Credit / ATM / CVS)'}
+                            </button>
+
                             <button 
                                 onClick={handleTransferred}
                                 disabled={!isFormValid}
-                                className={`w-full py-4 font-black text-xs uppercase tracking-[0.2em] transition-all shadow-lg flex justify-center items-center gap-2 mt-2
+                                className={`w-full py-4 font-black text-xs uppercase tracking-[0.2em] transition-all shadow-lg flex justify-center items-center gap-2
                                     ${!isFormValid ? 'bg-slate-200 text-slate-400 cursor-not-allowed' : 'bg-slate-900 text-white hover:bg-black'}`}
                             >
                                 {t('modal_manual_btn')}

@@ -49,11 +49,18 @@ const Interactive: React.FC = () => {
   const smoothIndexRef = useRef(0);
 
   useEffect(() => {
+      const params = new URLSearchParams(location.search);
+      if (params.get('payment') === 'success') {
+          // If returning from a successful payment (ECPay/Manual)
+          alert("付款成功！歡迎來到共創實驗室。");
+          // Logic to find the song from pending tx could be added here
+      }
+
       if (location.state?.targetSongId) {
           const s = songs.find(x => x.id === location.state.targetSongId);
           if (s) { setSelectedSong(s); setMode('gate'); }
       }
-  }, [songs, location.state]);
+  }, [songs, location.state, location.search]);
 
   const unlockStudio = () => {
       if (!selectedSong) return;
@@ -143,7 +150,7 @@ const Interactive: React.FC = () => {
                   <button onClick={() => setShowPayment(true)} className="w-full py-5 bg-brand-gold text-black font-black text-xs uppercase tracking-[0.4em] hover:bg-white transition-all shadow-xl">支持藝術家勞動並開始對位</button>
                   <button onClick={() => setMode('select')} className="mt-8 text-[9px] text-slate-500 font-bold uppercase tracking-widest underline decoration-slate-700">返回重新選擇</button>
               </div>
-              <PaymentModal isOpen={showPayment} onClose={() => { setShowPayment(false); unlockStudio(); }} initialMode="production" />
+              <PaymentModal song={selectedSong} isOpen={showPayment} onClose={() => { setShowPayment(false); unlockStudio(); }} initialMode="production" />
           </div>
       )}
 
