@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
+import { userService, User as SupabaseUser, Transaction as SupabaseTransaction } from '../services/userService';
 
 interface User {
   email: string;
@@ -22,9 +23,9 @@ interface UserContextType {
   logout: () => void;
   addCredits: (amount: number, isPurchase?: boolean, pricePaid?: number) => void;
   recordDonation: (amount: number) => void;
-  deductCredit: () => boolean; 
+  deductCredit: () => boolean;
   isLoading: boolean;
-  isAdmin: boolean; 
+  isAdmin: boolean;
   enableAdmin: () => void;
   logoutAdmin: () => void;
   getAllUsers: () => User[];
@@ -45,13 +46,13 @@ export const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   const loadUser = useCallback(() => {
     try {
-        const storedUser = localStorage.getItem(USER_SESSION_KEY);
-        if (storedUser) setUser(JSON.parse(storedUser));
-        
-        if (sessionStorage.getItem(ADMIN_SESSION_KEY) === 'true') {
-            setIsAdmin(true);
-        }
-    } catch(e) {}
+      const storedUser = localStorage.getItem(USER_SESSION_KEY);
+      if (storedUser) setUser(JSON.parse(storedUser));
+
+      if (sessionStorage.getItem(ADMIN_SESSION_KEY) === 'true') {
+        setIsAdmin(true);
+      }
+    } catch (e) { }
     setIsLoading(false);
   }, []);
 
@@ -67,17 +68,17 @@ export const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   }, [user]);
 
   const recordTransaction = (type: 'production' | 'donation', amount: number, details?: string) => {
-      const db = JSON.parse(localStorage.getItem(TRANSACTIONS_KEY) || '[]');
-      const newTx: Transaction = {
-          id: Date.now().toString(),
-          date: new Date().toISOString(),
-          type,
-          amount,
-          userEmail: user?.email || 'anonymous',
-          details
-      };
-      db.push(newTx);
-      localStorage.setItem(TRANSACTIONS_KEY, JSON.stringify(db));
+    // Supabase �B�z
+    const newTx: Transaction = {
+      id: Date.now().toString(),
+      date: new Date().toISOString(),
+      type,
+      amount,
+      userEmail: user?.email || 'anonymous',
+      details
+    };
+    db.push(newTx);
+    await userService.addTransaction(newTx);
   };
 
   const login = (name: string, email: string) => {
@@ -86,7 +87,7 @@ export const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     if (!existing) {
       existing = { email, name, credits: 0, isMember: false };
     } else {
-        existing.name = name;
+      existing.name = name;
     }
     setUser(existing);
   };
@@ -97,26 +98,26 @@ export const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   };
 
   const enableAdmin = () => {
-      setIsAdmin(true);
-      sessionStorage.setItem(ADMIN_SESSION_KEY, 'true');
+    setIsAdmin(true);
+    sessionStorage.setItem(ADMIN_SESSION_KEY, 'true');
   };
 
   const logoutAdmin = () => {
-      setIsAdmin(false);
-      sessionStorage.removeItem(ADMIN_SESSION_KEY);
+    setIsAdmin(false);
+    sessionStorage.removeItem(ADMIN_SESSION_KEY);
   };
 
   const addCredits = (count: number, isPurchase = true, pricePaid = 0) => {
     if (user) {
       setUser(prev => prev ? { ...prev, credits: prev.credits + count } : null);
       if (isPurchase && pricePaid > 0) {
-          recordTransaction('production', pricePaid, `Purchased ${count} credits`);
+        recordTransaction('production', pricePaid, `Purchased ${count} credits`);
       }
     }
   };
 
   const recordDonation = (amount: number) => {
-      recordTransaction('donation', amount, 'Thermal Support');
+    recordTransaction('donation', amount, 'Thermal Support');
   };
 
   const deductCredit = () => {
@@ -128,12 +129,12 @@ export const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   };
 
   const getAllUsers = () => {
-      const db = JSON.parse(localStorage.getItem(USERS_DB_KEY) || '{}');
-      return Object.values(db) as User[];
+    const db = JSON.parse(localStorage.getItem(USERS_DB_KEY) || '{}');
+    return Object.values(db) as User[];
   };
 
   const getAllTransactions = () => {
-      return JSON.parse(localStorage.getItem(TRANSACTIONS_KEY) || '[]') as Transaction[];
+    return JSON.parse(localStorage.getItem(TRANSACTIONS_KEY) || '[]') as Transaction[];
   };
 
   return (

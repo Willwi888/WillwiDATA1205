@@ -9,16 +9,30 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@google/genai": "^1.31.0",
+    "@supabase/supabase-js": "^2.89.0",
+    "idb": "8.0.0",
     "react": "^19.2.1",
     "react-dom": "^19.2.1",
-    "@google/genai": "^1.31.0",
-    "react-router-dom": "^7.10.1",
-    "idb": "8.0.0"
+    "react-router-dom": "^7.10.1"
   },
   "devDependencies": {
     "@types/node": "^22.14.0",
     "@vitejs/plugin-react": "^5.0.0",
     "typescript": "~5.8.2",
     "vite": "^6.2.0"
-  }
+  },
+  "description": "<div align=\"center\"> <img width=\"1200\" height=\"475\" alt=\"GHBanner\" src=\"https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6\" /> </div>",
+  "main": "index.js",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Willwi888/WillwiDATA1205.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/Willwi888/WillwiDATA1205/issues"
+  },
+  "homepage": "https://github.com/Willwi888/WillwiDATA1205#readme"
 }

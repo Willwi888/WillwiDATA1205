@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="zh-TW">
   <head>
@@ -39,12 +38,8 @@
         to { opacity: 1; }
       }
       @keyframes glowPulse {
-        0%, 100% { 
-          filter: drop-shadow(0 0 15px rgba(251, 191, 36, 0.3)) brightness(1);
-        }
-        50% { 
-          filter: drop-shadow(0 0 45px rgba(251, 191, 36, 1)) brightness(1.2);
-        }
+        0%, 100% { filter: drop-shadow(0 0 20px rgba(251, 191, 36, 0.4)); }
+        50% { filter: drop-shadow(0 0 40px rgba(251, 191, 36, 0.7)); }
       }
       .animate-fade-in-up {
         animation: fadeInUp 0.8s ease-out forwards;
@@ -54,6 +49,7 @@
       }
       .text-gold-glow {
         color: white;
+        filter: drop-shadow(0 0 25px rgba(251, 191, 36, 0.6));
         animation: glowPulse 4s ease-in-out infinite;
       }
       .text-shadow-gold {
