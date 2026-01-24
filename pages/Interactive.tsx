@@ -77,7 +77,9 @@ const Interactive: React.FC = () => {
   }, [mode, handleStamp]);
 
   const startExportProcess = async () => {
+      // @ts-ignore
       if (window.aistudio && !(await window.aistudio.hasSelectedApiKey())) {
+          // @ts-ignore
           await window.aistudio.openSelectKey();
       }
 
@@ -124,7 +126,6 @@ const Interactive: React.FC = () => {
   return (
     <div className="bg-[#020617] min-h-screen text-white flex flex-col pt-24 pb-32 relative overflow-hidden">
       
-      {/* 呼吸感氛圍底層 */}
       <div className="fixed inset-0 z-0 overflow-hidden">
           {bgVideoUrl ? (
             <video src={bgVideoUrl} autoPlay loop muted playsInline className="w-full h-full object-cover blur-sm opacity-50" />
@@ -152,8 +153,8 @@ const Interactive: React.FC = () => {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                   {songs.filter(s => s.isInteractiveActive || isAdmin).map(song => (
                       <div key={song.id} onClick={() => { setSelectedSong(song); setMode('philosophy'); }} className="group cursor-pointer bg-slate-900/40 p-10 rounded-sm border border-white/20 hover:border-brand-gold transition-all flex items-center gap-10">
-                          {/* 專輯封面始終保持彩色 */}
-                          <img src={song.coverUrl} className="w-32 h-32 object-cover transition-all shadow-2xl" alt="" />
+                          {/* 聽眾前端：移除黑白轉換特效，始終保持清晰全彩 */}
+                          <img src={song.coverUrl} className="w-32 h-32 object-cover grayscale-0 opacity-100 transition-all shadow-2xl" alt="" />
                           <div className="text-left">
                             <h4 className="text-2xl font-black uppercase tracking-widest text-white group-hover:text-brand-gold">{song.title}</h4>
                             <span className="text-[11px] text-brand-gold font-mono tracking-widest uppercase font-bold">{song.isrc}</span>
@@ -294,6 +295,7 @@ const Interactive: React.FC = () => {
       <PaymentModal isOpen={showPayment} onClose={() => { setShowPayment(false); setMode('playing'); setTimeout(() => audioRef.current?.play(), 100); }} />
       {selectedSong && (
           <audio 
+            /* Fix: Changed currentSongSrc to currentAudioSrc to match defined memo hook */
             key={currentAudioSrc} ref={audioRef} src={currentAudioSrc} 
             onLoadedMetadata={() => setDuration(audioRef.current?.duration || 0)}
             onTimeUpdate={() => setCurrentTime(audioRef.current?.currentTime || 0)} 

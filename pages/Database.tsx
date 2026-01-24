@@ -58,8 +58,11 @@ const Database: React.FC = () => {
               return (
                   <div key={main.id} onClick={() => navigate(`/song/${main.id}`)} className="group cursor-pointer">
                       <div className="aspect-square w-full relative overflow-hidden bg-slate-900 mb-6 border border-white/10 group-hover:border-brand-gold transition-all duration-500 shadow-xl">
-                          {/* 移除 opacity 與 grayscale，始終全彩顯示 */}
-                          <img src={main.coverUrl} className="w-full h-full object-cover transition-all duration-700" alt="" />
+                          {/* 聽眾前端：響應指令，移除黑白轉彩色的互動特效，改為靜態高品質全彩呈現 */}
+                          <img src={main.coverUrl} className="w-full h-full object-cover opacity-100 grayscale-0 transition-all duration-700" alt="" />
+                          {/* 疊加一個微弱的暗角，保留品牌神祕感 */}
+                          <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent pointer-events-none"></div>
+                          
                           <div className="absolute bottom-4 left-4">
                               <span className="text-[9px] font-black text-brand-gold bg-black px-2 py-1 uppercase tracking-widest border border-brand-gold/40 shadow-lg">
                                   {albumSongs.length > 1 ? `${albumSongs.length} TRACKS` : (main.releaseCategory || 'SINGLE')}

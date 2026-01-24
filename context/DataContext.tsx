@@ -43,25 +43,30 @@ export const ASSETS = {
     official1205Folder: "https://drive.google.com/drive/folders/1PmP_GB7etr45T_DwcZcLt45Om2RDqTNI?usp=sharing"
 };
 
-// 強制去重使用的識別碼標準化工具
 export const normalizeIdentifier = (val: string) => (val || '').trim().replace(/[^A-Z0-9]/gi, '').toUpperCase();
 
 export const resolveDirectLink = (url: string) => {
     if (!url || typeof url !== 'string') return '';
     let cleanUrl = url.trim();
-    if (cleanUrl.includes('drive.google.com/thumbnail')) return cleanUrl;
-    try {
-        if (cleanUrl.includes('dropbox.com')) {
-            let directUrl = cleanUrl.replace('www.dropbox.com', 'dl.dropboxusercontent.com').replace('dropbox.com', 'dl.dropboxusercontent.com');
+    
+    // 支援 Google Drive 各種格式（包含 /file/d/ ID 以及 /view）
+    if (cleanUrl.includes('drive.google.com')) {
+        const idMatch = cleanUrl.match(/\/d\/([a-zA-Z0-9_-]{25,})/) || cleanUrl.match(/id=([a-zA-Z0-9_-]{25,})/);
+        const id = idMatch ? idMatch[1] : null;
+        if (id) {
+            return `https://docs.google.com/uc?export=download&id=${id}`;
+        }
+    }
+
+    if (cleanUrl.includes('dropbox.com')) {
+        let directUrl = cleanUrl.replace('www.dropbox.com', 'dl.dropboxusercontent.com').replace('dropbox.com', 'dl.dropboxusercontent.com');
+        try {
             const urlObj = new URL(directUrl);
             urlObj.searchParams.set('raw', '1');
             return urlObj.toString();
-        }
-        if (cleanUrl.includes('drive.google.com')) {
-            const id = cleanUrl.match(/\/d\/(.+?)\//)?.[1] || cleanUrl.match(/id=(.+?)(&|$)/)?.[1] || cleanUrl.split('/').pop();
-            if (id && id.length > 20) return `https://docs.google.com/uc?export=download&id=${id}`;
-        }
-    } catch (e) {}
+        } catch (e) { return directUrl; }
+    }
+    
     return cleanUrl;
 };
 
@@ -69,9 +74,6 @@ const deduplicateSongs = (songs: any[]): Song[] => {
     const uniqueMap = new Map<string, Song>();
     songs.forEach(s => {
         const isrc = normalizeIdentifier(s.isrc);
-        const upc = normalizeIdentifier(s.upc);
-        
-        // ISRC 是錄音作品唯一的數位身分證，絕對不可重複。
         const key = isrc || normalizeIdentifier(s.id);
         if (!key) return;
         
@@ -81,7 +83,6 @@ const deduplicateSongs = (songs: any[]): Song[] => {
             ...s,
             id: key, 
             isrc: isrc || (existing?.isrc || ''),
-            upc: upc || (existing?.upc || ''),
             origin: s.origin || 'cloud'
         } as Song);
     });
