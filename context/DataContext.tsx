@@ -45,32 +45,40 @@ export const ASSETS = {
 
 export const normalizeIdentifier = (val: string) => (val || '').trim().replace(/[^A-Z0-9]/gi, '').toUpperCase();
 
+/**
+ * 強大的連結解析器
+ * 專門處理 Google Drive 與 Dropbox 的直連轉換
+ */
 export const resolveDirectLink = (url: string) => {
     if (!url || typeof url !== 'string') return '';
     let cleanUrl = url.trim();
     
-    // Google Drive
+    // 1. 處理 Google Drive
     if (cleanUrl.includes('drive.google.com')) {
         const idMatch = cleanUrl.match(/\/d\/([a-zA-Z0-9_-]{25,})/) || cleanUrl.match(/id=([a-zA-Z0-9_-]{25,})/);
         const id = idMatch ? idMatch[1] : null;
         if (id) return `https://docs.google.com/uc?export=download&id=${id}`;
     }
 
-    // Dropbox 強制串流邏輯：將 dl=0 改為 dl=1，確保音軌可播
+    // 2. 處理 Dropbox (這是最常出錯的部分)
     if (cleanUrl.includes('dropbox.com')) {
-        let directUrl = cleanUrl.replace('www.dropbox.com', 'dl.dropboxusercontent.com').replace('dropbox.com', 'dl.dropboxusercontent.com');
+        // 先將網域改為 usercontent 網域，這是繞過 Dropbox 預覽頁面的關鍵
+        let directUrl = cleanUrl
+            .replace('www.dropbox.com', 'dl.dropboxusercontent.com')
+            .replace('dropbox.com', 'dl.dropboxusercontent.com');
+        
         try {
             const urlObj = new URL(directUrl);
-            // 處理 dl=0 的情況
-            if (urlObj.searchParams.get('dl') === '0') {
-                urlObj.searchParams.set('dl', '1');
-            }
-            // 補充 raw=1 以確保部分瀏覽器解析
+            // 移除原本的 dl=0 或是其他參數
+            urlObj.searchParams.delete('dl');
+            // raw=1 是 Dropbox 強制傳回原始文件流的參數
             urlObj.searchParams.set('raw', '1');
             return urlObj.toString();
         } catch (e) {
-            // 後備字串替換
-            if (directUrl.includes('dl=0')) return directUrl.replace('dl=0', 'dl=1');
+            // 後備字串替換法
+            if (directUrl.includes('dl=0')) return directUrl.replace('dl=0', 'raw=1');
+            if (!directUrl.includes('?')) return directUrl + '?raw=1';
+            if (!directUrl.includes('raw=1')) return directUrl + '&raw=1';
             return directUrl;
         }
     }

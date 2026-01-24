@@ -25,6 +25,8 @@ const Interactive: React.FC = () => {
   const [selectedSong, setSelectedSong] = useState<Song | null>(null);
   const [showPayment, setShowPayment] = useState(false);
   const [isPaused, setIsPaused] = useState(true);
+  const [isAudioLoading, setIsAudioLoading] = useState(false);
+  const [audioError, setAudioError] = useState<string | null>(null);
   
   const [unlockInput, setUnlockInput] = useState('');
   const [lyricsLines, setLyricsLines] = useState<string[]>([]);
@@ -59,6 +61,7 @@ const Interactive: React.FC = () => {
     }
     setCurrentLineIndex(-1);
     setStamps([]);
+    setAudioError(null);
   }, [selectedSong]);
 
   useEffect(() => {
@@ -89,12 +92,23 @@ const Interactive: React.FC = () => {
     }
   };
 
-  const handleTogglePlay = () => {
+  const handleTogglePlay = async () => {
       if (!audioRef.current) return;
       if (isPaused) {
-          audioRef.current.play();
-          setIsPaused(false);
-          if (currentLineIndex === -1) setCurrentLineIndex(0);
+          try {
+              setIsAudioLoading(true);
+              setAudioError(null);
+              await audioRef.current.play();
+              setIsPaused(false);
+              setIsAudioLoading(false);
+              if (currentLineIndex === -1) setCurrentLineIndex(0);
+          } catch (error: any) {
+              console.error("Playback failed:", error);
+              setIsPaused(true);
+              setIsAudioLoading(false);
+              setAudioError("音訊載入失敗，請確認網址是否正確。");
+              showToast("播放失敗，請檢查網路或音訊網址", "error");
+          }
       } else {
           audioRef.current.pause();
           setIsPaused(true);
@@ -148,7 +162,8 @@ const Interactive: React.FC = () => {
 
   const currentAudioSrc = useMemo(() => {
       if (!selectedSong) return '';
-      return resolveDirectLink(selectedSong.audioUrl || selectedSong.dropboxUrl || '');
+      const rawUrl = selectedSong.audioUrl || selectedSong.dropboxUrl || '';
+      return resolveDirectLink(rawUrl);
   }, [selectedSong]);
 
   return (
@@ -268,19 +283,36 @@ const Interactive: React.FC = () => {
                    <div className="w-full mb-16 animate-fade-in-up">
                        <div className="bg-[#0f172a] border-x border-t border-white/10 px-8 py-4 flex justify-between items-center rounded-t-sm">
                            <div className="flex items-center gap-4">
-                               <div className={`w-2 h-2 rounded-full ${isPaused ? 'bg-slate-600' : 'bg-brand-gold animate-pulse'}`}></div>
-                               <span className="text-[10px] font-black uppercase tracking-[0.4em] text-slate-400">{isPaused ? 'SESSION STANDBY' : 'LIVE RECORDING...'}</span>
+                               <div className={`w-2 h-2 rounded-full ${isPaused ? (isAudioLoading ? 'bg-brand-gold animate-bounce' : 'bg-slate-600') : 'bg-brand-gold animate-pulse'}`}></div>
+                               <span className="text-[10px] font-black uppercase tracking-[0.4em] text-slate-400">
+                                   {isAudioLoading ? 'BUFFERING...' : isPaused ? 'SESSION STANDBY' : 'LIVE RECORDING...'}
+                               </span>
                            </div>
                            <span className="text-[11px] font-mono font-bold text-brand-gold/60">{Math.floor(currentTime)} / {Math.floor(duration)}s</span>
                        </div>
-                       <div className="bg-black/60 backdrop-blur-2xl border border-white/10 p-10 flex items-center gap-12 shadow-2xl">
-                           <button onClick={handleTogglePlay} className="w-28 h-28 bg-brand-gold rounded-full flex items-center justify-center text-black transition-all hover:scale-105 active:scale-95 shadow-[0_0_40px_rgba(251,191,36,0.2)] shrink-0 group">
-                               {isPaused ? <svg className="w-14 h-14 ml-1.5" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg> : <svg className="w-14 h-14" fill="currentColor" viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>}
-                           </button>
-                           <div className="flex-1 h-24 bg-black/80 relative overflow-hidden flex items-center border border-white/5 rounded-sm">
-                               <div className="w-full flex items-end gap-[2px] h-12 opacity-10 px-2">{Array.from({ length: 180 }).map((_, i) => (<div key={i} className="flex-1 bg-white" style={{ height: `${Math.random() * 60 + 20}%` }}></div>))}</div>
-                               <div className="absolute top-0 bottom-0 w-[3px] bg-brand-gold shadow-[0_0_20px_#fbbf24] transition-all duration-300 z-10" style={{ left: `${(currentTime / (duration || 1)) * 100}%` }}></div>
+                       <div className="bg-black/60 backdrop-blur-2xl border border-white/10 p-10 flex flex-col gap-6 shadow-2xl">
+                           <div className="flex items-center gap-12">
+                               <button 
+                                  onClick={handleTogglePlay} 
+                                  disabled={isAudioLoading}
+                                  className="w-28 h-28 bg-brand-gold rounded-full flex items-center justify-center text-black transition-all hover:scale-105 active:scale-95 shadow-[0_0_40px_rgba(251,191,36,0.2)] shrink-0 group disabled:opacity-50"
+                               >
+                                   {isAudioLoading ? (
+                                       <div className="w-10 h-10 border-4 border-black border-t-transparent rounded-full animate-spin"></div>
+                                   ) : (
+                                       isPaused ? <svg className="w-14 h-14 ml-1.5" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg> : <svg className="w-14 h-14" fill="currentColor" viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
+                                   )}
+                               </button>
+                               <div className="flex-1 h-24 bg-black/80 relative overflow-hidden flex items-center border border-white/5 rounded-sm">
+                                   <div className="w-full flex items-end gap-[2px] h-12 opacity-10 px-2">{Array.from({ length: 180 }).map((_, i) => (<div key={i} className="flex-1 bg-white" style={{ height: `${Math.random() * 60 + 20}%` }}></div>))}</div>
+                                   <div className="absolute top-0 bottom-0 w-[3px] bg-brand-gold shadow-[0_0_20px_#fbbf24] transition-all duration-300 z-10" style={{ left: `${(currentTime / (duration || 1)) * 100}%` }}></div>
+                               </div>
                            </div>
+                           {audioError && (
+                               <div className="text-center p-3 bg-rose-950/40 border border-rose-500/30 rounded-sm">
+                                   <p className="text-[10px] text-rose-500 font-black uppercase tracking-widest">{audioError}</p>
+                               </div>
+                           )}
                        </div>
                    </div>
                    <div ref={scrollRef} className="w-full flex-1 max-h-[60vh] overflow-y-auto custom-scrollbar pr-10 space-y-24 py-48 text-center">
@@ -356,7 +388,21 @@ const Interactive: React.FC = () => {
 
       <PaymentModal isOpen={showPayment} onClose={() => { setShowPayment(false); setMode('playing'); }} />
       {selectedSong && (
-          <audio key={currentAudioSrc} ref={audioRef} src={currentAudioSrc} onLoadedMetadata={() => setDuration(audioRef.current?.duration || 0)} onTimeUpdate={() => setCurrentTime(audioRef.current?.currentTime || 0)} crossOrigin="anonymous" preload="auto" />
+          <audio 
+            key={currentAudioSrc} 
+            ref={audioRef} 
+            src={currentAudioSrc} 
+            onLoadedMetadata={() => {
+                setDuration(audioRef.current?.duration || 0);
+                setAudioError(null);
+            }} 
+            onTimeUpdate={() => setCurrentTime(audioRef.current?.currentTime || 0)} 
+            onError={(e) => {
+                console.error("Audio Load Error:", e);
+                setAudioError("無法讀取音訊流，請確認連結權限或格式。");
+            }}
+            preload="auto" 
+          />
       )}
     </div>
   );
