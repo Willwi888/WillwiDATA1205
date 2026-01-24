@@ -9,7 +9,7 @@ import { generateAiVideo } from '../services/geminiService';
 import PaymentModal from '../components/PaymentModal';
 import { useToast } from '../components/Layout';
 
-type InteractionMode = 'intro' | 'select' | 'philosophy' | 'gate' | 'playing' | 'mastered' | 'rendering' | 'finished';
+type InteractionMode = 'intro' | 'select' | 'philosophy' | 'guide' | 'gate' | 'playing' | 'mastered' | 'rendering' | 'finished';
 
 const Interactive: React.FC = () => {
   const { songs } = useData();
@@ -50,6 +50,19 @@ const Interactive: React.FC = () => {
     setStamps([]);
   }, [selectedSong]);
 
+  // 自動捲動邏輯
+  useEffect(() => {
+    if (currentLineIndex >= 0 && scrollRef.current) {
+        const activeElement = scrollRef.current.children[currentLineIndex] as HTMLElement;
+        if (activeElement) {
+            scrollRef.current.scrollTo({
+                top: activeElement.offsetTop - scrollRef.current.offsetHeight / 2,
+                behavior: 'smooth'
+            });
+        }
+    }
+  }, [currentLineIndex]);
+
   // 點擊歌詞對時邏輯
   const handleLyricClick = (index: number) => {
     if (mode !== 'playing' || isPaused || !audioRef.current) return;
@@ -61,6 +74,14 @@ const Interactive: React.FC = () => {
         newStamps[index] = now;
         setStamps(newStamps);
         setCurrentLineIndex(index);
+        
+        // 微弱觸覺回饋（如有支援）
+        if (window.navigator.vibrate) window.navigator.vibrate(10);
+    } else if (index === currentLineIndex) {
+        // 重複點擊當前行可以修正時間
+        const newStamps = [...stamps];
+        newStamps[index] = now;
+        setStamps(newStamps);
     }
   };
 
@@ -102,7 +123,7 @@ const Interactive: React.FC = () => {
               setRenderProgress(100);
               setBgVideoUrl(aiBg);
               setMode('finished');
-              showToast("氛圍底層渲染成功 - AI 已退至背景");
+              showToast("渲染完成，這是屬於你的瞬間。");
           } else {
               throw new Error("Render failed");
           }
@@ -118,23 +139,19 @@ const Interactive: React.FC = () => {
   }, [selectedSong]);
 
   return (
-    <div className={`min-h-screen flex flex-col pt-24 pb-32 relative overflow-hidden transition-colors duration-700 ${mode === 'playing' ? 'bg-white' : 'bg-[#020617]'}`}>
+    <div className="min-h-screen flex flex-col pt-24 pb-32 relative overflow-hidden bg-[#020617] transition-colors duration-1000">
       
-      {/* 只有非播放模式才顯示動態模糊背景 */}
-      {mode !== 'playing' && (
-        <div className="fixed inset-0 z-0 overflow-hidden">
-            {bgVideoUrl ? (
-                <video src={bgVideoUrl} autoPlay loop muted playsInline className="w-full h-full object-cover blur-sm opacity-50" />
-            ) : (
-                <img src={selectedSong?.coverUrl || ''} className="w-full h-full object-cover blur-[100px] scale-125 opacity-10 animate-studio-breathe" alt="" />
-            )}
-            <div className="absolute inset-0 bg-gradient-to-b from-black/80 via-transparent to-black"></div>
-        </div>
-      )}
+      {/* Dynamic Ambient Background */}
+      <div className="fixed inset-0 z-0 overflow-hidden">
+          {bgVideoUrl ? (
+              <video src={bgVideoUrl} autoPlay loop muted playsInline className="w-full h-full object-cover blur-sm opacity-30" />
+          ) : (
+              <img src={selectedSong?.coverUrl || ''} className="w-full h-full object-cover blur-[120px] scale-125 opacity-10 animate-studio-breathe" alt="" />
+          )}
+          <div className="absolute inset-0 bg-gradient-to-b from-black/80 via-transparent to-black"></div>
+      </div>
 
-      {/* Intro & Select & Philosophy 模式保持暗色系 */}
-      {(mode === 'intro' || mode === 'select' || mode === 'philosophy') && (
-        <div className="flex-1 flex flex-col items-center justify-center relative z-10 px-10 animate-fade-in">
+      <div className="flex-1 flex flex-col items-center justify-center relative z-10 px-10 animate-fade-in">
            {mode === 'intro' && (
                <div className="max-w-4xl mx-auto text-center space-y-12">
                    <h2 className="text-brand-gold font-black uppercase tracking-[1em] text-sm">{t('manifesto_title')}</h2>
@@ -172,157 +189,225 @@ const Interactive: React.FC = () => {
                            {t('before_start_content')}
                        </div>
                    </div>
-                   <button onClick={() => { isAdmin ? (setMode('playing')) : setMode('gate'); }} className="w-full max-w-2xl py-10 bg-white text-black font-black uppercase tracking-[0.4em] hover:bg-brand-gold transition-all shadow-2xl">
+                   <button onClick={() => setMode('guide')} className="w-full max-w-2xl py-10 bg-white text-black font-black uppercase tracking-[0.4em] hover:bg-brand-gold transition-all shadow-2xl">
                        {t('btn_understand')}
                    </button>
                </div>
            )}
-        </div>
-      )}
 
-      {mode === 'gate' && (
-          <div className="flex-1 flex items-center justify-center relative z-10 animate-fade-in">
-              <div className="max-w-xl w-full bg-slate-900/80 border border-white/10 p-16 text-center rounded-sm shadow-2xl space-y-12 backdrop-blur-3xl">
-                  <img src={selectedSong?.coverUrl} className="w-48 h-48 mx-auto border-2 border-brand-gold" alt="" />
-                  <h3 className="text-3xl font-black uppercase tracking-widest text-white">{selectedSong?.title}</h3>
-                  <button onClick={() => setShowPayment(true)} className="w-full py-10 bg-brand-gold text-black font-black uppercase text-xl tracking-[0.2em] hover:bg-white transition-all">ACCESS STUDIO</button>
-              </div>
-          </div>
-      )}
+           {mode === 'guide' && (
+               <div className="max-w-4xl w-full bg-slate-900/80 border border-white/10 p-16 rounded-sm backdrop-blur-3xl animate-fade-in shadow-2xl">
+                   <h3 className="text-brand-gold font-black uppercase tracking-[0.5em] text-sm mb-12 border-b border-white/5 pb-6 text-center">開始前 (STUDIO RULES)</h3>
+                   
+                   <div className="space-y-8 text-center mb-16 px-4">
+                       <p className="text-xl md:text-2xl text-slate-200 font-bold leading-relaxed tracking-widest">
+                           這裡沒有再來一次也沒有修到完美<br/>
+                           你現在做的就是最後的樣子<br/>
+                           對歌詞的時候慢一點沒關係<br/>
+                           你只是在找這一句應該落在哪裡
+                       </p>
+                   </div>
 
-      {/* 重頭戲：手工對時模式 (依據圖片呈現) */}
-      {mode === 'playing' && (
-          <div className="flex-1 flex flex-col items-center z-10 animate-fade-in bg-white text-slate-900">
-              
-              {/* Top Control Station */}
-              <div className="w-full max-w-4xl mt-10 space-y-0 shadow-2xl">
-                  {/* Orange Banner */}
-                  <div className="bg-[#FF8C00] text-white px-6 py-3 rounded-t-md">
-                      <span className="text-[11px] font-black uppercase tracking-widest">CLICK PLAY TO BEGIN</span>
-                  </div>
-                  {/* Waveform Player Box */}
-                  <div className="bg-[#F3F4F6] border border-slate-200 flex items-center p-6 gap-8">
-                      {/* Play Button */}
-                      <button 
-                        onClick={handleTogglePlay}
-                        className="w-20 h-20 bg-[#FF8C00] rounded-full flex items-center justify-center text-white transition-transform active:scale-90 shadow-lg shrink-0"
-                      >
-                          {isPaused ? (
-                              <svg className="w-10 h-10 ml-1" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
-                          ) : (
-                              <svg className="w-10 h-10" fill="currentColor" viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
-                          )}
-                      </button>
-                      
-                      {/* Mock Waveform Track */}
-                      <div className="flex-1 h-20 bg-[#E5E7EB] relative overflow-hidden flex items-center">
-                          <div className="w-full flex items-end gap-[2px] h-12 px-4 opacity-40">
-                              {Array.from({ length: 120 }).map((_, i) => (
-                                  <div 
-                                    key={i} 
-                                    className="flex-1 bg-[#2D5A6E]" 
-                                    style={{ height: `${Math.sin(i * 0.2) * 40 + 50}%` }}
-                                  ></div>
-                              ))}
-                          </div>
-                          {/* Playhead */}
-                          <div 
-                            className="absolute top-0 bottom-0 w-[2px] bg-[#FF8C00] transition-all duration-300" 
-                            style={{ left: `${(currentTime / (duration || 1)) * 100}%` }}
-                          ></div>
-                      </div>
-                  </div>
-              </div>
+                   <div className="grid grid-cols-1 md:grid-cols-3 gap-10 mb-16">
+                       <div className="space-y-4 p-6 bg-white/5 border border-white/5 rounded-sm">
+                           <div className="w-8 h-8 bg-brand-gold text-black flex items-center justify-center font-black text-xs rounded-full">01</div>
+                           <h4 className="text-white font-black text-xs uppercase tracking-widest">播放與聆聽</h4>
+                           <p className="text-slate-400 text-[9px] leading-relaxed uppercase tracking-widest">點擊橘色按鈕開始。請聆聽人聲進場的精確瞬間。</p>
+                       </div>
+                       <div className="space-y-4 p-6 bg-white/5 border border-white/5 rounded-sm">
+                           <div className="w-8 h-8 bg-brand-gold text-black flex items-center justify-center font-black text-xs rounded-full">02</div>
+                           <h4 className="text-white font-black text-xs uppercase tracking-widest">點擊第一字</h4>
+                           <p className="text-slate-400 text-[9px] leading-relaxed uppercase tracking-widest">聽見該行「第一個字」唱出的瞬間，立即點擊畫面中央的文字。</p>
+                       </div>
+                       <div className="space-y-4 p-6 bg-white/5 border border-white/5 rounded-sm">
+                           <div className="w-8 h-8 bg-brand-gold text-black flex items-center justify-center font-black text-xs rounded-full">03</div>
+                           <h4 className="text-white font-black text-xs uppercase tracking-widest">真實紀錄</h4>
+                           <p className="text-slate-400 text-[9px] leading-relaxed uppercase tracking-widest">依序錄製到最後。你的節奏就是這首歌這次的呼吸。</p>
+                       </div>
+                   </div>
+                   
+                   <button onClick={() => isAdmin ? setMode('playing') : setMode('gate')} className="w-full py-10 bg-brand-gold text-black font-black uppercase tracking-[0.4em] text-sm hover:bg-white transition-all shadow-2xl">
+                       進入錄製室 (GO TO STUDIO)
+                   </button>
+               </div>
+           )}
 
-              {/* Lyrics Scroll Area */}
-              <div ref={scrollRef} className="flex-1 w-full max-w-4xl py-32 space-y-12 overflow-y-auto custom-scrollbar-light px-10 text-center">
-                  {lyricsLines.map((line, idx) => {
-                      const isStamped = stamps[idx] !== undefined;
-                      const isActive = idx === currentLineIndex;
-                      
-                      return (
-                          <div 
-                            key={idx}
-                            onClick={() => handleLyricClick(idx)}
-                            className={`transition-all duration-500 cursor-pointer py-2 ${isActive ? 'scale-110' : ''}`}
-                          >
-                              <p className={`text-2xl md:text-3xl font-medium tracking-widest leading-relaxed ${
-                                  isActive ? 'text-slate-900 font-bold' : isStamped ? 'text-slate-400' : 'text-slate-300'
-                              }`}>
-                                  {line}
-                              </p>
-                          </div>
-                      );
-                  })}
+           {mode === 'gate' && (
+               <div className="w-full flex items-center justify-center animate-fade-in">
+                   <div className="max-w-xl w-full bg-slate-900/80 border border-white/10 p-16 text-center rounded-sm shadow-2xl space-y-12 backdrop-blur-3xl">
+                       <img src={selectedSong?.coverUrl} className="w-48 h-48 mx-auto border-2 border-brand-gold shadow-2xl" alt="" />
+                       <h3 className="text-3xl font-black uppercase tracking-widest text-white">{selectedSong?.title}</h3>
+                       <button onClick={() => setShowPayment(true)} className="w-full py-10 bg-brand-gold text-black font-black uppercase text-xl tracking-[0.2em] hover:bg-white transition-all">ACCESS STUDIO</button>
+                   </div>
+               </div>
+           )}
 
-                  {/* Save Button (At the end) */}
-                  <div className="pt-24 pb-20">
-                      <button 
-                        onClick={() => { audioRef.current?.pause(); setMode('mastered'); }}
-                        className="bg-[#0078D4] text-white px-16 py-5 text-sm font-black uppercase tracking-[0.2em] rounded-sm hover:brightness-110 transition-all shadow-xl"
-                      >
-                        SAVE TIMED LYRICS
-                      </button>
-                  </div>
-              </div>
-          </div>
-      )}
+           {/* Core Timing Screen - Deep Studio Theme */}
+           {mode === 'playing' && (
+               <div className="w-full max-w-5xl h-full flex flex-col items-center animate-fade-in">
+                   
+                   {/* Top Control Station - Dark Tech Aesthetics */}
+                   <div className="w-full mb-16 animate-fade-in-up">
+                       <div className="bg-[#0f172a] border-x border-t border-white/10 px-8 py-4 flex justify-between items-center rounded-t-sm">
+                           <div className="flex items-center gap-4">
+                               <div className={`w-2 h-2 rounded-full ${isPaused ? 'bg-slate-600' : 'bg-brand-gold animate-pulse'}`}></div>
+                               <span className="text-[10px] font-black uppercase tracking-[0.4em] text-slate-400">
+                                   {isPaused ? 'SESSION STANDBY' : 'LIVE RECORDING...'}
+                               </span>
+                           </div>
+                           <span className="text-[11px] font-mono font-bold text-brand-gold/60">{Math.floor(currentTime)} / {Math.floor(duration)}s</span>
+                       </div>
+                       
+                       <div className="bg-black/60 backdrop-blur-2xl border border-white/10 p-10 flex items-center gap-12 shadow-2xl">
+                           <button 
+                             onClick={handleTogglePlay}
+                             className="w-28 h-28 bg-brand-gold rounded-full flex items-center justify-center text-black transition-all hover:scale-105 active:scale-95 shadow-[0_0_40px_rgba(251,191,36,0.2)] shrink-0 group"
+                           >
+                               {isPaused ? (
+                                   <svg className="w-14 h-14 ml-1.5" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+                               ) : (
+                                   <svg className="w-14 h-14" fill="currentColor" viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
+                               )}
+                           </button>
+                           
+                           <div className="flex-1 h-24 bg-black/80 relative overflow-hidden flex items-center border border-white/5 rounded-sm group">
+                               <div className="w-full flex items-end gap-[2px] h-12 opacity-10 px-2 group-hover:opacity-20 transition-opacity">
+                                   {Array.from({ length: 180 }).map((_, i) => (
+                                       <div 
+                                         key={i} 
+                                         className="flex-1 bg-white" 
+                                         style={{ height: `${Math.random() * 60 + 20}%` }}
+                                       ></div>
+                                   ))}
+                               </div>
+                               <div 
+                                 className="absolute top-0 bottom-0 w-[3px] bg-brand-gold shadow-[0_0_20px_#fbbf24] transition-all duration-300 z-10" 
+                                 style={{ left: `${(currentTime / (duration || 1)) * 100}%` }}
+                               ></div>
+                               <div 
+                                 className="absolute inset-0 bg-brand-gold/5 transition-all" 
+                                 style={{ width: `${(currentTime / (duration || 1)) * 100}%` }}
+                               ></div>
+                           </div>
+                       </div>
+                   </div>
 
-      {/* Mastered & Rendering & Finished 恢復暗色系 */}
-      {(mode === 'mastered' || mode === 'rendering' || mode === 'finished') && (
-          <div className="flex-1 flex flex-col items-center justify-center px-10 relative z-10 animate-fade-in text-white">
-              {mode === 'mastered' && (
-                  <div className="max-w-4xl w-full bg-slate-900/90 border border-white/10 rounded-sm p-20 text-center space-y-16 shadow-2xl backdrop-blur-3xl">
-                      <h2 className="text-6xl font-black uppercase tracking-tighter">READY TO EXPORT</h2>
-                      <p className="text-white uppercase tracking-widest text-xs leading-loose font-bold">
-                          對時完成。每一秒都是真實的痕跡。<br/>現在由 AI 運算氛圍底層，並合成高品質影片。
-                      </p>
-                      <button onClick={startExportProcess} className="w-full bg-brand-gold text-black py-12 rounded-sm font-black text-2xl uppercase tracking-[0.3em] hover:bg-white transition-all shadow-2xl">
-                        🎬 {t('btn_get_mp4')}
-                      </button>
-                  </div>
-              )}
+                   {/* Lyrics Display - High Contrast Studio View */}
+                   <div 
+                     ref={scrollRef} 
+                     className="w-full flex-1 max-h-[60vh] overflow-y-auto custom-scrollbar pr-10 space-y-24 py-48 text-center"
+                   >
+                       {lyricsLines.map((line, idx) => {
+                           const isStamped = stamps[idx] !== undefined;
+                           const isActive = idx === currentLineIndex;
+                           
+                           return (
+                               <div 
+                                 key={idx}
+                                 onClick={() => handleLyricClick(idx)}
+                                 className={`transition-all duration-1000 cursor-pointer py-4 group origin-center ${isActive ? 'scale-110 translate-y-[-5px]' : 'hover:opacity-90'}`}
+                               >
+                                   <p className={`text-3xl md:text-6xl font-black tracking-[0.2em] leading-relaxed transition-all duration-1000 ${
+                                       isActive 
+                                         ? 'text-white drop-shadow-[0_0_30px_rgba(255,255,255,0.7)]' 
+                                         : isStamped 
+                                           ? 'text-brand-gold/20' 
+                                           : 'text-slate-800'
+                                   }`}>
+                                       {line}
+                                   </p>
+                                   {isStamped && (
+                                       <div className="flex items-center justify-center gap-2 mt-4 opacity-30">
+                                            <div className="h-[1px] w-8 bg-brand-gold/40"></div>
+                                            <span className="text-[10px] font-mono text-brand-gold font-bold tracking-[0.3em]">{stamps[idx].toFixed(2)}s</span>
+                                            <div className="h-[1px] w-8 bg-brand-gold/40"></div>
+                                       </div>
+                                   )}
+                               </div>
+                           );
+                       })}
 
-              {mode === 'rendering' && (
-                  <div className="space-y-16 text-center">
-                      <div className="w-80 h-80 relative mx-auto">
-                          <svg className="w-full h-full transform -rotate-90">
-                              <circle cx="160" cy="160" r="150" stroke="currentColor" strokeWidth="6" fill="transparent" strokeDasharray={942} strokeDashoffset={942 - (942 * renderProgress) / 100} className="text-brand-gold transition-all duration-1000" />
-                          </svg>
-                          <div className="absolute inset-0 flex items-center justify-center flex-col">
-                              <span className="text-8xl font-black font-mono tracking-tighter">{Math.floor(renderProgress)}%</span>
-                              <span className="text-[10px] font-black uppercase tracking-[0.6em] mt-6 text-brand-gold animate-pulse">VEO 3.1 渲染中</span>
-                          </div>
-                      </div>
-                      <p className="text-white text-xs uppercase tracking-[0.4em] animate-pulse font-bold">正在運算一段 8 秒抽象氛圍... 請稍候</p>
-                  </div>
-              )}
+                       <div className="pt-60 pb-60">
+                           <button 
+                             onClick={() => { audioRef.current?.pause(); setMode('mastered'); }}
+                             className="bg-white text-black px-32 py-10 text-[11px] font-black uppercase tracking-[0.5em] rounded-sm hover:bg-brand-gold transition-all shadow-2xl active:scale-95"
+                           >
+                             SAVE STUDIO SESSION
+                           </button>
+                       </div>
+                   </div>
+               </div>
+           )}
 
-              {mode === 'finished' && (
-                  <div className="text-center space-y-16 w-full max-w-6xl">
-                      <div className="aspect-video bg-black/90 rounded-sm overflow-hidden border border-white/10 shadow-2xl relative">
-                          <video src={bgVideoUrl || ''} autoPlay loop muted playsInline className="absolute inset-0 w-full h-full object-cover blur-sm opacity-30" />
-                          <div className="absolute inset-0 flex items-center justify-between px-24 py-24 z-10">
-                              <div className="flex-1 text-left space-y-10">
-                                  <h2 className="text-4xl md:text-7xl font-black text-white uppercase tracking-tighter leading-tight drop-shadow-2xl">
-                                      {lyricsLines[Math.floor(lyricsLines.length / 2)]}
-                                  </h2>
-                                  <div className="h-[1px] w-24 bg-brand-gold"></div>
-                                  <p className="text-slate-500 text-sm uppercase tracking-[0.8em] font-bold">{selectedSong?.title} - Willwi</p>
-                              </div>
-                              <img src={selectedSong?.coverUrl} className="w-[350px] h-[350px] object-cover rounded-2xl shadow-2xl relative z-20" alt="" />
-                          </div>
-                      </div>
-                      <div className="flex gap-8 justify-center">
-                          <a href={bgVideoUrl || '#'} download={`WILLWI_STUDIO_${selectedSong?.title}.mp4`} className="px-16 py-6 bg-white text-black font-black uppercase text-xl tracking-widest rounded-sm hover:bg-brand-gold transition-all">
-                            📥 下載影片
-                          </a>
-                          <button onClick={() => setMode('select')} className="px-16 py-6 border border-white/10 text-slate-500 font-black uppercase text-xs hover:text-white">返回錄音室</button>
-                      </div>
-                  </div>
-              )}
-          </div>
-      )}
+           {/* Mastered & Rendering States */}
+           {(mode === 'mastered' || mode === 'rendering' || mode === 'finished') && (
+               <div className="w-full flex flex-col items-center justify-center px-10 text-white animate-fade-in">
+                   {mode === 'mastered' && (
+                       <div className="max-w-4xl w-full bg-slate-900/90 border border-white/10 rounded-sm p-24 text-center space-y-16 shadow-[0_50px_100px_rgba(0,0,0,0.5)] backdrop-blur-3xl">
+                           <div className="space-y-6">
+                               <h2 className="text-7xl font-black uppercase tracking-tighter leading-none">完成後 (MASTERED)</h2>
+                               <p className="text-brand-gold font-black uppercase tracking-[0.5em] text-sm">這是最好屬於你的版本因為它是真的</p>
+                           </div>
+                           
+                           <div className="bg-black/40 p-10 border border-white/5 space-y-6 text-left">
+                               <h4 className="text-white font-black text-xs uppercase tracking-widest border-b border-white/5 pb-3">下載說明 (DOWNLOAD NOTES)</h4>
+                               <ul className="text-slate-400 text-[10px] leading-relaxed uppercase tracking-widest space-y-4 font-bold">
+                                   <li className="flex gap-4"><span className="text-brand-gold">●</span> 你可以下載你完成的影片，那是你陪這首歌走過的紀錄。</li>
+                                   <li className="flex gap-4"><span className="text-brand-gold">●</span> 歌曲與歌詞的權利仍屬原創者，這裡不是授權也不是買賣。</li>
+                               </ul>
+                           </div>
+
+                           <button onClick={startExportProcess} className="w-full bg-brand-gold text-black py-14 rounded-sm font-black text-3xl uppercase tracking-[0.3em] hover:bg-white transition-all shadow-2xl active:scale-95">
+                             🎬 {t('btn_get_mp4')}
+                           </button>
+                       </div>
+                   )}
+
+                   {mode === 'rendering' && (
+                       <div className="space-y-16 text-center">
+                           <div className="w-96 h-96 relative mx-auto">
+                               <svg className="w-full h-full transform -rotate-90">
+                                   <circle cx="192" cy="192" r="180" stroke="#0f172a" strokeWidth="4" fill="transparent" />
+                                   <circle cx="192" cy="192" r="180" stroke="#fbbf24" strokeWidth="8" fill="transparent" strokeDasharray={1131} strokeDashoffset={1131 - (1131 * renderProgress) / 100} className="transition-all duration-1000 shadow-[0_0_20px_#fbbf24]" strokeLinecap="round" />
+                               </svg>
+                               <div className="absolute inset-0 flex items-center justify-center flex-col">
+                                   <span className="text-9xl font-black font-mono tracking-tighter text-white">{Math.floor(renderProgress)}%</span>
+                                   <span className="text-[11px] font-black uppercase tracking-[0.8em] mt-8 text-brand-gold animate-pulse">VEO 3.1 RENDERING</span>
+                               </div>
+                           </div>
+                           <p className="text-slate-400 text-xs uppercase tracking-[0.6em] animate-pulse font-bold">正在運算一段 8 秒抽象氛圍... 請稍候</p>
+                       </div>
+                   )}
+
+                   {mode === 'finished' && (
+                       <div className="text-center space-y-20 w-full max-w-7xl animate-blur-in">
+                           <div className="aspect-video bg-black/90 rounded-sm overflow-hidden border border-white/10 shadow-[0_60px_120px_rgba(0,0,0,0.8)] relative group">
+                               <video src={bgVideoUrl || ''} autoPlay loop muted playsInline className="absolute inset-0 w-full h-full object-cover blur-sm opacity-40 group-hover:scale-105 transition-transform duration-[10s]" />
+                               <div className="absolute inset-0 flex items-center justify-between px-32 py-24 z-10 bg-gradient-to-r from-black/60 to-transparent">
+                                   <div className="flex-1 text-left space-y-12">
+                                       <div className="h-[2px] w-20 bg-brand-gold"></div>
+                                       <h2 className="text-5xl md:text-8xl font-black text-white uppercase tracking-tighter leading-tight drop-shadow-2xl max-w-2xl">
+                                           {lyricsLines[Math.floor(lyricsLines.length / 2)]}
+                                       </h2>
+                                       <p className="text-brand-gold text-sm uppercase tracking-[1em] font-black opacity-80">{selectedSong?.title} • WILLWI OFFICIAL</p>
+                                   </div>
+                                   <div className="relative">
+                                       <img src={selectedSong?.coverUrl} className="w-[450px] h-[450px] object-cover rounded-sm shadow-2xl relative z-20 border border-white/10" alt="" />
+                                       <div className="absolute -inset-4 bg-brand-gold/10 blur-2xl z-0"></div>
+                                   </div>
+                               </div>
+                           </div>
+                           <div className="flex flex-col md:flex-row gap-10 justify-center items-center">
+                               <a href={bgVideoUrl || '#'} download={`WILLWI_STUDIO_${selectedSong?.title}.mp4`} className="w-full md:w-auto px-24 py-8 bg-white text-black font-black uppercase text-2xl tracking-[0.2em] rounded-sm hover:bg-brand-gold transition-all shadow-2xl active:scale-95">
+                                 📥 下載手作影片
+                               </a>
+                               <button onClick={() => setMode('select')} className="text-slate-500 font-black uppercase text-[12px] tracking-[0.6em] hover:text-white transition-colors">BACK TO STUDIO ARCHIVE</button>
+                           </div>
+                       </div>
+                   )}
+               </div>
+           )}
+      </div>
 
       <PaymentModal isOpen={showPayment} onClose={() => { setShowPayment(false); setMode('playing'); }} />
       {selectedSong && (
@@ -333,12 +418,6 @@ const Interactive: React.FC = () => {
             crossOrigin="anonymous" preload="auto"
           />
       )}
-      
-      <style>{`
-        .custom-scrollbar-light::-webkit-scrollbar { width: 6px; }
-        .custom-scrollbar-light::-webkit-scrollbar-track { background: transparent; }
-        .custom-scrollbar-light::-webkit-scrollbar-thumb { background: #E5E7EB; border-radius: 10px; }
-      `}</style>
     </div>
   );
 }; export default Interactive;
