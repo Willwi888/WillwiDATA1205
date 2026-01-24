@@ -10,6 +10,7 @@ import { Song } from '../types';
 import { searchSpotifyTracks, SpotifyTrack } from '../services/spotifyService';
 
 type AdminTab = 'catalog' | 'spotify' | 'settings' | 'payment' | 'data';
+type SortKey = 'title' | 'isrc' | 'upc' | 'releaseDate';
 
 const AdminDashboard: React.FC = () => {
   const { songs, deleteSong, refreshData, uploadSongsToCloud, bulkAddSongs, globalSettings, setGlobalSettings, uploadSettingsToCloud } = useData();
@@ -22,18 +23,40 @@ const AdminDashboard: React.FC = () => {
   const [loginError, setLoginError] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const [localSaving, setLocalSaving] = useState(false);
+  
+  // Sorting State
+  const [sortConfig, setSortConfig] = useState<{ key: SortKey; direction: 'asc' | 'desc' }>({ key: 'releaseDate', direction: 'desc' });
 
   // Spotify Search State
   const [spotifyQuery, setSpotifyQuery] = useState('');
   const [spotifyResults, setSpotifyResults] = useState<SpotifyTrack[]>([]);
   const [isSearchingSpotify, setIsSearchingSpotify] = useState(false);
 
+  const handleSort = (key: SortKey) => {
+    setSortConfig(prev => ({
+      key,
+      direction: prev.key === key && prev.direction === 'desc' ? 'asc' : 'desc'
+    }));
+  };
+
   const filteredSongs = useMemo(() => {
-    return songs.filter(s => 
+    // 1. Filtering
+    let result = songs.filter(s => 
         s.title.toLowerCase().includes(searchTerm.toLowerCase()) || 
-        (s.isrc && normalizeIdentifier(s.isrc).includes(normalizeIdentifier(searchTerm)))
+        (s.isrc && normalizeIdentifier(s.isrc).includes(normalizeIdentifier(searchTerm))) ||
+        (s.upc && normalizeIdentifier(s.upc).includes(normalizeIdentifier(searchTerm)))
     );
-  }, [songs, searchTerm]);
+
+    // 2. Sorting
+    return result.sort((a, b) => {
+      let valA = (a[sortConfig.key] || '').toString().toLowerCase();
+      let valB = (b[sortConfig.key] || '').toString().toLowerCase();
+      
+      if (valA < valB) return sortConfig.direction === 'asc' ? -1 : 1;
+      if (valA > valB) return sortConfig.direction === 'asc' ? 1 : -1;
+      return 0;
+    });
+  }, [songs, searchTerm, sortConfig]);
 
   const checkAssetHealth = (song: Song) => {
       const issues = [];
@@ -124,6 +147,11 @@ const AdminDashboard: React.FC = () => {
       reader.readAsText(file);
   };
 
+  const SortIcon = ({ k }: { k: SortKey }) => {
+    if (sortConfig.key !== k) return <span className="ml-2 text-slate-600">↕</span>;
+    return <span className="ml-2 text-brand-gold">{sortConfig.direction === 'asc' ? '↑' : '↓'}</span>;
+  };
+
   if (!isAdmin) {
       return (
           <div className="min-h-screen flex items-center justify-center bg-black px-4">
@@ -173,7 +201,7 @@ const AdminDashboard: React.FC = () => {
       {activeTab === 'catalog' && (
         <div className="space-y-8 animate-fade-in">
             <div className="flex flex-col md:flex-row gap-6 mb-10">
-                <input type="text" placeholder="SEARCH CATALOG..." className="flex-1 bg-white/[0.03] border border-white/20 px-8 py-6 rounded-sm text-sm outline-none focus:border-brand-gold text-white font-bold uppercase tracking-widest" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
+                <input type="text" placeholder="SEARCH CATALOG / ISRC / UPC..." className="flex-1 bg-white/[0.03] border border-white/20 px-8 py-6 rounded-sm text-sm outline-none focus:border-brand-gold text-white font-bold uppercase tracking-widest" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
                 <button onClick={refreshData} className="px-10 bg-white/5 border border-white/20 text-[10px] font-black uppercase tracking-widest text-white hover:bg-white/10">Pull Latest</button>
             </div>
 
@@ -181,10 +209,17 @@ const AdminDashboard: React.FC = () => {
                 <table className="w-full text-left">
                     <thead className="text-[10px] text-brand-gold font-black uppercase tracking-widest border-b border-white/10 bg-black/40">
                         <tr>
-                            <th className="px-8 py-6">作品資訊 (FULL COLOR)</th>
-                            <th className="px-8 py-6">版本標籤</th>
+                            <th className="px-8 py-6 cursor-pointer hover:bg-white/5 transition-colors" onClick={() => handleSort('title')}>
+                              作品資訊 <SortIcon k="title" />
+                            </th>
+                            <th className="px-8 py-6 cursor-pointer hover:bg-white/5 transition-colors" onClick={() => handleSort('isrc')}>
+                              識別碼 (ISRC/UPC) <SortIcon k="isrc" />
+                            </th>
+                            <th className="px-8 py-6 cursor-pointer hover:bg-white/5 transition-colors" onClick={() => handleSort('releaseDate')}>
+                              發行日 <SortIcon k="releaseDate" />
+                            </th>
                             <th className="px-8 py-6">資產狀態</th>
-                            <th className="px-8 py-6 text-right">管理操作 (ALWAYS VISIBLE)</th>
+                            <th className="px-8 py-6 text-right">管理操作</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -194,26 +229,32 @@ const AdminDashboard: React.FC = () => {
                                 <tr key={song.id} className="border-b border-white/10 bg-white/[0.02] hover:bg-white/[0.05] transition-all">
                                     <td className="px-8 py-6">
                                         <div className="flex items-center gap-6">
-                                            {/* 管理後台封面始終保持全彩，無遮罩，增加對比 */}
                                             <img src={song.coverUrl} className="w-16 h-16 object-cover rounded-sm shadow-xl grayscale-0 opacity-100" />
                                             <div>
                                                 <div className="font-black text-white text-xl uppercase tracking-wider">{song.title}</div>
-                                                <div className="text-[12px] text-white font-mono mt-2 font-bold bg-white/10 inline-block px-2 border border-white/20">{song.isrc || 'NO ISRC'}</div>
+                                                <div className="text-[9px] text-slate-400 font-black uppercase mt-1 tracking-widest">{song.language} | {song.projectType}</div>
                                             </div>
                                         </div>
                                     </td>
                                     <td className="px-8 py-6">
-                                        <div className="flex flex-wrap gap-2">
-                                            <span className="px-3 py-1 bg-white text-black text-[10px] font-black uppercase tracking-widest">{song.language}</span>
-                                            {song.isInteractiveActive && (
-                                                <span className="px-3 py-1 bg-brand-gold text-black text-[10px] font-black uppercase tracking-widest">LAB ACTIVE</span>
-                                            )}
+                                        <div className="space-y-2">
+                                            <div className="flex items-center gap-3">
+                                                <span className="text-[9px] text-brand-gold font-black border border-brand-gold/30 px-1.5 py-0.5 rounded-sm">ISRC</span>
+                                                <span className="text-[12px] text-white font-mono font-bold">{song.isrc || 'N/A'}</span>
+                                            </div>
+                                            <div className="flex items-center gap-3">
+                                                <span className="text-[9px] text-slate-500 font-black border border-white/10 px-1.5 py-0.5 rounded-sm">UPC</span>
+                                                <span className="text-[11px] text-slate-300 font-mono">{song.upc || 'N/A'}</span>
+                                            </div>
                                         </div>
+                                    </td>
+                                    <td className="px-8 py-6">
+                                        <span className="text-[12px] text-white font-mono font-bold">{song.releaseDate}</span>
                                     </td>
                                     <td className="px-8 py-6">
                                         <div className="flex flex-wrap gap-2">
                                             {healthIssues.length === 0 ? (
-                                                <span className="text-emerald-400 text-[10px] font-black uppercase font-bold">✓ ASSETS HEALTHY</span>
+                                                <span className="text-emerald-400 text-[10px] font-black uppercase font-bold">✓ HEALTHY</span>
                                             ) : (
                                                 healthIssues.map(issue => (
                                                     <span key={issue} className="text-white bg-rose-600 px-2 py-1 text-[9px] font-black uppercase">! {issue}</span>
@@ -222,7 +263,6 @@ const AdminDashboard: React.FC = () => {
                                         </div>
                                     </td>
                                     <td className="px-8 py-6 text-right">
-                                        {/* 按鈕始終顯示，不依賴 Hover */}
                                         <div className="flex justify-end gap-3 opacity-100">
                                             <button onClick={() => navigate(`/add?edit=${song.id}`)} className="h-10 px-6 bg-white text-black text-[10px] font-black uppercase tracking-widest hover:bg-brand-gold transition-all shadow-md">編輯資料</button>
                                             <button onClick={() => { if(confirm('確定刪除？')) deleteSong(song.id); }} className="h-10 px-6 border-2 border-rose-500 text-rose-500 text-[10px] font-black uppercase tracking-widest hover:bg-rose-500 hover:text-white transition-all">刪除</button>
@@ -237,6 +277,7 @@ const AdminDashboard: React.FC = () => {
         </div>
       )}
 
+      {/* OTHER TABS (REMAIN UNCHANGED BUT ENSURING TEXT CONTRAST) */}
       {activeTab === 'spotify' && (
           <div className="space-y-12 animate-fade-in">
               <div className="flex flex-col md:flex-row gap-6 mb-16">
@@ -266,7 +307,6 @@ const AdminDashboard: React.FC = () => {
           <div className="max-w-4xl space-y-12 animate-fade-in">
               <div className="space-y-4">
                   <h3 className="text-xl font-black text-white uppercase tracking-widest">網站動態背景 (Portrait URL)</h3>
-                  <p className="text-slate-500 text-[10px] uppercase font-bold">支援 Google Drive / Dropbox / Direct MP4</p>
                   <input className="w-full bg-white/[0.03] border border-white/20 p-6 text-white text-xs font-mono outline-none focus:border-brand-gold" value={globalSettings.portraitUrl} onChange={(e) => updateSettings('portraitUrl', e.target.value)} />
               </div>
               <div className="space-y-4">
