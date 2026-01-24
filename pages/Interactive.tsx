@@ -9,10 +9,12 @@ import { generateAiVideo } from '../services/geminiService';
 import PaymentModal from '../components/PaymentModal';
 import { useToast } from '../components/Layout';
 
-type InteractionMode = 'intro' | 'select' | 'philosophy' | 'guide' | 'gate' | 'playing' | 'mastered' | 'rendering' | 'finished';
+type InteractionMode = 'intro' | 'unlock' | 'select' | 'philosophy' | 'guide' | 'gate' | 'playing' | 'mastered' | 'rendering' | 'finished';
+
+const STUDIO_SESSION_KEY = 'willwi_studio_unlocked';
 
 const Interactive: React.FC = () => {
-  const { songs } = useData();
+  const { songs, globalSettings } = useData();
   const { isAdmin } = useUser();
   const { t } = useTranslation();
   const { showToast } = useToast();
@@ -24,6 +26,7 @@ const Interactive: React.FC = () => {
   const [showPayment, setShowPayment] = useState(false);
   const [isPaused, setIsPaused] = useState(true);
   
+  const [unlockInput, setUnlockInput] = useState('');
   const [lyricsLines, setLyricsLines] = useState<string[]>([]);
   const [currentLineIndex, setCurrentLineIndex] = useState(-1);
   const [currentTime, setCurrentTime] = useState(0);
@@ -35,12 +38,25 @@ const Interactive: React.FC = () => {
   const audioRef = useRef<HTMLAudioElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
 
+  // 檢查當前工作階段是否已解鎖
+  const isSessionUnlocked = useCallback(() => {
+    return isAdmin || sessionStorage.getItem(STUDIO_SESSION_KEY) === 'true';
+  }, [isAdmin]);
+
   useEffect(() => {
     if (location.state?.targetSongId) {
         const s = songs.find(x => x.id === location.state.targetSongId);
-        if (s) { setSelectedSong(s); setMode('philosophy'); }
+        if (s) { 
+          setSelectedSong(s); 
+          // 如果已解鎖或為管理員，直接進入哲學說明；否則進入驗證頁
+          if (isSessionUnlocked()) {
+            setMode('philosophy');
+          } else {
+            setMode('unlock');
+          }
+        }
     }
-  }, [location.state, songs]);
+  }, [location.state, songs, isSessionUnlocked]);
 
   useEffect(() => {
     if (selectedSong?.lyrics) {
@@ -63,22 +79,17 @@ const Interactive: React.FC = () => {
     }
   }, [currentLineIndex]);
 
-  // 點擊歌詞對時邏輯
   const handleLyricClick = (index: number) => {
     if (mode !== 'playing' || isPaused || !audioRef.current) return;
     
     const now = audioRef.current.currentTime;
-    // 只有按順序點擊才有效，或者管理者可以自由調整
     if (index === currentLineIndex + 1 || isAdmin) {
         const newStamps = [...stamps];
         newStamps[index] = now;
         setStamps(newStamps);
         setCurrentLineIndex(index);
-        
-        // 微弱觸覺回饋（如有支援）
         if (window.navigator.vibrate) window.navigator.vibrate(10);
     } else if (index === currentLineIndex) {
-        // 重複點擊當前行可以修正時間
         const newStamps = [...stamps];
         newStamps[index] = now;
         setStamps(newStamps);
@@ -95,6 +106,26 @@ const Interactive: React.FC = () => {
           audioRef.current.pause();
           setIsPaused(true);
       }
+  };
+
+  const handleEnterStudio = () => {
+    if (isSessionUnlocked()) {
+      setMode('select');
+    } else {
+      setMode('unlock');
+    }
+  };
+
+  const handleVerifyUnlock = () => {
+    const correctCode = globalSettings.accessCode || '8888';
+    if (unlockInput === correctCode) {
+      sessionStorage.setItem(STUDIO_SESSION_KEY, 'true');
+      showToast("存取驗證成功");
+      // 如果是從 SongDetail 跳轉過來的，去 philosophy；否則去 select
+      setMode(selectedSong ? 'philosophy' : 'select');
+    } else {
+      showToast("存取密碼不正確", "error");
+    }
   };
 
   const startExportProcess = async () => {
@@ -158,10 +189,41 @@ const Interactive: React.FC = () => {
                    <div className="text-2xl md:text-4xl font-bold leading-relaxed tracking-widest text-slate-200">
                        {t('manifesto_content').split('\n').map((s, i) => <React.Fragment key={i}>{s}<br/></React.Fragment>)}
                    </div>
-                   <button onClick={() => setMode('select')} className="w-full py-16 bg-white text-black font-black uppercase tracking-[0.5em] text-2xl rounded-sm hover:bg-brand-gold transition-all shadow-2xl">
+                   <button onClick={handleEnterStudio} className="w-full py-16 bg-white text-black font-black uppercase tracking-[0.5em] text-2xl rounded-sm hover:bg-brand-gold transition-all shadow-2xl">
                        {t('btn_start_studio')}
                    </button>
                </div>
+           )}
+
+           {mode === 'unlock' && (
+             <div className="max-w-md w-full bg-slate-900/80 border border-white/10 p-16 rounded-sm backdrop-blur-3xl animate-fade-in-up text-center shadow-2xl">
+                <h3 className="text-brand-gold font-black uppercase tracking-[0.4em] text-xs mb-10">Studio Access Required</h3>
+                <p className="text-slate-400 text-[10px] uppercase tracking-widest mb-10 font-bold leading-relaxed">
+                    此區域僅供獲得存取授權的使用者進入。<br/>
+                    請輸入專屬解鎖碼以繼續。
+                </p>
+                <div className="space-y-8">
+                  <input 
+                    type="text" 
+                    placeholder="••••" 
+                    className="w-full bg-black border border-white/10 px-6 py-8 text-white text-center tracking-[1em] font-mono text-4xl outline-none focus:border-brand-gold" 
+                    value={unlockInput} 
+                    onChange={(e) => setUnlockInput(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && handleVerifyUnlock()}
+                    autoFocus
+                  />
+                  <div className="space-y-4">
+                    <button 
+                        onClick={handleVerifyUnlock} 
+                        className="w-full py-6 bg-brand-gold text-black font-black uppercase tracking-widest text-xs hover:bg-white transition-all shadow-xl"
+                    >
+                        Verify & Unlock
+                    </button>
+                    <p className="text-[9px] text-slate-600 font-bold uppercase tracking-widest">解鎖碼可於 Willwi 的官方社群或公告中獲取</p>
+                  </div>
+                  <button onClick={() => setMode('intro')} className="text-slate-600 hover:text-white text-[9px] font-black uppercase tracking-widest transition-colors">Back to Manifesto</button>
+                </div>
+             </div>
            )}
 
            {mode === 'select' && (
@@ -177,6 +239,9 @@ const Interactive: React.FC = () => {
                                </div>
                            </div>
                        ))}
+                   </div>
+                   <div className="mt-20 text-center">
+                      <button onClick={() => setMode('intro')} className="text-slate-600 hover:text-white text-[10px] font-black uppercase tracking-widest transition-colors underline underline-offset-8 decoration-brand-gold/30">返回宣言</button>
                    </div>
                </div>
            )}
@@ -242,11 +307,9 @@ const Interactive: React.FC = () => {
                </div>
            )}
 
-           {/* Core Timing Screen - Deep Studio Theme */}
            {mode === 'playing' && (
                <div className="w-full max-w-5xl h-full flex flex-col items-center animate-fade-in">
                    
-                   {/* Top Control Station - Dark Tech Aesthetics */}
                    <div className="w-full mb-16 animate-fade-in-up">
                        <div className="bg-[#0f172a] border-x border-t border-white/10 px-8 py-4 flex justify-between items-center rounded-t-sm">
                            <div className="flex items-center gap-4">
@@ -292,7 +355,6 @@ const Interactive: React.FC = () => {
                        </div>
                    </div>
 
-                   {/* Lyrics Display - High Contrast Studio View */}
                    <div 
                      ref={scrollRef} 
                      className="w-full flex-1 max-h-[60vh] overflow-y-auto custom-scrollbar pr-10 space-y-24 py-48 text-center"
@@ -339,7 +401,6 @@ const Interactive: React.FC = () => {
                </div>
            )}
 
-           {/* Mastered & Rendering States */}
            {(mode === 'mastered' || mode === 'rendering' || mode === 'finished') && (
                <div className="w-full flex flex-col items-center justify-center px-10 text-white animate-fade-in">
                    {mode === 'mastered' && (
