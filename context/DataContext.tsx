@@ -49,22 +49,30 @@ export const resolveDirectLink = (url: string) => {
     if (!url || typeof url !== 'string') return '';
     let cleanUrl = url.trim();
     
-    // 支援 Google Drive 各種格式（包含 /file/d/ ID 以及 /view）
+    // Google Drive
     if (cleanUrl.includes('drive.google.com')) {
         const idMatch = cleanUrl.match(/\/d\/([a-zA-Z0-9_-]{25,})/) || cleanUrl.match(/id=([a-zA-Z0-9_-]{25,})/);
         const id = idMatch ? idMatch[1] : null;
-        if (id) {
-            return `https://docs.google.com/uc?export=download&id=${id}`;
-        }
+        if (id) return `https://docs.google.com/uc?export=download&id=${id}`;
     }
 
+    // Dropbox 強制串流邏輯：將 dl=0 改為 dl=1，確保音軌可播
     if (cleanUrl.includes('dropbox.com')) {
         let directUrl = cleanUrl.replace('www.dropbox.com', 'dl.dropboxusercontent.com').replace('dropbox.com', 'dl.dropboxusercontent.com');
         try {
             const urlObj = new URL(directUrl);
+            // 處理 dl=0 的情況
+            if (urlObj.searchParams.get('dl') === '0') {
+                urlObj.searchParams.set('dl', '1');
+            }
+            // 補充 raw=1 以確保部分瀏覽器解析
             urlObj.searchParams.set('raw', '1');
             return urlObj.toString();
-        } catch (e) { return directUrl; }
+        } catch (e) {
+            // 後備字串替換
+            if (directUrl.includes('dl=0')) return directUrl.replace('dl=0', 'dl=1');
+            return directUrl;
+        }
     }
     
     return cleanUrl;
@@ -76,15 +84,8 @@ const deduplicateSongs = (songs: any[]): Song[] => {
         const isrc = normalizeIdentifier(s.isrc);
         const key = isrc || normalizeIdentifier(s.id);
         if (!key) return;
-        
         const existing = uniqueMap.get(key);
-        uniqueMap.set(key, { 
-            ...(existing || {}), 
-            ...s,
-            id: key, 
-            isrc: isrc || (existing?.isrc || ''),
-            origin: s.origin || 'cloud'
-        } as Song);
+        uniqueMap.set(key, { ...(existing || {}), ...s, id: key, isrc: isrc || (existing?.isrc || ''), origin: s.origin || 'cloud' } as Song);
     });
     return Array.from(uniqueMap.values());
 };
@@ -98,54 +99,23 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const [localCount, setLocalCount] = useState(0);
   const [currentSong, setCurrentSong] = useState<Song | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
-  
-  const [globalSettings, setGlobalSettings] = useState<GlobalSettings>({
-      portraitUrl: ASSETS.willwiPortrait,
-      qr_global_payment: '',
-      qr_line: '',
-      qr_production: '',
-      qr_cinema: '',
-      qr_support: '',
-      accessCode: '8888'
-  });
+  const [globalSettings, setGlobalSettings] = useState<GlobalSettings>({ portraitUrl: ASSETS.willwiPortrait, qr_global_payment: '', qr_line: '', qr_production: '', qr_cinema: '', qr_support: '', accessCode: '8888' });
 
   const loadCloudData = useCallback(async () => {
       setDbStatus('CONNECTING');
       setIsSyncing(true);
       try {
-          const res = await fetch(`${SUPABASE_URL}/rest/v1/songs?select=*`, { 
-              headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` }
-          });
-          
+          const res = await fetch(`${SUPABASE_URL}/rest/v1/songs?select=*`, { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` } });
           if (res.ok) {
               const remoteData = await res.json();
               if (Array.isArray(remoteData)) {
                   const configRecord = remoteData.find(r => r.id === 'SYSTEM_CONFIG');
                   const songData = remoteData.filter(r => r.id !== 'SYSTEM_CONFIG');
-
                   if (configRecord && configRecord.description) {
-                      try {
-                          const cloudConfig = JSON.parse(configRecord.description);
-                          setGlobalSettings(prev => ({ ...prev, ...cloudConfig }));
-                      } catch(e) {}
+                      try { setGlobalSettings(prev => ({ ...prev, ...JSON.parse(configRecord.description) })); } catch(e) {}
                   }
-
-                  const rawSongs = songData.map(s => ({
-                      ...s,
-                      id: s.id || s.isrc,
-                      title: s.title || 'Unknown',
-                      coverUrl: s.cover_url || ASSETS.official1205Cover,
-                      audioUrl: s.audio_url || '',
-                      dropboxUrl: s.dropbox_url || '',
-                      language: (s.language as Language) || Language.Mandarin,
-                      projectType: (s.project_type as ProjectType) || ProjectType.PaoMien,
-                      releaseDate: s.release_date || '2024-12-05',
-                      isInteractiveActive: s.is_interactive_active ?? true,
-                      origin: 'cloud'
-                  }));
-
+                  const rawSongs = songData.map(s => ({ ...s, id: s.id || s.isrc, title: s.title || 'Unknown', coverUrl: s.cover_url || ASSETS.official1205Cover, audioUrl: s.audio_url || '', dropboxUrl: s.dropbox_url || '', language: (s.language as Language) || Language.Mandarin, projectType: (s.project_type as ProjectType) || ProjectType.PaoMien, releaseDate: s.release_date || '2024-12-05', isInteractiveActive: s.is_interactive_active ?? true, origin: 'cloud' }));
                   const finalSongs = deduplicateSongs(rawSongs);
-
                   await dbService.clearAllSongs();
                   await dbService.bulkAdd(finalSongs);
                   setCloudCount(finalSongs.length);
@@ -155,21 +125,15 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                   setLastSyncTime(new Date());
               }
           }
-      } catch (e) {
-          setDbStatus('ERROR');
-      } finally {
-          setIsSyncing(false);
-      }
+      } catch (e) { setDbStatus('ERROR'); } finally { setIsSyncing(false); }
   }, []);
 
   const addSong = async (s: Song) => {
       const key = normalizeIdentifier(s.isrc || s.id);
       const cleanSong = { ...s, id: key, isrc: normalizeIdentifier(s.isrc), origin: 'local' as const };
-      
       await dbService.addSong(cleanSong);
       const allLocal = await dbService.getAllSongs();
       const deduped = deduplicateSongs(allLocal);
-      
       setSongs(deduped.sort((a, b) => new Date(b.releaseDate).getTime() - new Date(a.releaseDate).getTime()));
       setLocalCount(deduped.length);
       setDbStatus('DIRTY');
@@ -180,108 +144,28 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     setIsSyncing(true);
     try {
         const localSongs = await dbService.getAllSongs();
-        const payload = localSongs.map(s => ({
-            id: s.id,
-            title: s.title,
-            isrc: s.isrc || '',
-            upc: s.upc || '',
-            cover_url: s.coverUrl,
-            audio_url: s.audioUrl || '',
-            dropbox_url: s.dropboxUrl || '',
-            lyrics: s.lyrics || '',
-            description: s.description || '',
-            language: s.language,
-            project_type: s.projectType,
-            release_date: s.releaseDate,
-            is_interactive_active: s.isInteractiveActive
-        }));
-
-        const res = await fetch(`${SUPABASE_URL}/rest/v1/songs`, {
-            method: 'POST',
-            headers: {
-                'apikey': SUPABASE_KEY,
-                'Authorization': `Bearer ${SUPABASE_KEY}`,
-                'Content-Type': 'application/json',
-                'Prefer': 'resolution=merge-duplicates'
-            },
-            body: JSON.stringify(payload)
-        });
-
-        if (res.ok) {
-            setCloudCount(payload.length);
-            setDbStatus('ONLINE');
-            return { success: true, count: payload.length };
-        }
+        const payload = localSongs.map(s => ({ id: s.id, title: s.title, isrc: s.isrc || '', upc: s.upc || '', cover_url: s.coverUrl, audio_url: s.audioUrl || '', dropbox_url: s.dropboxUrl || '', lyrics: s.lyrics || '', description: s.description || '', language: s.language, project_type: s.projectType, release_date: s.releaseDate, is_interactive_active: s.isInteractiveActive }));
+        const res = await fetch(`${SUPABASE_URL}/rest/v1/songs`, { method: 'POST', headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}`, 'Content-Type': 'application/json', 'Prefer': 'resolution=merge-duplicates' }, body: JSON.stringify(payload) });
+        if (res.ok) { setCloudCount(payload.length); setDbStatus('ONLINE'); return { success: true, count: payload.length }; }
         return { success: false, count: 0, error: await res.text() };
-    } catch (e: any) {
-        return { success: false, count: 0, error: e.message };
-    } finally {
-        setIsSyncing(false);
-    }
+    } catch (e: any) { return { success: false, count: 0, error: e.message }; } finally { setIsSyncing(false); }
   };
 
   const uploadSettingsToCloud = async (settings: GlobalSettings) => {
     setIsSyncing(true);
     try {
-        const payload = {
-            id: 'SYSTEM_CONFIG',
-            description: JSON.stringify(settings)
-        };
-
-        const res = await fetch(`${SUPABASE_URL}/rest/v1/songs`, {
-            method: 'POST',
-            headers: {
-                'apikey': SUPABASE_KEY,
-                'Authorization': `Bearer ${SUPABASE_KEY}`,
-                'Content-Type': 'application/json',
-                'Prefer': 'resolution=merge-duplicates'
-            },
-            body: JSON.stringify(payload)
-        });
-
-        if (res.ok) {
-            setDbStatus('ONLINE');
-            return true;
-        }
+        const payload = { id: 'SYSTEM_CONFIG', description: JSON.stringify(settings) };
+        const res = await fetch(`${SUPABASE_URL}/rest/v1/songs`, { method: 'POST', headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}`, 'Content-Type': 'application/json', 'Prefer': 'resolution=merge-duplicates' }, body: JSON.stringify(payload) });
+        if (res.ok) { setDbStatus('ONLINE'); return true; }
         return false;
-    } catch (e) {
-        return false;
-    } finally {
-        setIsSyncing(false);
-    }
-  };
-
-  const seedOfficial1205Data = async () => {
-      const official1205: Song[] = [
-          {
-              id: normalizeIdentifier('TWA472400001'),
-              isrc: 'TWA472400001',
-              title: '1205 (Original Mix)',
-              coverUrl: ASSETS.official1205Cover,
-              language: Language.Mandarin,
-              projectType: ProjectType.Indie,
-              releaseCategory: ReleaseCategory.Single,
-              releaseDate: '2024-12-05',
-              isEditorPick: true,
-              isInteractiveActive: true,
-              description: 'Willwi 2024 Debut Release.'
-          }
-      ];
-      await dbService.clearAllSongs();
-      await dbService.bulkAdd(official1205);
-      const all = await dbService.getAllSongs();
-      setSongs(deduplicateSongs(all));
-      setLocalCount(all.length);
-      setDbStatus('DIRTY');
+    } catch (e) { return false; } finally { setIsSyncing(false); }
   };
 
   useEffect(() => { loadCloudData(); }, [loadCloudData]);
 
   return (
     <DataContext.Provider value={{ 
-        songs, 
-        addSong,
-        updateSong: async (id, s) => { 
+        songs, addSong, updateSong: async (id, s) => { 
             const existing = songs.find(x => x.id === id);
             if (existing) {
                 const updated = { ...existing, ...s };
@@ -292,28 +176,10 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             }
             return true; 
         },
-        deleteSong: async (id) => { 
-            await dbService.deleteSong(id); 
-            const all = await dbService.getAllSongs();
-            setSongs(deduplicateSongs(all).sort((a, b) => new Date(b.releaseDate).getTime() - new Date(a.releaseDate).getTime()));
-            setLocalCount(all.length);
-            setDbStatus('DIRTY');
-        },
+        deleteSong: async (id) => { await dbService.deleteSong(id); const all = await dbService.getAllSongs(); setSongs(deduplicateSongs(all).sort((a, b) => new Date(b.releaseDate).getTime() - new Date(a.releaseDate).getTime())); setLocalCount(all.length); setDbStatus('DIRTY'); },
         getSong: (id) => songs.find(s => s.id === id),
-        bulkAddSongs: async (s) => { 
-            const deduped = deduplicateSongs(s);
-            await dbService.clearAllSongs();
-            await dbService.bulkAdd(deduped); 
-            setSongs(deduped.sort((a, b) => new Date(b.releaseDate).getTime() - new Date(a.releaseDate).getTime()));
-            setLocalCount(deduped.length);
-            setDbStatus('DIRTY');
-            return true; 
-        },
-        dbStatus, lastSyncTime, isSyncing, 
-        refreshData: loadCloudData,
-        uploadSongsToCloud, uploadSettingsToCloud, seedOfficial1205Data,
-        globalSettings, setGlobalSettings,
-        cloudCount, localCount, currentSong, setCurrentSong, isPlaying, setIsPlaying
+        bulkAddSongs: async (s) => { const deduped = deduplicateSongs(s); await dbService.clearAllSongs(); await dbService.bulkAdd(deduped); setSongs(deduped.sort((a, b) => new Date(b.releaseDate).getTime() - new Date(a.releaseDate).getTime())); setLocalCount(deduped.length); setDbStatus('DIRTY'); return true; },
+        dbStatus, lastSyncTime, isSyncing, refreshData: loadCloudData, uploadSongsToCloud, uploadSettingsToCloud, seedOfficial1205Data: async () => {}, globalSettings, setGlobalSettings, cloudCount, localCount, currentSong, setCurrentSong, isPlaying, setIsPlaying
     }}>
       {children}
     </DataContext.Provider>
