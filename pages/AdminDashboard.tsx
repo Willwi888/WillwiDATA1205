@@ -24,10 +24,8 @@ const AdminDashboard: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [localSaving, setLocalSaving] = useState(false);
   
-  // Sorting State
   const [sortConfig, setSortConfig] = useState<{ key: SortKey; direction: 'asc' | 'desc' }>({ key: 'releaseDate', direction: 'desc' });
 
-  // Spotify Search State
   const [spotifyQuery, setSpotifyQuery] = useState('');
   const [spotifyResults, setSpotifyResults] = useState<SpotifyTrack[]>([]);
   const [isSearchingSpotify, setIsSearchingSpotify] = useState(false);
@@ -40,14 +38,12 @@ const AdminDashboard: React.FC = () => {
   };
 
   const filteredSongs = useMemo(() => {
-    // 1. Filtering
     let result = songs.filter(s => 
         s.title.toLowerCase().includes(searchTerm.toLowerCase()) || 
         (s.isrc && normalizeIdentifier(s.isrc).includes(normalizeIdentifier(searchTerm))) ||
         (s.upc && normalizeIdentifier(s.upc).includes(normalizeIdentifier(searchTerm)))
     );
 
-    // 2. Sorting
     return result.sort((a, b) => {
       let valA = (a[sortConfig.key] || '').toString().toLowerCase();
       let valB = (b[sortConfig.key] || '').toString().toLowerCase();
@@ -58,13 +54,20 @@ const AdminDashboard: React.FC = () => {
     });
   }, [songs, searchTerm, sortConfig]);
 
+  // 更精細的資產檢查
   const checkAssetHealth = (song: Song) => {
-      const issues = [];
-      if (!song.isrc) issues.push("MISSING ISRC");
-      if (!song.lyrics) issues.push("NO LYRICS");
-      if (!song.audioUrl) issues.push("NO AUDIO");
-      if (!song.translations || Object.keys(song.translations).length === 0) issues.push("NO TRANSLATIONS");
-      return issues;
+      const critical = [];
+      const warnings = [];
+      
+      if (!song.isrc) critical.push("MISSING ISRC");
+      if (!song.lyrics) critical.push("NO CORE LYRICS");
+      if (!song.audioUrl && !song.dropboxUrl) critical.push("NO AUDIO SRC");
+      
+      const transCount = song.translations ? Object.keys(song.translations).length : 0;
+      if (transCount === 0) warnings.push("NO TRANSLATIONS");
+      else if (transCount < 3) warnings.push(`${transCount}/3 LANGS`);
+
+      return { critical, warnings };
   };
 
   const updateSettings = (key: string, value: string) => {
@@ -224,7 +227,7 @@ const AdminDashboard: React.FC = () => {
                     </thead>
                     <tbody>
                         {filteredSongs.map(song => {
-                            const healthIssues = checkAssetHealth(song);
+                            const { critical, warnings } = checkAssetHealth(song);
                             return (
                                 <tr key={song.id} className="border-b border-white/10 bg-white/[0.02] hover:bg-white/[0.05] transition-all">
                                     <td className="px-8 py-6">
@@ -253,19 +256,21 @@ const AdminDashboard: React.FC = () => {
                                     </td>
                                     <td className="px-8 py-6">
                                         <div className="flex flex-wrap gap-2">
-                                            {healthIssues.length === 0 ? (
-                                                <span className="text-emerald-400 text-[10px] font-black uppercase font-bold">✓ HEALTHY</span>
-                                            ) : (
-                                                healthIssues.map(issue => (
-                                                    <span key={issue} className="text-white bg-rose-600 px-2 py-1 text-[9px] font-black uppercase">! {issue}</span>
-                                                ))
+                                            {critical.length === 0 && warnings.length === 0 && (
+                                                <span className="text-emerald-400 text-[10px] font-black uppercase">✓ 數據完整</span>
                                             )}
+                                            {critical.map(issue => (
+                                                <span key={issue} className="bg-rose-600 text-white px-2 py-1 text-[9px] font-black uppercase rounded-sm">! {issue}</span>
+                                            ))}
+                                            {warnings.map(issue => (
+                                                <span key={issue} className="bg-slate-700 text-slate-300 px-2 py-1 text-[9px] font-black uppercase rounded-sm">{issue}</span>
+                                            ))}
                                         </div>
                                     </td>
                                     <td className="px-8 py-6 text-right">
-                                        <div className="flex justify-end gap-3 opacity-100">
-                                            <button onClick={() => navigate(`/add?edit=${song.id}`)} className="h-10 px-6 bg-white text-black text-[10px] font-black uppercase tracking-widest hover:bg-brand-gold transition-all shadow-md">編輯資料</button>
-                                            <button onClick={() => { if(confirm('確定刪除？')) deleteSong(song.id); }} className="h-10 px-6 border-2 border-rose-500 text-rose-500 text-[10px] font-black uppercase tracking-widest hover:bg-rose-500 hover:text-white transition-all">刪除</button>
+                                        <div className="flex justify-end gap-3">
+                                            <button onClick={() => navigate(`/add?edit=${song.id}`)} className="h-10 px-6 bg-white text-black text-[10px] font-black uppercase tracking-widest hover:bg-brand-gold transition-all">編輯資料</button>
+                                            <button onClick={() => { if(confirm('確定刪除？')) deleteSong(song.id); }} className="h-10 px-6 border border-rose-500 text-rose-500 text-[10px] font-black uppercase tracking-widest hover:bg-rose-500 hover:text-white transition-all">刪除</button>
                                         </div>
                                     </td>
                                 </tr>
@@ -277,7 +282,6 @@ const AdminDashboard: React.FC = () => {
         </div>
       )}
 
-      {/* OTHER TABS (REMAIN UNCHANGED BUT ENSURING TEXT CONTRAST) */}
       {activeTab === 'spotify' && (
           <div className="space-y-12 animate-fade-in">
               <div className="flex flex-col md:flex-row gap-6 mb-16">
@@ -293,7 +297,7 @@ const AdminDashboard: React.FC = () => {
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                   {spotifyResults.map(track => (
                       <div key={track.id} className="bg-slate-900/60 border border-white/10 p-8 rounded-sm">
-                          <img src={track.album.images[0]?.url} className="w-full aspect-square object-cover mb-6 shadow-2xl grayscale-0 opacity-100" alt="" />
+                          <img src={track.album.images[0]?.url} className="w-full aspect-square object-cover mb-6 shadow-2xl" alt="" />
                           <h4 className="text-2xl font-black text-white uppercase truncate">{track.name}</h4>
                           <p className="text-brand-gold text-[10px] font-black uppercase tracking-widest mt-2">{track.external_ids.isrc}</p>
                           <button onClick={() => navigate(`/add`, { state: { spotifyImport: track } })} className="w-full py-4 mt-8 bg-white text-black text-[11px] font-black uppercase tracking-widest">IMPORT</button>
@@ -330,7 +334,7 @@ const AdminDashboard: React.FC = () => {
                       <div key={item.key} className="bg-white/[0.02] border border-white/10 p-6 rounded-sm text-center">
                           <h4 className="text-[11px] font-black text-white uppercase mb-6 tracking-widest">{item.label}</h4>
                           <div className="w-full aspect-square bg-white flex items-center justify-center relative group overflow-hidden">
-                              <img src={(globalSettings as any)[item.key]} className="w-full h-full object-contain grayscale-0 opacity-100" alt="" />
+                              <img src={(globalSettings as any)[item.key]} className="w-full h-full object-contain" alt="" />
                               <label className="absolute inset-0 flex items-center justify-center bg-brand-gold/90 text-black font-black text-[10px] uppercase opacity-0 group-hover:opacity-100 cursor-pointer transition-opacity">
                                   更新 QR
                                   <input type="file" className="hidden" accept="image/*" onChange={handleQrUpload(item.key)} />
