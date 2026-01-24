@@ -1,0 +1,113 @@
+
+<!DOCTYPE html>
+<html lang="zh-TW">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Willwi Music Database | Official</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@100;300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            fontFamily: {
+              sans: ['Montserrat', 'sans-serif'],
+            },
+            colors: {
+              brand: {
+                dark: '#020617',
+                darker: '#000000',
+                accent: '#38bdf8',
+                gold: '#fbbf24',
+                surface: '#0f172a'
+              }
+            },
+            animation: {
+              'pulse-glow': 'pulseGlow 12s ease-in-out infinite',
+              'studio-breathe': 'studioBreathe 10s ease-in-out infinite',
+              'fade-in-up': 'fadeInUp 1.4s cubic-bezier(0.16, 1, 0.3, 1) forwards',
+              'light-leak': 'lightLeak 20s ease-in-out infinite alternate',
+              'blur-in': 'blurIn 0.8s ease-out forwards',
+            },
+            keyframes: {
+              pulseGlow: {
+                '0%, 100% { opacity: 0.15; transform: scale(1); }',
+                '50% { opacity: 0.35; transform: scale(1.1); }',
+              },
+              studioBreathe: {
+                '0%, 100% { transform: scale(1.0); }',
+                '50% { transform: scale(1.05); }',
+              },
+              fadeInUp: {
+                '0% { opacity: 0; transform: translate3d(0, 40px, 0); }',
+                '100% { opacity: 1; transform: translate3d(0, 0, 0); }',
+              },
+              lightLeak: {
+                '0% { transform: translate(-10%, -10%) rotate(0deg); opacity: 0.05; }',
+                '100% { transform: translate(10%, 10%) rotate(5deg); opacity: 0.15; }',
+              },
+              blurIn: {
+                '0% { filter: blur(20px); opacity: 0; transform: scale(0.95); }',
+                '100% { filter: blur(0); opacity: 1; transform: scale(1); }'
+              }
+            }
+          }
+        }
+      }
+    </script>
+    <style>
+      body {
+        font-weight: 400;
+        letter-spacing: 0.02em;
+        background-color: #000;
+        color: #f8fafc;
+        overflow-x: hidden;
+      }
+
+      .cinema-lyrics-blur {
+        animation: blurIn 0.8s cubic-bezier(0.23, 1, 0.32, 1) forwards;
+      }
+
+      .studio-ambient-glow {
+        background: radial-gradient(circle at 65% 45%, rgba(251, 191, 36, 0.2) 0%, transparent 75%);
+        pointer-events: none;
+        mix-blend-mode: screen;
+      }
+      
+      .dynamic-light-leak {
+        position: fixed;
+        width: 150vw;
+        height: 150vh;
+        background: radial-gradient(circle at 0% 0%, rgba(251,191,36,0.12) 0%, transparent 40%);
+        pointer-events: none;
+        z-index: 1;
+        animation: lightLeak 15s ease-in-out infinite alternate;
+      }
+
+      .custom-scrollbar::-webkit-scrollbar { width: 4px; }
+      .custom-scrollbar::-webkit-scrollbar-track { background: rgba(0,0,0,0.95); }
+      .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(251,191,36,0.4); border-radius: 20px; }
+
+      *:focus { outline: none; }
+    </style>
+  <script type="importmap">
+{
+  "imports": {
+    "react": "https://aistudiocdn.com/react@^19.2.1",
+    "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.1/",
+    "react/": "https://aistudiocdn.com/react@^19.2.1/",
+    "@google/genai": "https://aistudiocdn.com/@google/genai@^1.31.0",
+    "react-router-dom": "https://aistudiocdn.com/react-router-dom@^7.10.1",
+    "idb": "https://cdn.jsdelivr.net/npm/idb@8.0.0/+esm"
+  }
+}
+</script>
+</head>
+  <body class="antialiased font-sans">
+    <div class="dynamic-light-leak"></div>
+    <div id="root"></div>
+  </body>
+</html>

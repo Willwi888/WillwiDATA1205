@@ -1,0 +1,7 @@
+{
+  "name": "Willwi 1205 DB",
+  "description": "Willwi Official Creative Participation Platform. Dedicated to Catalog, Handcrafted Interaction, and Data Collection.",
+  "requestFramePermissions": [
+    "microphone"
+  ]
+}
