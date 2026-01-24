@@ -50,32 +50,30 @@ export const ASSETS = {
 
 export const normalizeIdentifier = (val: string) => (val || '').trim().replace(/[^A-Z0-9]/gi, '').toUpperCase();
 
+/**
+ * 核心連結解析器：將分享網址轉換為直接下載/播放網址
+ */
 export const resolveDirectLink = (url: string) => {
     if (!url || typeof url !== 'string') return '';
     let cleanUrl = url.trim();
     
+    // 處理 Google Drive
     if (cleanUrl.includes('drive.google.com')) {
         const idMatch = cleanUrl.match(/\/d\/([a-zA-Z0-9_-]{25,})/) || cleanUrl.match(/id=([a-zA-Z0-9_-]{25,})/);
         const id = idMatch ? idMatch[1] : null;
         if (id) return `https://docs.google.com/uc?export=download&id=${id}`;
     }
 
+    // 處理 Dropbox (強制轉換為內容伺服器路徑)
     if (cleanUrl.includes('dropbox.com')) {
-        let directUrl = cleanUrl
-            .replace('www.dropbox.com', 'dl.dropboxusercontent.com')
-            .replace('dropbox.com', 'dl.dropboxusercontent.com');
+        // 先移除所有現有參數
+        let base = cleanUrl.split('?')[0];
+        // 替換域名為 dl.dropboxusercontent.com (最穩定的直接路徑)
+        base = base.replace('www.dropbox.com', 'dl.dropboxusercontent.com')
+                   .replace('dropbox.com', 'dl.dropboxusercontent.com');
         
-        try {
-            const urlObj = new URL(directUrl);
-            urlObj.searchParams.delete('dl');
-            urlObj.searchParams.set('raw', '1');
-            return urlObj.toString();
-        } catch (e) {
-            if (directUrl.includes('dl=0')) return directUrl.replace('dl=0', 'raw=1');
-            if (!directUrl.includes('?')) return directUrl + '?raw=1';
-            if (!directUrl.includes('raw=1')) return directUrl + '&raw=1';
-            return directUrl;
-        }
+        // 加入 raw=1 強制讀取原始檔案
+        return `${base}?raw=1`;
     }
     
     return cleanUrl;
@@ -238,7 +236,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                       title: s.title || 'Unknown', 
                       coverUrl: s.cover_url || ASSETS.official1205Cover, 
                       audioUrl: s.audio_url || '', 
-                      dropboxUrl: s.dropbox_url || '', 
+                      dropbox_url: s.dropbox_url || '', 
                       language: (s.language as Language) || Language.Mandarin, 
                       projectType: (s.project_type as ProjectType) || ProjectType.PaoMien, 
                       releaseDate: s.release_date || '2024-12-05', 
@@ -276,7 +274,6 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       setLocalCount(deduped.length);
       setDbStatus('DIRTY');
       
-      // 自動背景同步
       await uploadSongsToCloud(sorted);
       updateLastAction('ADD_ENTRY', s.title);
       return true;

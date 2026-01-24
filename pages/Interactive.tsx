@@ -106,8 +106,8 @@ const Interactive: React.FC = () => {
               console.error("Playback failed:", error);
               setIsPaused(true);
               setIsAudioLoading(false);
-              setAudioError("音訊載入失敗，請確認網址是否正確。");
-              showToast("播放失敗，請檢查網路或音訊網址", "error");
+              setAudioError("音訊載入失敗：請檢查後台連結是否為「檔案分享連結」而非「Showcase 頁面」。");
+              showToast("播放失敗，請檢查網路或音訊連結格式", "error");
           }
       } else {
           audioRef.current.pause();
@@ -392,6 +392,7 @@ const Interactive: React.FC = () => {
             key={currentAudioSrc} 
             ref={audioRef} 
             src={currentAudioSrc} 
+            crossOrigin="anonymous"
             onLoadedMetadata={() => {
                 setDuration(audioRef.current?.duration || 0);
                 setAudioError(null);
@@ -399,7 +400,7 @@ const Interactive: React.FC = () => {
             onTimeUpdate={() => setCurrentTime(audioRef.current?.currentTime || 0)} 
             onError={(e) => {
                 console.error("Audio Load Error:", e);
-                setAudioError("無法讀取音訊流，請確認連結權限或格式。");
+                setAudioError("音訊無法加載。原因可能為：1. 連結格式錯誤 2. 檔案權限未開啟 3. 此連結為網頁而非原始音訊檔案。");
             }}
             preload="auto" 
           />

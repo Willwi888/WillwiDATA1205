@@ -57,11 +57,20 @@ const AddSong: React.FC = () => {
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
     
-    // Dropbox 自動修復邏輯
+    // 連結自動檢測與修復
     let finalValue = value;
-    if (name === 'audioUrl' && value.includes('dropbox.com') && value.includes('dl=0')) {
-        finalValue = value.replace('dl=0', 'dl=1');
-        showToast("Dropbox 連結已自動修復為可播放格式 (dl=1)");
+    if (name === 'audioUrl') {
+        const val = value.trim();
+        // 偵測 Showcase 連結 (這是不支援直接播放的)
+        if (val.includes('dropbox.com/sc/')) {
+            showToast("⚠️ 此為 Dropbox Showcase 連結，無法直接播放。請使用檔案分享連結 (s/ 或 scl/)", "error");
+        } 
+        // 偵測並修復為 raw=1 格式
+        else if (val.includes('dropbox.com') && !val.includes('raw=1')) {
+            const base = val.split('?')[0];
+            finalValue = `${base}?raw=1`;
+            showToast("Dropbox 連結已自動優化為「原始音訊流」格式 (raw=1)");
+        }
     }
 
     setFormData(prev => ({ ...prev, [name]: finalValue }));
@@ -259,7 +268,7 @@ const AddSong: React.FC = () => {
                             </div>
                             <div className="space-y-3">
                                 <label className="text-[9px] text-slate-600 font-black uppercase tracking-widest">音訊網址 (AUDIO URL)</label>
-                                <input name="audioUrl" value={formData.audioUrl} onChange={handleChange} className="w-full bg-black border border-white/5 p-4 text-[11px] text-slate-400 outline-none focus:border-brand-gold" placeholder="Dropbox link (dl=1)" />
+                                <input name="audioUrl" value={formData.audioUrl} onChange={handleChange} className="w-full bg-black border border-white/5 p-4 text-[11px] text-slate-400 outline-none focus:border-brand-gold" placeholder="Dropbox link (raw=1)" />
                             </div>
                             <div className="space-y-3">
                                 <label className="text-[9px] text-slate-600 font-black uppercase tracking-widest">工作室狀態 (STUDIO)</label>
