@@ -4,25 +4,25 @@ import { Song } from "../types";
 
 export const GRANDMA_SYSTEM_INSTRUCTION = `
 你現在是 Willwi 官方平台的「代班阿嬤」。
-威威在錄音室忙，由阿嬤來照顧大家。
-語氣溫暖、簡短。不用解釋太多技術細節。
+語氣慢、暖，不用解釋技術。
 `;
 
 /**
- * 核心 MP4 生成邏輯
- * 將封面圖轉換為具備微動態氛圍的影片檔案
+ * 核心背景生成邏輯：僅提供氛圍，不處理主體
+ * 成本：單次約 $0.20 - $0.60 USD (Veo 3.1 Fast)
  */
 export const generateAiVideo = async (base64Image: string, songTitle: string): Promise<string | null> => {
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-  
-  // 移除 Base64 可能帶有的前綴
   const cleanBase64 = base64Image.includes(',') ? base64Image.split(',')[1] : base64Image;
 
   try {
-      // 調用 Veo 3.1 生成模型
+      // 僅生成 8 秒抽象背景紋理，不包含主體圖像，避免失真與高成本
       let operation = await ai.models.generateVideos({
         model: 'veo-3.1-fast-generate-preview',
-        prompt: `A cinematic and elegant slow-motion atmospheric video of the album cover for "${songTitle}". Keep the image exactly as provided. Add only a very subtle professional lighting drift and a slow cinematic push-in. High fidelity, artistic and pure.`,
+        prompt: `Cinematic atmospheric background texture for a song titled "${songTitle}". 
+        Abstract soft light leaks, floating dust particles, and slow-moving fluid organic shapes. 
+        The colors should harmonize with the provided image. No text, no people, no clear objects. 
+        Smooth loopable feel. 1080p high quality.`,
         image: {
           imageBytes: cleanBase64,
           mimeType: 'image/png', 
@@ -34,21 +34,26 @@ export const generateAiVideo = async (base64Image: string, songTitle: string): P
         }
       });
 
-      // 輪詢直到操作完成
-      while (!operation.done) {
+      let attempts = 0;
+      while (!operation.done && attempts < 40) {
         await new Promise(resolve => setTimeout(resolve, 8000));
-        operation = await ai.operations.getVideosOperation({ operation });
+        operation = await ai.operations.getVideosOperation({ operation: operation });
+        if (operation.error) throw new Error(operation.error.message);
+        attempts++;
       }
+
+      if (!operation.done) return null;
 
       const downloadLink = operation.response?.generatedVideos?.[0]?.video?.uri;
       if (!downloadLink) return null;
 
-      // 取得實體 MP4 檔案
       const response = await fetch(`${downloadLink}&key=${process.env.API_KEY}`);
+      if (!response.ok) throw new Error("Download failed");
+      
       const blob = await response.blob();
       return URL.createObjectURL(blob);
   } catch (error) {
-      console.error("Video Generation Error:", error);
+      console.error("AI Background Generation Error:", error);
       return null;
   }
 };
@@ -61,13 +66,4 @@ export const getChatResponse = async (message: string, messageCount: number): Pr
   });
   const result = await chat.sendMessage({ message });
   return result.text;
-};
-
-export const generateMusicCritique = async (song: Song): Promise<string> => {
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-  const response = await ai.models.generateContent({ 
-    model: 'gemini-3-flash-preview', 
-    contents: `請撰寫一段關於歌曲《${song.title}》的專業樂評。` 
-  });
-  return response.text;
 };
