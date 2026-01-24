@@ -42,11 +42,11 @@ const Database: React.FC = () => {
         <input
           type="text"
           placeholder="SEARCH BY UPC / ISRC / TITLE..."
-          className="flex-1 bg-white/5 border border-white/10 px-6 py-5 text-white outline-none text-xs font-bold uppercase tracking-widest focus:border-brand-gold transition-all"
+          className="flex-1 bg-white/5 border border-white/20 px-6 py-5 text-white outline-none text-xs font-bold uppercase tracking-widest focus:border-brand-gold transition-all"
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
         />
-        <select className="bg-white/5 text-slate-400 px-6 py-5 text-[10px] font-black uppercase tracking-widest outline-none border border-white/10" value={filterLang} onChange={(e) => setFilterLang(e.target.value)}>
+        <select className="bg-white/5 text-white font-black px-6 py-5 text-[10px] uppercase tracking-widest outline-none border border-white/20" value={filterLang} onChange={(e) => setFilterLang(e.target.value)}>
             <option value="All">All Languages</option>
             {Object.values(Language).map(l => <option key={l} value={l}>{l}</option>)}
         </select>
@@ -57,16 +57,17 @@ const Database: React.FC = () => {
               const main = albumSongs[0];
               return (
                   <div key={main.id} onClick={() => navigate(`/song/${main.id}`)} className="group cursor-pointer">
-                      <div className="aspect-square w-full relative overflow-hidden bg-slate-900 mb-6 border border-white/5 group-hover:border-brand-gold transition-all duration-500">
-                          <img src={main.coverUrl} className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-all duration-700" alt="" />
+                      <div className="aspect-square w-full relative overflow-hidden bg-slate-900 mb-6 border border-white/10 group-hover:border-brand-gold transition-all duration-500 shadow-xl">
+                          {/* 移除 opacity 與 grayscale，始終全彩顯示 */}
+                          <img src={main.coverUrl} className="w-full h-full object-cover transition-all duration-700" alt="" />
                           <div className="absolute bottom-4 left-4">
-                              <span className="text-[8px] font-black text-brand-gold bg-black/80 px-2 py-1 uppercase tracking-widest border border-brand-gold/20">
+                              <span className="text-[9px] font-black text-brand-gold bg-black px-2 py-1 uppercase tracking-widest border border-brand-gold/40 shadow-lg">
                                   {albumSongs.length > 1 ? `${albumSongs.length} TRACKS` : (main.releaseCategory || 'SINGLE')}
                               </span>
                           </div>
                       </div>
                       <h4 className="text-sm font-bold text-white uppercase truncate tracking-widest group-hover:text-brand-gold transition-colors">{main.title}</h4>
-                      <p className="text-[9px] text-slate-500 font-mono mt-1 uppercase tracking-widest">{main.releaseDate.split('-')[0]} • {main.releaseCompany || 'WILLWI MUSIC'}</p>
+                      <p className="text-[10px] text-white font-mono mt-2 uppercase tracking-widest font-bold opacity-70">{main.releaseDate.split('-')[0]} • {main.releaseCompany || 'WILLWI MUSIC'}</p>
                   </div>
               );
           })}

@@ -94,7 +94,6 @@ const Interactive: React.FC = () => {
           });
           
           setRenderProgress(40);
-          // AI 角色：陪襯者。僅生成一段 8 秒的高級氛圍底層，不處理專輯主體。
           const aiBg = await generateAiVideo(base64, selectedSong?.title || 'Unknown');
           
           if (aiBg) {
@@ -152,11 +151,12 @@ const Interactive: React.FC = () => {
               <h2 className="text-4xl font-black uppercase tracking-[0.4em] mb-12 border-b border-white/10 pb-6">Recording Vault</h2>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                   {songs.filter(s => s.isInteractiveActive || isAdmin).map(song => (
-                      <div key={song.id} onClick={() => { setSelectedSong(song); setMode('philosophy'); }} className="group cursor-pointer bg-slate-900/40 p-10 rounded-sm border border-white/5 hover:border-brand-gold transition-all flex items-center gap-10">
-                          <img src={song.coverUrl} className="w-32 h-32 object-cover grayscale group-hover:grayscale-0 transition-all shadow-2xl" alt="" />
+                      <div key={song.id} onClick={() => { setSelectedSong(song); setMode('philosophy'); }} className="group cursor-pointer bg-slate-900/40 p-10 rounded-sm border border-white/20 hover:border-brand-gold transition-all flex items-center gap-10">
+                          {/* 專輯封面始終保持彩色 */}
+                          <img src={song.coverUrl} className="w-32 h-32 object-cover transition-all shadow-2xl" alt="" />
                           <div className="text-left">
-                            <h4 className="text-2xl font-black uppercase tracking-widest text-white/60 group-hover:text-brand-gold">{song.title}</h4>
-                            <span className="text-[10px] text-slate-600 font-mono tracking-widest uppercase">{song.isrc}</span>
+                            <h4 className="text-2xl font-black uppercase tracking-widest text-white group-hover:text-brand-gold">{song.title}</h4>
+                            <span className="text-[11px] text-brand-gold font-mono tracking-widest uppercase font-bold">{song.isrc}</span>
                           </div>
                       </div>
                   ))}
@@ -182,7 +182,7 @@ const Interactive: React.FC = () => {
           <div className="flex-1 flex items-center justify-center relative z-10 animate-fade-in">
               <div className="max-w-xl w-full bg-slate-900/80 border border-white/10 p-16 text-center rounded-sm shadow-2xl space-y-12 backdrop-blur-3xl">
                   <img src={selectedSong?.coverUrl} className="w-48 h-48 mx-auto border-2 border-brand-gold" alt="" />
-                  <h3 className="text-3xl font-black uppercase tracking-widest">{selectedSong?.title}</h3>
+                  <h3 className="text-3xl font-black uppercase tracking-widest text-white">{selectedSong?.title}</h3>
                   <button onClick={() => setShowPayment(true)} className="w-full py-10 bg-brand-gold text-black font-black uppercase text-xl tracking-[0.2em] hover:bg-white transition-all">ACCESS STUDIO</button>
               </div>
           </div>
@@ -209,7 +209,7 @@ const Interactive: React.FC = () => {
                               {isPaused ? <svg className="w-6 h-6 ml-1" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg> : <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>}
                           </button>
                           <div className="flex-1 space-y-3">
-                              <div className="flex justify-between text-[10px] font-black text-slate-500 uppercase tracking-widest">
+                              <div className="flex justify-between text-[11px] font-black text-white uppercase tracking-widest">
                                   <span>{formatTime(currentTime)}</span>
                                   <span>{formatTime(duration)}</span>
                               </div>
@@ -230,7 +230,7 @@ const Interactive: React.FC = () => {
                       <span className="text-[120px] font-black text-brand-gold tracking-tighter leading-none">DONE</span>
                   </div>
                   <h2 className="text-6xl font-black uppercase tracking-tighter text-white">READY TO EXPORT</h2>
-                  <p className="text-slate-400 uppercase tracking-widest text-xs leading-loose">
+                  <p className="text-white uppercase tracking-widest text-xs leading-loose font-bold">
                       每一格歌詞的對時，都是你曾真實停留在這首歌裡的證明。<br/>點擊獲取一段由 AI 運算的 8 秒氛圍底層，並在本地合成高品質 1080P 影片。
                   </p>
                   <button onClick={startExportProcess} className="w-full bg-brand-gold text-black py-12 rounded-sm font-black text-2xl uppercase tracking-[0.3em] hover:bg-white transition-all shadow-2xl">
@@ -251,18 +251,14 @@ const Interactive: React.FC = () => {
                       <span className="text-[10px] font-black uppercase tracking-[0.6em] mt-6 text-brand-gold animate-pulse">VEO 3.1 氛圍底層</span>
                   </div>
               </div>
-              <p className="text-slate-500 text-xs uppercase tracking-[0.4em] animate-pulse">正在運算一段 8 秒抽象氛圍... 本次僅計費單次 veo-3.1-fast 費率。</p>
+              <p className="text-white text-xs uppercase tracking-[0.4em] animate-pulse font-bold">正在運算一段 8 秒抽象氛圍... 本次僅計費單次 veo-3.1-fast 費率。</p>
           </div>
       )}
 
       {mode === 'finished' && (
           <div className="flex-1 flex flex-col items-center justify-center px-10 relative z-10 animate-fade-in text-center space-y-16">
-              {/* 手感合成畫面佈局 */}
               <div className="w-full max-w-6xl aspect-video bg-black/90 rounded-sm overflow-hidden border border-white/10 shadow-[0_60px_120px_rgba(0,0,0,0.9)] relative">
-                  {/* 底層：AI 生成的抽象影片 */}
                   <video src={bgVideoUrl || ''} autoPlay loop muted playsInline className="absolute inset-0 w-full h-full object-cover blur-sm opacity-30" />
-                  
-                  {/* 疊加層：對時歌詞與原版封面 */}
                   <div className="absolute inset-0 flex items-center justify-between px-24 py-24 z-10">
                       <div className="flex-1 text-left space-y-10">
                           <h2 className="text-4xl md:text-7xl font-black text-white uppercase tracking-tighter leading-tight drop-shadow-2xl">
@@ -286,7 +282,6 @@ const Interactive: React.FC = () => {
                     HANDCRAFTED SYNC / WILLWI STUDIO SESSION
                   </div>
               </div>
-
               <div className="flex flex-col md:flex-row gap-8 w-full max-w-4xl">
                   <a href={bgVideoUrl || '#'} download={`WILLWI_HANDMADE_${selectedSong?.title}.mp4`} className="flex-1 py-12 bg-white text-black font-black uppercase text-xl tracking-widest rounded-sm hover:bg-brand-gold transition-all shadow-2xl">
                     📥 下載氛圍底層影片
