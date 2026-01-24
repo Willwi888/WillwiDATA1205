@@ -14,19 +14,17 @@ const AdminDashboard: React.FC = () => {
   const { 
     songs, deleteSong, refreshData, globalSettings, setGlobalSettings, 
     uploadSettingsToCloud, currentSong, setCurrentSong, isPlaying, setIsPlaying,
-    bulkAddSongs, updateSong
+    bulkAddSongs, updateSong, dbStatus, lastSyncTime, isSyncing
   } = useData();
   const { isAdmin, enableAdmin, logoutAdmin } = useUser();
   const { showToast } = useToast();
   const navigate = useNavigate();
   const fileInputRef = useRef<HTMLInputElement>(null);
   
-  // UI Tabs State
   const [activeTab, setActiveTab] = useState<AdminTab>('catalog');
   const [passwordInput, setPasswordInput] = useState('');
   const [loginError, setLoginError] = useState('');
   
-  // Catalog State
   const [searchTerm, setSearchTerm] = useState('');
   const [filterLang, setFilterLang] = useState<string>('All');
   const [filterProject, setFilterProject] = useState<string>('All');
@@ -34,7 +32,6 @@ const AdminDashboard: React.FC = () => {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [expandedAlbums, setExpandedAlbums] = useState<Set<string>>(new Set());
 
-  // Spotify Search State
   const [spotifyQuery, setSpotifyQuery] = useState('');
   const [spotifyResults, setSpotifyResults] = useState<SpotifyTrack[]>([]);
   const [isSearchingSpotify, setIsSearchingSpotify] = useState(false);
@@ -43,10 +40,8 @@ const AdminDashboard: React.FC = () => {
 
   const [localSaving, setLocalSaving] = useState(false);
 
-  // Helper: Check if track exists in current songs by ISRC
   const existingIsres = useMemo(() => new Set(songs.map(s => normalizeIdentifier(s.isrc || ''))), [songs]);
 
-  // Group and Filter logic for the catalog
   const filteredSongs = useMemo(() => {
     return songs.filter(s => {
       const matchesSearch = s.title.toLowerCase().includes(searchTerm.toLowerCase()) || 
@@ -104,7 +99,6 @@ const AdminDashboard: React.FC = () => {
     setSelectedIds(new Set());
   };
 
-  // Spotify Search Functions
   const handleSpotifySearch = async () => {
     if (!spotifyQuery.trim()) return;
     setIsSearchingSpotify(true);
@@ -121,9 +115,7 @@ const AdminDashboard: React.FC = () => {
   };
 
   const handleSpotifySelectAll = () => {
-    // Only select tracks not already in the library
     const nonExistingTracks = spotifyResults.filter(t => !existingIsres.has(normalizeIdentifier(t.external_ids.isrc || '')));
-    
     if (selectedSpotifyIds.size === nonExistingTracks.length && nonExistingTracks.length > 0) {
       setSelectedSpotifyIds(new Set());
     } else {
@@ -145,7 +137,6 @@ const AdminDashboard: React.FC = () => {
   const handleBulkSpotifyImport = async () => {
     const tracksToImport = spotifyResults.filter(t => selectedSpotifyIds.has(t.id));
     if (tracksToImport.length === 0) return;
-
     if (!window.confirm(`確定要批量導入 ${tracksToImport.length} 首選取的作品嗎？`)) return;
 
     const newSongs: Song[] = tracksToImport.map(track => ({
@@ -163,12 +154,11 @@ const AdminDashboard: React.FC = () => {
       origin: 'local' as const
     }));
 
-    const success = await bulkAddSongs([...songs, ...newSongs]);
+    const success = await bulkAddSongs(newSongs); 
     if (success) {
-      showToast(`成功批量導入 ${newSongs.length} 首作品`);
+      showToast(`成功批量導入 ${newSongs.length} 首作品，已同步雲端`);
       setSelectedSpotifyIds(new Set());
       setSpotifyResults([]);
-      setSpotifyQuery('');
       setShowSpotifySearch(false);
     }
   };
@@ -181,7 +171,7 @@ const AdminDashboard: React.FC = () => {
       try {
         const data = JSON.parse(event.target?.result as string);
         if (Array.isArray(data)) {
-          if (window.confirm(`確認導入 ${data.length} 筆備份資料？現有本地數據將被覆蓋。`)) {
+          if (window.confirm(`確認導入 ${data.length} 筆備份資料？現有數據將被覆蓋並同步至雲端。`)) {
             await bulkAddSongs(data);
             showToast("數據備份導入成功");
             setActiveTab('catalog');
@@ -202,7 +192,7 @@ const AdminDashboard: React.FC = () => {
     setLocalSaving(true);
     const success = await uploadSettingsToCloud(globalSettings);
     setLocalSaving(false);
-    if (success) showToast("雲端同步成功");
+    if (success) showToast("全站設定同步成功");
     else showToast("同步失敗", 'error');
   };
 
@@ -212,7 +202,7 @@ const AdminDashboard: React.FC = () => {
         <div className="bg-[#0f172a] border border-white/5 backdrop-blur-3xl rounded-sm p-14 max-w-md w-full shadow-2xl text-center">
           <h2 className="text-2xl font-black text-white mb-10 uppercase tracking-[0.4em]">Manager Vault</h2>
           <form onSubmit={(e) => { e.preventDefault(); if (passwordInput === '8520') { enableAdmin(); showToast("權限已解鎖"); } else setLoginError('密碼不正確'); }} className="space-y-8">
-            <input type="password" placeholder="••••" className="w-full bg-black border border-white/10 px-6 py-6 text-white text-center tracking-[0.8em] font-mono text-2xl outline-none focus:border-brand-gold" value={passwordInput} onChange={(e) => setPasswordInput(e.target.value)} autoFocus />
+            <input type="password" placeholder="••••" className="w-full bg-black border border-white/10 px-6 py-6 text-white text-center tracking-[1em] font-mono text-2xl outline-none focus:border-brand-gold" value={passwordInput} onChange={(e) => setPasswordInput(e.target.value)} autoFocus />
             {loginError && <p className="text-red-500 text-[10px] font-bold uppercase">{loginError}</p>}
             <button className="w-full py-6 bg-brand-gold text-slate-950 font-black rounded-sm uppercase tracking-widest text-xs">Unlock Console</button>
           </form>
@@ -234,12 +224,34 @@ const AdminDashboard: React.FC = () => {
         </div>
       </div>
 
+      {/* SYNC & ACTION PANEL */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
+          <div className="bg-white/5 border border-white/10 p-8 rounded-sm">
+              <span className="text-[9px] text-slate-500 font-black uppercase tracking-widest mb-4 block">雲端同步狀態 (SYNC)</span>
+              <div className="flex items-center gap-3">
+                  <div className={`w-2.5 h-2.5 rounded-full ${isSyncing ? 'bg-brand-gold animate-pulse' : dbStatus === 'ONLINE' ? 'bg-emerald-500 shadow-[0_0_10px_#10b981]' : 'bg-rose-500'}`}></div>
+                  <span className="text-sm font-bold text-white uppercase tracking-widest">{isSyncing ? 'SYNCING...' : dbStatus === 'ONLINE' ? 'CONNECTED' : 'OFFLINE'}</span>
+              </div>
+          </div>
+          <div className="bg-white/5 border border-white/10 p-8 rounded-sm">
+              <span className="text-[9px] text-slate-500 font-black uppercase tracking-widest mb-4 block">最後操作紀錄 (LAST ACTION)</span>
+              <div className="flex items-center gap-4">
+                  <span className="text-xs font-black text-brand-gold uppercase tracking-widest">{globalSettings.lastAction?.type || 'N/A'}</span>
+                  <span className="text-[10px] text-white/40 truncate flex-1">{globalSettings.lastAction?.target || ''}</span>
+              </div>
+          </div>
+          <div className="bg-white/5 border border-white/10 p-8 rounded-sm">
+              <span className="text-[9px] text-slate-500 font-black uppercase tracking-widest mb-4 block">最後更新時間 (TIMESTAMP)</span>
+              <span className="text-xs font-mono text-white/60">{globalSettings.lastAction?.timestamp ? new Date(globalSettings.lastAction.timestamp).toLocaleString() : 'N/A'}</span>
+          </div>
+      </div>
+
       <div className="flex border-b border-white/10 mb-12 gap-10 overflow-x-auto custom-scrollbar whitespace-nowrap">
         {[
           { id: 'catalog', label: '作品管理' },
           { id: 'settings', label: '全站設定' },
           { id: 'payment', label: '金流 QR 更新' },
-          { id: 'data', label: '資料備份' }
+          { id: 'data', label: '資料備份 (BACKUP)' }
         ].map(tab => (
           <button key={tab.id} onClick={() => setActiveTab(tab.id as AdminTab)} className={`pb-4 text-[11px] font-black uppercase tracking-widest transition-all ${activeTab === tab.id ? 'text-brand-gold border-b-2 border-brand-gold' : 'text-slate-400 hover:text-white'}`}>
             {tab.label}
@@ -249,7 +261,6 @@ const AdminDashboard: React.FC = () => {
 
       {activeTab === 'catalog' && (
         <div className="space-y-8 animate-fade-in">
-          {/* Filters & Tools */}
           <div className="bg-white/[0.02] border border-white/10 p-8 rounded-sm space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
               <div className="md:col-span-2 relative">
@@ -277,19 +288,18 @@ const AdminDashboard: React.FC = () => {
                 <button onClick={() => setShowSpotifySearch(!showSpotifySearch)} className={`px-10 py-4 border transition-all text-[10px] font-black uppercase tracking-widest ${showSpotifySearch ? 'bg-emerald-500 text-black border-emerald-500' : 'text-emerald-500 border-emerald-500/30'}`}>
                   {showSpotifySearch ? 'CLOSE SPOTIFY' : 'SPOTIFY SEARCH'}
                 </button>
-                <button onClick={refreshData} className="px-10 py-4 bg-white/5 border border-white/20 text-[10px] font-black uppercase tracking-widest text-white hover:bg-white/10">Pull Cloud</button>
+                <button onClick={refreshData} className="px-10 py-4 bg-white/5 border border-white/20 text-[10px] font-black uppercase tracking-widest text-white hover:bg-white/10">Force Pull Cloud</button>
               </div>
 
               {selectedIds.size > 0 && (
                 <div className="flex items-center gap-6 animate-fade-in">
                   <span className="text-[10px] font-black text-brand-gold uppercase tracking-widest">{selectedIds.size} SELECTED</span>
                   <button onClick={handleBulkToggleStudio} className="px-8 py-3 bg-white text-black text-[9px] font-black uppercase tracking-widest hover:bg-brand-gold transition-all">Toggle Studio Mode</button>
-                  <button onClick={() => { if (confirm('確定刪除選取的項目？')) selectedIds.forEach(id => deleteSong(id)); setSelectedIds(new Set()); }} className="px-8 py-3 border border-rose-500 text-rose-500 text-[9px] font-black uppercase tracking-widest hover:bg-rose-500 hover:text-white transition-all">Bulk Delete</button>
+                  <button onClick={() => { if (confirm('確定刪除選取的項目？此動作將同步至雲端。')) selectedIds.forEach(id => deleteSong(id)); setSelectedIds(new Set()); }} className="px-8 py-3 border border-rose-500 text-rose-500 text-[9px] font-black uppercase tracking-widest hover:bg-rose-500 hover:text-white transition-all">Bulk Delete</button>
                 </div>
               )}
             </div>
 
-            {/* Spotify Integrated Search - Enhanced for Bulk Selection */}
             {showSpotifySearch && (
               <div className="pt-8 border-t border-white/5 space-y-8 animate-fade-in">
                 <div className="flex flex-col md:flex-row gap-4 items-center">
@@ -354,7 +364,6 @@ const AdminDashboard: React.FC = () => {
             )}
           </div>
 
-          {/* Catalog Album List */}
           <div className="space-y-6">
             {groupedAlbums.map(([upc, albumSongs]) => {
               const main = albumSongs[0];
@@ -425,7 +434,7 @@ const AdminDashboard: React.FC = () => {
                                 <div className="flex justify-end gap-3">
                                   <button onClick={() => updateSong(track.id, { isInteractiveActive: !track.isInteractiveActive })} className={`px-3 py-1 rounded-sm text-[8px] font-black uppercase tracking-widest border ${track.isInteractiveActive ? 'bg-emerald-500 text-black border-emerald-500' : 'text-slate-500 border-white/10 hover:border-white/30'}`}>{track.isInteractiveActive ? 'Studio On' : 'Studio Off'}</button>
                                   <button onClick={() => navigate(`/add?edit=${track.id}`)} className="h-8 px-4 bg-white text-black text-[9px] font-black uppercase tracking-widest hover:bg-brand-gold transition-all">Edit</button>
-                                  <button onClick={() => { if (confirm('確定刪除？')) deleteSong(track.id); }} className="h-8 px-4 border border-rose-500 text-rose-500 text-[9px] font-black uppercase tracking-widest hover:bg-rose-500 hover:text-white transition-all">Del</button>
+                                  <button onClick={() => { if (confirm('確定刪除？此動作將同步至雲端。')) deleteSong(track.id); }} className="h-8 px-4 border border-rose-500 text-rose-500 text-[9px] font-black uppercase tracking-widest hover:bg-rose-500 hover:text-white transition-all">Del</button>
                                 </div>
                               </td>
                             </tr>
@@ -451,7 +460,7 @@ const AdminDashboard: React.FC = () => {
             <h3 className="text-xl font-black text-white uppercase tracking-widest">錄音室通行碼 (Access Code)</h3>
             <input className="w-40 bg-white/[0.03] border border-white/20 p-6 text-white text-3xl font-black text-center outline-none focus:border-brand-gold" value={globalSettings.accessCode} onChange={(e) => setGlobalSettings(prev => ({ ...prev, accessCode: e.target.value }))} />
           </div>
-          <button onClick={handleSaveSettings} disabled={localSaving} className="px-16 py-6 bg-brand-gold text-black font-black uppercase text-xs tracking-widest shadow-xl hover:bg-white transition-all disabled:opacity-50">{localSaving ? 'SAVING...' : 'SAVE & SYNC'}</button>
+          <button onClick={handleSaveSettings} disabled={localSaving} className="px-16 py-6 bg-brand-gold text-black font-black uppercase text-xs tracking-widest shadow-xl hover:bg-white transition-all disabled:opacity-50">{localSaving ? 'SAVING...' : 'SAVE & AUTO SYNC'}</button>
         </div>
       )}
 
@@ -484,15 +493,15 @@ const AdminDashboard: React.FC = () => {
               </div>
             ))}
           </div>
-          <button onClick={handleSaveSettings} className="px-16 py-6 bg-brand-gold text-black font-black uppercase text-xs tracking-widest shadow-xl hover:bg-white transition-all">SYNC ALL QR ASSETS</button>
+          <button onClick={handleSaveSettings} className="px-16 py-6 bg-brand-gold text-black font-black uppercase text-xs tracking-widest shadow-xl hover:bg-white transition-all">SYNC ALL ASSETS TO CLOUD</button>
         </div>
       )}
 
       {activeTab === 'data' && (
         <div className="max-w-7xl grid grid-cols-1 md:grid-cols-2 gap-10 animate-fade-in">
           <div className="bg-white/[0.02] border border-white/10 p-10 space-y-6 rounded-sm shadow-2xl">
-            <h3 className="text-2xl font-black text-white uppercase tracking-widest">導出本地數據 (JSON)</h3>
-            <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest leading-relaxed">下載目前資料庫中所有的作品資訊、歌詞與連結備份。</p>
+            <h3 className="text-2xl font-black text-white uppercase tracking-widest">手動導出本地數據 (Local Export)</h3>
+            <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest leading-relaxed">雖然系統會自動同步雲端，但您仍可以下載 JSON 作為離線備份。</p>
             <button onClick={async () => {
               const allSongs = await dbService.getAllSongs();
               const blob = new Blob([JSON.stringify(allSongs, null, 2)], { type: 'application/json' });
@@ -501,16 +510,16 @@ const AdminDashboard: React.FC = () => {
               a.href = url;
               a.download = `WILLWI_BACKUP_${new Date().toISOString().split('T')[0]}.json`;
               a.click();
-              showToast("備份生成中...");
-            }} className="w-full py-6 bg-white text-black font-black text-[11px] uppercase tracking-widest hover:bg-brand-gold transition-all">DOWNLOAD BACKUP</button>
+              showToast("本地備份下載中...");
+            }} className="w-full py-6 bg-white text-black font-black text-[11px] uppercase tracking-widest hover:bg-brand-gold transition-all">DOWNLOAD LOCAL JSON</button>
           </div>
 
           <div className="bg-white/[0.02] border border-brand-gold/30 p-10 space-y-6 rounded-sm shadow-2xl">
-            <h3 className="text-2xl font-black text-brand-gold uppercase tracking-widest">導入數據備份 (JSON)</h3>
-            <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest leading-relaxed">上傳備份檔案。警告：這會完全覆蓋目前的本地資料。</p>
+            <h3 className="text-2xl font-black text-brand-gold uppercase tracking-widest">手動導入數據並同步</h3>
+            <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest leading-relaxed">上傳 JSON 檔案將會覆蓋當前資料並立即推播至雲端。</p>
             <div className="relative">
               <button onClick={() => fileInputRef.current?.click()} className="w-full py-6 bg-brand-gold text-black font-black uppercase text-[11px] tracking-widest hover:bg-white transition-all shadow-xl">
-                SELECT FILE TO IMPORT
+                SELECT JSON & FORCE SYNC
               </button>
               <input ref={fileInputRef} type="file" className="hidden" accept=".json" onChange={handleImportJson} />
             </div>
