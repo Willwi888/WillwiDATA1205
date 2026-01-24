@@ -52,6 +52,16 @@ const AddSong: React.FC = () => {
     }
   }, [editId, getSong]);
 
+  // Handle data from Spotify discovery tab
+  useEffect(() => {
+    if (location.state?.spotifyImport) {
+        const track = location.state.spotifyImport;
+        handleImportSpotify(track);
+        // Clear state to avoid re-triggering
+        window.history.replaceState({}, document.title);
+    }
+  }, [location.state]);
+
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
@@ -87,7 +97,8 @@ const AddSong: React.FC = () => {
       upc: track.album?.external_ids?.upc || prev.upc,
       coverUrl: track.album?.images?.[0]?.url || prev.coverUrl,
       releaseDate: track.album?.release_date || prev.releaseDate,
-      spotifyLink: track.external_urls?.spotify || prev.spotifyLink
+      spotifyLink: track.external_urls?.spotify || prev.spotifyLink,
+      releaseCompany: track.album?.label || prev.releaseCompany
     }));
     setSpotifyResults([]);
     setSpotifySearch('');

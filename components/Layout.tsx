@@ -56,16 +56,13 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   }, [dbStatus, isSyncing]);
 
   const navItems = useMemo(() => {
-    const items = [
+    return [
       { path: '/', label: 'HOME' },
       { path: '/database', label: 'CATALOG' },
       { path: '/interactive', label: 'STUDIO' },
+      { path: '/admin', label: 'MANAGER' }
     ];
-    if (isAdmin) {
-      items.push({ path: '/admin', label: 'MANAGER' });
-    }
-    return items;
-  }, [isAdmin]);
+  }, []);
 
   return (
     <ToastContext.Provider value={{ showToast }}>
@@ -107,9 +104,9 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
                   </button>
               </div>
               
-              <div className="hidden lg:flex items-center space-x-14 text-[11px] font-black uppercase tracking-[0.4em]">
+              <div className="hidden lg:flex items-center space-x-12 text-[11px] font-black uppercase tracking-[0.4em]">
                 {navItems.map(item => (
-                  <Link key={item.path} to={item.path} className={location.pathname === item.path ? "text-brand-gold border-b-2 border-brand-gold pb-1" : "text-white/60 hover:text-white"}>
+                  <Link key={item.path} to={item.path} className={`transition-all ${location.pathname === item.path ? "text-brand-gold border-b-2 border-brand-gold pb-1" : "text-white/60 hover:text-white"}`}>
                     {item.label}
                   </Link>
                 ))}
@@ -136,7 +133,6 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
            <p className="text-[10px] font-black tracking-[1.2em] uppercase text-slate-500">WILLWI OFFICIAL PROJECT • STUDIO ARCHIVE</p>
            <div className="flex gap-10 text-[9px] font-black tracking-widest uppercase text-slate-600">
               <span>© 2025 Willwi Music</span>
-              <Link to="/admin" className="hover:text-brand-gold transition-colors">MANAGER ACCESS</Link>
            </div>
         </footer>
       </div>

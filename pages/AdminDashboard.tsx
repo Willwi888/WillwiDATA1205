@@ -7,8 +7,9 @@ import { normalizeIdentifier } from '../context/DataContext';
 import { dbService } from '../services/db';
 import { useToast } from '../components/Layout';
 import { Song } from '../types';
+import { searchSpotifyTracks, SpotifyTrack } from '../services/spotifyService';
 
-type AdminTab = 'catalog' | 'settings' | 'payment' | 'data';
+type AdminTab = 'catalog' | 'spotify' | 'settings' | 'payment' | 'data';
 
 const AdminDashboard: React.FC = () => {
   const { songs, deleteSong, refreshData, uploadSongsToCloud, bulkAddSongs, dbStatus, isSyncing, globalSettings, setGlobalSettings, uploadSettingsToCloud } = useData();
@@ -21,6 +22,11 @@ const AdminDashboard: React.FC = () => {
   const [loginError, setLoginError] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const [localSaving, setLocalSaving] = useState(false);
+
+  // Spotify Search State
+  const [spotifyQuery, setSpotifyQuery] = useState('');
+  const [spotifyResults, setSpotifyResults] = useState<SpotifyTrack[]>([]);
+  const [isSearchingSpotify, setIsSearchingSpotify] = useState(false);
 
   const filteredSongs = useMemo(() => {
     return songs.filter(s => 
@@ -48,6 +54,33 @@ const AdminDashboard: React.FC = () => {
       setLocalSaving(false);
       if (success) showToast("SETTINGS SYNCED TO CLOUD");
       else showToast("SYNC FAILED", 'error');
+  };
+
+  const handleSpotifySearch = async () => {
+      if (!spotifyQuery.trim()) return;
+      setIsSearchingSpotify(true);
+      try {
+          const results = await searchSpotifyTracks(spotifyQuery);
+          setSpotifyResults(results);
+          if (results.length === 0) showToast("NO RESULTS FOUND", "error");
+      } catch (err) {
+          showToast("SEARCH FAILED", "error");
+      } finally {
+          setIsSearchingSpotify(false);
+      }
+  };
+
+  const handleQrUpload = (key: string) => (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+        const reader = new FileReader();
+        reader.onloadend = () => {
+            const base64 = reader.result as string;
+            updateSettings(key, base64);
+            showToast("QR IMAGE UPDATED (SAVE TO SYNC)");
+        };
+        reader.readAsDataURL(file);
+    }
   };
 
   const downloadBackup = async () => {
@@ -119,11 +152,12 @@ const AdminDashboard: React.FC = () => {
           </div>
       </div>
 
-      <div className="flex border-b border-white/10 mb-12 gap-10">
+      <div className="flex border-b border-white/10 mb-12 gap-10 overflow-x-auto custom-scrollbar whitespace-nowrap">
           {[
               { id: 'catalog', label: '庫存與版本' },
-              { id: 'settings', label: '系統與介面' },
-              { id: 'payment', label: '營運與金流' },
+              { id: 'spotify', label: 'SPOTIFY 檢索' },
+              { id: 'settings', label: '介面與背景' },
+              { id: 'payment', label: '金流與 QR' },
               { id: 'data', label: '備份與還原' }
           ].map(tab => (
               <button 
@@ -199,6 +233,73 @@ const AdminDashboard: React.FC = () => {
         </div>
       )}
 
+      {activeTab === 'spotify' && (
+          <div className="space-y-12 animate-fade-in">
+              <div className="flex flex-col md:flex-row gap-6 mb-16">
+                  <input 
+                    type="text" 
+                    placeholder="SEARCH SPOTIFY FOR TRACKS/ISRC..." 
+                    className="flex-1 bg-white/[0.03] border border-white/10 px-8 py-6 rounded-sm text-sm outline-none focus:border-brand-gold text-white font-bold uppercase tracking-widest" 
+                    value={spotifyQuery} 
+                    onChange={e => setSpotifyQuery(e.target.value)}
+                    onKeyDown={e => e.key === 'Enter' && handleSpotifySearch()}
+                  />
+                  <button 
+                    onClick={handleSpotifySearch} 
+                    disabled={isSearchingSpotify}
+                    className="px-16 bg-brand-gold text-slate-950 text-[11px] font-black uppercase tracking-widest hover:bg-white disabled:opacity-50"
+                  >
+                      {isSearchingSpotify ? 'SEARCHING...' : 'DISCOVER'}
+                  </button>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                  {spotifyResults.map(track => (
+                      <div key={track.id} className="bg-white/[0.03] border border-white/10 p-8 rounded-sm group hover:border-brand-gold transition-all flex flex-col justify-between">
+                          <div>
+                            <div className="aspect-square w-full bg-slate-800 rounded-sm mb-6 overflow-hidden relative">
+                                <img src={track.album.images[0]?.url} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" alt="" />
+                                <a href={track.external_urls.spotify} target="_blank" rel="noreferrer" className="absolute top-4 right-4 w-10 h-10 bg-black/80 rounded-full flex items-center justify-center border border-white/20 hover:bg-emerald-500 transition-colors">
+                                    <svg className="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 24 24"><path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.5 17.3c-.2.3-.5.4-.8.2-2.7-1.6-6-2-10-1.1-.3.1-.6-.1-.7-.4s.1-.6.4-.7c4.4-1 8.1-.5 11.1 1.3.3.2.4.5.2.8.2.2.1.2.2.2-.2-.2-.2-.2 0-.3zm1.4-3.3c-.3.4-.8.5-1.2.3-3.1-1.9-7.8-2.4-11.4-1.3-.5.1-1-.2-1.1-.7-.1-.5.2-1 .7-1.1 4.1-1.3 9.4-.6 13 1.6.4.2.5.8.3 1.2h-.3zm.1-3.4C15.2 8.3 8.8 8.1 5.1 9.2c-.6.2-1.2-.2-1.4-.7-.2-.6.2-1.2.7-1.4 4.3-1.3 11.4-1.1 15.8 1.5.5.3.7 1 .4 1.5-.2.5-.9.7-1.4.4-.2.1-.2.1-.2.1v-.2z"/></svg>
+                                </a>
+                            </div>
+                            <h4 className="text-xl font-black text-white uppercase tracking-tight mb-2 truncate">{track.name}</h4>
+                            <p className="text-brand-gold text-[10px] font-black uppercase tracking-widest mb-4 truncate">{track.artists.map(a => a.name).join(', ')}</p>
+                            
+                            <div className="space-y-3 pt-4 border-t border-white/5">
+                                <div className="flex justify-between">
+                                    <span className="text-[9px] text-slate-500 font-bold uppercase">Album</span>
+                                    <span className="text-[9px] text-slate-300 font-bold uppercase truncate max-w-[150px]">{track.album.name}</span>
+                                </div>
+                                <div className="flex justify-between">
+                                    <span className="text-[9px] text-slate-500 font-bold uppercase">Released</span>
+                                    <span className="text-[9px] text-slate-300 font-bold uppercase">{track.album.release_date}</span>
+                                </div>
+                                <div className="flex justify-between">
+                                    <span className="text-[9px] text-slate-500 font-bold uppercase">ISRC</span>
+                                    <span className="text-[9px] text-brand-gold font-mono uppercase">{track.external_ids.isrc || 'N/A'}</span>
+                                </div>
+                            </div>
+                          </div>
+                          
+                          <button 
+                            onClick={() => navigate(`/add`, { state: { spotifyImport: track } })}
+                            className="w-full py-4 mt-8 border border-white/10 text-[10px] font-black uppercase tracking-widest hover:bg-white hover:text-black transition-all"
+                          >
+                              IMPORT TO ARCHIVE
+                          </button>
+                      </div>
+                  ))}
+
+                  {spotifyResults.length === 0 && !isSearchingSpotify && (
+                      <div className="col-span-full py-32 text-center">
+                          <p className="text-slate-600 text-xs font-black uppercase tracking-[0.8em]">Start typing to explore the global catalog</p>
+                      </div>
+                  )}
+              </div>
+          </div>
+      )}
+
       {activeTab === 'settings' && (
           <div className="max-w-4xl space-y-12 animate-fade-in">
               <div className="space-y-4">
@@ -216,6 +317,43 @@ const AdminDashboard: React.FC = () => {
               >
                   {localSaving ? "SAVING..." : "儲存全站設定"}
               </button>
+          </div>
+      )}
+
+      {activeTab === 'payment' && (
+          <div className="animate-fade-in space-y-12">
+              <div className="bg-brand-gold/10 border border-brand-gold/30 p-10 rounded-sm mb-12 flex flex-col md:flex-row justify-between items-center gap-6">
+                  <div>
+                    <h3 className="text-xl font-black text-brand-gold uppercase tracking-widest">金流 QR 設置與更新</h3>
+                    <p className="text-slate-400 text-xs mt-2 uppercase tracking-widest">點擊圖片區域即可更換。更新後請務必點擊右側「同步至雲端」按鈕。</p>
+                  </div>
+                  <button onClick={handleSaveSettings} className="px-10 py-4 bg-brand-gold text-black font-black uppercase text-[10px] tracking-widest shadow-xl hover:bg-white transition-all">同步至雲端 (PUSH SYNC)</button>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-8">
+                  {[
+                      { key: 'qr_global_payment', label: '主要收款 (GLOBAL)' },
+                      { key: 'qr_production', label: '製作體驗 (STUDIO)' },
+                      { key: 'qr_cinema', label: '影院模式 (CINEMA)' },
+                      { key: 'qr_support', label: '創作贊助 (SUPPORT)' },
+                      { key: 'qr_line', label: 'LINE 官方 (COMM)' }
+                  ].map(item => (
+                      <div key={item.key} className="bg-white/[0.02] border border-white/5 p-6 rounded-sm text-center flex flex-col items-center">
+                          <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-6">{item.label}</h4>
+                          <div className="w-full aspect-square bg-slate-900 border border-white/10 flex items-center justify-center relative group overflow-hidden">
+                              {(globalSettings as any)[item.key] ? (
+                                  <img src={(globalSettings as any)[item.key]} className="w-full h-full object-contain group-hover:opacity-40 transition-opacity" alt="" />
+                              ) : (
+                                  <span className="text-slate-700 text-[10px] uppercase font-black">Empty Slot</span>
+                              )}
+                              <label className="absolute inset-0 flex items-center justify-center bg-brand-gold text-black font-black text-[9px] uppercase tracking-widest opacity-0 group-hover:opacity-100 cursor-pointer transition-opacity">
+                                  REPLACE IMAGE
+                                  <input type="file" className="hidden" accept="image/*" onChange={handleQrUpload(item.key)} />
+                              </label>
+                          </div>
+                      </div>
+                  ))}
+              </div>
           </div>
       )}
 
@@ -237,13 +375,6 @@ const AdminDashboard: React.FC = () => {
                     導入 JSON 檔案
                     <input type="file" className="hidden" accept=".json" onChange={handleImportBackup} />
                   </label>
-              </div>
-              
-              <div className="col-span-full mt-10 p-10 bg-brand-accent/5 border border-brand-accent/20 rounded-sm">
-                  <h3 className="text-brand-accent font-black uppercase tracking-widest mb-4">雲端同步說明</h3>
-                  <p className="text-slate-400 text-xs leading-loose uppercase tracking-widest">
-                      本地 JSON 備份是您的第二層保障。若要將本地資料同步至 Willwi 官方雲端伺服器，請至「庫存與版本」分頁點擊「Push to Cloud」。
-                  </p>
               </div>
           </div>
       )}
