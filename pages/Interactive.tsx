@@ -201,6 +201,9 @@ const Interactive: React.FC = () => {
                            </div>
                        ))}
                    </div>
+                   <div className="mt-16 text-center">
+                       <button onClick={() => setMode('intro')} className="text-slate-600 hover:text-white text-[10px] font-black uppercase tracking-widest transition-colors border-b border-slate-800">返回宣言</button>
+                   </div>
                </div>
            )}
 

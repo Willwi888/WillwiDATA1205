@@ -1,3 +1,4 @@
+
 import { Song } from "../types";
 
 // 注意：在正式生產環境中，Client Secret 不應直接暴露在前端代碼中。
@@ -81,7 +82,8 @@ export const searchSpotifyTracks = async (query: string): Promise<SpotifyTrack[]
   }
 
   try {
-    const response = await fetch(`https://api.spotify.com/v1/search?q=${encodeURIComponent(query)}&type=track&limit=5`, {
+    // Increased limit to 20 for bulk import support
+    const response = await fetch(`https://api.spotify.com/v1/search?q=${encodeURIComponent(query)}&type=track&limit=20`, {
       headers: {
         'Authorization': `Bearer ${token}`
       }
