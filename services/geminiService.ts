@@ -1,6 +1,6 @@
 
-import { GoogleGenAI } from "@google/genai";
-import { Song } from "../types";
+import { GoogleGenAI, Type } from "@google/genai";
+import { Song, Language, ProjectType } from "../types";
 
 export const GRANDMA_SYSTEM_INSTRUCTION = `
 你現在是 Willwi 官方平台的「代班阿嬤」。
@@ -8,8 +8,88 @@ export const GRANDMA_SYSTEM_INSTRUCTION = `
 `;
 
 /**
- * 搜尋官方 YouTube Music 連結
+ * AI 解析功能：將亂序文字（如複製自 YouTube Music）轉換為歌曲對象
  */
+export const parseWillwiTextCatalog = async (rawText: string): Promise<Partial<Song>[]> => {
+  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  try {
+    const response = await ai.models.generateContent({
+      model: 'gemini-3-flash-preview',
+      contents: `你是一位音樂資料管理專家。以下是從 YouTube Music 或數位發行後台複製出來的原始文字，其中包含約 200 首以上的歌曲資訊。
+      請幫我解析出每一首歌的：
+      1. title (歌名)
+      2. releaseDate (格式 YYYY-MM-DD)
+      3. youtubeUrl (播放連結)
+      4. albumName (所屬專輯)
+      5. upc (如有)
+      
+      原始文字如下：
+      ${rawText}
+      
+      請以純 JSON 陣列格式回傳，不要有任何 Markdown 標籤。`,
+      config: {
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: Type.ARRAY,
+          items: {
+            type: Type.OBJECT,
+            properties: {
+              title: { type: Type.STRING },
+              releaseDate: { type: Type.STRING },
+              youtubeUrl: { type: Type.STRING },
+              albumName: { type: Type.STRING },
+              upc: { type: Type.STRING }
+            },
+            required: ["title"]
+          }
+        }
+      },
+    });
+
+    const results = JSON.parse(response.text || "[]");
+    return results;
+  } catch (error) {
+    console.error("AI Parse Error:", error);
+    return [];
+  }
+};
+
+export const discoverWillwiCatalog = async (): Promise<Partial<Song>[]> => {
+  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  try {
+    const response = await ai.models.generateContent({
+      model: 'gemini-3-pro-preview',
+      contents: `請搜尋並列出獨立音樂人 "Willwi" 在 YouTube Music 上所有已發佈的專輯與單曲。
+      我需要包含：歌曲標題、所屬專輯名稱 (如果有)、發行日期、YouTube 播放網址。
+      請以 JSON 陣列格式回傳。`,
+      config: {
+        tools: [{ googleSearch: {} }],
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: Type.ARRAY,
+          items: {
+            type: Type.OBJECT,
+            properties: {
+              title: { type: Type.STRING },
+              albumName: { type: Type.STRING },
+              releaseDate: { type: Type.STRING },
+              youtubeUrl: { type: Type.STRING },
+              upc: { type: Type.STRING }
+            },
+            required: ["title", "youtubeUrl"]
+          }
+        }
+      },
+    });
+
+    const results = JSON.parse(response.text || "[]");
+    return results;
+  } catch (error) {
+    console.error("YouTube Discovery Error:", error);
+    return [];
+  }
+};
+
 export const searchYouTubeMusicLink = async (title: string, isrc: string): Promise<string | null> => {
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   try {
@@ -21,69 +101,12 @@ export const searchYouTubeMusicLink = async (title: string, isrc: string): Promi
         tools: [{ googleSearch: {} }],
       },
     });
-
     const text = response.text || '';
     const urlMatch = text.match(/https?:\/\/(music\.)?youtube\.com\/(watch\?v=|browse\/|playlist\?list=)[a-zA-Z0-9_-]+/);
-    
     if (urlMatch) return urlMatch[0];
-
-    // 從 Grounding Chunks 尋找
-    const chunk = response.candidates?.[0]?.groundingMetadata?.groundingChunks?.find(c => 
-      c.web?.uri?.includes('youtube.com') || c.web?.uri?.includes('music.youtube.com')
-    );
-    
-    return chunk?.web?.uri || null;
-  } catch (error) {
-    console.error("YouTube Music Search Error:", error);
     return null;
-  }
-};
-
-/**
- * 核心背景生成邏輯
- */
-export const generateAiVideo = async (base64Image: string, songTitle: string): Promise<string | null> => {
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-  const cleanBase64 = base64Image.includes(',') ? base64Image.split(',')[1] : base64Image;
-
-  try {
-      let operation = await ai.models.generateVideos({
-        model: 'veo-3.1-fast-generate-preview',
-        prompt: `Cinematic atmospheric background texture for a song titled "${songTitle}". 
-        Abstract soft light leaks, floating dust particles, and slow-moving fluid organic shapes. 
-        Smooth loopable feel. 1080p high quality.`,
-        image: {
-          imageBytes: cleanBase64,
-          mimeType: 'image/png', 
-        },
-        config: {
-          numberOfVideos: 1,
-          resolution: '1080p',
-          aspectRatio: '16:9'
-        }
-      });
-
-      let attempts = 0;
-      while (!operation.done && attempts < 40) {
-        await new Promise(resolve => setTimeout(resolve, 8000));
-        operation = await ai.operations.getVideosOperation({ operation: operation });
-        if (operation.error) throw new Error(operation.error.message);
-        attempts++;
-      }
-
-      if (!operation.done) return null;
-
-      const downloadLink = operation.response?.generatedVideos?.[0]?.video?.uri;
-      if (!downloadLink) return null;
-
-      const response = await fetch(`${downloadLink}&key=${process.env.API_KEY}`);
-      if (!response.ok) throw new Error("Download failed");
-      
-      const blob = await response.blob();
-      return URL.createObjectURL(blob);
   } catch (error) {
-      console.error("AI Background Generation Error:", error);
-      return null;
+    return null;
   }
 };
 
@@ -95,4 +118,40 @@ export const getChatResponse = async (message: string, messageCount: number): Pr
   });
   const result = await chat.sendMessage({ message });
   return result.text;
+};
+
+export const generateAiVideo = async (imageB64: string, songTitle: string): Promise<string | null> => {
+  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  const base64Data = imageB64.includes(',') ? imageB64.split(',')[1] : imageB64;
+  const mimeType = imageB64.match(/data:(.*?);base64/)?.[1] || 'image/png';
+
+  try {
+    let operation = await ai.models.generateVideos({
+      model: 'veo-3.1-fast-generate-preview',
+      prompt: `A cinematic, abstract atmosphere for a music video titled "${songTitle}". 8 seconds, ambient light, slow motion.`,
+      image: {
+        imageBytes: base64Data,
+        mimeType: mimeType,
+      },
+      config: {
+        numberOfVideos: 1,
+        resolution: '720p',
+        aspectRatio: '16:9'
+      }
+    });
+
+    while (!operation.done) {
+      await new Promise(resolve => setTimeout(resolve, 10000));
+      operation = await ai.operations.getVideosOperation({ operation: operation });
+    }
+
+    const downloadLink = operation.response?.generatedVideos?.[0]?.video?.uri;
+    if (downloadLink) {
+      return `${downloadLink}&key=${process.env.API_KEY}`;
+    }
+    return null;
+  } catch (error: any) {
+    console.error("Veo Video Generation Error:", error);
+    return null;
+  }
 };
