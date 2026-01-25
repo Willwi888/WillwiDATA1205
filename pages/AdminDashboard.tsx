@@ -243,7 +243,8 @@ const AdminDashboard: React.FC = () => {
           <div className="space-y-4">
             {filteredSongs.map((track) => (
               <div key={track.id} className="group flex items-center gap-10 p-8 border border-white/5 bg-white/[0.01] hover:bg-white/[0.03] transition-all">
-                <img src={track.coverUrl} className="w-20 h-20 object-cover shadow-2xl grayscale group-hover:grayscale-0 transition-all" alt="" />
+                {/* 核心修正：移除 grayscale 全彩顯示 */}
+                <img src={track.coverUrl} className="w-20 h-20 object-cover shadow-2xl transition-all" alt="" />
                 <div className="flex-1">
                   <h4 className="text-xl font-black text-white uppercase tracking-wider">{track.title}</h4>
                   <div className="flex gap-6 mt-2 text-[10px] font-bold text-slate-500 uppercase tracking-widest">
