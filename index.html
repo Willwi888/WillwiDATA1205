@@ -31,8 +31,13 @@
               'fade-in-up': 'fadeInUp 1.4s cubic-bezier(0.16, 1, 0.3, 1) forwards',
               'light-leak': 'lightLeak 20s ease-in-out infinite alternate',
               'blur-in': 'blurIn 0.8s ease-out forwards',
+              'zen-spin': 'zenSpin 60s linear infinite',
             },
             keyframes: {
+              zenSpin: {
+                '0%': { transform: 'rotate(0deg)' },
+                '100%': { transform: 'rotate(360deg)' }
+              },
               pulseGlow: {
                 '0%, 100% { opacity: 0.15; transform: scale(1); }',
                 '50% { opacity: 0.35; transform: scale(1.1); }',

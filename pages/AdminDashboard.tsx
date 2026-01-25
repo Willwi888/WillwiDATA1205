@@ -21,7 +21,6 @@ const AdminDashboard: React.FC = () => {
   const [activeTab, setActiveTab] = useState<AdminTab>('catalog');
   const [passwordInput, setPasswordInput] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
   const filteredSongs = useMemo(() => {
     return songs.filter(s => 
@@ -81,32 +80,28 @@ const AdminDashboard: React.FC = () => {
           </div>
 
           <div className="space-y-4">
-            {filteredSongs.map((track) => {
-              const isInvalidLink = track.audioUrl?.includes('dropbox.com/sc/');
-              return (
-                <div key={track.id} className="group flex items-center gap-10 p-8 border border-white/5 bg-white/[0.01] hover:bg-white/[0.03] transition-all">
-                  <img src={track.coverUrl} className="w-20 h-20 object-cover shadow-2xl grayscale group-hover:grayscale-0 transition-all" alt="" />
-                  <div className="flex-1">
-                    <h4 className="text-xl font-black text-white uppercase tracking-wider">{track.title}</h4>
-                    <div className="flex gap-6 mt-2 text-[10px] font-bold text-slate-500 uppercase tracking-widest">
-                      <span>{track.isrc}</span>
-                      <span>{track.releaseDate}</span>
-                      {isInvalidLink && <span className="text-rose-500">⚠️ Dropbox 連結類型需更正</span>}
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-8">
-                    <button 
-                      onClick={() => updateSong(track.id, { isInteractiveActive: !track.isInteractiveActive })}
-                      className={`px-4 py-2 text-[9px] font-black uppercase tracking-widest rounded-sm border ${track.isInteractiveActive ? 'bg-emerald-500 text-black border-emerald-500' : 'text-slate-600 border-white/10'}`}
-                    >
-                      {track.isInteractiveActive ? 'Active' : 'Private'}
-                    </button>
-                    <button onClick={() => navigate(`/add?edit=${track.id}`)} className="text-[10px] font-black uppercase text-slate-400 hover:text-white transition-all">Edit</button>
-                    <button onClick={() => { if (confirm('Delete?')) deleteSong(track.id); }} className="text-[10px] font-black uppercase text-rose-900 hover:text-rose-500 transition-all">Del</button>
+            {filteredSongs.map((track) => (
+              <div key={track.id} className="group flex items-center gap-10 p-8 border border-white/5 bg-white/[0.01] hover:bg-white/[0.03] transition-all">
+                <img src={track.coverUrl} className="w-20 h-20 object-cover shadow-2xl grayscale group-hover:grayscale-0 transition-all" alt="" />
+                <div className="flex-1">
+                  <h4 className="text-xl font-black text-white uppercase tracking-wider">{track.title}</h4>
+                  <div className="flex gap-6 mt-2 text-[10px] font-bold text-slate-500 uppercase tracking-widest">
+                    <span>{track.isrc}</span>
+                    <span>{track.releaseDate}</span>
                   </div>
                 </div>
-              );
-            })}
+                <div className="flex items-center gap-8">
+                  <button 
+                    onClick={() => updateSong(track.id, { isInteractiveActive: !track.isInteractiveActive })}
+                    className={`px-4 py-2 text-[9px] font-black uppercase tracking-widest rounded-sm border ${track.isInteractiveActive ? 'bg-emerald-500 text-black border-emerald-500' : 'text-slate-600 border-white/10'}`}
+                  >
+                    {track.isInteractiveActive ? 'Active' : 'Private'}
+                  </button>
+                  <button onClick={() => navigate(`/add?edit=${track.id}`)} className="text-[10px] font-black uppercase text-slate-400 hover:text-white transition-all">Edit</button>
+                  <button onClick={() => { if (confirm('Delete?')) deleteSong(track.id); }} className="text-[10px] font-black uppercase text-rose-900 hover:text-rose-500 transition-all">Del</button>
+                </div>
+              </div>
+            ))}
           </div>
         </div>
       )}
@@ -114,8 +109,14 @@ const AdminDashboard: React.FC = () => {
       {activeTab === 'settings' && (
         <div className="max-w-4xl space-y-12 animate-fade-in">
           <div className="space-y-6">
-            <h3 className="text-sm font-black text-slate-500 uppercase tracking-widest">網站動態背景</h3>
-            <input className="w-full bg-black border border-white/10 p-6 text-white text-xs outline-none focus:border-brand-gold" value={globalSettings.portraitUrl} onChange={(e) => setGlobalSettings(prev => ({ ...prev, portraitUrl: e.target.value }))} />
+            <h3 className="text-sm font-black text-slate-500 uppercase tracking-widest">網站視覺背景 (YouTube, MP4 或圖片)</h3>
+            <p className="text-[10px] text-slate-600 uppercase tracking-widest">支援 YouTube 網址、MP4 直連或靜態圖。系統會自動進行全螢幕適應。</p>
+            <input className="w-full bg-black border border-white/10 p-6 text-white text-xs outline-none focus:border-brand-gold" value={globalSettings.portraitUrl} onChange={(e) => setGlobalSettings(prev => ({ ...prev, portraitUrl: e.target.value }))} placeholder="Paste YouTube or MP4 URL here..." />
+          </div>
+          <div className="space-y-6">
+            <h3 className="text-sm font-black text-slate-500 uppercase tracking-widest">環境背景音樂 (MP3 如 Anapana)</h3>
+            <p className="text-[10px] text-slate-600 uppercase tracking-widest">進入網站點擊解鎖後會自動循環播放。若已設定 YouTube 則可留空或以此 MP3 為優先。</p>
+            <input className="w-full bg-black border border-white/10 p-6 text-white text-xs outline-none focus:border-brand-gold" value={globalSettings.qr_global_payment} onChange={(e) => setGlobalSettings(prev => ({ ...prev, qr_global_payment: e.target.value }))} placeholder="Paste Anapana MP3 URL here..." />
           </div>
           <div className="space-y-6">
             <h3 className="text-sm font-black text-slate-500 uppercase tracking-widest">工作室通行碼</h3>
@@ -127,9 +128,8 @@ const AdminDashboard: React.FC = () => {
 
       {activeTab === 'payment' && (
         <div className="animate-fade-in space-y-12">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-8">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
             {[
-              { key: 'qr_global_payment', label: '主要收款 (GLOBAL)' },
               { key: 'qr_production', label: '製作體驗 (STUDIO)' },
               { key: 'qr_cinema', label: '影院模式 (CINEMA)' },
               { key: 'qr_support', label: '創作贊助 (SUPPORT)' },
