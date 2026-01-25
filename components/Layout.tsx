@@ -18,6 +18,13 @@ export const useToast = () => {
   return context;
 };
 
+// 格式化時間 (秒 -> MM:SS)
+const formatTime = (seconds: number) => {
+  const mins = Math.floor(seconds / 60);
+  const secs = Math.floor(seconds % 60);
+  return `${mins}:${secs.toString().padStart(2, '0')}`;
+};
+
 const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const location = useLocation();
   const [scrolled, setScrolled] = useState(false);
@@ -26,19 +33,22 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
   
   const { lang, setLang } = useTranslation();
-  const { globalSettings, syncSuccess, isSyncing, refreshData, currentSong, isPlaying, setIsPlaying } = useData();
+  const { 
+    globalSettings, syncSuccess, isSyncing, refreshData, 
+    currentSong, setCurrentSong, isPlaying, setIsPlaying, songs 
+  } = useData();
   
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
+  const [isShuffle, setIsShuffle] = useState(false);
+  
   const audioRef = useRef<HTMLAudioElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const bgAudioRef = useRef<HTMLAudioElement>(null);
   const ytPlayerRef = useRef<HTMLIFrameElement>(null);
 
-  // 解析背景視覺（影片、YouTube 或圖片）
   const rawBgUrl = globalSettings.portraitUrl || ASSETS.willwiPortrait;
   
-  // 偵測是否為 YouTube
   const youtubeId = useMemo(() => {
     const url = rawBgUrl;
     const regExp = /^.*((youtu.be\/)|(v\/)|(\/u\/\w\/)|(embed\/)|(watch\?))\??v?=?([^#&?]*).*/;
@@ -47,11 +57,8 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   }, [rawBgUrl]);
 
   const resolvedBgUrl = useMemo(() => resolveDirectLink(rawBgUrl), [rawBgUrl]);
-  
-  // 解析環境背景音樂
   const resolvedBgMusicUrl = useMemo(() => resolveDirectLink(globalSettings.qr_global_payment), [globalSettings.qr_global_payment]);
 
-  // 判斷視覺類型
   const isBgVideo = useMemo(() => {
     if (youtubeId) return false;
     const url = (resolvedBgUrl || '').toLowerCase();
@@ -64,19 +71,16 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
-  // 當主播放器播放作品時，背景（影片、YouTube、背景音）靜音
   useEffect(() => {
     if (videoRef.current) videoRef.current.muted = isPlaying;
     if (bgAudioRef.current) bgAudioRef.current.muted = isPlaying;
     
-    // YouTube 靜音處理需要透過 postMessage 發送指令給 iframe
     if (ytPlayerRef.current) {
       const msg = isPlaying ? 'mute' : 'unMute';
       ytPlayerRef.current.contentWindow?.postMessage(JSON.stringify({ event: 'command', func: msg, args: [] }), '*');
     }
   }, [isPlaying]);
 
-  // 作品播放器邏輯
   useEffect(() => {
     if (!audioRef.current) return;
     if (isPlaying) {
@@ -91,6 +95,36 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     setTimeout(() => setToast(null), 3000);
   };
 
+  const handleNext = () => {
+    if (!currentSong || songs.length === 0) return;
+    const currentIndex = songs.findIndex(s => s.id === currentSong.id);
+    let nextIndex;
+    if (isShuffle) {
+      nextIndex = Math.floor(Math.random() * songs.length);
+      if (nextIndex === currentIndex && songs.length > 1) nextIndex = (nextIndex + 1) % songs.length;
+    } else {
+      nextIndex = (currentIndex + 1) % songs.length;
+    }
+    setCurrentSong(songs[nextIndex]);
+    setIsPlaying(true);
+  };
+
+  const handlePrev = () => {
+    if (!currentSong || songs.length === 0) return;
+    const currentIndex = songs.findIndex(s => s.id === currentSong.id);
+    const prevIndex = (currentIndex - 1 + songs.length) % songs.length;
+    setCurrentSong(songs[prevIndex]);
+    setIsPlaying(true);
+  };
+
+  const handleProgressClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (!audioRef.current || !duration) return;
+    const rect = e.currentTarget.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const percentage = x / rect.width;
+    audioRef.current.currentTime = percentage * duration;
+  };
+
   const currentAudioSrc = useMemo(() => {
     if (!currentSong) return '';
     return resolveDirectLink(currentSong.audioUrl || currentSong.dropboxUrl || '');
@@ -98,7 +132,6 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
 
   const isInteractiveMode = location.pathname === '/interactive';
 
-  // 點擊進入解鎖
   const handleEnter = () => {
     setHasInteracted(true);
     if (isBgVideo && videoRef.current) {
@@ -107,7 +140,6 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     if (resolvedBgMusicUrl && bgAudioRef.current) {
       bgAudioRef.current.play().catch(e => console.log("Ambient Audio play failed", e));
     }
-    // 解鎖 YouTube 聲音
     if (ytPlayerRef.current && !resolvedBgMusicUrl) {
       ytPlayerRef.current.contentWindow?.postMessage(JSON.stringify({ event: 'command', func: 'unMute', args: [] }), '*');
       ytPlayerRef.current.contentWindow?.postMessage(JSON.stringify({ event: 'command', func: 'playVideo', args: [] }), '*');
@@ -133,13 +165,9 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
 
         {showSnow && <Snowfall />}
 
-        {/* 環境圖層：背景影像 (YouTube/Video/Image) + 旋轉圓環 */}
         <div className="fixed inset-0 z-0 pointer-events-none overflow-hidden bg-black">
-            
-            {/* 視覺背景 */}
             <div className="absolute inset-0 opacity-100">
                 {youtubeId ? (
-                  /* YouTube 全螢幕模擬 Cover 效果 */
                   <div className="absolute top-1/2 left-1/2 w-[100vw] h-[56.25vw] min-h-[100vh] min-w-[177.77vh] -translate-x-1/2 -translate-y-1/2 overflow-hidden">
                     <iframe
                       ref={ytPlayerRef}
@@ -166,7 +194,6 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
                 )}
             </div>
 
-            {/* 旋轉圓環：視覺中心 */}
             <div className="absolute inset-0 flex items-center justify-center pointer-events-none overflow-hidden">
                 <div 
                   className="w-[120vw] h-[120vw] md:w-[80vw] md:h-[80vw] bg-contain bg-center bg-no-repeat opacity-[0.08] animate-zen-spin mix-blend-screen"
@@ -174,7 +201,6 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
                 ></div>
             </div>
 
-            {/* 環境背景音樂 */}
             {resolvedBgMusicUrl && (
               <audio ref={bgAudioRef} src={resolvedBgMusicUrl} loop playsInline crossOrigin="anonymous" />
             )}
@@ -227,26 +253,58 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
                crossOrigin="anonymous"
                onTimeUpdate={() => setCurrentTime(audioRef.current?.currentTime || 0)} 
                onLoadedMetadata={() => setDuration(audioRef.current?.duration || 0)}
-               onEnded={() => setIsPlaying(false)}
+               onEnded={handleNext}
              />
+             
+             {/* 歌曲資訊與隨機按鈕 */}
              <div className="flex items-center gap-6 min-w-0 max-w-xs">
                 <img src={currentSong.coverUrl} className="w-12 h-12 object-cover rounded shadow-xl border border-white/5" alt="" />
                 <div className="flex-1 min-w-0">
                   <h5 className="text-white text-[11px] font-black uppercase truncate tracking-widest">{currentSong.title}</h5>
                   <p className="text-brand-gold text-[9px] font-bold uppercase tracking-widest truncate mt-1">{currentSong.isrc}</p>
                 </div>
-             </div>
-             <div className="flex-1 flex flex-col items-center gap-3">
                 <button 
-                  onClick={() => setIsPlaying(!isPlaying)} 
-                  className="w-12 h-12 bg-white rounded-full flex items-center justify-center text-black hover:bg-brand-gold transition-all active:scale-95 shadow-xl"
+                  onClick={() => setIsShuffle(!isShuffle)} 
+                  className={`hidden sm:block transition-all ${isShuffle ? 'text-brand-gold shadow-glow' : 'text-white/20 hover:text-white'}`}
+                  title="隨機播放"
                 >
-                  {isPlaying ? <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg> : <svg className="w-6 h-6 ml-1" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>}
+                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                  </svg>
                 </button>
-                <div className="w-full max-w-xl h-0.5 bg-white/5 rounded-full overflow-hidden">
-                   <div className="h-full bg-brand-gold" style={{ width: `${(currentTime / (duration || 1)) * 100}%` }}></div>
+             </div>
+
+             {/* 主控制區域 */}
+             <div className="flex-1 flex flex-col items-center gap-3">
+                <div className="flex items-center gap-8">
+                  <button onClick={handlePrev} className="text-white/40 hover:text-white transition-all active:scale-90">
+                    <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24"><path d="M6 6h2v12H6zm3.5 6l8.5 6V6z"/></svg>
+                  </button>
+                  <button 
+                    onClick={() => setIsPlaying(!isPlaying)} 
+                    className="w-12 h-12 bg-white rounded-full flex items-center justify-center text-black hover:bg-brand-gold transition-all active:scale-95 shadow-xl"
+                  >
+                    {isPlaying ? <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg> : <svg className="w-6 h-6 ml-1" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>}
+                  </button>
+                  <button onClick={handleNext} className="text-white/40 hover:text-white transition-all active:scale-90">
+                    <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24"><path d="M6 18l8.5-6L6 6zm9-12v12h2V6z"/></svg>
+                  </button>
+                </div>
+                
+                <div className="w-full max-w-xl flex items-center gap-4">
+                  <span className="text-[9px] font-mono text-slate-500 w-10 text-right">{formatTime(currentTime)}</span>
+                  <div 
+                    onClick={handleProgressClick}
+                    className="flex-1 h-0.5 bg-white/5 rounded-full overflow-hidden cursor-pointer group relative"
+                  >
+                    <div className="h-full bg-brand-gold transition-all duration-300 relative" style={{ width: `${(currentTime / (duration || 1)) * 100}%` }}>
+                       <div className="absolute right-0 top-1/2 -translate-y-1/2 w-1 h-3 bg-brand-gold opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                    </div>
+                  </div>
+                  <span className="text-[9px] font-mono text-slate-500 w-10">{formatTime(duration)}</span>
                 </div>
              </div>
+             
              <div className="hidden md:block w-32"></div>
           </div>
         )}

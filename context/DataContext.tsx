@@ -11,14 +11,17 @@ interface GlobalSettings {
     qr_cinema: string;
     qr_support: string;
     accessCode: string;
+    exclusiveYoutubeUrl?: string;
 }
 
 interface ExtendedSongContextType extends SongContextType {
     isSyncing: boolean;
     syncSuccess: boolean;
+    syncProgress: number;
     refreshData: () => Promise<void>;
     uploadSongsToCloud: (data?: Song[]) => Promise<boolean>;
     uploadSettingsToCloud: (settings: GlobalSettings) => Promise<void>;
+    bulkAppendSongs: (songs: Song[]) => Promise<boolean>;
     globalSettings: GlobalSettings;
     setGlobalSettings: React.Dispatch<React.SetStateAction<GlobalSettings>>;
     currentSong: Song | null;
@@ -61,6 +64,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const [songs, setSongs] = useState<Song[]>([]);
   const [isSyncing, setIsSyncing] = useState(false);
   const [syncSuccess, setSyncSuccess] = useState(true);
+  const [syncProgress, setSyncProgress] = useState(100);
   const [currentSong, setCurrentSong] = useState<Song | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [globalSettings, setGlobalSettings] = useState<GlobalSettings>({ 
@@ -70,11 +74,13 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       qr_production: '', 
       qr_cinema: '', 
       qr_support: '', 
-      accessCode: '8888'
+      accessCode: '8888',
+      exclusiveYoutubeUrl: ''
   });
 
   const syncToCloud = useCallback(async (data?: Song[]) => {
     setIsSyncing(true);
+    setSyncProgress(20);
     try {
         const list = data || await dbService.getAllSongs();
         const payload = list.map(s => ({ 
@@ -93,6 +99,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             is_interactive_active: !!s.isInteractiveActive 
         }));
         
+        setSyncProgress(60);
         const res = await fetch(`${SUPABASE_URL}/rest/v1/songs`, { 
             method: 'POST', 
             headers: { 
@@ -105,6 +112,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         });
         const success = res.ok;
         setSyncSuccess(success);
+        setSyncProgress(100);
         return success;
     } catch (e) { 
         setSyncSuccess(false);
@@ -116,6 +124,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   const uploadSettingsToCloud = useCallback(async (settings: GlobalSettings) => {
     setIsSyncing(true);
+    setSyncProgress(10);
     try {
         const payload = { id: 'SYSTEM_CONFIG', description: JSON.stringify(settings) };
         await fetch(`${SUPABASE_URL}/rest/v1/songs`, { 
@@ -128,11 +137,13 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             }, 
             body: JSON.stringify(payload) 
         });
+        setSyncProgress(100);
     } catch (e) {} finally { setIsSyncing(false); }
   }, []);
 
   const loadData = useCallback(async () => {
       setIsSyncing(true);
+      setSyncProgress(10);
       try {
           const res = await fetch(`${SUPABASE_URL}/rest/v1/songs?select=*`, { 
               headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` } 
@@ -161,6 +172,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
               await dbService.clearAllSongs();
               await dbService.bulkAdd(cleanSongs);
               setSyncSuccess(true);
+              setSyncProgress(100);
           }
       } catch (e) { setSyncSuccess(false); } finally { setIsSyncing(false); }
   }, []);
@@ -207,6 +219,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         getSong: (id) => songs.find(s => s.id === id),
         bulkAddSongs: async (s) => {
             setIsSyncing(true);
+            setSyncProgress(20);
             try {
                 await dbService.clearAllSongs();
                 await dbService.bulkAdd(s);
@@ -217,7 +230,29 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                 setIsSyncing(false);
             }
         },
-        isSyncing, syncSuccess, refreshData: loadData, 
+        bulkAppendSongs: async (newSongs) => {
+            setIsSyncing(true);
+            setSyncProgress(20);
+            try {
+                const existing = await dbService.getAllSongs();
+                const existingIds = new Set(existing.map(s => s.id));
+                const uniqueNew = newSongs.filter(s => !existingIds.has(s.id));
+                
+                if (uniqueNew.length === 0) {
+                    setSyncProgress(100);
+                    return true;
+                }
+
+                const combined = [...existing, ...uniqueNew];
+                await dbService.bulkAdd(combined);
+                setSongs(combined.sort((a,b)=>new Date(b.releaseDate).getTime() - new Date(a.releaseDate).getTime()));
+                const success = await syncToCloud(combined);
+                return success;
+            } finally {
+                setIsSyncing(false);
+            }
+        },
+        isSyncing, syncSuccess, syncProgress, refreshData: loadData, 
         uploadSongsToCloud: syncToCloud, uploadSettingsToCloud, 
         globalSettings, setGlobalSettings,
         currentSong, setCurrentSong, isPlaying, setIsPlaying
