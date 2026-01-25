@@ -48,7 +48,7 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
 
   const resolvedBgUrl = useMemo(() => resolveDirectLink(rawBgUrl), [rawBgUrl]);
   
-  // 解析環境背景音樂（如 Anapana）
+  // 解析環境背景音樂
   const resolvedBgMusicUrl = useMemo(() => resolveDirectLink(globalSettings.qr_global_payment), [globalSettings.qr_global_payment]);
 
   // 判斷視覺類型
@@ -124,7 +124,7 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
             className="fixed inset-0 z-[1000] bg-black flex flex-col items-center justify-center cursor-pointer transition-opacity duration-1000 group"
           >
             <div className="text-white text-[11px] font-black uppercase tracking-[1em] mb-10 opacity-30 group-hover:opacity-100 transition-opacity">
-              Anapana: Breathing Willwi
+              BREATHING WILLWI
             </div>
             <div className="w-16 h-[1px] bg-white/10 group-hover:bg-brand-gold group-hover:w-32 transition-all"></div>
             <div className="mt-20 opacity-10 group-hover:opacity-30 transition-all text-[8px] tracking-widest font-black">TAP ANYWHERE TO ENTER</div>
@@ -174,7 +174,7 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
                 ></div>
             </div>
 
-            {/* 環境背景音樂（Anapana） */}
+            {/* 環境背景音樂 */}
             {resolvedBgMusicUrl && (
               <audio ref={bgAudioRef} src={resolvedBgMusicUrl} loop playsInline crossOrigin="anonymous" />
             )}
