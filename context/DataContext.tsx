@@ -11,10 +11,12 @@ interface GlobalSettings {
     qr_cinema: string;
     qr_support: string;
     accessCode: string;
+    exclusiveYoutubeUrl: string; // 新增獨家音樂 YT 串連
 }
 
 interface ExtendedSongContextType extends SongContextType {
     isSyncing: boolean;
+    syncProgress: number;
     syncSuccess: boolean;
     refreshData: () => Promise<void>;
     uploadSongsToCloud: (data?: Song[]) => Promise<boolean>;
@@ -25,6 +27,7 @@ interface ExtendedSongContextType extends SongContextType {
     setCurrentSong: (song: Song | null) => void;
     isPlaying: boolean;
     setIsPlaying: (playing: boolean) => void;
+    bulkAppendSongs: (newSongs: Song[]) => Promise<boolean>;
 }
 
 const DataContext = createContext<ExtendedSongContextType | undefined>(undefined);
@@ -43,16 +46,26 @@ export const normalizeIdentifier = (val: string) => (val || '').trim().replace(/
 export const resolveDirectLink = (url: string) => {
     if (!url || typeof url !== 'string') return '';
     let cleanUrl = url.trim();
+
     if (cleanUrl.includes('drive.google.com')) {
         const idMatch = cleanUrl.match(/\/d\/([a-zA-Z0-9_-]{25,})/) || cleanUrl.match(/id=([a-zA-Z0-9_-]{25,})/);
         const id = idMatch ? idMatch[1] : null;
         if (id) return `https://docs.google.com/uc?export=download&id=${id}`;
     }
+
     if (cleanUrl.includes('dropbox.com')) {
-        let base = cleanUrl.split('?')[0];
-        base = base.replace('www.dropbox.com', 'dl.dropboxusercontent.com')
-                   .replace('dropbox.com', 'dl.dropboxusercontent.com');
-        return `${base}?raw=1`;
+        if (cleanUrl.includes('/sc/') || cleanUrl.includes('/sh/')) return cleanUrl;
+        let resolved = cleanUrl
+            .replace('www.dropbox.com', 'dl.dropboxusercontent.com')
+            .replace('dropbox.com', 'dl.dropboxusercontent.com');
+        if (resolved.includes('?')) {
+            if (resolved.includes('dl=1')) resolved = resolved.replace('dl=1', 'raw=1');
+            else if (resolved.includes('dl=0')) resolved = resolved.replace('dl=0', 'raw=1');
+            else if (!resolved.includes('raw=1')) resolved += '&raw=1';
+        } else {
+            resolved += '?raw=1';
+        }
+        return resolved;
     }
     return cleanUrl;
 };
@@ -60,6 +73,7 @@ export const resolveDirectLink = (url: string) => {
 export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [songs, setSongs] = useState<Song[]>([]);
   const [isSyncing, setIsSyncing] = useState(false);
+  const [syncProgress, setSyncProgress] = useState(0);
   const [syncSuccess, setSyncSuccess] = useState(true);
   const [currentSong, setCurrentSong] = useState<Song | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -70,47 +84,57 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       qr_production: '', 
       qr_cinema: '', 
       qr_support: '', 
-      accessCode: '8888'
+      accessCode: '8888',
+      exclusiveYoutubeUrl: '' // 初始化
   });
 
   const syncToCloud = useCallback(async (data?: Song[]) => {
     setIsSyncing(true);
+    setSyncProgress(0);
     try {
         const list = data || await dbService.getAllSongs();
-        const payload = list.map(s => ({ 
-            id: s.id, 
-            title: s.title, 
-            isrc: s.isrc || '', 
-            upc: s.upc || '', 
-            cover_url: s.coverUrl, 
-            audio_url: s.audioUrl || '', 
-            dropbox_url: s.dropboxUrl || '', 
-            lyrics: s.lyrics || '', 
-            description: s.description || '', 
-            language: s.language, 
-            project_type: s.projectType, 
-            release_date: s.releaseDate, 
-            is_interactive_active: !!s.isInteractiveActive 
-        }));
-        
-        const res = await fetch(`${SUPABASE_URL}/rest/v1/songs`, { 
-            method: 'POST', 
-            headers: { 
-                'apikey': SUPABASE_KEY, 
-                'Authorization': `Bearer ${SUPABASE_KEY}`, 
-                'Content-Type': 'application/json', 
-                'Prefer': 'resolution=merge-duplicates' 
-            }, 
-            body: JSON.stringify(payload) 
-        });
-        const success = res.ok;
-        setSyncSuccess(success);
-        return success;
+        const CHUNK_SIZE = 40;
+        const totalChunks = Math.ceil(list.length / CHUNK_SIZE);
+
+        for (let i = 0; i < list.length; i += CHUNK_SIZE) {
+            const chunk = list.slice(i, i + CHUNK_SIZE);
+            const payload = chunk.map(s => ({ 
+                id: normalizeIdentifier(s.id),
+                title: s.title, 
+                isrc: s.isrc || '', 
+                upc: s.upc || '', 
+                cover_url: s.coverUrl, 
+                audio_url: s.audioUrl || '', 
+                dropbox_url: s.dropboxUrl || '', 
+                lyrics: s.lyrics || '', 
+                description: s.description || '', 
+                language: s.language, 
+                project_type: s.projectType, 
+                release_date: s.releaseDate, 
+                is_interactive_active: !!s.isInteractiveActive 
+            }));
+            const res = await fetch(`${SUPABASE_URL}/rest/v1/songs`, { 
+                method: 'POST', 
+                headers: { 
+                    'apikey': SUPABASE_KEY, 
+                    'Authorization': `Bearer ${SUPABASE_KEY}`, 
+                    'Content-Type': 'application/json', 
+                    'Prefer': 'resolution=merge-duplicates' 
+                }, 
+                body: JSON.stringify(payload) 
+            });
+            if (!res.ok) throw new Error("Sync failure");
+            const currentChunkIdx = Math.floor(i / CHUNK_SIZE) + 1;
+            setSyncProgress(Math.floor((currentChunkIdx / totalChunks) * 100));
+        }
+        setSyncSuccess(true);
+        return true;
     } catch (e) { 
         setSyncSuccess(false);
         return false;
     } finally { 
         setIsSyncing(false); 
+        setSyncProgress(100);
     }
   }, []);
 
@@ -141,11 +165,9 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
               const remote = await res.json();
               const config = remote.find((r: any) => r.id === 'SYSTEM_CONFIG');
               const songList = remote.filter((r: any) => r.id !== 'SYSTEM_CONFIG');
-              
               if (config) { 
                   try { setGlobalSettings(prev => ({ ...prev, ...JSON.parse(config.description) })); } catch(e) {} 
               }
-              
               const cleanSongs = songList.map((s: any) => ({ 
                   ...s, 
                   coverUrl: s.cover_url, 
@@ -156,7 +178,6 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                   releaseDate: s.release_date, 
                   isInteractiveActive: s.is_interactive_active 
               })).sort((a:any, b:any) => new Date(b.releaseDate).getTime() - new Date(a.releaseDate).getTime());
-              
               setSongs(cleanSongs);
               await dbService.clearAllSongs();
               await dbService.bulkAdd(cleanSongs);
@@ -206,18 +227,30 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         songs, addSong, updateSong, deleteSong,
         getSong: (id) => songs.find(s => s.id === id),
         bulkAddSongs: async (s) => {
-            setIsSyncing(true);
-            try {
-                await dbService.clearAllSongs();
-                await dbService.bulkAdd(s);
-                setSongs(s);
-                const success = await syncToCloud(s);
-                return success;
-            } finally {
-                setIsSyncing(false);
-            }
+            const normalizedSongs = s.map(song => ({ ...song, id: normalizeIdentifier(song.id || song.isrc || '') }));
+            await dbService.clearAllSongs();
+            await dbService.bulkAdd(normalizedSongs);
+            setSongs(normalizedSongs);
+            const success = await syncToCloud(normalizedSongs);
+            return success;
         },
-        isSyncing, syncSuccess, refreshData: loadData, 
+        bulkAppendSongs: async (newItems) => {
+            const existing = await dbService.getAllSongs();
+            const existingIds = new Set(existing.map(s => normalizeIdentifier(s.id)));
+            const itemsToAdd = newItems.map(item => ({
+                ...item,
+                id: normalizeIdentifier(item.id || item.isrc || '')
+            })).filter(item => !existingIds.has(item.id));
+            
+            if (itemsToAdd.length === 0) return true;
+            
+            const updated = [...existing, ...itemsToAdd].sort((a,b)=>new Date(b.releaseDate).getTime() - new Date(a.releaseDate).getTime());
+            await dbService.bulkAdd(updated);
+            setSongs(updated);
+            const success = await syncToCloud(updated);
+            return success;
+        },
+        isSyncing, syncProgress, syncSuccess, refreshData: loadData, 
         uploadSongsToCloud: syncToCloud, uploadSettingsToCloud, 
         globalSettings, setGlobalSettings,
         currentSong, setCurrentSong, isPlaying, setIsPlaying
