@@ -4,10 +4,12 @@ import { useNavigate } from 'react-router-dom';
 import { useData, normalizeIdentifier, ASSETS, resolveDirectLink } from '../context/DataContext';
 import { useUser } from '../context/UserContext';
 import { useToast } from '../components/Layout';
-import { Language, ProjectType, Song } from '../types';
+import { Language, ProjectType, Song, ReleaseCategory } from '../types';
 import { parseWillwiTextCatalog } from '../services/geminiService';
+import { searchSpotifyTracks, SpotifyTrack } from '../services/spotifyService';
 
 type AdminTab = 'catalog' | 'settings' | 'payment' | 'system';
+type ImportMode = 'none' | 'ai' | 'spotify';
 
 const AdminDashboard: React.FC = () => {
   const { 
@@ -24,17 +26,25 @@ const AdminDashboard: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [expandedAlbums, setExpandedAlbums] = useState<Set<string>>(new Set());
 
-  // 音訊試聽狀態 (僅限管理員)
+  // 管理員試聽狀態
   const [adminPlayingId, setAdminPlayingId] = useState<string | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
-  // Bulk Import States
-  const [showBulkImport, setShowBulkImport] = useState(false);
+  // 導入模式與狀態
+  const [importMode, setImportMode] = useState<ImportMode>('none');
+  
+  // AI Import States
   const [bulkText, setBulkText] = useState('');
   const [isParsing, setIsParsing] = useState(false);
   const [parsedResults, setParsedResults] = useState<Partial<Song>[]>([]);
 
-  // 作品列表邏輯
+  // Spotify Import States
+  const [spotifyQuery, setSpotifyQuery] = useState('');
+  const [spotifyResults, setSpotifyResults] = useState<SpotifyTrack[]>([]);
+  const [selectedSpotifyIds, setSelectedSpotifyIds] = useState<Set<string>>(new Set());
+  const [isSearchingSpotify, setIsSearchingSpotify] = useState(false);
+
+  // 作品列表分組
   const groupedAlbums = useMemo(() => {
     const groups: Record<string, Song[]> = {};
     const filtered = songs.filter(s => 
@@ -66,7 +76,10 @@ const AdminDashboard: React.FC = () => {
           const url = resolveDirectLink(track.audioUrl || '');
           if (audioRef.current) {
               audioRef.current.src = url;
-              audioRef.current.play().catch(() => showToast("播放失敗，請檢查連結", "error"));
+              audioRef.current.play().catch(() => {
+                  showToast("試聽載入失敗，請確認音訊連結", "error");
+                  setAdminPlayingId(null);
+              });
           }
       }
   };
@@ -77,7 +90,7 @@ const AdminDashboard: React.FC = () => {
 
   const handleSaveSettings = async () => {
       await uploadSettingsToCloud(globalSettings);
-      showToast("✅ 所有設定（含影音與付款碼）已同步至雲端與本地備份");
+      showToast("✅ 所有設定已同步至雲端");
   };
 
   const handleQrUpload = (key: string) => (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -90,6 +103,56 @@ const AdminDashboard: React.FC = () => {
           };
           reader.readAsDataURL(file);
       }
+  };
+
+  // Spotify 搜尋邏輯
+  const handleSpotifySearch = async () => {
+      if (!spotifyQuery.trim()) return;
+      setIsSearchingSpotify(true);
+      try {
+          const results = await searchSpotifyTracks(spotifyQuery);
+          setSpotifyResults(results);
+          if (results.length === 0) showToast("找不到匹配的作品", "error");
+      } catch (e) {
+          showToast("Spotify 搜尋出錯", "error");
+      } finally {
+          setIsSearchingSpotify(false);
+      }
+  };
+
+  const toggleSpotifySelection = (id: string) => {
+      const next = new Set(selectedSpotifyIds);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      setSelectedSpotifyIds(next);
+  };
+
+  const importSelectedSpotify = async () => {
+      const tracksToImport = spotifyResults.filter(t => selectedSpotifyIds.has(t.id));
+      if (tracksToImport.length === 0) return;
+
+      const newSongs: Song[] = tracksToImport.map(t => ({
+          id: normalizeIdentifier(t.external_ids?.isrc || t.id),
+          title: t.name,
+          releaseDate: t.album?.release_date || new Date().toISOString().split('T')[0],
+          spotifyLink: t.external_urls?.spotify,
+          isrc: t.external_ids?.isrc || '',
+          upc: t.album?.external_ids?.upc || '',
+          coverUrl: t.album?.images?.[0]?.url || ASSETS.defaultCover,
+          releaseCompany: t.album?.label || 'WILLWI MUSIC',
+          language: Language.Mandarin,
+          projectType: ProjectType.Indie,
+          releaseCategory: ReleaseCategory.Single,
+          isInteractiveActive: true,
+          isEditorPick: false,
+          origin: 'local'
+      }));
+
+      await bulkAppendSongs(newSongs);
+      setImportMode('none');
+      setSpotifyResults([]);
+      setSelectedSpotifyIds(new Set());
+      showToast(`已成功導入 ${newSongs.length} 首作品`);
   };
 
   if (!isAdmin) {
@@ -108,8 +171,6 @@ const AdminDashboard: React.FC = () => {
 
   return (
     <div className="max-w-[1600px] mx-auto px-10 py-48 animate-fade-in pb-40">
-      
-      {/* 管理員專屬隱藏音軌播放器 */}
       <audio ref={audioRef} onEnded={() => setAdminPlayingId(null)} className="hidden" />
 
       {isSyncing && (
@@ -128,8 +189,11 @@ const AdminDashboard: React.FC = () => {
           </p>
         </div>
         <div className="flex flex-wrap gap-4">
-          <button onClick={() => setShowBulkImport(!showBulkImport)} className={`h-14 px-8 border text-[11px] font-black uppercase tracking-widest transition-all ${showBulkImport ? 'bg-brand-gold text-black border-brand-gold' : 'border-brand-gold text-brand-gold hover:bg-brand-gold/10'}`}>
-            {showBulkImport ? '返回清單' : '🚀 220 首歌批量導入'}
+          <button onClick={() => setImportMode(importMode === 'ai' ? 'none' : 'ai')} className={`h-14 px-8 border text-[11px] font-black uppercase tracking-widest transition-all ${importMode === 'ai' ? 'bg-brand-gold text-black border-brand-gold' : 'border-white/20 text-white hover:border-brand-gold'}`}>
+            AI 批量導入
+          </button>
+          <button onClick={() => setImportMode(importMode === 'spotify' ? 'none' : 'spotify')} className={`h-14 px-8 border text-[11px] font-black uppercase tracking-widest transition-all ${importMode === 'spotify' ? 'bg-brand-gold text-black border-brand-gold' : 'border-white/20 text-white hover:border-brand-gold'}`}>
+            Spotify 搜尋導入
           </button>
           <button onClick={() => navigate('/add')} className="h-14 px-12 bg-white text-black text-[11px] font-black uppercase tracking-widest hover:bg-brand-gold transition-all">手動新增作品</button>
           <button onClick={logoutAdmin} className="h-14 px-8 border border-white/10 text-white text-[11px] font-black uppercase hover:bg-rose-900 transition-all">登出</button>
@@ -151,9 +215,9 @@ const AdminDashboard: React.FC = () => {
 
       {activeTab === 'catalog' && (
         <div className="space-y-12">
-          {showBulkImport ? (
+          {importMode === 'ai' && (
             <div className="bg-brand-gold/5 border border-brand-gold/20 p-10 space-y-8 animate-fade-in-up">
-                <h3 className="text-brand-gold font-black text-xs uppercase tracking-[0.4em]">AI 批量解析 (220 首歌快速導入)</h3>
+                <h3 className="text-brand-gold font-black text-xs uppercase tracking-[0.4em]">AI 批量解析導入</h3>
                 <textarea className="w-full h-80 bg-black border border-white/10 p-8 text-white text-sm font-mono focus:border-brand-gold outline-none resize-none custom-scrollbar" placeholder="在此貼上 YouTube Music 或文字清單..." value={bulkText} onChange={e => setBulkText(e.target.value)} />
                 <button onClick={async () => {
                     if (!bulkText.trim()) return;
@@ -179,13 +243,48 @@ const AdminDashboard: React.FC = () => {
                         }));
                         await bulkAppendSongs(newSongs);
                         setParsedResults([]);
-                        setShowBulkImport(false);
+                        setImportMode('none');
                         showToast("已批量同步至雲端庫存");
                     }} className="w-full py-6 bg-white text-black font-black uppercase text-xs tracking-[0.4em]">同步至雲端資料庫</button>
                 )}
             </div>
-          ) : (
-            <>
+          )}
+
+          {importMode === 'spotify' && (
+            <div className="bg-emerald-950/20 border border-emerald-500/30 p-10 space-y-8 animate-fade-in-up">
+                <h3 className="text-emerald-500 font-black text-xs uppercase tracking-[0.4em]">Spotify 批量搜尋導入</h3>
+                <div className="flex gap-4">
+                    <input className="flex-1 bg-black border border-white/10 p-5 text-white text-sm outline-none focus:border-emerald-500" placeholder="搜尋專輯或歌曲名稱..." value={spotifyQuery} onChange={e => setSpotifyQuery(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleSpotifySearch()} />
+                    <button onClick={handleSpotifySearch} className="px-10 bg-emerald-600 text-white font-black uppercase text-xs tracking-widest hover:bg-white hover:text-black transition-all">搜尋</button>
+                </div>
+                
+                {spotifyResults.length > 0 && (
+                    <div className="space-y-4">
+                        <div className="flex justify-between items-center px-4">
+                            <span className="text-[10px] text-slate-500 font-black uppercase tracking-widest">已選擇 {selectedSpotifyIds.size} 首</span>
+                            <button onClick={() => setSelectedSpotifyIds(new Set(spotifyResults.map(t => t.id)))} className="text-[9px] text-brand-gold font-black uppercase">選擇全部</button>
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-h-[500px] overflow-y-auto custom-scrollbar pr-2">
+                            {spotifyResults.map(track => (
+                                <div key={track.id} onClick={() => toggleSpotifySelection(track.id)} className={`flex items-center gap-6 p-4 border cursor-pointer transition-all ${selectedSpotifyIds.has(track.id) ? 'bg-emerald-500/20 border-emerald-500' : 'bg-black border-white/5 hover:border-white/20'}`}>
+                                    <img src={track.album.images?.[0]?.url} className="w-16 h-16 object-cover rounded-sm" />
+                                    <div className="flex-1 min-w-0">
+                                        <p className="text-white font-bold truncate uppercase tracking-widest">{track.name}</p>
+                                        <p className="text-[9px] text-slate-500 font-mono mt-1">{track.album.name} • {track.album.release_date}</p>
+                                    </div>
+                                    <div className={`w-6 h-6 border flex items-center justify-center rounded-sm ${selectedSpotifyIds.has(track.id) ? 'bg-emerald-500 border-emerald-500' : 'border-white/20'}`}>
+                                        {selectedSpotifyIds.has(track.id) && <svg className="w-4 h-4 text-black" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="4" d="M5 13l4 4L19 7" /></svg>}
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                        <button onClick={importSelectedSpotify} className="w-full py-6 bg-emerald-500 text-black font-black uppercase text-xs tracking-[0.4em] hover:bg-white transition-all">確認導入選取的作品</button>
+                    </div>
+                )}
+            </div>
+          )}
+
+          <div className="space-y-8">
               <input type="text" placeholder="搜尋標題 / ISRC / UPC..." className="w-full bg-transparent border-b border-white/10 py-8 text-2xl outline-none focus:border-brand-gold text-white font-bold uppercase" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
               <div className="space-y-8">
                 {groupedAlbums.map(album => {
@@ -218,8 +317,8 @@ const AdminDashboard: React.FC = () => {
                                 <p className="text-[10px] text-slate-500 font-mono mt-1">{track.isrc || '無 ISRC'}</p>
                               </div>
                               <div className="flex items-center gap-8">
-                                 <button onClick={() => navigate(`/add?edit=${track.id}`)} className="text-[10px] font-black uppercase text-slate-400 hover:text-white">編輯</button>
-                                 <button onClick={() => deleteSong(track.id)} className="text-[10px] font-black uppercase text-rose-900 hover:text-rose-500">刪除</button>
+                                 <button onClick={(e) => { e.stopPropagation(); navigate(`/add?edit=${track.id}`); }} className="text-[10px] font-black uppercase text-slate-400 hover:text-white">編輯</button>
+                                 <button onClick={(e) => { e.stopPropagation(); if (window.confirm("確定要刪除嗎？")) deleteSong(track.id); }} className="text-[10px] font-black uppercase text-rose-900 hover:text-rose-500">刪除</button>
                               </div>
                             </div>
                           ))}
@@ -229,8 +328,7 @@ const AdminDashboard: React.FC = () => {
                   );
                 })}
               </div>
-            </>
-          )}
+          </div>
         </div>
       )}
 
@@ -252,7 +350,7 @@ const AdminDashboard: React.FC = () => {
                     <input className="w-full bg-black border border-white/10 p-5 text-white text-xs outline-none" value={globalSettings.exclusiveYoutubeUrl || ''} onChange={e => handleSettingsChange('exclusiveYoutubeUrl', e.target.value)} />
                 </div>
             </div>
-            <button onClick={handleSaveSettings} className="w-full py-6 bg-brand-gold text-black font-black uppercase text-xs tracking-[0.4em] hover:bg-white transition-all shadow-2xl">
+            <button onClick={handleSaveSettings} className="w-full py-6 bg-brand-gold text-black font-black uppercase text-xs tracking-[0.4em] hover:bg-white transition-all">
                儲存所有設置至雲端
             </button>
           </div>
