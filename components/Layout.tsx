@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useMemo, createContext, useContext, useRef } from 'react';
-import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { useTranslation } from '../context/LanguageContext';
 import { useUser } from '../context/UserContext';
 import { useData, resolveDirectLink } from '../context/DataContext';
@@ -20,20 +20,27 @@ export const useToast = () => {
 
 const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const location = useLocation();
-  const navigate = useNavigate();
   const [scrolled, setScrolled] = useState(false);
   const [showSnow, setShowSnow] = useState(true);
+  const [hasInteracted, setHasInteracted] = useState(false); // 用於觸發瀏覽器音訊播放
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
   
-  const { t, lang, setLang } = useTranslation();
-  const { isAdmin } = useUser();
-  const { globalSettings, syncSuccess, isSyncing, refreshData, songs, currentSong, setCurrentSong, isPlaying, setIsPlaying } = useData();
+  const { lang, setLang } = useTranslation();
+  const { globalSettings, syncSuccess, isSyncing, refreshData, currentSong, isPlaying, setIsPlaying } = useData();
   
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
   const audioRef = useRef<HTMLAudioElement>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
 
+  // 解析後的背景網址
   const resolvedBgUrl = useMemo(() => resolveDirectLink(globalSettings.portraitUrl), [globalSettings.portraitUrl]);
+
+  // 判斷是否為影片格式
+  const isBgVideo = useMemo(() => {
+    const url = (resolvedBgUrl || '').toLowerCase();
+    return url.includes('.mp4') || url.includes('.mov') || url.includes('.webm') || url.includes('videoplayback') || url.includes('raw=1') || url.includes('dl=1');
+  }, [resolvedBgUrl]);
 
   useEffect(() => {
     const handleScroll = () => setScrolled(window.scrollY > 50);
@@ -41,6 +48,14 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
+  // 當主播放器播放作品時，背景影片靜音；作品停止時，背景影片恢復聲音
+  useEffect(() => {
+    if (videoRef.current) {
+      videoRef.current.muted = isPlaying;
+    }
+  }, [isPlaying]);
+
+  // 音訊與互動邏輯
   useEffect(() => {
     if (!audioRef.current) return;
     if (isPlaying) {
@@ -55,13 +70,6 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     setTimeout(() => setToast(null), 3000);
   };
 
-  const navItems = [
-    { path: '/', label: 'HOME' },
-    { path: '/database', label: 'CATALOG' },
-    { path: '/interactive', label: 'STUDIO' },
-    { path: '/admin', label: 'MANAGER' }
-  ];
-
   const currentAudioSrc = useMemo(() => {
     if (!currentSong) return '';
     return resolveDirectLink(currentSong.audioUrl || currentSong.dropboxUrl || '');
@@ -69,15 +77,51 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
 
   const isInteractiveMode = location.pathname === '/interactive';
 
+  // 點擊進入
+  const handleEnter = () => {
+    setHasInteracted(true);
+    if (videoRef.current) {
+      videoRef.current.play().catch(e => console.log("Video play failed", e));
+    }
+  };
+
   return (
     <ToastContext.Provider value={{ showToast }}>
       <div className="min-h-screen flex flex-col relative bg-black text-white font-sans selection:bg-brand-gold selection:text-black">
         
+        {/* 點擊進入引導層：為了解鎖瀏覽器的自動播放音訊限制 */}
+        {!hasInteracted && (
+          <div 
+            onClick={handleEnter}
+            className="fixed inset-0 z-[1000] bg-black flex flex-col items-center justify-center cursor-pointer transition-opacity duration-1000 group"
+          >
+            <div className="text-white text-[11px] font-black uppercase tracking-[1em] mb-10 opacity-30 group-hover:opacity-100 transition-opacity">
+              Click to Enter Willwi
+            </div>
+            <div className="w-16 h-[1px] bg-white/10 group-hover:bg-brand-gold group-hover:w-32 transition-all"></div>
+          </div>
+        )}
+
         {showSnow && <Snowfall />}
 
+        {/* 動態背景層：自動識別影片或圖片 */}
         <div className="fixed inset-0 z-0 pointer-events-none overflow-hidden bg-black">
             <div className="absolute inset-0 opacity-100 transition-opacity duration-1000">
-                <div className="w-full h-full bg-cover bg-center bg-no-repeat transition-all duration-[8000ms] animate-studio-breathe" style={{ backgroundImage: `url(${resolvedBgUrl})` }}></div>
+                {isBgVideo ? (
+                  <video 
+                    ref={videoRef}
+                    src={resolvedBgUrl} 
+                    autoPlay 
+                    loop 
+                    playsInline 
+                    className="w-full h-full object-cover" 
+                  />
+                ) : (
+                  <div 
+                    className="w-full h-full bg-cover bg-center bg-no-repeat transition-all duration-[8000ms] animate-studio-breathe" 
+                    style={{ backgroundImage: `url(${resolvedBgUrl})` }}
+                  ></div>
+                )}
             </div>
             <div className="absolute inset-0 studio-ambient-glow"></div>
             <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-black/40"></div>
@@ -98,20 +142,18 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
                   <div 
                     onClick={refreshData} 
                     className={`w-1.5 h-1.5 rounded-full cursor-pointer transition-all duration-1000 ${isSyncing ? 'bg-brand-gold animate-pulse' : syncSuccess ? 'bg-emerald-500 shadow-[0_0_10px_#10b981]' : 'bg-rose-500 animate-bounce'}`}
-                    title={isSyncing ? "Saving..." : syncSuccess ? "Cloud Synced" : "Connection Error"}
                   ></div>
               </div>
               
               <div className="hidden lg:flex items-center space-x-12 text-[11px] font-black uppercase tracking-[0.4em]">
-                {navItems.map(item => (
-                  <Link key={item.path} to={item.path} className={`transition-all ${location.pathname === item.path ? "text-brand-gold border-b border-brand-gold pb-1" : "text-white/60 hover:text-white"}`}>
-                    {item.label}
-                  </Link>
-                ))}
+                  <Link to="/" className={`transition-all ${location.pathname === '/' ? "text-brand-gold" : "text-white/40 hover:text-white"}`}>HOME</Link>
+                  <Link to="/database" className={`transition-all ${location.pathname === '/database' ? "text-brand-gold" : "text-white/40 hover:text-white"}`}>CATALOG</Link>
+                  <Link to="/interactive" className={`transition-all ${location.pathname === '/interactive' ? "text-brand-gold" : "text-white/40 hover:text-white"}`}>STUDIO</Link>
+                  <Link to="/admin" className={`transition-all ${location.pathname === '/admin' ? "text-brand-gold" : "text-white/40 hover:text-white"}`}>MANAGER</Link>
               </div>
 
               <div className="flex gap-8 items-center">
-                  <button onClick={() => setLang(lang === 'en' ? 'zh' : 'en')} className="text-white/40 hover:text-white transition-all font-black text-[9px] uppercase tracking-widest">
+                  <button onClick={() => setLang(lang === 'en' ? 'zh' : 'en')} className="text-white/20 hover:text-white transition-all font-black text-[9px] uppercase tracking-widest">
                     {lang === 'en' ? 'EN' : 'ZH'}
                   </button>
                   <button onClick={() => setShowSnow(!showSnow)} className={`text-lg transition-all ${showSnow ? 'text-brand-gold' : 'text-slate-800'}`}>❄</button>
@@ -122,7 +164,7 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
         <main className="flex-grow z-10 relative">{children}</main>
 
         {currentSong && !isInteractiveMode && (
-          <div className="fixed bottom-0 left-0 right-0 z-[150] bg-black/90 backdrop-blur-3xl border-t border-white/5 p-6 md:px-12 flex items-center gap-8 animate-fade-in-up">
+          <div className="fixed bottom-0 left-0 right-0 z-[150] bg-black/95 backdrop-blur-3xl border-t border-white/5 p-6 md:px-12 flex items-center gap-8 animate-fade-in-up">
              <audio 
                ref={audioRef} 
                src={currentAudioSrc} 
@@ -146,7 +188,7 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
                   {isPlaying ? <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg> : <svg className="w-6 h-6 ml-1" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>}
                 </button>
                 <div className="w-full max-w-xl h-0.5 bg-white/5 rounded-full overflow-hidden">
-                   <div className="h-full bg-brand-gold transition-all duration-300" style={{ width: `${(currentTime / (duration || 1)) * 100}%` }}></div>
+                   <div className="h-full bg-brand-gold" style={{ width: `${(currentTime / (duration || 1)) * 100}%` }}></div>
                 </div>
              </div>
              <div className="hidden md:block w-32"></div>
