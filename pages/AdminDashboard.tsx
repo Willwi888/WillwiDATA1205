@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useData, normalizeIdentifier } from '../context/DataContext';
@@ -34,7 +33,7 @@ const AdminDashboard: React.FC = () => {
   const [selectedSpotifyIds, setSelectedSpotifyIds] = useState<Set<string>>(new Set());
   const [isSpotifySearching, setIsSpotifySearching] = useState(false);
 
-  // 專輯分組邏輯 (與 Database 一致，但管理員介面包含隱藏曲目)
+  // 專輯分組邏輯
   const groupedAlbums = useMemo(() => {
     const groups: Record<string, Song[]> = {};
     const filtered = songs.filter(s => 
@@ -49,7 +48,6 @@ const AdminDashboard: React.FC = () => {
       groups[groupKey].push(song);
     });
 
-    // 依日期排序，最新的在上面
     return Object.values(groups).sort((a, b) => new Date(b[0].releaseDate).getTime() - new Date(a[0].releaseDate).getTime());
   }, [songs, searchTerm]);
 
@@ -118,6 +116,7 @@ const AdminDashboard: React.FC = () => {
       const tracks = await searchSpotifyTracks(spotifyQuery);
       setSpotifyResults(tracks);
       setSelectedSpotifyIds(new Set());
+      if (tracks.length === 0) showToast("未找到任何曲目", "error");
     } catch (e) {
       showToast("Spotify 搜尋失敗", "error");
     } finally {
@@ -160,8 +159,10 @@ const AdminDashboard: React.FC = () => {
     }));
     const success = await bulkAppendSongs(newSongs);
     if (success) {
-      showToast("批量導入成功！");
+      showToast(`成功導入 ${tracksToImport.length} 首曲目`);
       setShowSpotifySearch(false);
+      setSpotifyResults([]);
+      setSelectedSpotifyIds(new Set());
     }
     setLocalImporting(false);
   };
@@ -183,7 +184,7 @@ const AdminDashboard: React.FC = () => {
   return (
     <div className="max-w-[1600px] mx-auto px-10 py-48 animate-fade-in pb-40">
       
-      {/* 核心進度顯示優化 - 包含百分比文字 */}
+      {/* 核心進度顯示優化 */}
       {(isSyncing || localImporting) && (
         <div className="fixed top-0 left-0 w-full z-[1000]">
            <div className="h-1.5 bg-white/5 w-full">
@@ -203,8 +204,11 @@ const AdminDashboard: React.FC = () => {
           </p>
         </div>
         <div className="flex gap-4">
-          <button onClick={() => setShowSpotifySearch(!showSpotifySearch)} className={`h-14 px-8 border text-[11px] font-black uppercase tracking-widest transition-all ${showSpotifySearch ? 'bg-emerald-500 text-black border-emerald-500' : 'border-emerald-500/30 text-emerald-500 hover:bg-emerald-500/10'}`}>
-            從 SPOTIFY 導入
+          <button 
+            onClick={() => setShowSpotifySearch(!showSpotifySearch)} 
+            className={`h-14 px-8 border text-[11px] font-black uppercase tracking-widest transition-all ${showSpotifySearch ? 'bg-emerald-500 text-black border-emerald-500' : 'border-emerald-500/30 text-emerald-500 hover:bg-emerald-500/10'}`}
+          >
+            {showSpotifySearch ? '關閉搜尋' : '從 SPOTIFY 導入'}
           </button>
           <button onClick={() => navigate('/add')} className="h-14 px-12 bg-white text-black text-[11px] font-black uppercase tracking-widest hover:bg-brand-gold transition-all">新條目</button>
           <button onClick={logoutAdmin} className="h-14 px-12 border border-white/10 text-white text-[11px] font-black uppercase tracking-widest hover:bg-slate-900 transition-all">註銷</button>
@@ -221,57 +225,79 @@ const AdminDashboard: React.FC = () => {
 
       {activeTab === 'catalog' && (
         <div className="space-y-12 animate-fade-in">
+          {/* Spotify 批量搜尋導入區塊 */}
           {showSpotifySearch && (
-            <div className="bg-emerald-950/20 border border-emerald-500/20 p-10 space-y-8 animate-fade-in-up mb-12">
+            <div className="bg-emerald-950/20 border border-emerald-500/20 p-10 space-y-8 animate-fade-in-up mb-12 rounded-sm shadow-2xl">
               <div className="flex justify-between items-center">
-                <h3 className="text-emerald-500 font-black text-xs uppercase tracking-[0.4em]">Spotify Bulk Importer</h3>
+                <div className="flex items-center gap-4">
+                  <div className="w-8 h-8 bg-emerald-500 rounded-full flex items-center justify-center">
+                    <svg className="w-5 h-5 text-black" fill="currentColor" viewBox="0 0 24 24"><path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.508 17.302c-.223.367-.703.483-1.07.259-2.914-1.782-6.582-2.185-10.903-1.196-.418.096-.836-.168-.933-.587-.096-.418.168-.836.587-.933 4.737-1.082 8.8-1.545 12.06 1.396.367.224.483.704.259 1.071zm1.472-3.257c-.28.455-.877.6-1.33.32-3.337-2.05-8.423-2.645-12.37-1.447-.512.155-1.053-.133-1.208-.644-.155-.512.133-1.053.644-1.208 4.512-1.368 10.125-.701 13.944 1.648.455.28.6.877.32 1.331zm.126-3.393c-4.002-2.376-10.598-2.595-14.417-1.436-.615.187-1.26-.168-1.447-.783-.187-.615.168-1.26.783-1.447 4.394-1.333 11.66-1.078 16.273 1.66.554.328.74 1.04.412 1.594-.328.554-1.04.74-1.594.412z"/></svg>
+                  </div>
+                  <h3 className="text-emerald-500 font-black text-xs uppercase tracking-[0.4em]">Spotify Bulk Search</h3>
+                </div>
                 <div className="flex gap-4 items-center">
-                    <button onClick={toggleAllSpotify} className="text-[10px] text-emerald-500 font-black uppercase tracking-widest border border-emerald-500/20 px-3 py-1 hover:bg-emerald-500/10">
-                        {selectedSpotifyIds.size === spotifyResults.length && spotifyResults.length > 0 ? 'DESELECT ALL' : 'SELECT ALL'}
-                    </button>
+                    {spotifyResults.length > 0 && (
+                      <button onClick={toggleAllSpotify} className="text-[10px] text-emerald-500 font-black uppercase tracking-widest border border-emerald-500/20 px-3 py-1 hover:bg-emerald-500/10 transition-all">
+                          {selectedSpotifyIds.size === spotifyResults.length ? '取消全選' : '全選曲目'}
+                      </button>
+                    )}
                     <span className="text-[10px] text-emerald-500/50 font-bold uppercase tracking-widest">{selectedSpotifyIds.size} TRACKS SELECTED</span>
                 </div>
               </div>
+              
               <div className="flex gap-4">
                 <input 
                   type="text" 
-                  placeholder="SEARCH SPOTIFY (e.g. Willwi)..." 
-                  className="flex-1 bg-black border border-emerald-500/20 px-6 py-5 text-white outline-none focus:border-emerald-500" 
+                  placeholder="輸入關鍵字或 ISRC 搜尋曲目..." 
+                  className="flex-1 bg-black border border-emerald-500/20 px-6 py-5 text-white outline-none focus:border-emerald-500 transition-all" 
                   value={spotifyQuery} 
                   onChange={e => setSpotifyQuery(e.target.value)}
                   onKeyDown={e => e.key === 'Enter' && handleSpotifySearch()}
                 />
-                <button onClick={handleSpotifySearch} disabled={isSpotifySearching} className="px-10 bg-emerald-500 text-black font-black text-[11px] uppercase tracking-widest">
-                  {isSpotifySearching ? 'SEARCHING...' : 'SEARCH'}
+                <button onClick={handleSpotifySearch} disabled={isSpotifySearching} className="px-10 bg-emerald-500 text-black font-black text-[11px] uppercase tracking-widest hover:bg-white transition-all disabled:opacity-50">
+                  {isSpotifySearching ? '搜尋中...' : '執行搜尋'}
                 </button>
               </div>
+
               {spotifyResults.length > 0 && (
-                <div className="space-y-4 max-h-80 overflow-y-auto custom-scrollbar">
+                <div className="space-y-4 max-h-80 overflow-y-auto custom-scrollbar pr-4">
                   {spotifyResults.map(track => (
-                    <div key={track.id} onClick={() => toggleSpotifySelection(track.id)} className={`flex items-center gap-6 p-4 border transition-all cursor-pointer ${selectedSpotifyIds.has(track.id) ? 'bg-emerald-500/20 border-emerald-500' : 'bg-black/40 border-white/5'}`}>
-                      <div className={`w-5 h-5 border flex items-center justify-center ${selectedSpotifyIds.has(track.id) ? 'bg-emerald-500 border-emerald-500' : 'border-white/20'}`}>
+                    <div 
+                      key={track.id} 
+                      onClick={() => toggleSpotifySelection(track.id)} 
+                      className={`flex items-center gap-6 p-4 border transition-all cursor-pointer group ${selectedSpotifyIds.has(track.id) ? 'bg-emerald-500/10 border-emerald-500' : 'bg-black/40 border-white/5 hover:border-emerald-500/40'}`}
+                    >
+                      <div className={`w-5 h-5 border flex items-center justify-center transition-all ${selectedSpotifyIds.has(track.id) ? 'bg-emerald-500 border-emerald-500' : 'border-white/20 group-hover:border-emerald-500'}`}>
                         {selectedSpotifyIds.has(track.id) && <svg className="w-3 h-3 text-black" fill="currentColor" viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>}
                       </div>
-                      <img src={track.album?.images?.[0]?.url} className="w-10 h-10 object-cover" />
-                      <div className="flex-1">
-                        <h4 className="text-xs font-bold text-white uppercase">{track.name}</h4>
-                        <p className="text-[9px] text-slate-500 uppercase">{track.album.name} • {track.artists.map((a:any)=>a.name).join(', ')}</p>
+                      <img src={track.album?.images?.[0]?.url} className="w-12 h-12 object-cover rounded shadow-lg" />
+                      <div className="flex-1 overflow-hidden">
+                        <h4 className="text-xs font-bold text-white uppercase truncate">{track.name}</h4>
+                        <p className="text-[9px] text-slate-500 uppercase truncate mt-1">
+                          {track.album.name} • {track.artists.map((a:any)=>a.name).join(', ')}
+                        </p>
                       </div>
-                      <div className="text-[10px] text-slate-500 font-mono">{track.external_ids?.isrc || 'NO ISRC'}</div>
+                      <div className="text-[10px] text-slate-500 font-mono shrink-0 px-4">
+                        {track.external_ids?.isrc || 'N/A'}
+                      </div>
                     </div>
                   ))}
                 </div>
               )}
+
               {selectedSpotifyIds.size > 0 && (
-                <button onClick={handleBulkImportSpotify} className="w-full py-5 bg-emerald-500 text-black font-black uppercase text-xs tracking-widest shadow-[0_0_20px_rgba(16,185,129,0.3)]">
-                  IMPORT {selectedSpotifyIds.size} SELECTED TRACKS
+                <button 
+                  onClick={handleBulkImportSpotify} 
+                  className="w-full py-6 bg-emerald-500 text-black font-black uppercase text-xs tracking-[0.4em] shadow-[0_20px_40px_rgba(16,185,129,0.2)] hover:bg-white hover:scale-[1.01] transition-all active:scale-95"
+                >
+                  批量導入所選的 {selectedSpotifyIds.size} 首曲目
                 </button>
               )}
             </div>
           )}
 
           <div className="relative">
-            <input type="text" placeholder="SEARCH TITLE / ISRC / UPC..." className="w-full bg-transparent border-b border-white/10 px-0 py-8 text-2xl outline-none focus:border-brand-gold text-white font-bold uppercase tracking-widest placeholder:text-white/10" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
+            <input type="text" placeholder="搜尋標題 / ISRC / UPC..." className="w-full bg-transparent border-b border-white/10 px-0 py-8 text-2xl outline-none focus:border-brand-gold text-white font-bold uppercase tracking-widest placeholder:text-white/10" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
           </div>
 
           <div className="space-y-8">
@@ -279,7 +305,7 @@ const AdminDashboard: React.FC = () => {
               const main = album[0];
               const isExpanded = expandedAlbums.has(main.id);
               return (
-                <div key={main.id} className="border border-white/5 bg-white/[0.01] hover:bg-white/[0.02] transition-all overflow-hidden">
+                <div key={main.id} className="border border-white/5 bg-white/[0.01] hover:bg-white/[0.02] transition-all overflow-hidden rounded-sm">
                   <div 
                     onClick={() => toggleAlbum(main.id)}
                     className="flex items-center gap-10 p-8 cursor-pointer group"
@@ -309,7 +335,6 @@ const AdminDashboard: React.FC = () => {
                     <div className="border-t border-white/5 bg-black/40 animate-fade-in-up">
                       {album.map((track) => (
                         <div key={track.id} className={`flex items-center gap-10 p-8 border-b border-white/5 last:border-0 hover:bg-brand-gold/5 transition-all ${currentSong?.id === track.id ? 'bg-brand-gold/10 border-l-4 border-l-brand-gold' : ''}`}>
-                          {/* 播放按鈕 */}
                           <button 
                             onClick={(e) => handlePlayTrack(e, track)}
                             className={`w-12 h-12 rounded-full border flex items-center justify-center transition-all ${isPlaying && currentSong?.id === track.id ? 'bg-brand-gold text-black border-brand-gold shadow-[0_0_20px_#fbbf24]' : 'border-white/20 text-white hover:border-brand-gold hover:text-brand-gold'}`}
@@ -323,17 +348,42 @@ const AdminDashboard: React.FC = () => {
                           <div className="flex-1">
                             <p className="text-base font-black text-white uppercase tracking-wider">{track.title}</p>
                             <p className="text-[10px] text-slate-500 font-mono mt-1 tracking-widest">{track.isrc}</p>
+                            
+                            <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4" onClick={(e) => e.stopPropagation()}>
+                                {/* YouTube 快速連結編輯區 */}
+                                <div className="flex flex-col gap-2">
+                                    <label className="text-[9px] text-brand-gold/50 font-black uppercase tracking-widest">YouTube URL</label>
+                                    <input 
+                                      type="text" 
+                                      placeholder="PASTE YOUTUBE MUSIC LINK..." 
+                                      className="w-full bg-black/40 border border-white/10 px-4 py-2 text-[11px] text-brand-gold outline-none focus:border-brand-gold font-mono"
+                                      value={track.youtubeUrl || ''}
+                                      onChange={(e) => updateSong(track.id, { youtubeUrl: e.target.value })}
+                                    />
+                                </div>
+                                {/* SoundCloud 快速連結編輯區 */}
+                                <div className="flex flex-col gap-2">
+                                    <label className="text-[9px] text-orange-500/50 font-black uppercase tracking-widest">SoundCloud URL</label>
+                                    <input 
+                                      type="text" 
+                                      placeholder="PASTE SOUNDCLOUD LINK..." 
+                                      className="w-full bg-black/40 border border-white/10 px-4 py-2 text-[11px] text-orange-500 outline-none focus:border-orange-500 font-mono"
+                                      value={track.soundcloudUrl || ''}
+                                      onChange={(e) => updateSong(track.id, { soundcloudUrl: e.target.value })}
+                                    />
+                                </div>
+                            </div>
                           </div>
                           
                           <div className="flex items-center gap-8">
                             <button 
-                              onClick={() => updateSong(track.id, { isInteractiveActive: !track.isInteractiveActive })}
+                              onClick={(e) => { e.stopPropagation(); updateSong(track.id, { isInteractiveActive: !track.isInteractiveActive }); }}
                               className={`px-5 py-2 text-[10px] font-black uppercase tracking-widest border transition-all ${track.isInteractiveActive ? 'bg-emerald-500 text-black border-emerald-500' : 'text-slate-600 border-white/10 hover:border-white/30'}`}
                             >
                               {track.isInteractiveActive ? 'ACTIVE' : 'PRIVATE'}
                             </button>
-                            <button onClick={() => navigate(`/add?edit=${track.id}`)} className="text-[10px] font-black uppercase text-slate-400 hover:text-white transition-all">EDIT</button>
-                            <button onClick={() => { if (confirm('確定要刪除這首歌嗎？此動作不可撤銷。')) deleteSong(track.id); }} className="text-[10px] font-black uppercase text-rose-900 hover:text-rose-500 transition-all">DEL</button>
+                            <button onClick={(e) => { e.stopPropagation(); navigate(`/add?edit=${track.id}`); }} className="text-[10px] font-black uppercase text-slate-400 hover:text-white transition-all">EDIT</button>
+                            <button onClick={(e) => { e.stopPropagation(); if (confirm('確定要刪除這首歌嗎？此動作不可撤銷。')) deleteSong(track.id); }} className="text-[10px] font-black uppercase text-rose-900 hover:text-rose-500 transition-all">DEL</button>
                           </div>
                         </div>
                       ))}

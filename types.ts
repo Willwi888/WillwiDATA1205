@@ -46,6 +46,7 @@ export interface Song {
   spotifyLink?: string;
   appleMusicLink?: string;
   youtubeUrl?: string;
+  soundcloudUrl?: string;
   audioUrl?: string;
   dropboxUrl?: string;
   lyrics?: string;

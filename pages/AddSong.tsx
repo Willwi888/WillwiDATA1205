@@ -38,6 +38,7 @@ const AddSong: React.FC = () => {
     spotifyLink: '',
     appleMusicLink: '',
     youtubeUrl: '',
+    soundcloudUrl: '',
     credits: '',
     isInteractiveActive: true,
     translations: {}
@@ -298,8 +299,8 @@ const AddSong: React.FC = () => {
                                 </div>
                             </div>
                             <div className="space-y-3">
-                                <label className="text-[9px] text-slate-600 font-black uppercase tracking-widest">Spotify 連結</label>
-                                <input name="spotifyLink" value={formData.spotifyLink} onChange={handleChange} className="w-full bg-black border border-white/5 p-4 text-[11px] text-slate-400 outline-none focus:border-brand-gold" />
+                                <label className="text-[9px] text-slate-600 font-black uppercase tracking-widest">SoundCloud 連結</label>
+                                <input name="soundcloudUrl" value={formData.soundcloudUrl} onChange={handleChange} className="w-full bg-black border border-white/5 p-4 text-[11px] text-slate-400 outline-none focus:border-brand-gold" placeholder="https://soundcloud.com/..." />
                             </div>
                         </div>
                     </div>
