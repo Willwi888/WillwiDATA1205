@@ -23,6 +23,7 @@ const AdminDashboard: React.FC = () => {
   const [activeTab, setActiveTab] = useState<AdminTab>('catalog');
   const [passwordInput, setPasswordInput] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
+  const [importing, setImporting] = useState(false);
 
   const filteredSongs = useMemo(() => {
     return songs.filter(s => 
@@ -52,24 +53,35 @@ const AdminDashboard: React.FC = () => {
   const handleImportFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
       const file = e.target.files?.[0];
       if (!file) return;
+      
       const reader = new FileReader();
       reader.onload = async (event) => {
           try {
             const result = event.target?.result;
             if (typeof result !== 'string') return;
             const data = JSON.parse(result);
+            
             if (Array.isArray(data)) {
-                if (window.confirm(`確定要匯入 ${data.length} 筆作品資料嗎？這會覆蓋目前的本地數據庫。`)) {
-                    await bulkAddSongs(data);
-                    showToast("資料匯入成功，正在同步雲端...");
-                    window.location.reload();
+                if (window.confirm(`確定要匯入 ${data.length} 筆作品資料嗎？這會覆蓋目前的本地與雲端數據庫。`)) {
+                    setImporting(true);
+                    showToast("正在寫入資料並同步雲端，請勿關閉視窗...");
+                    
+                    const success = await bulkAddSongs(data);
+                    
+                    if (success) {
+                        showToast("資料匯入成功！系統將自動刷新。");
+                        setTimeout(() => window.location.reload(), 1500);
+                    } else {
+                        showToast("同步至雲端失敗，請稍後重試。", "error");
+                    }
                 }
             } else {
-                showToast("無效的 JSON 格式", "error");
+                showToast("無效的 JSON 格式，請確認備份檔是否正確。", "error");
             }
           } catch (e) { 
-              showToast("匯入失敗，請檢查檔案內容", "error"); 
+              showToast("匯入失敗，請檢查檔案內容是否符合格式要求。", "error"); 
           } finally { 
+              setImporting(false);
               if (fileInputRef.current) fileInputRef.current.value = ''; 
           }
       };
@@ -208,7 +220,13 @@ const AdminDashboard: React.FC = () => {
                </div>
                <div className="space-y-4">
                   <p className="text-[10px] text-rose-500 uppercase tracking-widest leading-relaxed">從備份檔復原作品資料庫。注意：這會完全覆蓋目前的數據。</p>
-                  <button onClick={() => fileInputRef.current?.click()} className="w-full py-5 border border-rose-500/30 text-rose-500 font-black text-[10px] uppercase tracking-widest hover:bg-rose-500 hover:text-white transition-all">匯入 JSON 備份</button>
+                  <button 
+                    onClick={() => fileInputRef.current?.click()} 
+                    disabled={importing}
+                    className={`w-full py-5 border border-rose-500/30 text-rose-500 font-black text-[10px] uppercase tracking-widest hover:bg-rose-500 hover:text-white transition-all ${importing ? 'opacity-50 cursor-not-allowed' : ''}`}
+                  >
+                    {importing ? '正在寫入數據...' : '匯入 JSON 備份'}
+                  </button>
                   <input ref={fileInputRef} type="file" className="hidden" accept=".json" onChange={handleImportFile} />
                </div>
             </div>

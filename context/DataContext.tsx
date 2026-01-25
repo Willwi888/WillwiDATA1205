@@ -17,7 +17,7 @@ interface ExtendedSongContextType extends SongContextType {
     isSyncing: boolean;
     syncSuccess: boolean;
     refreshData: () => Promise<void>;
-    uploadSongsToCloud: () => Promise<void>;
+    uploadSongsToCloud: (data?: Song[]) => Promise<boolean>;
     uploadSettingsToCloud: (settings: GlobalSettings) => Promise<void>;
     globalSettings: GlobalSettings;
     setGlobalSettings: React.Dispatch<React.SetStateAction<GlobalSettings>>;
@@ -40,29 +40,20 @@ export const ASSETS = {
 
 export const normalizeIdentifier = (val: string) => (val || '').trim().replace(/[^A-Z0-9]/gi, '').toUpperCase();
 
-/**
- * 終極連結解析器：自動將任何 Dropbox 網址轉化為純音訊流
- */
 export const resolveDirectLink = (url: string) => {
     if (!url || typeof url !== 'string') return '';
     let cleanUrl = url.trim();
-    
-    // Google Drive 處理
     if (cleanUrl.includes('drive.google.com')) {
         const idMatch = cleanUrl.match(/\/d\/([a-zA-Z0-9_-]{25,})/) || cleanUrl.match(/id=([a-zA-Z0-9_-]{25,})/);
         const id = idMatch ? idMatch[1] : null;
         if (id) return `https://docs.google.com/uc?export=download&id=${id}`;
     }
-
-    // Dropbox 處理：強制轉換為 dl.域名並加上 raw=1
     if (cleanUrl.includes('dropbox.com')) {
-        // 去除所有參數，重新構建最穩定的路徑
         let base = cleanUrl.split('?')[0];
         base = base.replace('www.dropbox.com', 'dl.dropboxusercontent.com')
                    .replace('dropbox.com', 'dl.dropboxusercontent.com');
         return `${base}?raw=1`;
     }
-    
     return cleanUrl;
 };
 
@@ -87,24 +78,37 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     try {
         const list = data || await dbService.getAllSongs();
         const payload = list.map(s => ({ 
-            id: s.id, title: s.title, isrc: s.isrc || '', upc: s.upc || '', 
-            cover_url: s.coverUrl, audio_url: s.audioUrl || '', dropbox_url: s.dropboxUrl || '', 
-            lyrics: s.lyrics || '', description: s.description || '', 
-            language: s.language, project_type: s.projectType, 
-            release_date: s.releaseDate, is_interactive_active: s.isInteractiveActive 
+            id: s.id, 
+            title: s.title, 
+            isrc: s.isrc || '', 
+            upc: s.upc || '', 
+            cover_url: s.coverUrl, 
+            audio_url: s.audioUrl || '', 
+            dropbox_url: s.dropboxUrl || '', 
+            lyrics: s.lyrics || '', 
+            description: s.description || '', 
+            language: s.language, 
+            project_type: s.projectType, 
+            release_date: s.releaseDate, 
+            is_interactive_active: !!s.isInteractiveActive 
         }));
         
         const res = await fetch(`${SUPABASE_URL}/rest/v1/songs`, { 
             method: 'POST', 
             headers: { 
-                'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}`, 
-                'Content-Type': 'application/json', 'Prefer': 'resolution=merge-duplicates' 
+                'apikey': SUPABASE_KEY, 
+                'Authorization': `Bearer ${SUPABASE_KEY}`, 
+                'Content-Type': 'application/json', 
+                'Prefer': 'resolution=merge-duplicates' 
             }, 
             body: JSON.stringify(payload) 
         });
-        setSyncSuccess(res.ok);
+        const success = res.ok;
+        setSyncSuccess(success);
+        return success;
     } catch (e) { 
         setSyncSuccess(false);
+        return false;
     } finally { 
         setIsSyncing(false); 
     }
@@ -116,7 +120,12 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         const payload = { id: 'SYSTEM_CONFIG', description: JSON.stringify(settings) };
         await fetch(`${SUPABASE_URL}/rest/v1/songs`, { 
             method: 'POST', 
-            headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}`, 'Content-Type': 'application/json', 'Prefer': 'resolution=merge-duplicates' }, 
+            headers: { 
+                'apikey': SUPABASE_KEY, 
+                'Authorization': `Bearer ${SUPABASE_KEY}`, 
+                'Content-Type': 'application/json', 
+                'Prefer': 'resolution=merge-duplicates' 
+            }, 
             body: JSON.stringify(payload) 
         });
     } catch (e) {} finally { setIsSyncing(false); }
@@ -125,18 +134,27 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const loadData = useCallback(async () => {
       setIsSyncing(true);
       try {
-          const res = await fetch(`${SUPABASE_URL}/rest/v1/songs?select=*`, { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` } });
+          const res = await fetch(`${SUPABASE_URL}/rest/v1/songs?select=*`, { 
+              headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` } 
+          });
           if (res.ok) {
               const remote = await res.json();
               const config = remote.find((r: any) => r.id === 'SYSTEM_CONFIG');
               const songList = remote.filter((r: any) => r.id !== 'SYSTEM_CONFIG');
               
-              if (config) { try { setGlobalSettings(prev => ({ ...prev, ...JSON.parse(config.description) })); } catch(e) {} }
+              if (config) { 
+                  try { setGlobalSettings(prev => ({ ...prev, ...JSON.parse(config.description) })); } catch(e) {} 
+              }
               
               const cleanSongs = songList.map((s: any) => ({ 
-                  ...s, id: s.id, title: s.title, coverUrl: s.cover_url, audioUrl: s.audio_url, dropboxUrl: s.dropbox_url, 
-                  language: s.language, projectType: s.project_type, releaseDate: s.release_date, 
-                  is_interactive_active: s.is_interactive_active 
+                  ...s, 
+                  coverUrl: s.cover_url, 
+                  audioUrl: s.audio_url, 
+                  dropboxUrl: s.dropbox_url, 
+                  language: s.language, 
+                  projectType: s.project_type, 
+                  releaseDate: s.release_date, 
+                  isInteractiveActive: s.is_interactive_active 
               })).sort((a:any, b:any) => new Date(b.releaseDate).getTime() - new Date(a.releaseDate).getTime());
               
               setSongs(cleanSongs);
@@ -153,7 +171,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       await dbService.addSong(song);
       const all = await dbService.getAllSongs();
       setSongs(all.sort((a,b)=>new Date(b.releaseDate).getTime() - new Date(a.releaseDate).getTime()));
-      syncToCloud(all);
+      await syncToCloud(all);
       return true;
   };
 
@@ -164,14 +182,19 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           await dbService.updateSong(updated);
           const all = await dbService.getAllSongs();
           setSongs(all.sort((a,b)=>new Date(b.releaseDate).getTime() - new Date(a.releaseDate).getTime()));
-          syncToCloud(all);
+          await syncToCloud(all);
       }
       return true;
   };
 
   const deleteSong = async (id: string) => {
       await dbService.deleteSong(id);
-      try { await fetch(`${SUPABASE_URL}/rest/v1/songs?id=eq.${id}`, { method: 'DELETE', headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` } }); } catch (e) {}
+      try { 
+          await fetch(`${SUPABASE_URL}/rest/v1/songs?id=eq.${id}`, { 
+              method: 'DELETE', 
+              headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` } 
+          }); 
+      } catch (e) {}
       const all = await dbService.getAllSongs();
       setSongs(all.sort((a,b)=>new Date(b.releaseDate).getTime() - new Date(a.releaseDate).getTime()));
   };
@@ -183,11 +206,16 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         songs, addSong, updateSong, deleteSong,
         getSong: (id) => songs.find(s => s.id === id),
         bulkAddSongs: async (s) => {
-            await dbService.clearAllSongs();
-            await dbService.bulkAdd(s);
-            setSongs(s);
-            syncToCloud(s);
-            return true;
+            setIsSyncing(true);
+            try {
+                await dbService.clearAllSongs();
+                await dbService.bulkAdd(s);
+                setSongs(s);
+                const success = await syncToCloud(s);
+                return success;
+            } finally {
+                setIsSyncing(false);
+            }
         },
         isSyncing, syncSuccess, refreshData: loadData, 
         uploadSongsToCloud: syncToCloud, uploadSettingsToCloud, 
