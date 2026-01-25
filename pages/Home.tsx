@@ -2,11 +2,10 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from '../context/LanguageContext';
-import { useData, ASSETS } from '../context/DataContext';
+import { ASSETS } from '../context/DataContext';
 
 const Home: React.FC = () => {
   const { t } = useTranslation();
-  const { globalSettings } = useData();
   const navigate = useNavigate();
 
   return (
@@ -94,32 +93,6 @@ const Home: React.FC = () => {
                         </button>
                     </div>
                 </div>
-
-                {/* 獨家特輯區塊 (截圖紅框處) */}
-                {globalSettings.exclusiveYoutubeUrl && (
-                  <div className="mt-24 mb-10 animate-fade-in-up">
-                    <a 
-                      href={globalSettings.exclusiveYoutubeUrl} 
-                      target="_blank" 
-                      rel="noopener noreferrer"
-                      className="group block relative w-full border border-white/5 bg-white/[0.02] hover:bg-white/[0.05] hover:border-brand-gold/30 p-10 md:p-16 transition-all duration-700 rounded-sm"
-                    >
-                      <div className="flex flex-col md:flex-row items-center justify-between gap-10 text-center md:text-left">
-                        <div className="flex-1">
-                          <span className="text-brand-gold font-black text-[10px] uppercase tracking-[0.6em] mb-4 block">Exclusive Release</span>
-                          <h2 className="text-3xl md:text-5xl font-black text-white uppercase tracking-tighter group-hover:text-brand-gold transition-colors">WATCH THE LATEST EXCLUSIVE</h2>
-                        </div>
-                        <div className="flex items-center gap-6">
-                          <div className="w-16 h-16 rounded-full border border-white/10 flex items-center justify-center group-hover:scale-110 transition-transform bg-black/40">
-                            <svg className="w-6 h-6 text-brand-gold" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
-                          </div>
-                          <span className="text-[11px] font-black uppercase tracking-[0.4em] text-white/40 group-hover:text-white transition-colors">YOUTUBE MUSIC</span>
-                        </div>
-                      </div>
-                      <div className="absolute top-5 right-10 text-white/5 group-hover:text-brand-gold/10 transition-colors text-6xl pointer-events-none select-none">❄</div>
-                    </a>
-                  </div>
-                )}
             </div>
         </div>
       </section>
