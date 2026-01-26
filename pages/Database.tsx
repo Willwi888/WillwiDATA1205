@@ -5,7 +5,7 @@ import { useData, normalizeIdentifier } from '../context/DataContext';
 import { Language, Song } from '../types';
 
 const Database: React.FC = () => {
-  const { songs, globalSettings } = useData();
+  const { songs, globalSettings, playSong, currentSong, isPlaying } = useData();
   const navigate = useNavigate();
   
   const [searchTerm, setSearchTerm] = useState('');
@@ -66,35 +66,53 @@ const Database: React.FC = () => {
               }
               
               const cover = main.coverUrl || globalSettings.defaultCoverUrl;
+              const isCurrentPlaying = currentSong?.id === main.id;
 
               return (
-                  <div key={main.id} onClick={() => navigate(`/song/${main.id}`)} className="group cursor-pointer">
-                      <div className="aspect-square w-full relative overflow-hidden bg-slate-900 mb-5 border border-white/10 group-hover:border-brand-gold transition-all duration-500 shadow-2xl">
+                  <div key={main.id} className="group cursor-pointer">
+                      <div className="aspect-square w-full relative overflow-hidden bg-slate-900 mb-5 border border-white/10 group-hover:border-brand-gold transition-all duration-500 shadow-2xl rounded-sm">
                           {/* Real Album Cover Presentation */}
                           <img 
                             src={cover} 
+                            onClick={() => navigate(`/song/${main.id}`)}
                             className="w-full h-full object-cover opacity-100 grayscale-0 transition-all duration-700 group-hover:scale-105" 
                             alt={main.title} 
                           />
                           {/* Subtle gradient for tag visibility */}
                           <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent pointer-events-none opacity-60"></div>
                           
-                          <div className="absolute bottom-3 left-3">
+                          {/* Play Button Overlay */}
+                          <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-300 bg-black/40 backdrop-blur-[2px]">
+                              <button 
+                                onClick={(e) => { e.stopPropagation(); playSong(main); }}
+                                className="w-14 h-14 bg-brand-gold text-black rounded-full flex items-center justify-center shadow-[0_0_30px_#fbbf24] hover:scale-110 transition-transform active:scale-95"
+                              >
+                                  {isCurrentPlaying && isPlaying ? (
+                                      <svg className="w-5 h-5 ml-[1px]" fill="currentColor" viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
+                                  ) : (
+                                      <svg className="w-6 h-6 ml-[3px]" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+                                  )}
+                              </button>
+                          </div>
+
+                          <div className="absolute bottom-3 left-3 pointer-events-none">
                               <span className="text-[9px] font-black text-white bg-black/90 px-3 py-1 uppercase tracking-widest border border-white/20 backdrop-blur-md shadow-lg">
                                   {label}
                               </span>
                           </div>
                       </div>
-                      <h4 className="text-sm font-bold text-white uppercase truncate tracking-widest group-hover:text-brand-gold transition-colors">{main.title}</h4>
-                      <div className="flex flex-col gap-1 mt-2">
-                        <p className="text-[10px] text-slate-400 font-mono uppercase tracking-widest font-bold opacity-80">
-                            {main.releaseDate.split('-')[0]} • {main.releaseCompany || 'WILLWI MUSIC'}
-                        </p>
-                        {main.upc && (
-                            <p className="text-[9px] text-slate-600 font-mono uppercase tracking-widest font-bold">
-                                UPC: {main.upc}
+                      <div onClick={() => navigate(`/song/${main.id}`)}>
+                        <h4 className="text-sm font-bold text-white uppercase truncate tracking-widest group-hover:text-brand-gold transition-colors">{main.title}</h4>
+                        <div className="flex flex-col gap-1 mt-2">
+                            <p className="text-[10px] text-slate-400 font-mono uppercase tracking-widest font-bold opacity-80">
+                                {main.releaseDate.split('-')[0]} • {main.releaseCompany || 'WILLWI MUSIC'}
                             </p>
-                        )}
+                            {main.upc && (
+                                <p className="text-[9px] text-slate-600 font-mono uppercase tracking-widest font-bold">
+                                    UPC: {main.upc}
+                                </p>
+                            )}
+                        </div>
                       </div>
                   </div>
               );

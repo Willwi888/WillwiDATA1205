@@ -33,6 +33,7 @@ interface ExtendedSongContextType extends SongContextType {
     setCurrentSong: (song: Song | null) => void;
     isPlaying: boolean;
     setIsPlaying: (playing: boolean) => void;
+    playSong: (song: Song) => void;
 }
 
 const DataContext = createContext<ExtendedSongContextType | undefined>(undefined);
@@ -201,6 +202,11 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   useEffect(() => { loadData(); }, [loadData]);
 
+  const playSong = useCallback((song: Song) => {
+      setCurrentSong(song);
+      setIsPlaying(true);
+  }, []);
+
   return (
     <DataContext.Provider value={{ 
         songs, 
@@ -245,7 +251,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         },
         isSyncing, syncSuccess, syncProgress, refreshData: loadData, 
         uploadSongsToCloud, uploadSettingsToCloud, globalSettings, setGlobalSettings,
-        currentSong, setCurrentSong, isPlaying, setIsPlaying
+        currentSong, setCurrentSong, isPlaying, setIsPlaying, playSong
     }}>
       {children}
     </DataContext.Provider>

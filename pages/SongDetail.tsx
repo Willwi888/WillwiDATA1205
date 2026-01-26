@@ -8,7 +8,7 @@ import { useTranslation } from '../context/LanguageContext';
 const SongDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { songs, getSong, globalSettings } = useData(); 
+  const { songs, getSong, globalSettings, playSong, currentSong, isPlaying } = useData(); 
   const { lang } = useTranslation();
   
   const [song, setSong] = useState<Song | undefined>(undefined);
@@ -53,6 +53,7 @@ const SongDetail: React.FC = () => {
   );
 
   const cover = song.coverUrl || globalSettings.defaultCoverUrl;
+  const isCurrentPlaying = currentSong?.id === song.id;
 
   return (
     <div className="min-h-screen pb-60 pt-48 px-6 md:px-24 animate-fade-in relative bg-black overflow-x-hidden">
@@ -67,11 +68,23 @@ const SongDetail: React.FC = () => {
                 <Link to="/database" className="text-[10px] text-slate-500 hover:text-white uppercase tracking-[0.5em] transition-all font-black flex items-center gap-4">
                     <span className="text-lg">←</span> BACK TO CATALOG
                 </Link>
-                {song.isInteractiveActive && (
-                    <button onClick={() => navigate('/interactive', { state: { targetSongId: song.id } })} className="bg-brand-gold text-black px-10 py-3 text-[10px] font-black uppercase tracking-widest hover:bg-white transition-all shadow-lg">
-                        OPEN STUDIO
+                <div className="flex gap-4">
+                    <button 
+                        onClick={() => playSong(song)} 
+                        className={`px-8 py-3 text-[10px] font-black uppercase tracking-widest transition-all shadow-lg flex items-center gap-3 ${isCurrentPlaying && isPlaying ? 'bg-white text-black' : 'border border-white/20 text-white hover:bg-white/10'}`}
+                    >
+                        {isCurrentPlaying && isPlaying ? (
+                            <><svg className="w-3 h-3" fill="currentColor" viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg> PLAYING</>
+                        ) : (
+                            <><svg className="w-3 h-3" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg> LISTEN</>
+                        )}
                     </button>
-                )}
+                    {song.isInteractiveActive && (
+                        <button onClick={() => navigate('/interactive', { state: { targetSongId: song.id } })} className="bg-brand-gold text-black px-10 py-3 text-[10px] font-black uppercase tracking-widest hover:bg-white transition-all shadow-lg">
+                            OPEN STUDIO
+                        </button>
+                    )}
+                </div>
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-20">
@@ -87,14 +100,20 @@ const SongDetail: React.FC = () => {
                         </div>
                         <div className="space-y-2 max-h-[500px] overflow-y-auto custom-scrollbar pr-4">
                             {albumTracks.map((track, index) => (
-                                <div key={track.id} className="flex items-center gap-6 p-5 border border-white/5 bg-white/[0.02] rounded-sm hover:border-brand-gold/30 transition-all cursor-pointer" onClick={() => navigate(`/song/${track.id}`)}>
-                                    <div className="w-10 h-10 flex items-center justify-center shrink-0">
-                                        <span className="text-xs font-mono text-slate-600">{(index + 1).toString().padStart(2, '0')}</span>
+                                <div key={track.id} className="flex items-center gap-6 p-5 border border-white/5 bg-white/[0.02] rounded-sm hover:border-brand-gold/30 transition-all cursor-pointer group" onClick={() => navigate(`/song/${track.id}`)}>
+                                    <div className="w-10 h-10 flex items-center justify-center shrink-0 text-slate-600 group-hover:text-brand-gold">
+                                        <span className="text-xs font-mono">{(index + 1).toString().padStart(2, '0')}</span>
                                     </div>
                                     <div className="flex-1 min-w-0">
                                         <h5 className="text-sm font-bold uppercase truncate tracking-widest text-white">{track.title}</h5>
                                         <p className="text-[9px] text-slate-500 font-mono mt-1">{track.isrc}</p>
                                     </div>
+                                    <button 
+                                        onClick={(e) => { e.stopPropagation(); playSong(track); }}
+                                        className="w-8 h-8 rounded-full border border-white/20 flex items-center justify-center text-white hover:bg-brand-gold hover:text-black hover:border-brand-gold transition-all opacity-0 group-hover:opacity-100"
+                                    >
+                                        <svg className="w-3 h-3 ml-0.5" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+                                    </button>
                                 </div>
                             ))}
                         </div>

@@ -2,6 +2,7 @@
 import React, { useState, useEffect, createContext, useContext } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useTranslation } from '../context/LanguageContext';
+import GlobalPlayer from './GlobalPlayer';
 
 interface ToastContextType {
   showToast: (message: string, type?: 'success' | 'error') => void;
@@ -71,9 +72,9 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
           </div>
         </nav>
 
-        <main>{children}</main>
+        <main className="pb-24">{children}</main>
 
-        <footer className="py-24 px-10 border-t border-white/5 text-center bg-black/50">
+        <footer className="py-24 px-10 border-t border-white/5 text-center bg-black/50 mb-20">
             <div className="flex justify-center gap-10 mb-10 opacity-30 grayscale hover:grayscale-0 transition-all duration-500">
                 <span className="text-[10px] font-black tracking-widest uppercase">Spotify</span>
                 <span className="text-[10px] font-black tracking-widest uppercase">Apple Music</span>
@@ -81,6 +82,8 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
             </div>
             <p className="text-[9px] text-slate-700 font-black uppercase tracking-[0.5em]">Willwi Official Music Database • 2025</p>
         </footer>
+
+        <GlobalPlayer />
       </div>
     </ToastContext.Provider>
   );
