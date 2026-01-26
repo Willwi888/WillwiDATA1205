@@ -198,7 +198,7 @@ export const OFFICIAL_CATALOG: Song[] = [
         title: '戻れない時間', 
         versionLabel: '', 
         coverUrl: 'https://i.scdn.co/image/ab67616d0000b27312da053cb3da678d1148a468', 
-        language: Language.Mandarin, 
+        language: Language.Japanese, 
         projectType: ProjectType.Indie, 
         releaseDate: '2025-03-08', 
         isEditorPick: false, 
