@@ -1,5 +1,4 @@
 
-// Fix: Corrected progress bar width logic to handle initial 0/NaN states
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useData, resolveDirectLink } from '../context/DataContext';
 import { useUser } from '../context/UserContext';
@@ -9,7 +8,7 @@ import { useTranslation } from '../context/LanguageContext';
 import { generateAiVideo } from '../services/geminiService';
 import { useToast } from '../components/Layout';
 
-type InteractionMode = 'intro' | 'select' | 'philosophy' | 'playing' | 'rendering' | 'finished';
+type InteractionMode = 'intro' | 'select' | 'playing' | 'rendering' | 'finished';
 type LayoutMode = 'lyrics' | 'subtitles' | 'cover';
 type LyricsPosition = 'left' | 'center';
 
@@ -35,7 +34,6 @@ const Interactive: React.FC = () => {
   const [stamps, setStamps] = useState<number[]>([]);
 
   const audioRef = useRef<HTMLAudioElement>(null);
-  const canvasRef = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
     if (selectedSong?.lyrics) {
@@ -62,25 +60,28 @@ const Interactive: React.FC = () => {
   const handleLyricClick = (index: number) => {
     if (mode !== 'playing' || isPaused || !audioRef.current) return;
     const now = audioRef.current.currentTime;
-    if (index === currentLineIndex + 1 || isAdmin) {
+    
+    // 錄製模式：更新當前行並紀錄時間戳
+    if (index >= currentLineIndex) {
         const newStamps = [...stamps];
         newStamps[index] = now;
         setStamps(newStamps);
         setCurrentLineIndex(index);
-        if (window.navigator.vibrate) window.navigator.vibrate(20);
+        if (window.navigator.vibrate) window.navigator.vibrate(10);
     }
   };
 
   const startExportProcess = async () => {
       // @ts-ignore
       if (window.aistudio && !(await window.aistudio.hasSelectedApiKey())) {
-          showToast("請選擇 API Key 以進行 8s 噪點背景渲染");
+          showToast("請選擇 API Key 以進行渲染");
           // @ts-ignore
           await window.aistudio.openSelectKey();
       }
       setMode('rendering');
       try {
-          const imgResponse = await fetch(selectedSong?.coverUrl || '');
+          const imgUrl = selectedSong?.coverUrl || 'https://placehold.co/1000x1000/000000/FFFFFF?text=COVER';
+          const imgResponse = await fetch(imgUrl);
           const blob = await imgResponse.blob();
           const base64 = await new Promise<string>((resolve) => {
               const reader = new FileReader();
@@ -104,89 +105,100 @@ const Interactive: React.FC = () => {
       return `${min}:${sec.toString().padStart(2, '0')}`;
   };
 
-  // 進度計算：確保不出現 NaN
   const progressPercent = duration > 0 ? (currentTime / duration) * 100 : 0;
 
   return (
-    <div className="min-h-screen bg-[#0a0a0a] text-white flex flex-col font-sans selection:bg-brand-gold selection:text-black">
+    <div className="min-h-screen bg-black text-white flex flex-col font-sans overflow-hidden">
       
-      <div className="h-16 border-b border-white/5 flex items-center justify-between px-8 bg-black/50 backdrop-blur-md fixed top-0 w-full z-50">
-          <div className="flex items-center gap-4">
-              <span className="text-[10px] font-black uppercase tracking-[0.4em] text-brand-gold">Master Studio</span>
+      {/* Top Studio Header */}
+      <div className="h-16 border-b border-white/5 flex items-center justify-between px-8 bg-black z-50">
+          <div className="flex items-center gap-6">
+              <span className="text-[10px] font-black uppercase tracking-[0.5em] text-brand-gold">Master Studio</span>
               <div className="h-4 w-[1px] bg-white/10"></div>
-              <span className="text-[10px] text-white/40 font-bold uppercase tracking-widest">{selectedSong?.title || 'No Project Selected'}</span>
+              <span className="text-[10px] text-white/40 font-bold uppercase tracking-widest">{selectedSong?.title || 'Standalone Project'}</span>
           </div>
           <div className="flex items-center gap-6">
               <button onClick={() => setMode('intro')} className="text-[9px] font-black uppercase tracking-widest text-slate-500 hover:text-white transition-all">Close Studio</button>
           </div>
       </div>
 
-      <div className="flex-1 flex pt-16">
-          {(mode === 'playing' || mode === 'finished') && (
-              <div className="w-80 border-r border-white/5 bg-[#0e0e0e] flex flex-col overflow-y-auto custom-scrollbar animate-fade-in">
-                  <div className="p-8 space-y-12">
+      <div className="flex-1 flex overflow-hidden">
+          
+          {/* Left Sidebar Control Panel (Matching Screenshot) */}
+          {mode === 'playing' && (
+              <div className="w-64 md:w-80 border-r border-white/5 bg-[#050505] flex flex-col animate-fade-in shrink-0">
+                  <div className="p-10 space-y-16">
+                      
+                      {/* Layout Structure */}
                       <div className="space-y-6">
-                          <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Layout Structure</h4>
+                          <h4 className="text-[9px] font-black text-slate-600 uppercase tracking-widest">Layout Structure</h4>
                           <div className="grid grid-cols-3 gap-3">
                               {(['lyrics', 'subtitles', 'cover'] as LayoutMode[]).map(m => (
                                   <button 
                                     key={m} 
                                     onClick={() => setLayoutMode(m)}
-                                    className={`aspect-square rounded-lg border flex flex-col items-center justify-center gap-2 transition-all ${layoutMode === m ? 'border-brand-gold bg-brand-gold/10' : 'border-white/5 bg-white/[0.02] hover:bg-white/5'}`}
+                                    className={`aspect-square rounded-lg border flex flex-col items-center justify-center gap-3 transition-all ${layoutMode === m ? 'border-brand-gold bg-brand-gold/5' : 'border-white/5 bg-white/[0.02] hover:bg-white/[0.05]'}`}
                                   >
-                                      <div className={`w-8 h-8 rounded-sm border ${layoutMode === m ? 'border-brand-gold' : 'border-white/20'}`}></div>
-                                      <span className="text-[8px] font-black uppercase tracking-tighter">{m}</span>
+                                      <div className={`w-10 h-10 rounded border ${layoutMode === m ? 'border-brand-gold' : 'border-white/10'}`}></div>
+                                      <span className={`text-[8px] font-black uppercase tracking-tighter ${layoutMode === m ? 'text-brand-gold' : 'text-slate-500'}`}>{m}</span>
                                   </button>
                               ))}
                           </div>
                       </div>
+
+                      {/* Lyrics Position */}
                       <div className="space-y-6">
-                          <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Lyrics Position</h4>
+                          <h4 className="text-[9px] font-black text-slate-600 uppercase tracking-widest">Lyrics Position</h4>
                           <div className="grid grid-cols-2 gap-3">
                               {(['left', 'center'] as LyricsPosition[]).map(pos => (
                                   <button 
                                     key={pos} 
                                     onClick={() => setLyricsPosition(pos)}
-                                    className={`h-12 border rounded-md flex items-center justify-center transition-all ${lyricsPosition === pos ? 'border-brand-gold bg-brand-gold/10' : 'border-white/5 bg-white/[0.02]'}`}
+                                    className={`h-14 border rounded-lg flex items-center justify-center gap-4 transition-all ${lyricsPosition === pos ? 'border-brand-gold bg-brand-gold/5' : 'border-white/5 bg-white/[0.02]'}`}
                                   >
-                                      <div className={`w-4 h-1 bg-white/30 rounded-full ${pos === 'left' ? 'mr-4' : ''}`}></div>
-                                      <span className="text-[9px] font-black uppercase">{pos}</span>
+                                      <div className={`w-5 h-0.5 bg-slate-600 rounded-full ${pos === 'left' ? 'mr-1' : ''}`}></div>
+                                      <span className={`text-[9px] font-black uppercase tracking-widest ${lyricsPosition === pos ? 'text-brand-gold' : 'text-slate-500'}`}>{pos}</span>
                                   </button>
                               ))}
                           </div>
                       </div>
-                      <div className="flex justify-between items-center py-6 border-t border-white/5">
-                          <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Track Info</span>
+
+                      {/* Track Info Toggle */}
+                      <div className="pt-10 border-t border-white/5 flex justify-between items-center">
+                          <span className="text-[9px] font-black text-slate-600 uppercase tracking-widest">Track Info</span>
                           <button 
                             onClick={() => setShowTrackInfo(!showTrackInfo)}
-                            className={`w-10 h-5 rounded-full relative transition-all ${showTrackInfo ? 'bg-orange-500' : 'bg-slate-800'}`}
+                            className={`w-12 h-6 rounded-full relative transition-all duration-300 ${showTrackInfo ? 'bg-orange-500 shadow-[0_0_15px_rgba(249,115,22,0.4)]' : 'bg-slate-800'}`}
                           >
-                              <div className={`absolute top-1 w-3 h-3 bg-white rounded-full transition-all ${showTrackInfo ? 'right-1' : 'left-1'}`}></div>
+                              <div className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow-md transition-all duration-300 ${showTrackInfo ? 'left-7' : 'left-1'}`}></div>
                           </button>
                       </div>
                   </div>
               </div>
           )}
 
+          {/* Center Main Stage Area */}
           <div className="flex-1 bg-black relative flex items-center justify-center overflow-hidden">
+                
+                {/* Mode Selectors */}
                 {mode === 'intro' && (
-                    <div className="text-center max-w-xl animate-fade-in-up">
-                        <span className="text-brand-gold text-[10px] font-black uppercase tracking-[0.5em] block mb-6">{t('before_start_title')}</span>
-                        <p className="text-slate-400 text-sm leading-loose uppercase tracking-widest mb-12 opacity-60">
+                    <div className="text-center max-w-xl animate-fade-in-up px-10">
+                        <span className="text-brand-gold text-[10px] font-black uppercase tracking-[1em] block mb-8">{t('before_start_title')}</span>
+                        <p className="text-slate-500 text-xs md:text-sm leading-loose uppercase tracking-[0.3em] mb-16 opacity-60">
                             {t('before_start_content')}
                         </p>
-                        <button onClick={() => setMode('select')} className="px-16 py-6 bg-brand-gold text-black font-black text-xs uppercase tracking-[0.4em] hover:bg-white transition-all">
+                        <button onClick={() => setMode('select')} className="px-20 py-6 bg-brand-gold text-black font-black text-[11px] uppercase tracking-[0.6em] hover:bg-white transition-all shadow-2xl">
                             {t('btn_understand')}
                         </button>
                     </div>
                 )}
 
                 {mode === 'select' && (
-                    <div className="w-full max-w-6xl grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-8 p-12 animate-fade-in">
+                    <div className="w-full max-w-7xl grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-6 p-12 animate-fade-in overflow-y-auto custom-scrollbar h-full content-start">
                         {songs.filter(s => s.isInteractiveActive).map(song => (
                             <div key={song.id} onClick={() => { setSelectedSong(song); setMode('playing'); }} className="group cursor-pointer">
-                                <div className="aspect-square bg-slate-900 border border-white/5 rounded-sm overflow-hidden mb-4 group-hover:border-brand-gold transition-all duration-500">
-                                    <img src={song.coverUrl} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-[2s]" alt="" />
+                                <div className="aspect-square bg-slate-900 border border-white/5 rounded-lg overflow-hidden mb-4 group-hover:border-brand-gold transition-all duration-500">
+                                    <img src={song.coverUrl} className="w-full h-full object-cover grayscale opacity-40 group-hover:opacity-100 group-hover:grayscale-0 group-hover:scale-105 transition-all duration-[2s]" alt="" />
                                 </div>
                                 <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-500 group-hover:text-white truncate">{song.title}</h4>
                             </div>
@@ -196,35 +208,54 @@ const Interactive: React.FC = () => {
 
                 {mode === 'playing' && selectedSong && (
                     <div className="w-full h-full flex items-center justify-center relative">
-                        <div className={`w-full max-w-3xl px-12 transition-all duration-700 ${lyricsPosition === 'center' ? 'text-center' : 'text-left'}`}>
-                            {lyricsLines.map((line, idx) => (
-                                <p 
-                                    key={idx} 
-                                    onClick={() => handleLyricClick(idx)}
-                                    className={`text-4xl font-black uppercase tracking-tight py-4 cursor-pointer transition-all duration-500 ${idx === currentLineIndex ? 'text-brand-gold scale-110' : idx < currentLineIndex ? 'text-white/10' : 'text-white/30 hover:text-white'}`}
-                                >
-                                    {line}
-                                </p>
-                            ))}
+                        
+                        {/* Immersive Preview (Matching Screenshot Style) */}
+                        <div className={`w-full h-full flex items-center px-12 md:px-24 transition-all duration-1000 ${lyricsPosition === 'center' ? 'justify-center text-center' : 'justify-start text-left'}`}>
+                            <div className="max-w-4xl space-y-4">
+                                {lyricsLines.map((line, idx) => (
+                                    <p 
+                                        key={idx} 
+                                        onClick={() => handleLyricClick(idx)}
+                                        className={`text-4xl md:text-6xl font-black uppercase tracking-tight py-3 cursor-pointer transition-all duration-500 select-none ${idx === currentLineIndex ? 'text-white scale-100 opacity-100' : idx < currentLineIndex ? 'text-white/5 line-through decoration-brand-gold/20' : 'text-white/20 hover:text-white/40'}`}
+                                        style={{ filter: idx === currentLineIndex ? 'drop-shadow(0 0 20px rgba(255,255,255,0.3))' : 'none' }}
+                                    >
+                                        {line}
+                                    </p>
+                                ))}
+                            </div>
                         </div>
 
-                        <div className="absolute bottom-12 left-1/2 -translate-x-1/2 flex items-center gap-12 bg-black/80 backdrop-blur-2xl border border-white/10 rounded-full px-12 py-6 shadow-2xl">
-                             <button onClick={handleTogglePlay} className="w-12 h-12 bg-white text-black rounded-full flex items-center justify-center hover:bg-brand-gold transition-all">
-                                {isPaused ? <svg className="w-6 h-6 ml-1" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg> : <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>}
+                        {/* Bottom Floating Control Bar (Matching Screenshot) */}
+                        <div className="absolute bottom-12 left-1/2 -translate-x-1/2 w-[90%] max-w-5xl h-24 bg-white/[0.02] backdrop-blur-3xl border border-white/10 rounded-full flex items-center px-10 gap-10 shadow-[0_20px_60px_rgba(0,0,0,0.8)]">
+                             <button 
+                                onClick={handleTogglePlay} 
+                                className="w-16 h-16 bg-white text-black rounded-full flex items-center justify-center hover:bg-brand-gold transition-all shadow-xl group"
+                             >
+                                {isPaused ? <svg className="w-8 h-8 ml-1" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg> : <svg className="w-8 h-8" fill="currentColor" viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>}
                              </button>
-                             <div className="flex flex-col gap-2 w-48">
-                                <div className="flex justify-between text-[8px] font-black text-slate-500 uppercase tracking-widest">
-                                    <span>{formatTime(currentTime)}</span>
-                                    <span>{formatTime(duration)}</span>
+                             
+                             <div className="flex-1 flex flex-col gap-3">
+                                <div className="flex justify-between items-center">
+                                    <span className="text-[9px] font-mono text-slate-500 tracking-wider">{formatTime(currentTime)}</span>
+                                    {showTrackInfo && (
+                                        <div className="text-[8px] font-black uppercase tracking-[0.5em] text-white/40">
+                                            {selectedSong.title} — {selectedSong.projectType}
+                                        </div>
+                                    )}
+                                    <span className="text-[9px] font-mono text-slate-500 tracking-wider">{formatTime(duration)}</span>
                                 </div>
-                                <div className="h-1 bg-white/10 w-full rounded-full overflow-hidden relative">
+                                <div className="h-1 bg-white/5 w-full rounded-full overflow-hidden relative">
                                     <div 
-                                      className="h-full bg-brand-gold transition-all duration-300" 
+                                      className="h-full bg-brand-gold transition-all duration-500 shadow-[0_0_10px_rgba(251,191,36,0.8)]" 
                                       style={{ width: `${progressPercent}%` }}
                                     ></div>
                                 </div>
                              </div>
-                             <button onClick={startExportProcess} className="h-12 px-8 bg-brand-gold text-black font-black text-[10px] uppercase tracking-widest rounded-full hover:bg-white transition-all">
+
+                             <button 
+                                onClick={startExportProcess} 
+                                className="h-14 px-10 bg-brand-gold text-black font-black text-[10px] uppercase tracking-[0.6em] rounded-full hover:bg-white transition-all shadow-lg"
+                             >
                                 Export Master
                              </button>
                         </div>
@@ -241,28 +272,32 @@ const Interactive: React.FC = () => {
                 )}
 
                 {mode === 'rendering' && (
-                    <div className="text-center space-y-12 animate-fade-in">
-                        <div className="w-24 h-24 border-2 border-brand-gold border-t-transparent rounded-full animate-spin mx-auto shadow-[0_0_50px_rgba(251,191,36,0.2)]"></div>
-                        <div className="space-y-4">
-                            <h2 className="text-3xl font-black uppercase tracking-[0.5em]">Rendering</h2>
-                            <p className="text-slate-600 text-[10px] uppercase tracking-widest font-bold">VEO AI generating organic grain background loop...</p>
+                    <div className="text-center space-y-16 animate-fade-in">
+                        <div className="relative w-32 h-32 mx-auto">
+                            <div className="absolute inset-0 border-4 border-white/5 rounded-full"></div>
+                            <div className="absolute inset-0 border-4 border-brand-gold border-t-transparent rounded-full animate-spin shadow-[0_0_30px_rgba(251,191,36,0.3)]"></div>
+                        </div>
+                        <div className="space-y-6">
+                            <h2 className="text-4xl font-black uppercase tracking-[0.8em]">Rendering</h2>
+                            <p className="text-slate-600 text-[10px] uppercase tracking-widest font-bold opacity-60">VEO AI generating cinema noise textures...</p>
                         </div>
                     </div>
                 )}
 
                 {mode === 'finished' && bgVideoUrl && (
                     <div className="w-full h-full relative flex items-center justify-center animate-fade-in">
-                         <video src={bgVideoUrl} autoPlay loop muted className="absolute inset-0 w-full h-full object-cover opacity-40 blur-sm" />
-                         <div className="relative z-10 text-center space-y-12 bg-black/40 backdrop-blur-3xl p-20 border border-white/5 rounded-sm">
+                         <video src={bgVideoUrl} autoPlay loop muted className="absolute inset-0 w-full h-full object-cover opacity-30" />
+                         <div className="relative z-10 text-center space-y-16 bg-black/60 backdrop-blur-3xl p-24 border border-white/5 rounded-sm max-w-2xl">
                              <div className="space-y-4">
-                                <h2 className="text-6xl font-black uppercase tracking-tighter">Master Ready</h2>
-                                <p className="text-slate-400 text-[10px] uppercase tracking-[0.5em]">Handcrafted studio render complete</p>
+                                <span className="text-brand-gold text-[9px] font-black uppercase tracking-[1em] block mb-2">Success</span>
+                                <h2 className="text-6xl font-black uppercase tracking-tighter leading-none">Master Ready</h2>
+                                <p className="text-slate-500 text-[9px] uppercase tracking-[0.5em] mt-4">Handcrafted studio export complete</p>
                              </div>
-                             <div className="flex flex-col gap-6">
-                                <a href={bgVideoUrl} download={`${selectedSong?.title}_Render.mp4`} className="px-16 py-6 bg-white text-black font-black text-xs uppercase tracking-[0.6em] hover:bg-brand-gold transition-all shadow-2xl">
+                             <div className="flex flex-col gap-4">
+                                <a href={bgVideoUrl} download={`${selectedSong?.title}_MASTER.mp4`} className="px-20 py-6 bg-white text-black font-black text-[11px] uppercase tracking-[0.6em] hover:bg-brand-gold transition-all shadow-2xl">
                                     {t('btn_get_mp4')}
                                 </a>
-                                <button onClick={() => setMode('intro')} className="text-[10px] font-black text-slate-600 hover:text-white uppercase tracking-widest transition-colors">Start New Project</button>
+                                <button onClick={() => setMode('intro')} className="text-[10px] font-black text-slate-700 hover:text-white uppercase tracking-widest transition-colors py-4">Start New Project</button>
                              </div>
                          </div>
                     </div>

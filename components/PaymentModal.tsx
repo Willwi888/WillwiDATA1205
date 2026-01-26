@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useMemo } from 'react';
 import { useUser } from '../context/UserContext';
 import { useTranslation } from '../context/LanguageContext';
@@ -46,14 +45,11 @@ const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, initialMod
       }
   }, [isOpen, initialMode, user]);
 
-  if (!isOpen) return null;
-
   const currentQr = useMemo(() => {
     let q = '';
     if (supportMode === 'production') q = globalSettings.qr_production;
     else if (supportMode === 'cinema') q = globalSettings.qr_cinema;
     else q = globalSettings.qr_support;
-    
     return q || globalSettings.qr_global_payment || "https://placehold.co/300x300/020617/fbbf24?text=WILLWI+PAY";
   }, [supportMode, globalSettings]);
 
@@ -64,89 +60,137 @@ const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, initialMod
       setIsProcessing(true);
       setErrorMsg('');
       await new Promise(r => setTimeout(r, 1000));
-      const correctCode = globalSettings.accessCode || '8888';
+      const correctCode = globalSettings.accessCode || '8520';
       if (inputCode === correctCode) {
           if (supportMode === 'production') addCredits(pointCount, true, totalAmount);
           else recordDonation(totalAmount);
           onClose();
-          alert("解鎖成功！");
+          alert("ACCESS GRANTED");
       } else {
-          setErrorMsg("通行碼錯誤。");
+          setErrorMsg("INVALID_CODE");
           setIsProcessing(false);
       }
   };
 
+  if (!isOpen) return null;
+
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-black/95 backdrop-blur-2xl" onClick={onClose}></div>
-      <div className="relative z-10 bg-[#020617] border border-white/10 rounded-sm max-w-5xl w-full overflow-hidden shadow-2xl animate-fade-in flex flex-col max-h-[90vh]">
+    <div className="fixed inset-0 z-[200] flex items-center justify-center p-6 md:p-12">
+      <div className="absolute inset-0 bg-black/90 backdrop-blur-3xl animate-fade-in" onClick={onClose}></div>
+      
+      <div className="relative z-10 w-full max-w-4xl bg-[#050505] border border-white/5 shadow-[0_0_100px_rgba(0,0,0,1)] flex flex-col max-h-full overflow-hidden animate-fade-in-up">
         
-        <div className="p-8 bg-white/[0.02] border-b border-white/5">
-            <div className="flex justify-between items-start mb-10">
-                <div>
-                    <h3 className="text-2xl font-black text-white uppercase tracking-[0.3em]">{t('modal_title')}</h3>
-                    <p className="text-[10px] text-brand-gold font-bold uppercase tracking-widest mt-2">{supportMode} ACCESS</p>
-                </div>
-                <button onClick={onClose} className="text-slate-600 hover:text-white font-mono text-xs uppercase tracking-widest transition-colors">{t('modal_close')}</button>
+        {/* Header - Unified Horizontal */}
+        <div className="px-10 py-8 border-b border-white/5 flex items-center justify-between">
+            <div className="flex items-center gap-8">
+                <span className="text-[10px] font-thin uppercase tracking-[0.8em] text-brand-gold">Transaction</span>
+                <div className="h-4 w-[0.5px] bg-white/20"></div>
+                <span className="text-[10px] font-thin uppercase tracking-[0.4em] text-white/40">{supportMode} ACCESS</span>
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
-                <input className="bg-black/40 border border-white/10 px-4 py-3 text-white text-sm outline-none" placeholder="Name" value={name} onChange={(e) => setName(e.target.value)} />
-                <input className="bg-black/40 border border-white/10 px-4 py-3 text-white text-sm outline-none" placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)} />
-            </div>
+            <button onClick={onClose} className="text-[9px] uppercase tracking-widest text-slate-700 hover:text-white transition-all">TERMINATE</button>
         </div>
 
-        <div className="flex flex-col lg:flex-row overflow-y-auto custom-scrollbar flex-grow p-8 gap-8">
-            <div className="flex-1 bg-white rounded-sm p-8 text-slate-900">
-                {step === 'qr' ? (
-                    <div className="space-y-8">
-                        <div className="flex justify-between items-end border-b border-slate-100 pb-6">
-                            <div>
-                                <span className="block text-[9px] text-slate-400 font-black uppercase mb-1">Total Amount</span>
-                                <span className="text-4xl font-black tracking-tighter">NT$ {totalAmount.toLocaleString()}</span>
-                            </div>
-                        </div>
-                        <div className="bg-slate-50 border border-slate-200 p-6 flex justify-between items-center">
-                            <div className="space-y-1">
-                                <p className="text-[9px] text-slate-400 font-black uppercase">Bank Account</p>
-                                <p className="text-lg font-mono font-black text-emerald-600">{BANK_INFO.account}</p>
-                            </div>
-                            <button onClick={() => { navigator.clipboard.writeText(BANK_INFO.account); alert("Copied!"); }} className="text-[9px] border px-4 py-2 uppercase font-black">Copy</button>
-                        </div>
-                        <div className="bg-emerald-50 border border-emerald-100 p-6 flex flex-col items-center justify-center">
-                            <img src={currentQr} alt="QR" className="w-40 h-40 object-contain mix-blend-multiply" />
-                            <p className="text-[9px] text-emerald-600 font-black uppercase mt-4">SCAN TO PAY</p>
-                        </div>
-                        <button onClick={() => { if (isFormValid) { login(name, email); setStep('verify'); } }} disabled={!isFormValid} className="w-full py-6 bg-slate-900 text-white font-black uppercase text-xs tracking-widest hover:bg-brand-gold hover:text-black">
-                            I HAVE TRANSFERRED
-                        </button>
+        <div className="flex-1 flex flex-col md:flex-row overflow-hidden">
+            
+            {/* Left: Configuration & Details */}
+            <div className="w-full md:w-[350px] border-r border-white/5 p-10 flex flex-col gap-12 bg-white/[0.01]">
+                <div className="space-y-6">
+                    <span className="text-[9px] uppercase tracking-widest text-slate-700">Identity Details</span>
+                    <input className="w-full bg-transparent border-b border-white/10 py-3 text-xs uppercase tracking-widest outline-none focus:border-brand-gold" placeholder="FULL NAME" value={name} onChange={e => setName(e.target.value)} />
+                    <input className="w-full bg-transparent border-b border-white/10 py-3 text-xs tracking-widest outline-none focus:border-brand-gold" placeholder="EMAIL ADDRESS" value={email} onChange={e => setEmail(e.target.value)} />
+                </div>
+
+                <div className="space-y-6">
+                    <span className="text-[9px] uppercase tracking-widest text-slate-700">Access Mode</span>
+                    <div className="flex flex-col gap-2">
+                        {(['production', 'support', 'cinema'] as const).map(m => (
+                            <button 
+                                key={m} 
+                                onClick={() => setSupportMode(m)}
+                                className={`text-left px-4 py-3 text-[10px] uppercase tracking-widest border transition-all ${supportMode === m ? 'border-brand-gold text-brand-gold bg-brand-gold/5' : 'border-white/5 text-slate-600 hover:text-white hover:border-white/20'}`}
+                            >
+                                {m}
+                            </button>
+                        ))}
                     </div>
-                ) : (
-                    <div className="py-20 text-center space-y-10">
-                        <h4 className="text-2xl font-black uppercase tracking-widest text-slate-800">Verification</h4>
-                        <input type="text" placeholder="ACCESS CODE" className="w-full text-center text-4xl font-mono border-b-2 border-slate-200 outline-none py-4 text-slate-900 tracking-[0.4em]" value={inputCode} onChange={(e) => setInputCode(e.target.value)} autoFocus />
-                        {errorMsg && <p className="text-rose-600 text-[10px] font-black">{errorMsg}</p>}
-                        <div className="flex gap-4">
-                            <button onClick={() => setStep('qr')} className="flex-1 py-4 text-slate-400 font-black text-[10px] uppercase">Back</button>
-                            <button onClick={handleVerifyCode} disabled={!inputCode || isProcessing} className="flex-1 py-4 bg-brand-gold text-black font-black text-[10px] uppercase shadow-xl">Unlock Now</button>
+                </div>
+
+                {supportMode === 'production' && (
+                    <div className="space-y-6">
+                        <span className="text-[9px] uppercase tracking-widest text-slate-700">Access Volume</span>
+                        <div className="flex items-center justify-between border border-white/10 p-4">
+                            <button onClick={() => setPointCount(Math.max(1, pointCount-1))} className="w-8 h-8 text-slate-500 hover:text-white">-</button>
+                            <span className="text-xl font-mono text-white">{pointCount}</span>
+                            <button onClick={() => setPointCount(pointCount+1)} className="w-8 h-8 text-slate-500 hover:text-white">+</button>
                         </div>
                     </div>
                 )}
+
+                <div className="mt-auto pt-8 border-t border-white/5">
+                    <span className="text-[9px] uppercase tracking-widest text-slate-700 block mb-2">Total Amount</span>
+                    <div className="text-4xl font-thin text-white tracking-tighter">NT$ {totalAmount.toLocaleString()}</div>
+                </div>
             </div>
-            
-            <div className="w-full lg:w-80 space-y-8">
-                <div className="p-6 bg-white/5 border border-white/10">
-                    <h4 className="text-[10px] text-slate-500 font-black uppercase mb-6">Order Summary</h4>
-                    {supportMode === 'production' && (
-                        <div className="flex justify-between items-center bg-black/40 p-4">
-                            <span className="text-xs text-white">Tickets</span>
-                            <div className="flex items-center gap-4">
-                                <button onClick={() => setPointCount(Math.max(1, pointCount - 1))} className="text-brand-gold">-</button>
-                                <span className="font-mono text-white">{pointCount}</span>
-                                <button onClick={() => setPointCount(pointCount + 1)} className="text-brand-gold">+</button>
+
+            {/* Right: Payment Flow */}
+            <div className="flex-1 p-10 flex flex-col items-center justify-center bg-black">
+                {step === 'qr' ? (
+                    <div className="w-full max-w-sm space-y-12 text-center animate-fade-in">
+                        <div className="space-y-4">
+                            <span className="text-[9px] uppercase tracking-[0.5em] text-brand-gold block mb-2">Manual Transfer Required</span>
+                            <div className="aspect-square w-full border border-white/10 p-8 relative group bg-white">
+                                <img src={currentQr} className="w-full h-full object-contain mix-blend-multiply" alt="QR" />
                             </div>
                         </div>
-                    )}
-                </div>
+
+                        <div className="space-y-4">
+                            <div className="flex flex-col items-center">
+                                <span className="text-[8px] uppercase tracking-widest text-slate-700 mb-2">Account Number</span>
+                                <div className="text-2xl font-mono text-emerald-500 tracking-wider flex items-center gap-4">
+                                    {BANK_INFO.account}
+                                    <button onClick={() => { navigator.clipboard.writeText(BANK_INFO.account); alert("COPIED"); }} className="text-[9px] uppercase tracking-widest text-slate-700 hover:text-white border border-white/10 px-3 py-1">Copy</button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <button 
+                            onClick={() => { if(isFormValid) { login(name, email); setStep('verify'); } else alert("IDENTITY REQUIRED"); }} 
+                            className="w-full py-6 border border-brand-gold/30 text-brand-gold text-[10px] uppercase tracking-[0.8em] hover:bg-brand-gold hover:text-black transition-all"
+                        >
+                            Confirm Transfer
+                        </button>
+                    </div>
+                ) : (
+                    <div className="w-full max-w-sm space-y-16 text-center animate-fade-in">
+                        <div className="space-y-4">
+                            <span className="text-[9px] uppercase tracking-[1em] text-brand-gold block">Verification</span>
+                            <p className="text-[10px] text-slate-600 uppercase tracking-widest leading-loose">Enter the system access code provided after payment to unlock resources.</p>
+                        </div>
+                        
+                        <div className="relative">
+                            <input 
+                                type="text" 
+                                placeholder="----" 
+                                className="w-full bg-transparent border-b-2 border-white/5 py-6 text-center text-6xl font-mono text-white outline-none focus:border-brand-gold transition-all tracking-[0.5em] placeholder:text-white/5" 
+                                value={inputCode} 
+                                onChange={e => setInputCode(e.target.value)} 
+                                autoFocus 
+                            />
+                            {errorMsg && <p className="absolute -bottom-8 left-0 w-full text-rose-500 text-[9px] uppercase tracking-widest">{errorMsg}</p>}
+                        </div>
+
+                        <div className="flex flex-col gap-4">
+                            <button 
+                                onClick={handleVerifyCode} 
+                                disabled={!inputCode || isProcessing}
+                                className="w-full py-6 bg-white text-black text-[10px] uppercase tracking-[0.8em] hover:bg-brand-gold transition-all disabled:opacity-20"
+                            >
+                                {isProcessing ? 'PROCESSING...' : 'Unlock System'}
+                            </button>
+                            <button onClick={() => setStep('qr')} className="text-[9px] uppercase tracking-widest text-slate-700 hover:text-white transition-all">Review Transfer Details</button>
+                        </div>
+                    </div>
+                )}
             </div>
         </div>
       </div>
