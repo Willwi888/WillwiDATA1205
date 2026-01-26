@@ -1,5 +1,5 @@
 
-import React, { useState, useMemo, useRef, useEffect } from 'react';
+import React, { useState, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useData, normalizeIdentifier, ASSETS, resolveDirectLink } from '../context/DataContext';
 import { useUser } from '../context/UserContext';
@@ -14,8 +14,8 @@ type ImportMode = 'none' | 'ai' | 'spotify';
 const AdminDashboard: React.FC = () => {
   const { 
     songs, deleteSong, globalSettings, setGlobalSettings, 
-    uploadSettingsToCloud, isSyncing, syncProgress, 
-    bulkAppendSongs, refreshData, updateSong
+    uploadSettingsToCloud, uploadSongsToCloud, isSyncing, syncProgress, 
+    bulkAppendSongs, refreshData
   } = useData();
   const { isAdmin, enableAdmin, logoutAdmin } = useUser();
   const { showToast } = useToast();
@@ -152,7 +152,15 @@ const AdminDashboard: React.FC = () => {
       setImportMode('none');
       setSpotifyResults([]);
       setSelectedSpotifyIds(new Set());
-      showToast(`已成功導入 ${newSongs.length} 首作品`);
+      showToast(`已成功導入 ${newSongs.length} 首作品，已同步雲端`);
+  };
+
+  const handleForcePushCloud = async () => {
+      if (window.confirm("確定要將目前所有本地資料強制覆蓋雲端嗎？")) {
+          const success = await uploadSongsToCloud(songs);
+          if (success) showToast("🚀 雲端資料已強制更新成功！");
+          else showToast("❌ 推送失敗，請檢查網路", "error");
+      }
   };
 
   if (!isAdmin) {
@@ -397,6 +405,12 @@ const AdminDashboard: React.FC = () => {
           <div className="bg-rose-950/10 border border-rose-900/30 p-10 space-y-10 rounded-sm">
             <h3 className="text-rose-500 font-black text-xs uppercase tracking-[0.4em]">系統備份與數據安全</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+               <button onClick={handleForcePushCloud} className="py-8 bg-brand-gold text-black font-black text-xs uppercase tracking-widest hover:bg-white transition-all shadow-[0_0_20px_rgba(251,191,36,0.3)]">
+                  🚀 強制推送至雲端 (覆蓋)
+               </button>
+               <button onClick={refreshData} className="py-8 bg-white/5 border border-white/10 text-white font-black text-xs uppercase tracking-widest hover:bg-white hover:text-black">
+                  🔄 從雲端重新抓取 (刷新)
+               </button>
                <button onClick={() => {
                    const data = { songs, settings: globalSettings };
                    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(data));
@@ -405,9 +419,11 @@ const AdminDashboard: React.FC = () => {
                    dl.setAttribute("download", `willwi_full_backup.json`);
                    dl.click();
                }} className="py-8 bg-white/5 border border-white/10 text-white font-black text-xs uppercase tracking-widest hover:bg-white hover:text-black">導出 JSON 完整備份</button>
-               <button onClick={refreshData} className="py-8 bg-rose-900 text-white font-black text-xs uppercase tracking-widest hover:bg-white hover:text-black">
-                  🔄 強制刷新 (同步雲端資料)
-               </button>
+            </div>
+            <div className="mt-8 p-4 bg-black/40 border border-white/5 rounded">
+                <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest leading-relaxed">
+                   小撇步：若資料對不上，請先點擊「強制推送至雲端」，這會將您目前畫面上的所有修正（包括已刪除的垃圾歌曲）同步到 Supabase，確保雲端庫存與本地完全一致。
+                </p>
             </div>
           </div>
         </div>

@@ -11,11 +11,25 @@ const Database: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterLang, setFilterLang] = useState<string>('All');
 
-  // UPC 分組邏輯
+  // Filter and Grouping Logic
   const groupedAlbums = useMemo(() => {
     const groups: Record<string, Song[]> = {};
     
+    // Explicitly exclude tracks identified by the user as "not mine"
+    const problematicTitles = [
+      'SUMMER BREEZE', 
+      'Summer Breeze', 
+      '夜空中最亮的星', 
+      'Brightest Star', 
+      '再愛一次'
+    ];
+
     songs.forEach(song => {
+      // Check for exclusions (specifically the 2023 versions mentioned)
+      const isExcluded = problematicTitles.some(pt => song.title.includes(pt)) && song.releaseDate.startsWith('2023');
+      
+      if (isExcluded) return;
+
       const groupKey = song.upc ? normalizeIdentifier(song.upc) : `SINGLE_${normalizeIdentifier(song.id)}`;
       if (!groups[groupKey]) groups[groupKey] = [];
       groups[groupKey].push(song);
@@ -24,7 +38,8 @@ const Database: React.FC = () => {
     return Object.values(groups).filter(group => {
       const matchesSearch = group.some(s => 
           s.title.toLowerCase().includes(searchTerm.toLowerCase()) || 
-          (s.upc && s.upc.includes(searchTerm))
+          (s.upc && s.upc.includes(searchTerm)) ||
+          (s.isrc && s.isrc.includes(searchTerm))
       );
       const matchesLang = filterLang === 'All' || group.some(s => s.language === filterLang);
       return matchesSearch && matchesLang;
@@ -32,49 +47,89 @@ const Database: React.FC = () => {
   }, [songs, searchTerm, filterLang]);
 
   return (
-    <div className="animate-fade-in max-w-screen-2xl mx-auto px-10 pt-32 pb-60">
-      <div className="mb-20">
-           <span className="text-brand-gold font-black text-[11px] uppercase tracking-[0.6em] mb-4 block">Official Discography</span>
-           <h2 className="text-7xl font-black text-white tracking-tighter uppercase leading-none">Catalog</h2>
+    <div className="animate-fade-in max-w-screen-2xl mx-auto px-10 pt-48 pb-60">
+      <div className="mb-24">
+           <div className="flex items-center gap-6 mb-4">
+              <div className="w-12 h-[1px] bg-brand-gold"></div>
+              <span className="text-brand-gold font-black text-[11px] uppercase tracking-[0.6em]">Official Discography</span>
+           </div>
+           <h2 className="text-8xl font-black text-white tracking-tighter uppercase leading-none">Catalog</h2>
       </div>
 
-      <div className="max-w-4xl mb-24 flex flex-col md:flex-row gap-4">
-        <input
-          type="text"
-          placeholder="SEARCH BY UPC / ISRC / TITLE..."
-          className="flex-1 bg-white/5 border border-white/20 px-6 py-5 text-white outline-none text-xs font-bold uppercase tracking-widest focus:border-brand-gold transition-all"
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-        />
-        <select className="bg-white/5 text-white font-black px-6 py-5 text-[10px] uppercase tracking-widest outline-none border border-white/20" value={filterLang} onChange={(e) => setFilterLang(e.target.value)}>
-            <option value="All">All Languages</option>
-            {Object.values(Language).map(l => <option key={l} value={l}>{l}</option>)}
-        </select>
+      <div className="flex flex-col md:flex-row gap-6 mb-24 border-b border-white/10 pb-12">
+        <div className="flex-1 relative">
+            <input
+              type="text"
+              placeholder="SEARCH BY UPC / ISRC / TITLE..."
+              className="w-full bg-transparent border-none py-4 text-white outline-none text-2xl font-bold uppercase tracking-widest placeholder:text-white/10"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+            <div className="absolute bottom-0 left-0 w-full h-[1px] bg-gradient-to-r from-brand-gold/40 to-transparent"></div>
+        </div>
+        <div className="flex items-center gap-4">
+            <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Language:</label>
+            <select 
+              className="bg-white/5 text-white font-black px-8 py-4 text-[11px] uppercase tracking-[0.3em] outline-none border border-white/10 focus:border-brand-gold transition-all rounded-sm appearance-none min-w-[200px]" 
+              value={filterLang} 
+              onChange={(e) => setFilterLang(e.target.value)}
+            >
+                <option value="All">All Regions</option>
+                {Object.values(Language).map(l => <option key={l} value={l} className="bg-slate-900">{l}</option>)}
+            </select>
+        </div>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-12">
-          {groupedAlbums.map(albumSongs => {
-              const main = albumSongs[0];
-              return (
-                  <div key={main.id} onClick={() => navigate(`/song/${main.id}`)} className="group cursor-pointer">
-                      <div className="aspect-square w-full relative overflow-hidden bg-slate-900 mb-6 border border-white/10 group-hover:border-brand-gold transition-all duration-500 shadow-xl">
-                          {/* 聽眾前端：響應指令，移除黑白轉彩色的互動特效，改為靜態高品質全彩呈現 */}
-                          <img src={main.coverUrl} className="w-full h-full object-cover opacity-100 grayscale-0 transition-all duration-700" alt="" />
-                          {/* 疊加一個微弱的暗角，保留品牌神祕感 */}
-                          <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent pointer-events-none"></div>
-                          
-                          <div className="absolute bottom-4 left-4">
-                              <span className="text-[9px] font-black text-brand-gold bg-black px-2 py-1 uppercase tracking-widest border border-brand-gold/40 shadow-lg">
-                                  {albumSongs.length > 1 ? `${albumSongs.length} TRACKS` : (main.releaseCategory || 'SINGLE')}
-                              </span>
-                          </div>
-                      </div>
-                      <h4 className="text-sm font-bold text-white uppercase truncate tracking-widest group-hover:text-brand-gold transition-colors">{main.title}</h4>
-                      <p className="text-[10px] text-white font-mono mt-2 uppercase tracking-widest font-bold opacity-70">{main.releaseDate.split('-')[0]} • {main.releaseCompany || 'WILLWI MUSIC'}</p>
-                  </div>
-              );
-          })}
-      </div>
+      {groupedAlbums.length === 0 ? (
+        <div className="py-40 text-center">
+            <p className="text-slate-600 font-black uppercase tracking-[1em]">No records found in current database</p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-x-10 gap-y-20">
+            {groupedAlbums.map(albumSongs => {
+                const main = albumSongs[0];
+                return (
+                    <div key={main.id} onClick={() => navigate(`/song/${main.id}`)} className="group cursor-pointer">
+                        <div className="aspect-square w-full relative overflow-hidden bg-slate-900 mb-8 border border-white/5 group-hover:border-brand-gold/50 transition-all duration-700 shadow-2xl rounded-sm">
+                            <img 
+                              src={main.coverUrl} 
+                              className="w-full h-full object-cover opacity-90 group-hover:opacity-100 group-hover:scale-110 transition-all duration-[2s] ease-out" 
+                              alt={main.title}
+                              onError={(e) => {
+                                (e.target as HTMLImageElement).src = 'https://placehold.co/1000x1000/020617/fbbf24?text=WILLWI+1205';
+                              }}
+                            />
+                            
+                            {/* Category Badge */}
+                            <div className="absolute top-4 left-4 z-10">
+                                <span className="text-[8px] font-black text-white bg-black/80 backdrop-blur-md px-3 py-1.5 uppercase tracking-widest border border-white/10">
+                                    {albumSongs.length > 1 ? `ALBUM` : (main.releaseCategory || 'SINGLE')}
+                                </span>
+                            </div>
+
+                            {/* Hover Overlay */}
+                            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-500 flex items-center justify-center backdrop-blur-sm">
+                                <span className="text-[10px] font-black text-white uppercase tracking-[0.5em] border border-white/20 px-6 py-3 bg-black/40">View Details</span>
+                            </div>
+                        </div>
+
+                        <div className="space-y-3">
+                            <div className="flex justify-between items-start gap-4">
+                                <h4 className="text-lg font-black text-white uppercase truncate tracking-tight group-hover:text-brand-gold transition-colors duration-300">
+                                  {main.title}
+                                </h4>
+                            </div>
+                            <div className="flex items-center gap-3">
+                                <span className="text-[9px] text-brand-gold font-bold uppercase tracking-[0.2em]">{main.releaseDate.split('-')[0]}</span>
+                                <div className="w-1 h-1 bg-white/20 rounded-full"></div>
+                                <span className="text-[9px] text-slate-500 font-bold uppercase tracking-widest truncate">{main.releaseCompany || 'WILLWI MUSIC'}</span>
+                            </div>
+                        </div>
+                    </div>
+                );
+            })}
+        </div>
+      )}
     </div>
   );
 }; export default Database;

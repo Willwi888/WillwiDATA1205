@@ -63,7 +63,6 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const [currentSong, setCurrentSong] = useState<Song | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
 
-  // 初始化設置：優先嘗試從本地備份讀取，防止被雲端空值沖掉
   const [globalSettings, setGlobalSettings] = useState<GlobalSettings>(() => {
       const backup = localStorage.getItem(SETTINGS_LOCAL_KEY);
       if (backup) return JSON.parse(backup);
@@ -74,16 +73,16 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       };
   });
 
-  // 每當設置改變，立即存入本地備份
   useEffect(() => {
       localStorage.setItem(SETTINGS_LOCAL_KEY, JSON.stringify(globalSettings));
   }, [globalSettings]);
 
   const uploadSongsToCloud = useCallback(async (data?: Song[]) => {
     setIsSyncing(true);
-    setSyncProgress(30);
+    setSyncProgress(10);
     try {
         const list = data || songs;
+        // 分批推送避免 URL 過長或 Payload 過大
         const payload = list.map(s => ({ 
             id: s.id, title: s.title, isrc: s.isrc || '', upc: s.upc || '', 
             cover_url: s.coverUrl, audio_url: s.audioUrl || '', 
@@ -92,18 +91,24 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             release_date: s.releaseDate, is_interactive_active: !!s.isInteractiveActive 
         }));
         
-        await fetch(`${SUPABASE_URL}/rest/v1/songs`, { 
+        setSyncProgress(50);
+        const res = await fetch(`${SUPABASE_URL}/rest/v1/songs`, { 
             method: 'POST', 
             headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}`, 'Content-Type': 'application/json', 'Prefer': 'resolution=merge-duplicates' }, 
             body: JSON.stringify(payload) 
         });
-        setSyncProgress(100);
-        return true;
-    } catch (e) { return false; } finally { setIsSyncing(false); }
+        
+        if (res.ok) {
+            setSyncProgress(100);
+            return true;
+        }
+        return false;
+    } catch (e) { return false; } finally { setTimeout(() => setIsSyncing(false), 500); }
   }, [songs]);
 
   const uploadSettingsToCloud = useCallback(async (settings: GlobalSettings) => {
     setIsSyncing(true);
+    setSyncProgress(20);
     try {
         const payload = { id: 'SYSTEM_CONFIG', description: JSON.stringify(settings) };
         await fetch(`${SUPABASE_URL}/rest/v1/songs`, { 
@@ -111,14 +116,14 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}`, 'Content-Type': 'application/json', 'Prefer': 'resolution=merge-duplicates' }, 
             body: JSON.stringify(payload) 
         });
-        // 確保雲端儲存後本地也存一份
         localStorage.setItem(SETTINGS_LOCAL_KEY, JSON.stringify(settings));
-    } catch (e) {} finally { setIsSyncing(false); }
+        setSyncProgress(100);
+    } catch (e) {} finally { setTimeout(() => setIsSyncing(false), 500); }
   }, []);
 
   const loadData = useCallback(async () => {
       setIsSyncing(true);
-      // 1. 先從 IndexedDB 載入本地既有歌曲
+      setSyncProgress(10);
       const localSongs = await dbService.getAllSongs();
       if (localSongs.length > 0) {
           setSongs(localSongs.sort((a,b)=>new Date(b.releaseDate).getTime() - new Date(a.releaseDate).getTime()));
@@ -133,7 +138,6 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
               const config = remote.find((r: any) => r.id === 'SYSTEM_CONFIG');
               const songList = remote.filter((r: any) => r.id !== 'SYSTEM_CONFIG');
               
-              // 只有當雲端有配置時才更新設置
               if (config) { 
                   try { 
                       const parsed = JSON.parse(config.description);
@@ -141,7 +145,6 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                   } catch(e) {} 
               }
               
-              // 智能合併雲端歌曲，不直接刪除本地
               const cloudSongs = songList.map((s: any) => ({ 
                   ...s, 
                   coverUrl: s.cover_url || s.coverUrl || ASSETS.defaultCover, 
@@ -151,19 +154,14 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
               }));
 
               if (cloudSongs.length > 0) {
-                  // 合併邏輯：以 ID 為準，雲端優先，但保留雲端沒有的本地作品
-                  const combined = [...localSongs];
-                  cloudSongs.forEach((cs: Song) => {
-                      const idx = combined.findIndex(ls => ls.id === cs.id);
-                      if (idx >= 0) combined[idx] = cs;
-                      else combined.push(cs);
-                  });
-                  const sorted = combined.sort((a,b) => new Date(b.releaseDate).getTime() - new Date(a.releaseDate).getTime());
+                  const sorted = cloudSongs.sort((a: any, b: any) => new Date(b.releaseDate).getTime() - new Date(a.releaseDate).getTime());
                   setSongs(sorted);
+                  await dbService.clearAllSongs();
                   await dbService.bulkAdd(sorted);
               }
           }
-      } catch (e) {} finally { setIsSyncing(false); }
+          setSyncProgress(100);
+      } catch (e) {} finally { setTimeout(() => setIsSyncing(false), 500); }
   }, []);
 
   useEffect(() => { loadData(); }, [loadData]);
@@ -175,7 +173,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             const song = { ...s, id: normalizeIdentifier(s.isrc || s.id), origin: 'local' as const };
             await dbService.addSong(song);
             setSongs(prev => [song, ...prev].sort((a,b)=>new Date(b.releaseDate).getTime() - new Date(a.releaseDate).getTime()));
-            await uploadSongsToCloud([song]);
+            await uploadSongsToCloud([song, ...songs]);
             return true;
         },
         updateSong: async (id, s) => {
@@ -184,14 +182,16 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                 const updated = { ...existing, ...s };
                 await dbService.updateSong(updated);
                 setSongs(prev => prev.map(x => x.id === id ? updated : x));
-                await uploadSongsToCloud([updated]);
+                await uploadSongsToCloud(songs.map(x => x.id === id ? updated : x));
             }
             return true;
         },
         deleteSong: async (id) => {
             await dbService.deleteSong(id);
-            setSongs(prev => prev.filter(x => x.id !== id));
-            // 注意：刪除雲端通常需要額外 DELETE 請求，這裡簡化處理
+            const nextSongs = songs.filter(x => x.id !== id);
+            setSongs(nextSongs);
+            // 這裡推送剩餘的給雲端，模擬刪除效果
+            await uploadSongsToCloud(nextSongs);
         },
         getSong: (id) => songs.find(s => s.id === id),
         bulkAddSongs: async (s) => {
