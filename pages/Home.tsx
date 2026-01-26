@@ -2,10 +2,11 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from '../context/LanguageContext';
-import { ASSETS } from '../context/DataContext';
+import { useData } from '../context/DataContext';
 
 const Home: React.FC = () => {
   const { t } = useTranslation();
+  const { globalSettings } = useData();
   const navigate = useNavigate();
 
   return (
@@ -13,7 +14,7 @@ const Home: React.FC = () => {
       {/* Background Layers */}
       <div 
         className="absolute inset-0 bg-cover bg-center opacity-40 transition-transform duration-[10000ms] scale-110"
-        style={{ backgroundImage: `url(${ASSETS.willwiPortrait})` }}
+        style={{ backgroundImage: `url(${globalSettings.portraitUrl})` }}
       ></div>
       <div className="absolute inset-0 bg-gradient-to-b from-black via-transparent to-black"></div>
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(251,191,36,0.15)_0%,transparent_70%)]"></div>

@@ -8,7 +8,7 @@ import { useTranslation } from '../context/LanguageContext';
 const SongDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { songs, getSong } = useData(); 
+  const { songs, getSong, globalSettings } = useData(); 
   const { lang } = useTranslation();
   
   const [song, setSong] = useState<Song | undefined>(undefined);
@@ -52,11 +52,13 @@ const SongDetail: React.FC = () => {
     </div>
   );
 
+  const cover = song.coverUrl || globalSettings.defaultCoverUrl;
+
   return (
     <div className="min-h-screen pb-60 pt-48 px-6 md:px-24 animate-fade-in relative bg-black overflow-x-hidden">
         {/* Cinema Player 2.0 Static Backdrop */}
         <div className="absolute inset-0 z-[-1] overflow-hidden">
-            <div className="absolute inset-0 bg-cover bg-center blur-[120px] opacity-20 scale-125 transition-all duration-1000 animate-studio-breathe" style={{ backgroundImage: `url(${song.coverUrl})` }}></div>
+            <div className="absolute inset-0 bg-cover bg-center blur-[120px] opacity-20 scale-125 transition-all duration-1000 animate-studio-breathe" style={{ backgroundImage: `url(${cover})` }}></div>
             <div className="absolute inset-0 bg-gradient-to-b from-black via-[#020617]/90 to-[#020617]"></div>
         </div>
 
@@ -75,7 +77,7 @@ const SongDetail: React.FC = () => {
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-20">
                 <div className="lg:col-span-5 space-y-12">
                     <div className="aspect-square bg-slate-900 border border-white/10 shadow-2xl overflow-hidden rounded-sm group relative">
-                        <img src={song.coverUrl} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-[5s]" alt="" />
+                        <img src={cover} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-[5s]" alt="" />
                     </div>
 
                     <div className="space-y-6">

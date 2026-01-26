@@ -9,6 +9,7 @@ export { ASSETS };
 
 interface GlobalSettings {
     portraitUrl: string;
+    defaultCoverUrl: string;
     qr_global_payment: string;
     qr_line: string;
     qr_production: string;
@@ -79,9 +80,16 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   // 初始化設置：優先嘗試從本地備份讀取，防止被雲端空值沖掉
   const [globalSettings, setGlobalSettings] = useState<GlobalSettings>(() => {
       const backup = localStorage.getItem(SETTINGS_LOCAL_KEY);
-      if (backup) return JSON.parse(backup);
+      if (backup) {
+          const parsed = JSON.parse(backup);
+          // Ensure defaultCoverUrl exists for migration
+          if (!parsed.defaultCoverUrl) parsed.defaultCoverUrl = ASSETS.defaultCover;
+          return parsed;
+      }
       return { 
-          portraitUrl: ASSETS.willwiPortrait, qr_global_payment: '', qr_line: '', 
+          portraitUrl: ASSETS.willwiPortrait, 
+          defaultCoverUrl: ASSETS.defaultCover,
+          qr_global_payment: '', qr_line: '', 
           qr_production: '', qr_cinema: '', qr_support: '', accessCode: '8888',
           exclusiveYoutubeUrl: ''
       };
@@ -166,7 +174,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                   ...s, 
                   coverUrl: s.cover_url || s.coverUrl || ASSETS.defaultCover, 
                   audioUrl: s.audio_url, youtubeUrl: s.youtube_url,
-                  language: s.language, projectType: s.project_type, 
+                  language: s.language, project_type: s.project_type, 
                   releaseDate: s.release_date, isInteractiveActive: s.is_interactive_active,
                   creativeNote: s.creative_note || s.creativeNote,
                   labLog: s.lab_log || s.labLog

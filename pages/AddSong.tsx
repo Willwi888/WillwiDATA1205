@@ -51,12 +51,33 @@ const AddSong: React.FC = () => {
     if (!isAdmin) navigate('/admin');
   }, [isAdmin, navigate]);
 
+  const handleImportSpotify = (track: any) => {
+    setFormData(prev => ({
+      ...prev,
+      title: track.name,
+      isrc: track.external_ids?.isrc || prev.isrc,
+      upc: track.album?.external_ids?.upc || prev.upc,
+      coverUrl: track.album?.images?.[0]?.url || prev.coverUrl,
+      releaseDate: track.album?.release_date || prev.releaseDate,
+      spotifyLink: track.external_urls?.spotify || prev.spotifyLink,
+      releaseCompany: track.album?.label || prev.releaseCompany
+    }));
+    setSpotifyResults([]);
+    setSpotifySearch('');
+    showToast("SPOTIFY DATA IMPORTED");
+  };
+
   useEffect(() => {
     if (editId) {
       const existing = getSong(editId);
       if (existing) setFormData(existing);
+    } else if (location.state?.spotifyTrack) {
+      handleImportSpotify(location.state.spotifyTrack);
+      // Clear history state to avoid re-importing if user navigates back?
+      // Optional, but for now we leave it.
+      window.history.replaceState({}, document.title);
     }
-  }, [editId, getSong]);
+  }, [editId, getSong, location.state]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
@@ -100,22 +121,6 @@ const AddSong: React.FC = () => {
     } finally {
         setIsSearching(false);
     }
-  };
-
-  const handleImportSpotify = (track: any) => {
-    setFormData(prev => ({
-      ...prev,
-      title: track.name,
-      isrc: track.external_ids?.isrc || prev.isrc,
-      upc: track.album?.external_ids?.upc || prev.upc,
-      coverUrl: track.album?.images?.[0]?.url || prev.coverUrl,
-      releaseDate: track.album?.release_date || prev.releaseDate,
-      spotifyLink: track.external_urls?.spotify || prev.spotifyLink,
-      releaseCompany: track.album?.label || prev.releaseCompany
-    }));
-    setSpotifyResults([]);
-    setSpotifySearch('');
-    showToast("SPOTIFY DATA IMPORTED");
   };
 
   const handleAutoFindYouTube = async () => {

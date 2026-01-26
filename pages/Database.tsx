@@ -5,7 +5,7 @@ import { useData, normalizeIdentifier } from '../context/DataContext';
 import { Language, Song } from '../types';
 
 const Database: React.FC = () => {
-  const { songs } = useData();
+  const { songs, globalSettings } = useData();
   const navigate = useNavigate();
   
   const [searchTerm, setSearchTerm] = useState('');
@@ -64,13 +64,15 @@ const Database: React.FC = () => {
               } else if (albumSongs.length > 1) {
                   label = 'ALBUM';
               }
+              
+              const cover = main.coverUrl || globalSettings.defaultCoverUrl;
 
               return (
                   <div key={main.id} onClick={() => navigate(`/song/${main.id}`)} className="group cursor-pointer">
                       <div className="aspect-square w-full relative overflow-hidden bg-slate-900 mb-5 border border-white/10 group-hover:border-brand-gold transition-all duration-500 shadow-2xl">
                           {/* Real Album Cover Presentation */}
                           <img 
-                            src={main.coverUrl} 
+                            src={cover} 
                             className="w-full h-full object-cover opacity-100 grayscale-0 transition-all duration-700 group-hover:scale-105" 
                             alt={main.title} 
                           />
