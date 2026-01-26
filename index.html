@@ -19,26 +19,16 @@
             colors: {
               brand: {
                 dark: '#020617',
-                darker: '#000000',
-                accent: '#38bdf8',
                 gold: '#fbbf24',
-                surface: '#0f172a',
-                zen: '#d97706'
               }
             },
             animation: {
-              'pulse-glow': 'pulseGlow 12s ease-in-out infinite',
-              'studio-breathe': 'studioBreathe 10s ease-in-out infinite',
-              'fade-in-up': 'fadeInUp 1.4s cubic-bezier(0.16, 1, 0.3, 1) forwards',
-              'zen-spin': 'zenSpin 60s linear infinite',
-              'splash-exit': 'splashExit 1s cubic-bezier(0.7, 0, 0.3, 1) forwards',
-              'blur-shift': 'blurShift 4s ease-in-out infinite alternate'
+              'fade-in': 'fadeIn 0.8s ease-out forwards',
+              'splash-exit': 'splashExit 0.6s cubic-bezier(0.7, 0, 0.3, 1) forwards'
             },
             keyframes: {
-              zenSpin: { '0%': { transform: 'rotate(0deg)' }, '100%': { transform: 'rotate(360deg)' } },
-              fadeInUp: { '0%': { opacity: 0, transform: 'translate3d(0, 40px, 0)' }, '100%': { opacity: 1, transform: 'translate3d(0, 0, 0)' } },
-              splashExit: { '0%': { opacity: '1', transform: 'scale(1)' }, '100%': { opacity: '0', transform: 'scale(1.05)', visibility: 'hidden' } },
-              blurShift: { '0%': { filter: 'blur(0px)' }, '100%': { filter: 'blur(1px)' } }
+              fadeIn: { '0%': { opacity: 0 }, '100%': { opacity: 1 } },
+              splashExit: { '0%': { opacity: '1' }, '100%': { opacity: '0', visibility: 'hidden' } }
             }
           }
         }
@@ -47,19 +37,17 @@
     <style>
       body {
         font-weight: 100 !important;
-        letter-spacing: 0.1em;
         background-color: #000;
-        color: #f8fafc;
-        overflow-x: hidden;
+        color: #fff;
+        letter-spacing: 0.12em;
       }
-      .custom-scrollbar::-webkit-scrollbar { width: 1px; }
-      .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(251, 191, 36, 0.2); }
       #splash-screen {
         position: fixed; inset: 0; background: #000;
         display: flex; align-items: center; justify-content: center; z-index: 9999;
       }
+      .font-mono { font-family: 'JetBrains Mono', monospace !important; }
       pre, p, span, h1, h2, h3, h4, button, input { font-weight: 100 !important; }
-      .font-mono { font-family: 'JetBrains Mono', monospace !important; font-weight: 300 !important; }
+      * { transition: background-color 0.3s ease, border-color 0.3s ease; }
     </style>
   <script type="importmap">
 {
@@ -74,12 +62,17 @@
 }
 </script>
 </head>
-  <body class="antialiased font-sans">
+  <body class="antialiased">
     <div id="splash-screen">
-      <div class="relative flex flex-col items-center">
-        <h2 class="text-3xl text-white uppercase tracking-[1em] mb-2 animate-pulse">WILLWI</h2>
-      </div>
+      <h2 class="text-xl text-white tracking-[1.5em] animate-pulse">WILLWI</h2>
     </div>
     <div id="root"></div>
+    <script>
+      window.addEventListener('load', () => {
+        setTimeout(() => {
+          document.getElementById('splash-screen').classList.add('animate-splash-exit');
+        }, 800);
+      });
+    </script>
   </body>
 </html>
