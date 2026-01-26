@@ -33,7 +33,7 @@ export interface Song {
   title: string;
   versionLabel?: string; 
   coverUrl: string;
-  videoUrl?: string; 
+  videoUrl?: string; // 補回影片資產欄位
   language: Language;
   projectType: ProjectType;
   releaseCategory?: ReleaseCategory;
@@ -51,11 +51,9 @@ export interface Song {
   audioUrl?: string;
   dropboxUrl?: string;
   lyrics?: string;
-  lrcData?: string; // 儲存 LRC 格式數據
   credits?: string;
   origin?: 'local' | 'cloud';
-  description?: string; // 創作筆記
-  storyline?: string; // 實驗室日誌
+  description?: string;
   translations?: Record<string, SongTranslation>; 
 }
 

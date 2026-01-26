@@ -7,56 +7,62 @@ import { useTranslation } from '../context/LanguageContext';
 
 const SongDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
   const { songs, getSong } = useData(); 
   const { lang } = useTranslation();
   
   const [song, setSong] = useState<Song | undefined>(undefined);
   const [activeTrackId, setActiveTrackId] = useState<string | null>(null);
   const [lyricsView, setLyricsView] = useState<'original' | 'translated'>('original');
+  
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
   const [isPlayerActive, setIsPlayerActive] = useState(false);
-  const [isBuffering, setIsBuffering] = useState(false);
 
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
   useEffect(() => {
     if (id) {
       const found = getSong(id);
-      if (found) { 
-        setSong(found); 
-        setActiveTrackId(found.id); 
+      if (found) {
+          setSong(found);
+          setActiveTrackId(found.id);
       }
     }
   }, [id, getSong]);
 
   const albumTracks = useMemo(() => {
-    if (!song || !song.upc) return song ? [song] : [];
-    const normalizedUpc = (song.upc || '').trim().toUpperCase();
-    return songs.filter(s => (s.upc || '').trim().toUpperCase() === normalizedUpc)
-                .sort((a, b) => a.title.localeCompare(b.title));
+    if (!song) return [];
+    if (!song.upc) return [song];
+    const normalizedUpc = (song.upc || '').trim().replace(/[^A-Z0-9]/gi, '').toUpperCase();
+    return songs.filter(s => {
+      const sUpc = (s.upc || '').trim().replace(/[^A-Z0-9]/gi, '').toUpperCase();
+      return sUpc === normalizedUpc;
+    }).sort((a, b) => a.title.localeCompare(b.title));
   }, [song, songs]);
 
-  const activeTrack = useMemo(() => albumTracks.find(t => t.id === activeTrackId) || song, [albumTracks, activeTrackId, song]);
+  const activeTrack = useMemo(() => {
+    return albumTracks.find(t => t.id === activeTrackId) || song;
+  }, [albumTracks, activeTrackId, song]);
 
   const handlePlay = (track: Song) => {
     if (!audioRef.current) return;
     if (activeTrackId === track.id && !audioRef.current.paused) {
-        audioRef.current.pause(); 
+        audioRef.current.pause();
         setIsPlayerActive(false);
     } else {
         const url = resolveDirectLink(track.audioUrl || track.dropboxUrl || '');
-        if (!url) return alert("AUDIO ASSET NOT CONFIGURED");
+        if (!url) return alert("此曲目尚未配置音訊");
         setActiveTrackId(track.id);
-        setIsBuffering(true);
         audioRef.current.src = url;
-        audioRef.current.play().catch(e => console.error("Playback failed", e));
+        audioRef.current.play();
         setIsPlayerActive(true);
     }
   };
 
   const formatTime = (time: number) => {
-    const min = Math.floor(time / 60); const sec = Math.floor(time % 60);
+    const min = Math.floor(time / 60);
+    const sec = Math.floor(time % 60);
     return `${min}:${sec.toString().padStart(2, '0')}`;
   };
 
@@ -65,140 +71,166 @@ const SongDetail: React.FC = () => {
   return (
     <div className="min-h-screen bg-black relative flex flex-col overflow-hidden">
       
-      {/* Cinema Player 2.0 Dynamic Background */}
+      {/* Immersive Background - Prioritize Video if available */}
       <div className="absolute inset-0 z-0">
-          <div 
-            className="absolute inset-0 bg-cover bg-center opacity-30 blur-[120px] scale-150 animate-pulse-glow" 
-            style={{ backgroundImage: `url(${activeTrack?.coverUrl})` }}
-          ></div>
-          <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-black/90"></div>
-          {/* Subtle noise overlay */}
-          <div className="absolute inset-0 opacity-[0.03] pointer-events-none bg-[url('https://www.transparenttextures.com/patterns/stardust.png')]"></div>
+          {activeTrack?.videoUrl ? (
+             <video 
+               src={resolveDirectLink(activeTrack.videoUrl)} 
+               autoPlay loop muted playsInline 
+               className="absolute inset-0 w-full h-full object-cover opacity-20 blur-[20px]" 
+             />
+          ) : (
+            <div 
+              className="absolute inset-0 bg-cover bg-center opacity-30 blur-[100px] scale-125 transition-all duration-[3000ms]"
+              style={{ backgroundImage: `url(${activeTrack?.coverUrl})` }}
+            ></div>
+          )}
+          <div className="absolute inset-0 bg-black/60"></div>
+          <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-black/80"></div>
       </div>
 
-      <div className="relative z-10 flex-1 flex flex-col md:flex-row pt-48 px-10 md:px-24 gap-20 md:gap-40">
-          <div className="w-full md:w-[450px] space-y-20 shrink-0">
-              <div className="aspect-square w-full bg-slate-900 border border-white/5 rounded-sm overflow-hidden shadow-[0_0_100px_rgba(0,0,0,0.8)] relative group">
-                  <img src={activeTrack?.coverUrl} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-[15s] ease-out" alt="" />
-                  {isBuffering && (
-                    <div className="absolute inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center">
-                        <div className="w-10 h-10 border-2 border-brand-gold/30 border-t-brand-gold rounded-full animate-spin"></div>
-                    </div>
-                  )}
+      <div className="relative z-10 flex-1 flex flex-col md:flex-row pt-40 px-10 md:px-24 gap-16 md:gap-32">
+          
+          {/* Left: Art & Tracklist */}
+          <div className="w-full md:w-[400px] space-y-16 animate-fade-in shrink-0">
+              <div className="aspect-square w-full bg-slate-900 border border-white/10 rounded-sm overflow-hidden shadow-[0_0_100px_rgba(0,0,0,0.8)] relative group">
+                  <img src={activeTrack?.coverUrl} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-[8s]" alt="" />
               </div>
 
-              <div className="space-y-12">
-                  <div className="flex justify-between items-end border-b border-white/5 pb-8">
-                      <h3 className="text-[10px] font-thin text-slate-600 uppercase tracking-[0.6em]">Album Tracks</h3>
-                      <span className="text-[9px] text-slate-800 font-mono tracking-widest">UPC: {activeTrack?.upc || 'N/A'}</span>
+              <div className="space-y-10">
+                  <div className="flex justify-between items-end border-b border-white/10 pb-6">
+                      <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-[0.4em]">Album Tracks</h3>
+                      <span className="text-[9px] text-slate-700 font-black uppercase tracking-widest">{albumTracks.length} Items</span>
                   </div>
-                  <div className="space-y-6 max-h-[400px] overflow-y-auto custom-scrollbar pr-6">
+                  <div className="space-y-4 max-h-[400px] overflow-y-auto custom-scrollbar pr-4">
                       {albumTracks.map((track, idx) => (
-                          <div key={track.id} onClick={() => handlePlay(track)} className={`group flex items-center justify-between py-6 px-4 cursor-pointer transition-all border-l-[0.5px] ${activeTrackId === track.id ? 'bg-white/[0.03] border-brand-gold' : 'border-transparent hover:bg-white/[0.01]'}`}>
-                             <div className="flex items-center gap-8">
-                                <span className={`text-[10px] font-mono ${activeTrackId === track.id ? 'text-brand-gold' : 'text-slate-700'}`}>{(idx+1).toString().padStart(2, '0')}</span>
-                                <span className={`text-[11px] font-thin uppercase tracking-[0.2em] transition-colors ${activeTrackId === track.id ? 'text-white' : 'text-slate-500 group-hover:text-white'}`}>{track.title}</span>
+                          <div 
+                            key={track.id} 
+                            onClick={() => handlePlay(track)}
+                            className={`group flex items-center justify-between p-4 cursor-pointer transition-all border-l-2 ${activeTrackId === track.id ? 'bg-white/5 border-brand-gold' : 'border-transparent hover:bg-white/[0.02] hover:border-white/20'}`}
+                          >
+                             <div className="flex items-center gap-6">
+                                <span className={`text-[10px] font-mono ${activeTrackId === track.id ? 'text-brand-gold' : 'text-slate-600'}`}>{(idx+1).toString().padStart(2, '0')}</span>
+                                <span className={`text-[11px] font-black uppercase tracking-widest transition-colors ${activeTrackId === track.id ? 'text-white' : 'text-slate-400 group-hover:text-white'}`}>{track.title}</span>
                              </div>
-                             {activeTrackId === track.id && isPlayerActive && <div className="w-3 h-3 rounded-full bg-brand-gold animate-ping"></div>}
+                             {activeTrackId === track.id && isPlayerActive && (
+                                 <div className="flex gap-1 items-end h-3">
+                                    <div className="w-0.5 h-full bg-brand-gold animate-bounce"></div>
+                                    <div className="w-0.5 h-2/3 bg-brand-gold animate-bounce [animation-delay:0.2s]"></div>
+                                    <div className="w-0.5 h-1/2 bg-brand-gold animate-bounce [animation-delay:0.4s]"></div>
+                                 </div>
+                             )}
                           </div>
                       ))}
                   </div>
               </div>
           </div>
 
-          <div className="flex-1 space-y-32 animate-fade-in-up pb-60">
-              <div className="space-y-12">
-                  <div className="flex items-center gap-8">
-                      <div className="w-20 h-[0.5px] bg-brand-gold opacity-30"></div>
-                      <span className="text-brand-gold text-[10px] font-thin uppercase tracking-[0.8em]">{activeTrack?.releaseCompany || 'Independent'}</span>
+          {/* Right: Detailed Info & Lyrics */}
+          <div className="flex-1 space-y-24 animate-fade-in-up [animation-delay:0.3s] pb-40">
+              <div className="space-y-8">
+                  <div className="flex items-center gap-6">
+                      <div className="w-12 h-[1px] bg-brand-gold"></div>
+                      <span className="text-brand-gold text-[10px] font-black uppercase tracking-[0.6em]">{activeTrack?.releaseCompany || activeTrack?.projectType}</span>
                   </div>
-                  <h1 className="text-7xl md:text-11xl font-thin text-white tracking-tighter uppercase leading-none animate-blur-shift">{activeTrack?.title}</h1>
-                  
-                  <div className="flex flex-wrap items-center gap-10 pt-6">
-                      {activeTrack?.appleMusicLink && <a href={activeTrack.appleMusicLink} target="_blank" rel="noreferrer" className="px-10 py-3 border border-brand-gold/30 text-brand-gold text-[9px] font-thin uppercase tracking-[0.4em] hover:bg-brand-gold hover:text-black transition-all duration-700">Apple Music</a>}
-                      {activeTrack?.spotifyLink && <a href={activeTrack.spotifyLink} target="_blank" rel="noreferrer" className="px-10 py-3 border border-white/10 text-white/40 text-[9px] font-thin uppercase tracking-[0.4em] hover:bg-white hover:text-black transition-all">Spotify</a>}
-                      <div className="w-[0.5px] h-10 bg-white/5"></div>
+                  <h1 className="text-6xl md:text-9xl font-black text-white tracking-tighter uppercase leading-none">{activeTrack?.title}</h1>
+                  <div className="flex flex-wrap items-center gap-8 pt-4">
                       <div className="flex flex-col">
-                        <span className="text-[9px] text-slate-600 font-thin uppercase tracking-[0.4em] mb-2">ISRC Code</span>
-                        <span className="text-xs font-mono text-white tracking-widest">{activeTrack?.isrc || 'NOT_REGISTERED'}</span>
+                        <span className="text-[9px] text-slate-500 font-black uppercase tracking-widest mb-1">Release Date</span>
+                        <span className="text-sm font-black text-white">{activeTrack?.releaseDate}</span>
                       </div>
+                      <div className="w-[1px] h-8 bg-white/10"></div>
+                      <div className="flex flex-col">
+                        <span className="text-[9px] text-slate-500 font-black uppercase tracking-widest mb-1">ISRC</span>
+                        <span className="text-sm font-mono text-slate-300 tracking-wider">{activeTrack?.isrc || 'NO ISRC'}</span>
+                      </div>
+                      {activeTrack?.publisher && (
+                        <>
+                          <div className="w-[1px] h-8 bg-white/10"></div>
+                          <div className="flex flex-col">
+                            <span className="text-[9px] text-slate-500 font-black uppercase tracking-widest mb-1">Publisher</span>
+                            <span className="text-sm font-black text-white">{activeTrack?.publisher}</span>
+                          </div>
+                        </>
+                      )}
                   </div>
               </div>
 
-              <div className="space-y-24">
-                  <div className="flex items-center gap-16 border-b border-white/5 pb-10">
-                      <button onClick={() => setLyricsView('original')} className={`text-[11px] font-thin uppercase tracking-[0.6em] transition-all relative ${lyricsView === 'original' ? 'text-brand-gold' : 'text-slate-600 hover:text-white'}`}>Lyrics</button>
-                      <button onClick={() => setLyricsView('translated')} className={`text-[11px] font-thin uppercase tracking-[0.6em] transition-all relative ${lyricsView === 'translated' ? 'text-brand-gold' : 'text-slate-600 hover:text-white'}`}>Translation</button>
-                      
-                      <Link to="/interactive" className="ml-auto flex items-center gap-4 group">
-                        <span className="text-[10px] font-thin uppercase tracking-[0.4em] text-brand-gold/60 group-hover:text-white transition-colors">Participate Sync</span>
-                        <div className="w-10 h-10 rounded-full border border-brand-gold/20 flex items-center justify-center group-hover:bg-brand-gold transition-all">
-                          <svg className="w-4 h-4 text-brand-gold group-hover:text-black" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path d="M14 5l7 7m0 0l-7 7m7-7H3" /></svg>
+              {/* Lyrics Block */}
+              <div className="space-y-16">
+                  <div className="flex items-center gap-12 border-b border-white/5 pb-8">
+                      <button onClick={() => setLyricsView('original')} className={`text-[11px] font-black uppercase tracking-[0.4em] transition-all relative ${lyricsView === 'original' ? 'text-brand-gold' : 'text-slate-600 hover:text-white'}`}>
+                        Lyrics
+                        {lyricsView === 'original' && <div className="absolute -bottom-8 left-0 w-full h-1 bg-brand-gold"></div>}
+                      </button>
+                      <button onClick={() => setLyricsView('translated')} className={`text-[11px] font-black uppercase tracking-[0.4em] transition-all relative ${lyricsView === 'translated' ? 'text-brand-gold' : 'text-slate-600 hover:text-white'}`}>
+                        Translation
+                        {lyricsView === 'translated' && <div className="absolute -bottom-8 left-0 w-full h-1 bg-brand-gold"></div>}
+                      </button>
+                      <Link to="/interactive" className="ml-auto flex items-center gap-3 group">
+                        <span className="text-[10px] font-black uppercase tracking-widest text-brand-gold group-hover:text-white transition-colors">Start Interactive Session</span>
+                        <div className="w-8 h-8 rounded-full border border-brand-gold flex items-center justify-center group-hover:bg-brand-gold group-hover:text-black transition-all">
+                          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M14 5l7 7m0 0l-7 7m7-7H3" /></svg>
                         </div>
                       </Link>
                   </div>
 
                   <div className="max-w-4xl">
-                      <pre className="text-3xl md:text-5xl font-thin uppercase leading-[1.8] text-white/60 whitespace-pre-wrap font-sans tracking-tight animate-blur-shift">
-                        {lyricsView === 'original' ? activeTrack?.lyrics : activeTrack?.translations?.[lang]?.lyrics}
+                      <pre className="text-3xl md:text-5xl font-black uppercase leading-tight text-white/80 whitespace-pre-wrap font-sans tracking-tight cinema-lyrics-blur">
+                        {lyricsView === 'original' ? activeTrack?.lyrics : (activeTrack?.translations?.[lang]?.lyrics || activeTrack?.lyrics)}
                       </pre>
                   </div>
 
-                  {(activeTrack?.description || activeTrack?.storyline) && (
-                      <div className="pt-40 border-t border-white/5 space-y-16">
-                          {activeTrack.description && (
-                            <div>
-                                <h4 className="text-[10px] text-brand-gold font-thin uppercase tracking-[1em] mb-8">Creative Notes</h4>
-                                <p className="text-lg font-thin text-slate-400 leading-loose italic tracking-[0.1em]">{activeTrack.description}</p>
-                            </div>
-                          )}
-                          {activeTrack.storyline && (
-                            <div>
-                                <h4 className="text-[10px] text-slate-700 font-thin uppercase tracking-[1em] mb-8">Lab Journal</h4>
-                                <p className="text-xs font-mono text-slate-600 leading-loose tracking-widest">{activeTrack.storyline}</p>
-                            </div>
-                          )}
+                  {activeTrack?.credits && (
+                      <div className="pt-24 border-t border-white/5">
+                          <h4 className="text-[10px] text-slate-600 font-black uppercase tracking-[0.5em] mb-8">Production Credits</h4>
+                          <pre className="text-xs font-mono text-slate-500 leading-loose uppercase tracking-widest whitespace-pre-wrap">
+                            {activeTrack?.credits}
+                          </pre>
                       </div>
                   )}
               </div>
           </div>
       </div>
 
-      <div className={`fixed bottom-0 left-0 w-full z-[100] transition-transform duration-1000 bg-black/95 backdrop-blur-3xl border-t border-white/5 ${isPlayerActive ? 'translate-y-0' : 'translate-y-full'}`}>
-          <div className="max-w-screen-2xl mx-auto px-10 h-28 flex items-center justify-between">
-              <div className="flex items-center gap-10 w-1/3">
-                  <img src={activeTrack?.coverUrl} className="w-14 h-14 border border-white/5" />
+      {/* Persistent Mini Player at Bottom */}
+      <div className={`fixed bottom-0 left-0 w-full z-[100] transition-transform duration-700 bg-black/80 backdrop-blur-3xl border-t border-white/10 ${isPlayerActive ? 'translate-y-0' : 'translate-y-full'}`}>
+          <div className="max-w-screen-2xl mx-auto px-10 h-24 flex items-center justify-between">
+              <div className="flex items-center gap-6 w-1/3">
+                  <img src={activeTrack?.coverUrl} className="w-12 h-12 rounded-sm border border-white/5" />
                   <div className="overflow-hidden">
-                    <span className="block text-[11px] font-thin uppercase tracking-[0.3em] text-white truncate mb-1">{activeTrack?.title}</span>
-                    <span className="block text-[9px] font-mono text-slate-600 uppercase tracking-[0.2em] truncate">{activeTrack?.isrc}</span>
+                    <span className="block text-xs font-black uppercase tracking-widest text-white truncate">{activeTrack?.title}</span>
+                    <span className="block text-[10px] font-bold text-slate-500 uppercase truncate">{activeTrack?.projectType}</span>
                   </div>
               </div>
-              <div className="flex flex-col items-center gap-5 w-1/3">
-                  <button onClick={() => { if(audioRef.current) isPlayerActive ? audioRef.current.pause() : audioRef.current.play(); setIsPlayerActive(!isPlayerActive); }} className="w-14 h-14 bg-white/5 border border-white/10 text-white rounded-full flex items-center justify-center hover:bg-white hover:text-black transition-all">
-                    {isPlayerActive ? '||' : '>'}
-                  </button>
-                  <div className="w-full max-w-lg flex items-center gap-6">
-                      <span className="text-[9px] font-mono text-slate-700">{formatTime(currentTime)}</span>
-                      <div className="flex-1 h-[0.5px] bg-white/5 relative">
-                          <div className="absolute h-full bg-brand-gold transition-all duration-300" style={{ width: `${(currentTime/duration)*100}%` }}></div>
+              <div className="flex flex-col items-center gap-3 w-1/3">
+                  <div className="flex items-center gap-8">
+                      <button className="text-slate-600 hover:text-white transition-colors"><svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M6 6h2v12H6zm3.5 6l8.5 6V6z"/></svg></button>
+                      <button onClick={() => { if(audioRef.current) isPlayerActive ? audioRef.current.pause() : audioRef.current.play(); setIsPlayerActive(!isPlayerActive); }} className="w-12 h-12 bg-white text-black rounded-full flex items-center justify-center hover:bg-brand-gold transition-all">
+                        {isPlayerActive ? <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg> : <svg className="w-6 h-6 ml-1" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>}
+                      </button>
+                      <button className="text-slate-600 hover:text-white transition-colors"><svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M16 18h2V6h-2zM14.5 12l-8.5 6V6z"/></svg></button>
+                  </div>
+                  <div className="w-full max-w-md flex items-center gap-4">
+                      <span className="text-[9px] font-mono text-slate-500">{formatTime(currentTime)}</span>
+                      <div className="flex-1 h-1 bg-white/10 rounded-full overflow-hidden relative group cursor-pointer">
+                          <div className="absolute h-full bg-brand-gold transition-all" style={{ width: `${(currentTime/duration)*100}%` }}></div>
                       </div>
-                      <span className="text-[9px] font-mono text-slate-700">{formatTime(duration)}</span>
+                      <span className="text-[9px] font-mono text-slate-500">{formatTime(duration)}</span>
                   </div>
               </div>
-              <div className="w-1/3 flex justify-end">
-                  <button onClick={() => setIsPlayerActive(false)} className="text-[9px] font-thin text-slate-700 uppercase tracking-[0.6em]">Minimize</button>
+              <div className="w-1/3 flex justify-end gap-6 items-center">
+                  <button onClick={() => setIsPlayerActive(false)} className="text-[10px] font-black text-slate-600 hover:text-white uppercase tracking-widest">Minimize</button>
               </div>
           </div>
       </div>
 
       <audio 
-        ref={audioRef} 
-        onTimeUpdate={(e) => setCurrentTime(e.currentTarget.currentTime)} 
-        onLoadedMetadata={(e) => { setDuration(e.currentTarget.duration); setIsBuffering(false); }} 
-        onWaiting={() => setIsBuffering(true)}
-        onPlaying={() => setIsBuffering(false)}
-        onEnded={() => setIsPlayerActive(false)} 
-        crossOrigin="anonymous" 
+        ref={audioRef}
+        onTimeUpdate={(e) => setCurrentTime(e.currentTarget.currentTime)}
+        onLoadedMetadata={(e) => setDuration(e.currentTarget.duration)}
+        onEnded={() => setIsPlayerActive(false)}
+        crossOrigin="anonymous"
       />
     </div>
   );
