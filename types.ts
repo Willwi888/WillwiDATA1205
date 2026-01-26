@@ -33,7 +33,6 @@ export interface Song {
   title: string;
   versionLabel?: string; 
   coverUrl: string;
-  videoUrl?: string; // 補回影片資產欄位
   language: Language;
   projectType: ProjectType;
   releaseCategory?: ReleaseCategory;
@@ -54,6 +53,7 @@ export interface Song {
   credits?: string;
   origin?: 'local' | 'cloud';
   description?: string;
+  // Multi-language translation support
   translations?: Record<string, SongTranslation>; 
 }
 

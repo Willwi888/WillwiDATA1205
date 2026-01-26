@@ -78,76 +78,71 @@ const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, initialMod
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-black/95" onClick={onClose}></div>
-      <div className="relative z-10 bg-black border border-white/10 max-w-5xl w-full overflow-hidden shadow-[0_0_100px_rgba(0,0,0,1)] animate-fade-in flex flex-col max-h-[90vh] font-thin">
+      <div className="absolute inset-0 bg-black/95 backdrop-blur-2xl" onClick={onClose}></div>
+      <div className="relative z-10 bg-[#020617] border border-white/10 rounded-sm max-w-5xl w-full overflow-hidden shadow-2xl animate-fade-in flex flex-col max-h-[90vh]">
         
-        <div className="p-10 border-b border-white/5">
-            <div className="flex justify-between items-start mb-12">
+        <div className="p-8 bg-white/[0.02] border-b border-white/5">
+            <div className="flex justify-between items-start mb-10">
                 <div>
-                    <h3 className="text-3xl font-thin text-white uppercase tracking-[0.5em]">{t('modal_title')}</h3>
-                    <p className="text-[10px] text-brand-accent font-thin uppercase tracking-widest mt-4 opacity-40">{supportMode} ACCESS CENTER</p>
+                    <h3 className="text-2xl font-black text-white uppercase tracking-[0.3em]">{t('modal_title')}</h3>
+                    <p className="text-[10px] text-brand-gold font-bold uppercase tracking-widest mt-2">{supportMode} ACCESS</p>
                 </div>
-                <button onClick={onClose} className="text-white/20 hover:text-white text-[10px] uppercase tracking-widest transition-all">{t('modal_close')}</button>
+                <button onClick={onClose} className="text-slate-600 hover:text-white font-mono text-xs uppercase tracking-widest transition-colors">{t('modal_close')}</button>
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
-                <input className="bg-transparent border-b border-white/10 px-0 py-4 text-white text-base outline-none focus:border-brand-accent transition-all uppercase tracking-widest placeholder:text-white/5" placeholder="Your Name" value={name} onChange={(e) => setName(e.target.value)} />
-                <input className="bg-transparent border-b border-white/10 px-0 py-4 text-white text-base outline-none focus:border-brand-accent transition-all uppercase tracking-widest placeholder:text-white/5" placeholder="Your Email" value={email} onChange={(e) => setEmail(e.target.value)} />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
+                <input className="bg-black/40 border border-white/10 px-4 py-3 text-white text-sm outline-none" placeholder="Name" value={name} onChange={(e) => setName(e.target.value)} />
+                <input className="bg-black/40 border border-white/10 px-4 py-3 text-white text-sm outline-none" placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)} />
             </div>
         </div>
 
-        <div className="flex flex-col lg:flex-row overflow-y-auto custom-scrollbar flex-grow p-10 gap-16">
-            <div className="flex-1 bg-white p-12 text-slate-900">
+        <div className="flex flex-col lg:flex-row overflow-y-auto custom-scrollbar flex-grow p-8 gap-8">
+            <div className="flex-1 bg-white rounded-sm p-8 text-slate-900">
                 {step === 'qr' ? (
-                    <div className="space-y-12">
-                        <div className="flex justify-between items-end border-b border-slate-100 pb-10">
+                    <div className="space-y-8">
+                        <div className="flex justify-between items-end border-b border-slate-100 pb-6">
                             <div>
-                                <span className="block text-[10px] text-slate-400 font-black uppercase mb-2 tracking-widest">Amount Due</span>
-                                <span className="text-5xl font-thin tracking-tighter">NT$ {totalAmount.toLocaleString()}</span>
+                                <span className="block text-[9px] text-slate-400 font-black uppercase mb-1">Total Amount</span>
+                                <span className="text-4xl font-black tracking-tighter">NT$ {totalAmount.toLocaleString()}</span>
                             </div>
                         </div>
-                        
-                        <div className="bg-slate-50 border border-slate-100 p-8 flex flex-col items-center justify-center">
-                            <img src={currentQr} alt="QR" className="w-48 h-48 object-contain mix-blend-multiply" />
-                            <p className="text-[10px] text-slate-400 font-black uppercase mt-6 tracking-[0.4em]">SCAN TO COMPLETE</p>
-                        </div>
-
-                        <div className="space-y-4">
-                            <div className="flex justify-between text-[10px] uppercase tracking-widest text-slate-400">
-                                <span>Bank Account</span>
-                                <button onClick={() => { navigator.clipboard.writeText(BANK_INFO.account); alert("Copied!"); }} className="text-slate-900 border-b border-slate-200">Copy</button>
+                        <div className="bg-slate-50 border border-slate-200 p-6 flex justify-between items-center">
+                            <div className="space-y-1">
+                                <p className="text-[9px] text-slate-400 font-black uppercase">Bank Account</p>
+                                <p className="text-lg font-mono font-black text-emerald-600">{BANK_INFO.account}</p>
                             </div>
-                            <p className="text-xl font-mono text-slate-900 text-center py-4 border border-slate-100">{BANK_INFO.account}</p>
+                            <button onClick={() => { navigator.clipboard.writeText(BANK_INFO.account); alert("Copied!"); }} className="text-[9px] border px-4 py-2 uppercase font-black">Copy</button>
                         </div>
-
-                        <button onClick={() => { if (isFormValid) { login(name, email); setStep('verify'); } }} disabled={!isFormValid} className="w-full py-6 bg-slate-900 text-white font-black uppercase text-[11px] tracking-[0.5em] hover:bg-black transition-all">
-                            Verify Transaction
+                        <div className="bg-emerald-50 border border-emerald-100 p-6 flex flex-col items-center justify-center">
+                            <img src={currentQr} alt="QR" className="w-40 h-40 object-contain mix-blend-multiply" />
+                            <p className="text-[9px] text-emerald-600 font-black uppercase mt-4">SCAN TO PAY</p>
+                        </div>
+                        <button onClick={() => { if (isFormValid) { login(name, email); setStep('verify'); } }} disabled={!isFormValid} className="w-full py-6 bg-slate-900 text-white font-black uppercase text-xs tracking-widest hover:bg-brand-gold hover:text-black">
+                            I HAVE TRANSFERRED
                         </button>
                     </div>
                 ) : (
-                    <div className="py-24 text-center space-y-12 animate-fade-in">
-                        <h4 className="text-[11px] font-black uppercase tracking-[1em] text-slate-400">Access Authentication</h4>
-                        <input type="text" placeholder="CODE" className="w-full text-center text-5xl font-mono border-b border-slate-200 outline-none py-6 text-slate-900 tracking-[1em] placeholder:opacity-10" value={inputCode} onChange={(e) => setInputCode(e.target.value)} autoFocus />
-                        {errorMsg && <p className="text-rose-600 text-[10px] font-black uppercase">{errorMsg}</p>}
-                        <div className="flex gap-10">
-                            <button onClick={() => setStep('qr')} className="flex-1 py-4 text-slate-400 font-black text-[10px] uppercase tracking-widest">Back</button>
-                            <button onClick={handleVerifyCode} disabled={!inputCode || isProcessing} className="flex-1 py-4 bg-slate-950 text-white font-black text-[10px] uppercase tracking-widest">Unlock</button>
+                    <div className="py-20 text-center space-y-10">
+                        <h4 className="text-2xl font-black uppercase tracking-widest text-slate-800">Verification</h4>
+                        <input type="text" placeholder="ACCESS CODE" className="w-full text-center text-4xl font-mono border-b-2 border-slate-200 outline-none py-4 text-slate-900 tracking-[0.4em]" value={inputCode} onChange={(e) => setInputCode(e.target.value)} autoFocus />
+                        {errorMsg && <p className="text-rose-600 text-[10px] font-black">{errorMsg}</p>}
+                        <div className="flex gap-4">
+                            <button onClick={() => setStep('qr')} className="flex-1 py-4 text-slate-400 font-black text-[10px] uppercase">Back</button>
+                            <button onClick={handleVerifyCode} disabled={!inputCode || isProcessing} className="flex-1 py-4 bg-brand-gold text-black font-black text-[10px] uppercase shadow-xl">Unlock Now</button>
                         </div>
                     </div>
                 )}
             </div>
             
-            <div className="w-full lg:w-80 space-y-12">
-                <div className="p-10 border border-white/5">
-                    <h4 className="text-[10px] text-white/20 uppercase tracking-[1em] mb-10">Order</h4>
+            <div className="w-full lg:w-80 space-y-8">
+                <div className="p-6 bg-white/5 border border-white/10">
+                    <h4 className="text-[10px] text-slate-500 font-black uppercase mb-6">Order Summary</h4>
                     {supportMode === 'production' && (
-                        <div className="space-y-8">
-                            <div className="flex justify-between items-center text-xs text-white/60 tracking-widest uppercase">
-                                <span>Credits</span>
-                                <div className="flex items-center gap-6">
-                                    <button onClick={() => setPointCount(Math.max(1, pointCount - 1))} className="text-brand-accent">-</button>
-                                    <span className="font-mono">{pointCount}</span>
-                                    <button onClick={() => setPointCount(pointCount + 1)} className="text-brand-accent">+</button>
-                                </div>
+                        <div className="flex justify-between items-center bg-black/40 p-4">
+                            <span className="text-xs text-white">Tickets</span>
+                            <div className="flex items-center gap-4">
+                                <button onClick={() => setPointCount(Math.max(1, pointCount - 1))} className="text-brand-gold">-</button>
+                                <span className="font-mono text-white">{pointCount}</span>
+                                <button onClick={() => setPointCount(pointCount + 1)} className="text-brand-gold">+</button>
                             </div>
                         </div>
                     )}
