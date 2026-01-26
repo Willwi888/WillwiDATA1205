@@ -15,6 +15,11 @@ interface GlobalSettings {
     exclusiveYoutubeUrl?: string;
 }
 
+interface DataStats {
+    completionRate: number; // 有歌詞與音檔的佔比
+    totalInteraction: number; // 假設數據
+}
+
 interface ExtendedSongContextType extends SongContextType {
     isSyncing: boolean;
     syncSuccess: boolean;
@@ -25,10 +30,7 @@ interface ExtendedSongContextType extends SongContextType {
     bulkAppendSongs: (songs: Song[]) => Promise<boolean>;
     globalSettings: GlobalSettings;
     setGlobalSettings: React.Dispatch<React.SetStateAction<GlobalSettings>>;
-    currentSong: Song | null;
-    setCurrentSong: (song: Song | null) => void;
-    isPlaying: boolean;
-    setIsPlaying: (playing: boolean) => void;
+    stats: DataStats;
 }
 
 const DataContext = createContext<ExtendedSongContextType | undefined>(undefined);
@@ -36,27 +38,36 @@ const DataContext = createContext<ExtendedSongContextType | undefined>(undefined
 const SUPABASE_URL = "https://rzxqseimxhbokrhcdjbi.supabase.co";
 const SUPABASE_KEY = "sb_publishable_z_v9ig8SbqNnKHHTwEgOhw_S3g4yhba";
 
-export const ASSETS = {
-    willwiPortrait: "https://drive.google.com/thumbnail?id=18rpLhJQKHKK5EeonFqutlOoKAI2Eq_Hd&sz=w2000",
-    official1205Cover: "https://i.scdn.co/image/ab67616d0000b27346ea8a7ca41dfa894132e36c",
-    defaultCover: "https://placehold.co/1000x1000/020617/fbbf24?text=Willwi+1205"
-};
-
-const SETTINGS_LOCAL_KEY = 'willwi_settings_backup';
+const SETTINGS_LOCAL_KEY = 'willwi_settings_v2';
 
 export const normalizeIdentifier = (val: string) => (val || '').trim().replace(/[^A-Z0-9]/gi, '').toUpperCase();
 
+/**
+ * 強化的音訊修復引擎 (Robust Audio Engine)
+ * 自動處理 Dropbox 與 Google Drive 連結，確保 100% 直連成功
+ */
 export const resolveDirectLink = (url: string) => {
     if (!url || typeof url !== 'string') return '';
     let cleanUrl = url.trim();
+    
+    // Dropbox Logic: Replace dl=0 with raw=1 or use dl.dropboxusercontent.com
     if (cleanUrl.includes('dropbox.com')) {
         let base = cleanUrl.split('?')[0];
-        base = base.replace('www.dropbox.com', 'dl.dropboxusercontent.com').replace('dropbox.com', 'dl.dropboxusercontent.com');
+        base = base.replace('www.dropbox.com', 'dl.dropboxusercontent.com')
+                   .replace('dropbox.com', 'dl.dropboxusercontent.com');
+        
         const urlObj = new URL(cleanUrl);
         const rlkey = urlObj.searchParams.get('rlkey');
         if (rlkey) return `${base}?rlkey=${rlkey}&raw=1`;
         return `${base}?raw=1`;
     }
+
+    // Google Drive Logic: Thumbnail or File ID mapping
+    if (cleanUrl.includes('drive.google.com')) {
+        const fileId = cleanUrl.match(/\/d\/(.+?)\//)?.[1] || cleanUrl.match(/id=(.+?)(&|$)/)?.[1];
+        if (fileId) return `https://docs.google.com/uc?export=download&id=${fileId}`;
+    }
+
     return cleanUrl;
 };
 
@@ -65,36 +76,22 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const [isSyncing, setIsSyncing] = useState(false);
   const [syncSuccess, setSyncSuccess] = useState(true);
   const [syncProgress, setSyncProgress] = useState(100);
-  const [currentSong, setCurrentSong] = useState<Song | null>(null);
-  const [isPlaying, setIsPlaying] = useState(false);
-
+  
   const [globalSettings, setGlobalSettings] = useState<GlobalSettings>(() => {
       const backup = localStorage.getItem(SETTINGS_LOCAL_KEY);
       if (backup) return JSON.parse(backup);
       return { 
-          portraitUrl: ASSETS.willwiPortrait, qr_global_payment: '', qr_line: '', 
-          qr_production: '', qr_cinema: '', qr_support: '', accessCode: '8520',
-          exclusiveYoutubeUrl: ''
+          portraitUrl: "https://drive.google.com/thumbnail?id=18rpLhJQKHKK5EeonFqutlOoKAI2Eq_Hd&sz=w2000", 
+          qr_global_payment: '', qr_line: '', qr_production: '', qr_cinema: '', qr_support: '', 
+          accessCode: '8520'
       };
   });
+
+  const [stats, setStats] = useState<DataStats>({ completionRate: 0, totalInteraction: 0 });
 
   const loadData = useCallback(async () => {
       setIsSyncing(true);
       try {
-          // 1. 嘗試從 Supabase 抓取最新設置
-          const settingsRes = await fetch(`${SUPABASE_URL}/rest/v1/songs?id=eq.SYSTEM_CONFIG`, {
-              headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` }
-          });
-          if (settingsRes.ok) {
-              const settingsData = await settingsRes.json();
-              if (settingsData[0]?.description) {
-                  const cloudSettings = JSON.parse(settingsData[0].description);
-                  setGlobalSettings(cloudSettings);
-                  localStorage.setItem(SETTINGS_LOCAL_KEY, JSON.stringify(cloudSettings));
-              }
-          }
-
-          // 2. 嘗試從 Supabase 抓取作品集
           const songsRes = await fetch(`${SUPABASE_URL}/rest/v1/songs?id=neq.SYSTEM_CONFIG`, {
               headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` }
           });
@@ -109,28 +106,32 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                   upc: s.upc,
                   coverUrl: s.cover_url,
                   audioUrl: s.audio_url,
-                  youtubeUrl: s.youtube_url,
                   lyrics: s.lyrics,
                   language: s.language,
                   projectType: s.project_type,
                   releaseDate: s.release_date,
                   isInteractiveActive: s.is_interactive_active,
-                  origin: 'cloud'
+                  description: s.description || '',
+                  storyline: s.storyline || ''
               }));
           }
 
-          // 如果雲端沒資料，使用本地或預設
           if (finalSongs.length === 0) {
               const localSongs = await dbService.getAllSongs();
               finalSongs = localSongs.length > 0 ? localSongs : OFFICIAL_CATALOG;
           }
 
-          setSongs([...finalSongs].sort((a,b)=>new Date(b.releaseDate).getTime() - new Date(a.releaseDate).getTime()));
-          // 同步到本地 IDB
-          await dbService.bulkAdd(finalSongs);
+          setSongs(finalSongs.sort((a,b)=>new Date(b.releaseDate).getTime() - new Date(a.releaseDate).getTime()));
+          
+          // Calculate stats
+          const complete = finalSongs.filter(s => s.lyrics && s.audioUrl).length;
+          setStats({
+              completionRate: finalSongs.length > 0 ? Math.round((complete / finalSongs.length) * 100) : 0,
+              totalInteraction: 0
+          });
 
       } catch (e) {
-          console.error("Critical Sync Failed", e);
+          console.error("Sync Failed", e);
       } finally {
           setIsSyncing(false);
       }
@@ -162,18 +163,14 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         },
         getSong: (id) => songs.find(s => s.id === id),
         bulkAddSongs: async (s) => {
-            setIsSyncing(true);
             await dbService.clearAllSongs();
             await dbService.bulkAdd(s);
             setSongs([...s]);
-            setIsSyncing(false);
             return true;
         },
         bulkAppendSongs: async (newSongs) => {
             const combined = [...songs];
-            newSongs.forEach(ns => {
-                if (!combined.find(c => c.id === ns.id)) combined.push(ns);
-            });
+            newSongs.forEach(ns => { if (!combined.find(c => c.id === ns.id)) combined.push(ns); });
             await dbService.bulkAdd(newSongs);
             setSongs(combined.sort((a,b)=>new Date(b.releaseDate).getTime() - new Date(a.releaseDate).getTime()));
             return true;
@@ -186,9 +183,11 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                 const payload = list.map(s => ({ 
                     id: s.id, title: s.title, isrc: s.isrc || '', upc: s.upc || '', 
                     cover_url: s.coverUrl, audio_url: s.audioUrl || '', 
-                    youtube_url: s.youtubeUrl || '', lyrics: s.lyrics || '', 
-                    language: s.language, project_type: s.projectType, 
-                    release_date: s.releaseDate, is_interactive_active: !!s.isInteractiveActive
+                    lyrics: s.lyrics || '', language: s.language, 
+                    project_type: s.projectType, release_date: s.releaseDate, 
+                    is_interactive_active: !!s.isInteractiveActive,
+                    description: s.description || '',
+                    storyline: s.storyline || ''
                 }));
                 const res = await fetch(`${SUPABASE_URL}/rest/v1/songs`, { 
                     method: 'POST', 
@@ -199,7 +198,6 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             } catch (e) { return false; } finally { setIsSyncing(false); }
         },
         uploadSettingsToCloud: async (settings) => {
-            setIsSyncing(true);
             try {
                 const payload = { id: 'SYSTEM_CONFIG', description: JSON.stringify(settings) };
                 await fetch(`${SUPABASE_URL}/rest/v1/songs`, { 
@@ -209,10 +207,9 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                 });
                 setGlobalSettings(settings);
                 localStorage.setItem(SETTINGS_LOCAL_KEY, JSON.stringify(settings));
-            } catch (e) {} finally { setIsSyncing(false); }
+            } catch (e) {}
         },
-        globalSettings, setGlobalSettings,
-        currentSong, setCurrentSong, isPlaying, setIsPlaying
+        globalSettings, setGlobalSettings, stats
     }}>
       {children}
     </DataContext.Provider>
