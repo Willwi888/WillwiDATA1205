@@ -77,10 +77,6 @@ const Home: React.FC = () => {
                 >
                     {/* Glow Highlight */}
                     <div className="absolute top-0 right-0 w-32 h-32 bg-brand-accent/10 blur-[60px]"></div>
-                    
-                    <div className="absolute -top-3 right-8 bg-brand-accent text-black text-[9px] font-black px-4 py-1.5 uppercase tracking-widest shadow-xl">
-                        High Fidelity
-                    </div>
 
                     <div className="mb-10">
                         <h3 className="text-brand-accent font-black text-[12px] uppercase tracking-[0.4em] mb-4">雲端影院 + 簽名</h3>
