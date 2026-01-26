@@ -11,25 +11,12 @@ const Database: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterLang, setFilterLang] = useState<string>('All');
 
-  // Filter and Grouping Logic
+  // UPC 聚合邏輯：將相同 UPC 的歌曲分組為專輯
   const groupedAlbums = useMemo(() => {
     const groups: Record<string, Song[]> = {};
     
-    // Explicitly exclude tracks identified by the user as "not mine"
-    const problematicTitles = [
-      'SUMMER BREEZE', 
-      'Summer Breeze', 
-      '夜空中最亮的星', 
-      'Brightest Star', 
-      '再愛一次'
-    ];
-
     songs.forEach(song => {
-      // Check for exclusions (specifically the 2023 versions mentioned)
-      const isExcluded = problematicTitles.some(pt => song.title.includes(pt)) && song.releaseDate.startsWith('2023');
-      
-      if (isExcluded) return;
-
+      // 如果沒有 UPC，則視為獨立單曲 (以 ID 作為 GroupKey)
       const groupKey = song.upc ? normalizeIdentifier(song.upc) : `SINGLE_${normalizeIdentifier(song.id)}`;
       if (!groups[groupKey]) groups[groupKey] = [];
       groups[groupKey].push(song);
@@ -68,7 +55,7 @@ const Database: React.FC = () => {
             <div className="absolute bottom-0 left-0 w-full h-[1px] bg-gradient-to-r from-brand-gold/40 to-transparent"></div>
         </div>
         <div className="flex items-center gap-4">
-            <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Language:</label>
+            <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Region:</label>
             <select 
               className="bg-white/5 text-white font-black px-8 py-4 text-[11px] uppercase tracking-[0.3em] outline-none border border-white/10 focus:border-brand-gold transition-all rounded-sm appearance-none min-w-[200px]" 
               value={filterLang} 
@@ -88,41 +75,40 @@ const Database: React.FC = () => {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-x-10 gap-y-20">
             {groupedAlbums.map(albumSongs => {
                 const main = albumSongs[0];
+                const isAlbum = albumSongs.length > 1;
                 return (
                     <div key={main.id} onClick={() => navigate(`/song/${main.id}`)} className="group cursor-pointer">
-                        <div className="aspect-square w-full relative overflow-hidden bg-slate-900 mb-8 border border-white/5 group-hover:border-brand-gold/50 transition-all duration-700 shadow-2xl rounded-sm">
+                        <div className="aspect-square w-full relative overflow-hidden bg-slate-900 mb-8 border border-white/5 group-hover:border-brand-gold transition-all duration-700 shadow-2xl rounded-sm">
                             <img 
                               src={main.coverUrl} 
                               className="w-full h-full object-cover opacity-90 group-hover:opacity-100 group-hover:scale-110 transition-all duration-[2s] ease-out" 
                               alt={main.title}
-                              onError={(e) => {
-                                (e.target as HTMLImageElement).src = 'https://placehold.co/1000x1000/020617/fbbf24?text=WILLWI+1205';
-                              }}
                             />
                             
-                            {/* Category Badge */}
-                            <div className="absolute top-4 left-4 z-10">
+                            <div className="absolute top-4 left-4 z-10 flex flex-col gap-2">
                                 <span className="text-[8px] font-black text-white bg-black/80 backdrop-blur-md px-3 py-1.5 uppercase tracking-widest border border-white/10">
-                                    {albumSongs.length > 1 ? `ALBUM` : (main.releaseCategory || 'SINGLE')}
+                                    {isAlbum ? 'ALBUM' : (main.releaseCategory || 'SINGLE')}
                                 </span>
+                                {isAlbum && (
+                                    <span className="text-[8px] font-black text-black bg-brand-gold px-3 py-1.5 uppercase tracking-widest">
+                                        {albumSongs.length} Tracks
+                                    </span>
+                                )}
                             </div>
 
-                            {/* Hover Overlay */}
                             <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-500 flex items-center justify-center backdrop-blur-sm">
-                                <span className="text-[10px] font-black text-white uppercase tracking-[0.5em] border border-white/20 px-6 py-3 bg-black/40">View Details</span>
+                                <span className="text-[10px] font-black text-white uppercase tracking-[0.5em] border border-white/20 px-6 py-3 bg-black/40">Open Folder</span>
                             </div>
                         </div>
 
                         <div className="space-y-3">
-                            <div className="flex justify-between items-start gap-4">
-                                <h4 className="text-lg font-black text-white uppercase truncate tracking-tight group-hover:text-brand-gold transition-colors duration-300">
-                                  {main.title}
-                                </h4>
-                            </div>
+                            <h4 className="text-lg font-black text-white uppercase truncate tracking-tight group-hover:text-brand-gold transition-colors duration-300">
+                              {main.title}
+                            </h4>
                             <div className="flex items-center gap-3">
                                 <span className="text-[9px] text-brand-gold font-bold uppercase tracking-[0.2em]">{main.releaseDate.split('-')[0]}</span>
                                 <div className="w-1 h-1 bg-white/20 rounded-full"></div>
-                                <span className="text-[9px] text-slate-500 font-bold uppercase tracking-widest truncate">{main.releaseCompany || 'WILLWI MUSIC'}</span>
+                                <span className="text-[9px] text-slate-500 font-bold uppercase tracking-widest truncate">{main.upc || 'NO UPC'}</span>
                             </div>
                         </div>
                     </div>
