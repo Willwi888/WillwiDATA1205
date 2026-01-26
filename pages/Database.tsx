@@ -24,7 +24,8 @@ const Database: React.FC = () => {
     return Object.values(groups).filter(group => {
       const matchesSearch = group.some(s => 
           s.title.toLowerCase().includes(searchTerm.toLowerCase()) || 
-          (s.upc && s.upc.includes(searchTerm))
+          (s.upc && s.upc.includes(searchTerm)) ||
+          (s.isrc && s.isrc.includes(searchTerm))
       );
       const matchesLang = filterLang === 'All' || group.some(s => s.language === filterLang);
       return matchesSearch && matchesLang;
@@ -83,9 +84,16 @@ const Database: React.FC = () => {
                           </div>
                       </div>
                       <h4 className="text-sm font-bold text-white uppercase truncate tracking-widest group-hover:text-brand-gold transition-colors">{main.title}</h4>
-                      <p className="text-[10px] text-slate-400 font-mono mt-2 uppercase tracking-widest font-bold opacity-80">
-                        {main.releaseDate.split('-')[0]} • {main.releaseCompany || 'WILLWI MUSIC'}
-                      </p>
+                      <div className="flex flex-col gap-1 mt-2">
+                        <p className="text-[10px] text-slate-400 font-mono uppercase tracking-widest font-bold opacity-80">
+                            {main.releaseDate.split('-')[0]} • {main.releaseCompany || 'WILLWI MUSIC'}
+                        </p>
+                        {main.upc && (
+                            <p className="text-[9px] text-slate-600 font-mono uppercase tracking-widest font-bold">
+                                UPC: {main.upc}
+                            </p>
+                        )}
+                      </div>
                   </div>
               );
           })}

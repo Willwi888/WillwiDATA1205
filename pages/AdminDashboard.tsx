@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useData, normalizeIdentifier, ASSETS, resolveDirectLink } from '../context/DataContext';
@@ -139,7 +138,7 @@ const AdminDashboard: React.FC = () => {
           isrc: t.external_ids?.isrc || '',
           upc: t.album?.external_ids?.upc || '',
           coverUrl: t.album?.images?.[0]?.url || ASSETS.defaultCover,
-          releaseCompany: t.album?.label || 'WILLWI MUSIC',
+          releaseCompany: 'WILLWI MUSIC',
           language: Language.Mandarin,
           projectType: ProjectType.Indie,
           releaseCategory: ReleaseCategory.Single,
