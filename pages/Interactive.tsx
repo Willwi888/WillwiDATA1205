@@ -1,4 +1,5 @@
 
+// Fix: Completed the truncated Interactive component and added the missing default export
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useData, resolveDirectLink } from '../context/DataContext';
 import { useUser } from '../context/UserContext';
@@ -191,4 +192,115 @@ const Interactive: React.FC = () => {
                             onClick={() => setShowTrackInfo(!showTrackInfo)}
                             className={`w-10 h-5 rounded-full relative transition-all ${showTrackInfo ? 'bg-orange-500' : 'bg-slate-800'}`}
                           >
-                              <div className={`absolute top-1 w-3 h-3 bg-white rounded-full transition-all
+                              <div className={`absolute top-1 w-3 h-3 bg-white rounded-full transition-all ${showTrackInfo ? 'right-1' : 'left-1'}`}></div>
+                          </button>
+                      </div>
+                  </div>
+              </div>
+          )}
+
+          {/* Main Workspace */}
+          <div className="flex-1 bg-black relative flex items-center justify-center overflow-hidden">
+                {mode === 'intro' && (
+                    <div className="text-center max-w-xl animate-fade-in-up">
+                        <span className="text-brand-gold text-[10px] font-black uppercase tracking-[0.5em] block mb-6">{t('before_start_title')}</span>
+                        <p className="text-slate-400 text-sm leading-loose uppercase tracking-widest mb-12 opacity-60">
+                            {t('before_start_content')}
+                        </p>
+                        <button onClick={() => setMode('select')} className="px-16 py-6 bg-brand-gold text-black font-black text-xs uppercase tracking-[0.4em] hover:bg-white transition-all">
+                            {t('btn_understand')}
+                        </button>
+                    </div>
+                )}
+
+                {mode === 'select' && (
+                    <div className="w-full max-w-6xl grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-8 p-12 animate-fade-in">
+                        {songs.filter(s => s.isInteractiveActive).map(song => (
+                            <div key={song.id} onClick={() => { setSelectedSong(song); setMode('playing'); }} className="group cursor-pointer">
+                                <div className="aspect-square bg-slate-900 border border-white/5 rounded-sm overflow-hidden mb-4 group-hover:border-brand-gold transition-all duration-500">
+                                    <img src={song.coverUrl} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-[2s]" alt="" />
+                                </div>
+                                <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-500 group-hover:text-white truncate">{song.title}</h4>
+                            </div>
+                        ))}
+                    </div>
+                )}
+
+                {mode === 'playing' && selectedSong && (
+                    <div className="w-full h-full flex items-center justify-center relative">
+                        <div className={`w-full max-w-3xl px-12 transition-all duration-700 ${lyricsPosition === 'center' ? 'text-center' : 'text-left'}`}>
+                            {lyricsLines.map((line, idx) => (
+                                <p 
+                                    key={idx} 
+                                    onClick={() => handleLyricClick(idx)}
+                                    className={`text-4xl font-black uppercase tracking-tight py-4 cursor-pointer transition-all duration-500 ${idx === currentLineIndex ? 'text-brand-gold scale-110' : idx < currentLineIndex ? 'text-white/10' : 'text-white/30 hover:text-white'}`}
+                                >
+                                    {line}
+                                </p>
+                            ))}
+                        </div>
+
+                        {/* Player Controls Overlay */}
+                        <div className="absolute bottom-12 left-1/2 -translate-x-1/2 flex items-center gap-12 bg-black/80 backdrop-blur-2xl border border-white/10 rounded-full px-12 py-6 shadow-2xl">
+                             <button onClick={handleTogglePlay} className="w-12 h-12 bg-white text-black rounded-full flex items-center justify-center hover:bg-brand-gold transition-all">
+                                {isPaused ? <svg className="w-6 h-6 ml-1" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg> : <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>}
+                             </button>
+                             <div className="flex flex-col gap-2 w-48">
+                                <div className="flex justify-between text-[8px] font-black text-slate-500 uppercase tracking-widest">
+                                    <span>{formatTime(currentTime)}</span>
+                                    <span>{formatTime(duration)}</span>
+                                </div>
+                                <div className="h-1 bg-white/10 w-full rounded-full overflow-hidden">
+                                    <div className="h-full bg-brand-gold transition-all duration-300" style={{ width: `${(currentTime/duration)*100}%` }}></div>
+                                </div>
+                             </div>
+                             <button onClick={startExportProcess} className="h-12 px-8 bg-brand-gold text-black font-black text-[10px] uppercase tracking-widest rounded-full hover:bg-white transition-all">
+                                Export Master
+                             </button>
+                        </div>
+
+                        <audio 
+                            ref={audioRef}
+                            src={resolveDirectLink(selectedSong.audioUrl || '')}
+                            onTimeUpdate={(e) => setCurrentTime(e.currentTarget.currentTime)}
+                            onLoadedMetadata={(e) => setDuration(e.currentTarget.duration)}
+                            onEnded={() => { setIsPaused(true); setMode('finished'); }}
+                            crossOrigin="anonymous"
+                        />
+                    </div>
+                )}
+
+                {mode === 'rendering' && (
+                    <div className="text-center space-y-12 animate-fade-in">
+                        <div className="w-24 h-24 border-2 border-brand-gold border-t-transparent rounded-full animate-spin mx-auto shadow-[0_0_50px_rgba(251,191,36,0.2)]"></div>
+                        <div className="space-y-4">
+                            <h2 className="text-3xl font-black uppercase tracking-[0.5em]">Rendering</h2>
+                            <p className="text-slate-600 text-[10px] uppercase tracking-widest font-bold">VEO AI generating organic grain background loop...</p>
+                        </div>
+                    </div>
+                )}
+
+                {mode === 'finished' && bgVideoUrl && (
+                    <div className="w-full h-full relative flex items-center justify-center animate-fade-in">
+                         <video src={bgVideoUrl} autoPlay loop muted className="absolute inset-0 w-full h-full object-cover opacity-40 blur-sm" />
+                         <div className="relative z-10 text-center space-y-12 bg-black/40 backdrop-blur-3xl p-20 border border-white/5 rounded-sm">
+                             <div className="space-y-4">
+                                <h2 className="text-6xl font-black uppercase tracking-tighter">Master Ready</h2>
+                                <p className="text-slate-400 text-[10px] uppercase tracking-[0.5em]">Handcrafted studio render complete</p>
+                             </div>
+                             <div className="flex flex-col gap-6">
+                                <a href={bgVideoUrl} download={`${selectedSong?.title}_Render.mp4`} className="px-16 py-6 bg-white text-black font-black text-xs uppercase tracking-[0.6em] hover:bg-brand-gold transition-all shadow-2xl">
+                                    {t('btn_get_mp4')}
+                                </a>
+                                <button onClick={() => setMode('intro')} className="text-[10px] font-black text-slate-600 hover:text-white uppercase tracking-widest transition-colors">Start New Project</button>
+                             </div>
+                         </div>
+                    </div>
+                )}
+          </div>
+      </div>
+    </div>
+  );
+};
+
+export default Interactive;
