@@ -9,7 +9,17 @@ import { useToast } from '../components/Layout';
 import { searchSpotifyTracks, SpotifyTrack } from '../services/spotifyService';
 
 const AdminDashboard: React.FC = () => {
-  const { songs, updateSong, deleteSong, bulkAddSongs, bulkAppendSongs, refreshData } = useData();
+  const { 
+    songs, 
+    updateSong, 
+    deleteSong, 
+    bulkAddSongs, 
+    bulkAppendSongs, 
+    refreshData,
+    globalSettings,
+    setGlobalSettings,
+    uploadSettingsToCloud
+  } = useData();
   const { isAdmin, enableAdmin, logoutAdmin } = useUser();
   const { showToast } = useToast();
   const navigate = useNavigate();
@@ -39,8 +49,32 @@ const AdminDashboard: React.FC = () => {
       if (!url) return showToast("此作品尚未配置有效音訊", "error");
       setAdminPlayingId(song.id);
       audioRef.current.src = url;
-      audioRef.current.play().catch(() => showToast("播放失敗，請檢查 Dropbox 連結是否正確", "error"));
+      audioRef.current.play().catch(() => showToast("播放失敗", "error"));
     }
+  };
+
+  // QR Code Upload Logic
+  const handleQrUpload = (key: 'qr_support' | 'qr_production' | 'qr_cinema' | 'qr_global_payment') => (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const base64 = reader.result as string;
+        const newSettings = { ...globalSettings, [key]: base64 };
+        setGlobalSettings(newSettings);
+        showToast("QR Code 已暫存，請點擊下方的儲存按鈕同步至雲端");
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleSaveSettings = async () => {
+      try {
+          await uploadSettingsToCloud(globalSettings);
+          showToast("環境設置已成功同步至雲端伺服器");
+      } catch (e) {
+          showToast("同步失敗", "error");
+      }
   };
 
   const handleSpotifySearch = async () => {
@@ -109,17 +143,17 @@ const AdminDashboard: React.FC = () => {
     try {
       const data = JSON.parse(jsonInput);
       if (Array.isArray(data)) {
-        if (window.confirm(`【危險操作確認】\n即將覆寫現有 ${songs.length} 筆作品為新匯入的 ${data.length} 筆數據。\n確定執行物理覆寫嗎？`)) {
+        if (window.confirm(`【危險操作確認】\n即將覆寫現有數據。確定執行物理覆寫嗎？`)) {
           await bulkAddSongs(data);
-          showToast("✅ 資料庫重建完成，正在重新載入系統環境...");
+          showToast("✅ 資料庫重建完成");
           setJsonInput('');
           setTimeout(() => window.location.reload(), 1200);
         }
       } else {
-        showToast("錯誤：匯入格式必須為 Array", "error");
+        showToast("錯誤：格式必須為 Array", "error");
       }
     } catch (e) {
-      showToast("JSON 語法解析錯誤，請使用專業編輯器檢查", "error");
+      showToast("JSON 語法錯誤", "error");
     }
   };
 
@@ -163,7 +197,7 @@ const AdminDashboard: React.FC = () => {
 
       <div className="flex border-b border-white/5 mb-16 gap-16">
         <button onClick={() => setActiveTab('catalog')} className={`pb-8 text-[11px] font-black uppercase tracking-[0.4em] transition-all ${activeTab === 'catalog' ? 'text-brand-gold border-b-2 border-brand-gold' : 'text-slate-500 hover:text-white'}`}>作品列表總庫</button>
-        <button onClick={() => setActiveTab('discovery')} className={`pb-8 text-[11px] font-black uppercase tracking-[0.4em] transition-all ${activeTab === 'discovery' ? 'text-brand-gold border-b-2 border-brand-gold' : 'text-slate-500 hover:text-white'}`}>Spotify 採集與匯入</button>
+        <button onClick={() => setActiveTab('discovery')} className={`pb-8 text-[11px] font-black uppercase tracking-[0.4em] transition-all ${activeTab === 'discovery' ? 'text-brand-gold border-b-2 border-brand-gold' : 'text-slate-500 hover:text-white'}`}>SPOTIFY 採集與匯入</button>
         <button onClick={() => setActiveTab('json')} className={`pb-8 text-[11px] font-black uppercase tracking-[0.4em] transition-all ${activeTab === 'json' ? 'text-brand-gold border-b-2 border-brand-gold' : 'text-slate-500 hover:text-white'}`}>數據中心 (JSON)</button>
         <button onClick={() => setActiveTab('settings')} className={`pb-8 text-[11px] font-black uppercase tracking-[0.4em] transition-all ${activeTab === 'settings' ? 'text-brand-gold border-b-2 border-brand-gold' : 'text-slate-500 hover:text-white'}`}>環境設置</button>
       </div>
@@ -204,7 +238,7 @@ const AdminDashboard: React.FC = () => {
                              {song.isInteractiveActive ? '開放中' : '關閉中'}
                           </button>
                           <button onClick={() => navigate(`/add?edit=${song.id}`)} className="text-[10px] font-black uppercase text-slate-500 hover:text-white px-4">編輯</button>
-                          <button onClick={() => { if (window.confirm(`【徹底刪除警告】\n確定要將「${song.title}」從資料庫移除嗎？`)) deleteSong(song.id); }} className="text-[10px] font-black uppercase text-rose-900 hover:text-rose-500 transition-colors">刪除</button>
+                          <button onClick={() => { if (window.confirm(`確定要將「${song.title}」移除嗎？`)) deleteSong(song.id); }} className="text-[10px] font-black uppercase text-rose-900 hover:text-rose-500 transition-colors">刪除</button>
                       </div>
                   </div>
               ))}
@@ -239,14 +273,13 @@ const AdminDashboard: React.FC = () => {
                    <button onClick={toggleAllSpotify} className="text-[10px] font-black uppercase tracking-widest text-slate-500 hover:text-white">
                       {selectedSpotifyIds.size === spotifyResults.length ? 'DESELECT ALL' : 'SELECT ALL'}
                    </button>
-                   <span className="text-white font-black text-xs uppercase tracking-widest opacity-60">Selection: {selectedSpotifyIds.size} Tracks</span>
                 </div>
                 <button 
                   onClick={handleBulkImportSpotify}
                   disabled={selectedSpotifyIds.size === 0}
                   className="px-12 h-14 bg-emerald-600 text-white font-black text-[10px] uppercase tracking-widest hover:bg-emerald-400 transition-all disabled:opacity-30 shadow-2xl"
                 >
-                  批量匯入至作品庫
+                  批量匯入至作品庫 ({selectedSpotifyIds.size})
                 </button>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -262,9 +295,6 @@ const AdminDashboard: React.FC = () => {
                     <img src={track.album?.images?.[0]?.url} className="w-20 h-20 object-cover rounded-sm shadow-xl grayscale group-hover:grayscale-0 transition-all" />
                     <div className="flex-1">
                       <h4 className="text-xl font-black text-white uppercase tracking-wider mb-2">{track.name}</h4>
-                      <p className="text-[10px] text-slate-600 font-mono uppercase tracking-widest">
-                        {track.external_ids?.isrc || 'NO ISRC'} • {track.album?.release_date}
-                      </p>
                     </div>
                   </div>
                 ))}
@@ -277,26 +307,18 @@ const AdminDashboard: React.FC = () => {
       {activeTab === 'json' && (
         <div className="max-w-6xl space-y-16 animate-fade-in">
            <div className="bg-[#0f172a] p-16 border border-white/5 space-y-10 rounded-sm shadow-2xl">
-            <div>
-                <h3 className="text-brand-gold font-black text-xs uppercase tracking-[0.5em] mb-4">專家數據維護 (Raw JSON Access)</h3>
-                <p className="text-slate-500 text-[11px] leading-relaxed uppercase tracking-widest max-w-3xl">
-                  在此區域，您可以直接對底層數據庫進行物理操作。您可以點擊「讀取 JSON」獲取當前完整 Catalog 結構，修改後點擊「執行覆寫」以強制更新。
-                </p>
-            </div>
             <textarea 
               className="w-full h-[600px] bg-black border border-white/10 p-12 text-emerald-500 text-sm font-mono focus:border-brand-gold outline-none resize-none custom-scrollbar shadow-inner leading-relaxed" 
-              placeholder='[ { "id": "...", "title": "...", "upc": "...", "lyrics": "..." }, ... ]'
               value={jsonInput} 
               onChange={e => setJsonInput(e.target.value)} 
             />
             <div className="flex gap-8">
                 <button onClick={handleJsonImport} className="flex-1 h-20 bg-brand-gold text-black font-black uppercase text-sm tracking-[0.5em] hover:bg-white transition-all shadow-2xl">
-                   執行物理覆寫 (FORCE UPDATE)
+                   執行物理覆寫
                 </button>
                 <button onClick={async () => {
                    const all = await dbService.getAllSongs();
                    setJsonInput(JSON.stringify(all, null, 2));
-                   showToast("現有數據已導出至緩存區");
                 }} className="px-16 h-20 border border-white/10 text-white font-black uppercase text-[11px] tracking-widest hover:bg-white/5 transition-all">
                    讀取資料庫
                 </button>
@@ -306,7 +328,60 @@ const AdminDashboard: React.FC = () => {
       )}
 
       {activeTab === 'settings' && (
-        <div className="max-w-4xl space-y-16 animate-fade-in">
+        <div className="max-w-6xl space-y-24 animate-fade-in">
+          
+          {/* 金流 QR Code 設置區域 */}
+          <div className="space-y-12">
+            <div>
+              <h3 className="text-brand-gold font-black text-2xl uppercase tracking-[0.2em] mb-4">金流 QR Code 與驗證設置</h3>
+              <p className="text-slate-500 text-[10px] uppercase tracking-widest">在此管理不同方案的收款圖片與通行碼。</p>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+              {[
+                { id: 'qr_support', label: '熱能贊助 ($100)', key: 'support' },
+                { id: 'qr_production', label: '手作對時 ($320)', key: 'production' },
+                { id: 'qr_cinema', label: '大師影視 ($2800)', key: 'cinema' },
+                { id: 'qr_global_payment', label: '通用支付 (Global)', key: 'global' },
+              ].map((qr) => (
+                <div key={qr.id} className="bg-[#0f172a] border border-white/5 p-8 rounded-sm text-center flex flex-col items-center">
+                  <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-6">{qr.label}</h4>
+                  <div className="w-full aspect-square bg-black/40 border border-white/10 rounded-sm mb-6 flex items-center justify-center overflow-hidden">
+                    {(globalSettings as any)[qr.id] ? (
+                      <img src={(globalSettings as any)[qr.id]} className="w-full h-full object-contain" alt="" />
+                    ) : (
+                      <span className="text-[9px] text-slate-800 font-black">NO IMAGE</span>
+                    )}
+                  </div>
+                  <label className="w-full py-3 bg-white/5 text-white font-black text-[9px] uppercase tracking-widest hover:bg-white hover:text-black transition-all cursor-pointer">
+                    UPLOAD QR
+                    <input type="file" className="hidden" accept="image/*" onChange={handleQrUpload(qr.id as any)} />
+                  </label>
+                </div>
+              ))}
+            </div>
+
+            <div className="bg-[#0f172a] p-12 border border-white/5 rounded-sm flex flex-col md:flex-row items-center gap-12">
+               <div className="flex-1">
+                  <h4 className="text-white font-black text-sm uppercase tracking-widest mb-2">系統通行碼 (Access Code)</h4>
+                  <p className="text-slate-500 text-[10px] uppercase tracking-widest">當使用者完成轉帳後，系統會要求輸入此代碼以完成解鎖。</p>
+               </div>
+               <input 
+                  type="text" 
+                  className="bg-black border border-brand-gold/50 px-8 py-4 text-white font-mono text-4xl text-center w-full md:w-64 outline-none focus:border-brand-gold"
+                  value={globalSettings.accessCode}
+                  onChange={(e) => setGlobalSettings({ ...globalSettings, accessCode: e.target.value })}
+               />
+            </div>
+
+            <button 
+              onClick={handleSaveSettings}
+              className="w-full py-8 bg-brand-gold text-black font-black text-xs uppercase tracking-[0.5em] hover:bg-white transition-all shadow-[0_0_50px_rgba(251,191,36,0.2)]"
+            >
+               儲存並同步環境設置 (SAVE SETTINGS)
+            </button>
+          </div>
+
           <div className="bg-[#0f172a] p-16 border border-white/5 space-y-12 rounded-sm">
               <h3 className="text-brand-gold font-black text-xs uppercase tracking-[0.5em]">系統環境與雲端同步</h3>
               <div className="space-y-8">
@@ -314,6 +389,7 @@ const AdminDashboard: React.FC = () => {
                  <p className="text-[10px] text-slate-700 text-center uppercase tracking-widest">此操作會與雲端主庫進行對比並合併數據</p>
               </div>
           </div>
+
         </div>
       )}
     </div>

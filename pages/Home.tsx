@@ -1,12 +1,22 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from '../context/LanguageContext';
 import { ASSETS } from '../context/DataContext';
+import PaymentModal from '../components/PaymentModal';
 
 const Home: React.FC = () => {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  
+  // 支付彈窗狀態管理
+  const [isPaymentOpen, setIsPaymentOpen] = useState(false);
+  const [payMode, setPayMode] = useState<'support' | 'production' | 'cinema'>('support');
+
+  const openPayment = (mode: 'support' | 'production' | 'cinema') => {
+      setPayMode(mode);
+      setIsPaymentOpen(true);
+  };
 
   return (
     <div className="min-h-screen relative flex flex-col items-center overflow-hidden bg-black">
@@ -37,14 +47,13 @@ const Home: React.FC = () => {
             </div>
         </div>
 
-        {/* Action Tiers Grid - 恢復專業定價 100, 320, 2800 */}
+        {/* Action Tiers Grid - 100, 320, 2800 */}
         <div className="w-full max-w-[1400px] mt-24">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-8 items-stretch">
                 
-                {/* Mode 1: Support */}
+                {/* Mode 1: Support ($100 單純支持) */}
                 <div 
-                  onClick={() => navigate('/interactive')} 
-                  className="group relative bg-white/[0.02] border border-white/5 p-10 flex flex-col hover:border-brand-gold/30 hover:bg-white/[0.04] transition-all duration-700 cursor-pointer rounded-sm backdrop-blur-3xl"
+                  className="group relative bg-white/[0.02] border border-white/5 p-10 flex flex-col hover:border-brand-gold/30 hover:bg-white/[0.04] transition-all duration-700 rounded-sm backdrop-blur-3xl"
                 >
                     <div className="mb-8">
                         <h3 className="text-slate-400 font-black text-[11px] uppercase tracking-[0.4em] mb-4 group-hover:text-brand-gold transition-colors">熱能贊助方案</h3>
@@ -55,23 +64,25 @@ const Home: React.FC = () => {
                         <div className="text-5xl font-black text-white tracking-tighter flex items-baseline gap-2">
                             <span className="text-xs font-normal opacity-30 tracking-normal">NT$</span>100
                         </div>
-                        <p className="text-[9px] text-slate-500 uppercase tracking-widest mt-6 font-bold leading-relaxed">請創作團隊喝杯咖啡。支持平台的伺服器與數據維護運作。</p>
+                        <p className="text-[9px] text-slate-500 uppercase tracking-widest mt-6 font-bold leading-relaxed">單純支持創作。請團隊喝杯咖啡，協助平台數據維護。</p>
                     </div>
 
                     <ul className="text-[9px] text-slate-600 space-y-4 mb-10 uppercase tracking-widest font-bold flex-grow">
-                        <li className="flex items-center gap-3"><span className="w-1 h-1 bg-slate-700 rounded-full"></span> 雲端數據同步支援</li>
+                        <li className="flex items-center gap-3"><span className="w-1 h-1 bg-slate-700 rounded-full"></span> 創作能量補充</li>
                         <li className="flex items-center gap-3"><span className="w-1 h-1 bg-slate-700 rounded-full"></span> 優先獲取最新作品情報</li>
                     </ul>
 
-                    <button className="w-full py-5 bg-white/5 text-white font-black text-[9px] uppercase tracking-[0.6em] group-hover:bg-white group-hover:text-black transition-all duration-500">
+                    <button 
+                      onClick={() => openPayment('support')}
+                      className="w-full py-5 bg-white/5 text-white font-black text-[9px] uppercase tracking-[0.6em] group-hover:bg-white group-hover:text-black transition-all duration-500"
+                    >
                         SUPPORT NOW
                     </button>
                 </div>
 
-                {/* Mode 2: Production */}
+                {/* Mode 2: Production ($320 手作對時) */}
                 <div 
-                  onClick={() => navigate('/interactive')} 
-                  className="group relative bg-white/[0.03] border border-brand-gold/20 p-10 flex flex-col hover:border-brand-gold hover:bg-white/[0.05] transition-all duration-700 cursor-pointer rounded-sm backdrop-blur-3xl shadow-[0_0_50px_rgba(251,191,36,0.05)] scale-105 z-10"
+                  className="group relative bg-white/[0.03] border border-brand-gold/20 p-10 flex flex-col hover:border-brand-gold hover:bg-white/[0.05] transition-all duration-700 rounded-sm backdrop-blur-3xl shadow-[0_0_50px_rgba(251,191,36,0.05)] scale-105 z-10"
                 >
                     <div className="mb-8">
                         <h3 className="text-brand-gold font-black text-[11px] uppercase tracking-[0.4em] mb-4">手作對時體驗</h3>
@@ -86,20 +97,29 @@ const Home: React.FC = () => {
                     </div>
 
                     <ul className="text-[9px] text-slate-500 space-y-4 mb-10 uppercase tracking-widest font-bold flex-grow">
-                        <li className="flex items-center gap-3"><span className="w-1 h-1 bg-brand-gold rounded-full shadow-[0_0_8px_rgba(251,191,36,0.8)]"></span> 專業級 Musixmatch 對時工具</li>
+                        <li className="flex items-center gap-3"><span className="w-1 h-1 bg-brand-gold rounded-full shadow-[0_0_8px_rgba(251,191,36,0.8)]"></span> 專業級對時工具</li>
                         <li className="flex items-center gap-3"><span className="w-1 h-1 bg-brand-gold rounded-full"></span> 8 秒有機噪點背景渲染</li>
-                        <li className="flex items-center gap-3"><span className="w-1 h-1 bg-brand-gold rounded-full"></span> 導出個人策展成品影片</li>
+                        <li className="flex items-center gap-3"><span className="w-1 h-1 bg-brand-gold rounded-full"></span> 導出策展成品影片</li>
                     </ul>
 
-                    <button className="w-full py-5 bg-brand-gold text-black font-black text-[9px] uppercase tracking-[0.6em] hover:bg-white transition-all duration-500">
-                        ENTER STUDIO
+                    <button 
+                      onClick={() => openPayment('production')}
+                      className="w-full py-5 bg-brand-gold text-black font-black text-[9px] uppercase tracking-[0.6em] hover:bg-white transition-all duration-500"
+                    >
+                        GET ACCESS
+                    </button>
+                    
+                    <button 
+                      onClick={() => navigate('/interactive')}
+                      className="w-full mt-2 py-2 text-brand-gold/40 hover:text-brand-gold text-[8px] font-black uppercase tracking-widest transition-colors"
+                    >
+                      Skip to Studio (Debug)
                     </button>
                 </div>
 
-                {/* Mode 3: Cinema */}
+                {/* Mode 3: Cinema ($2800 大師方案) */}
                 <div 
-                  onClick={() => navigate('/interactive')} 
-                  className="group relative bg-white/[0.02] border border-white/5 p-10 flex flex-col hover:border-brand-accent/40 hover:bg-white/[0.04] transition-all duration-700 cursor-pointer rounded-sm backdrop-blur-3xl"
+                  className="group relative bg-white/[0.02] border border-white/5 p-10 flex flex-col hover:border-brand-accent/40 hover:bg-white/[0.04] transition-all duration-700 rounded-sm backdrop-blur-3xl"
                 >
                     <div className="mb-8">
                         <h3 className="text-brand-accent font-black text-[11px] uppercase tracking-[0.4em] mb-4">大師影視方案</h3>
@@ -119,13 +139,23 @@ const Home: React.FC = () => {
                         <li className="flex items-center gap-3"><span className="w-1 h-1 bg-brand-accent rounded-full"></span> 贊助錄音室與後期資源</li>
                     </ul>
 
-                    <button className="w-full py-5 bg-white/5 text-white font-black text-[9px] uppercase tracking-[0.6em] group-hover:bg-brand-accent group-hover:text-black transition-all duration-500">
+                    <button 
+                      onClick={() => openPayment('cinema')}
+                      className="w-full py-5 bg-white/5 text-white font-black text-[9px] uppercase tracking-[0.6em] group-hover:bg-brand-accent group-hover:text-black transition-all duration-500"
+                    >
                         BECOME MASTER
                     </button>
                 </div>
             </div>
         </div>
       </section>
+
+      {/* 支付彈窗組件 */}
+      <PaymentModal 
+        isOpen={isPaymentOpen} 
+        onClose={() => setIsPaymentOpen(false)} 
+        initialMode={payMode}
+      />
     </div>
   );
 };
