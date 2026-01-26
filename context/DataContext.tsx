@@ -2,6 +2,10 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
 import { Song, SongContextType, Language, ProjectType, ReleaseCategory } from '../types';
 import { dbService } from '../services/db';
+import { OFFICIAL_CATALOG, ASSETS } from './InitialData';
+
+// Re-export ASSETS to maintain compatibility with other components
+export { ASSETS };
 
 interface GlobalSettings {
     portraitUrl: string;
@@ -34,12 +38,6 @@ const DataContext = createContext<ExtendedSongContextType | undefined>(undefined
 
 const SUPABASE_URL = "https://rzxqseimxhbokrhcdjbi.supabase.co";
 const SUPABASE_KEY = "sb_publishable_z_v9ig8SbqNnKHHTwEgOhw_S3g4yhba";
-
-export const ASSETS = {
-    willwiPortrait: "https://drive.google.com/thumbnail?id=18rpLhJQKHKK5EeonFqutlOoKAI2Eq_Hd&sz=w2000",
-    official1205Cover: "https://drive.google.com/thumbnail?id=1N8W0s0uS8_f0G5w4s5F_S3_E8_v0M_V_&sz=w2000",
-    defaultCover: "https://placehold.co/1000x1000/020617/fbbf24?text=Willwi+1205"
-};
 
 const SETTINGS_LOCAL_KEY = 'willwi_settings_backup';
 
@@ -120,7 +118,13 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       setIsSyncing(true);
       // 1. 先從 IndexedDB 載入本地既有歌曲
       const localSongs = await dbService.getAllSongs();
-      if (localSongs.length > 0) {
+      
+      // AUTO SEED: 如果本地是空的，直接載入官方目錄
+      if (localSongs.length === 0) {
+          console.log("Empty DB detected. Seeding Official Catalog...");
+          await dbService.bulkAdd(OFFICIAL_CATALOG);
+          setSongs(OFFICIAL_CATALOG.sort((a,b)=>new Date(b.releaseDate).getTime() - new Date(a.releaseDate).getTime()));
+      } else {
           setSongs(localSongs.sort((a,b)=>new Date(b.releaseDate).getTime() - new Date(a.releaseDate).getTime()));
       }
 
@@ -151,8 +155,11 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
               }));
 
               if (cloudSongs.length > 0) {
-                  // 合併邏輯：以 ID 為準，雲端優先，但保留雲端沒有的本地作品
-                  const combined = [...localSongs];
+                  // 合併邏輯：以 ID 為準，雲端優先，但保留雲端沒有的本地作品 (或 InitialData)
+                  // 這裡我們需要重新獲取最新的本地數據 (因為上面可能已經 Seed 了)
+                  const currentLocal = await dbService.getAllSongs();
+                  const combined = [...currentLocal];
+                  
                   cloudSongs.forEach((cs: Song) => {
                       const idx = combined.findIndex(ls => ls.id === cs.id);
                       if (idx >= 0) combined[idx] = cs;
