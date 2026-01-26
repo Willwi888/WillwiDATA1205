@@ -52,29 +52,46 @@ const Database: React.FC = () => {
         </select>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-12">
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-x-8 gap-y-16">
           {groupedAlbums.map(albumSongs => {
               const main = albumSongs[0];
+              // Determine label: Prefer releaseCategory, fallback to track count logic
+              let label = 'SINGLE';
+              if (main.releaseCategory) {
+                  // Simplify string "Album (專輯)" to "ALBUM"
+                  label = main.releaseCategory.split(' ')[0].toUpperCase();
+              } else if (albumSongs.length > 1) {
+                  label = 'ALBUM';
+              }
+
               return (
                   <div key={main.id} onClick={() => navigate(`/song/${main.id}`)} className="group cursor-pointer">
-                      <div className="aspect-square w-full relative overflow-hidden bg-slate-900 mb-6 border border-white/10 group-hover:border-brand-gold transition-all duration-500 shadow-xl">
-                          {/* 聽眾前端：響應指令，移除黑白轉彩色的互動特效，改為靜態高品質全彩呈現 */}
-                          <img src={main.coverUrl} className="w-full h-full object-cover opacity-100 grayscale-0 transition-all duration-700" alt="" />
-                          {/* 疊加一個微弱的暗角，保留品牌神祕感 */}
-                          <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent pointer-events-none"></div>
+                      <div className="aspect-square w-full relative overflow-hidden bg-slate-900 mb-5 border border-white/10 group-hover:border-brand-gold transition-all duration-500 shadow-2xl">
+                          {/* Real Album Cover Presentation */}
+                          <img 
+                            src={main.coverUrl} 
+                            className="w-full h-full object-cover opacity-100 grayscale-0 transition-all duration-700 group-hover:scale-105" 
+                            alt={main.title} 
+                          />
+                          {/* Subtle gradient for tag visibility */}
+                          <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent pointer-events-none opacity-60"></div>
                           
-                          <div className="absolute bottom-4 left-4">
-                              <span className="text-[9px] font-black text-brand-gold bg-black px-2 py-1 uppercase tracking-widest border border-brand-gold/40 shadow-lg">
-                                  {albumSongs.length > 1 ? `${albumSongs.length} TRACKS` : (main.releaseCategory || 'SINGLE')}
+                          <div className="absolute bottom-3 left-3">
+                              <span className="text-[9px] font-black text-white bg-black/90 px-3 py-1 uppercase tracking-widest border border-white/20 backdrop-blur-md shadow-lg">
+                                  {label}
                               </span>
                           </div>
                       </div>
                       <h4 className="text-sm font-bold text-white uppercase truncate tracking-widest group-hover:text-brand-gold transition-colors">{main.title}</h4>
-                      <p className="text-[10px] text-white font-mono mt-2 uppercase tracking-widest font-bold opacity-70">{main.releaseDate.split('-')[0]} • {main.releaseCompany || 'WILLWI MUSIC'}</p>
+                      <p className="text-[10px] text-slate-400 font-mono mt-2 uppercase tracking-widest font-bold opacity-80">
+                        {main.releaseDate.split('-')[0]} • {main.releaseCompany || 'WILLWI MUSIC'}
+                      </p>
                   </div>
               );
           })}
       </div>
     </div>
   );
-}; export default Database;
+}; 
+
+export default Database;

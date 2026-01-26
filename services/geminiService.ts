@@ -8,25 +8,31 @@ export const GRANDMA_SYSTEM_INSTRUCTION = `
 `;
 
 /**
- * AI 解析功能：將亂序文字（如複製自 YouTube Music）轉換為歌曲對象
+ * AI 解析功能：將文字轉換為歌曲對象
+ * 強化：支援 Willwi 內部清單格式 (Title / Date / Note)
  */
 export const parseWillwiTextCatalog = async (rawText: string): Promise<Partial<Song>[]> => {
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   try {
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
-      contents: `你是一位音樂資料管理專家。以下是從 YouTube Music 或數位發行後台複製出來的原始文字，其中包含約 200 首以上的歌曲資訊。
-      請幫我解析出每一首歌的：
-      1. title (歌名)
-      2. releaseDate (格式 YYYY-MM-DD)
-      3. youtubeUrl (播放連結)
-      4. albumName (所屬專輯)
-      5. upc (如有)
+      contents: `你是一位音樂資料庫管理員。請將以下非結構化的文字清單轉換為 JSON 格式。
       
+      原始文字格式範例：
+      "歌名 / 專輯發布日期 / 備註"
+      例如："黑灰色 2025年12月22日 專輯" 或 "心慌 2025/11/17 單曲"
+      
+      請盡力解析出：
+      1. title (歌名，移除備註)
+      2. releaseDate (格式 YYYY-MM-DD)
+      3. isrc (若備註中有提及，或給予空值)
+      4. upc (若備註中有提及，或給予空值)
+      5. type (判斷是 'Album' 還是 'Single')
+
       原始文字如下：
       ${rawText}
       
-      請以純 JSON 陣列格式回傳，不要有任何 Markdown 標籤。`,
+      請回傳 JSON 陣列，不要包含 Markdown 標籤。`,
       config: {
         responseMimeType: "application/json",
         responseSchema: {
@@ -36,11 +42,11 @@ export const parseWillwiTextCatalog = async (rawText: string): Promise<Partial<S
             properties: {
               title: { type: Type.STRING },
               releaseDate: { type: Type.STRING },
-              youtubeUrl: { type: Type.STRING },
-              albumName: { type: Type.STRING },
-              upc: { type: Type.STRING }
+              isrc: { type: Type.STRING },
+              upc: { type: Type.STRING },
+              type: { type: Type.STRING }
             },
-            required: ["title"]
+            required: ["title", "releaseDate"]
           }
         }
       },
@@ -110,14 +116,42 @@ export const searchYouTubeMusicLink = async (title: string, isrc: string): Promi
   }
 };
 
-export const getChatResponse = async (message: string, messageCount: number): Promise<string> => {
+export interface ChatResponse {
+  text: string;
+  sources?: { title: string; uri: string }[];
+}
+
+export const getChatResponse = async (
+  message: string, 
+  history: { role: 'user' | 'model'; parts: { text: string }[] }[] = []
+): Promise<ChatResponse> => {
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  
+  // Upgrade to Pro model for Google Search Tool capabilities
   const chat = ai.chats.create({
-    model: 'gemini-3-flash-preview',
-    config: { systemInstruction: GRANDMA_SYSTEM_INSTRUCTION },
+    model: 'gemini-3-pro-preview',
+    config: { 
+        systemInstruction: GRANDMA_SYSTEM_INSTRUCTION,
+        tools: [{ googleSearch: {} }] 
+    },
+    history: history
   });
+
   const result = await chat.sendMessage({ message });
-  return result.text;
+  const text = result.text;
+  
+  const sources: { title: string; uri: string }[] = [];
+  const chunks = result.candidates?.[0]?.groundingMetadata?.groundingChunks;
+  
+  if (chunks) {
+      chunks.forEach((c: any) => {
+          if (c.web) {
+              sources.push({ title: c.web.title, uri: c.web.uri });
+          }
+      });
+  }
+
+  return { text, sources };
 };
 
 export const generateAiVideo = async (imageB64: string, songTitle: string): Promise<string | null> => {

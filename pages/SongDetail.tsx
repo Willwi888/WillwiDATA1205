@@ -125,10 +125,22 @@ const SongDetail: React.FC = () => {
                         <div className="text-base md:text-lg text-slate-300 leading-[2.8] whitespace-pre-line uppercase tracking-[0.2em] max-h-[600px] overflow-y-auto custom-scrollbar pr-10 font-medium">
                             {displayLyrics || 'NO LYRICS AVAILABLE IN DATABASE'}
                         </div>
+
+                        {/* Credits Section */}
+                        {song.credits && (
+                            <div className="pt-12 border-t border-white/10 animate-fade-in-up">
+                                <h3 className="text-[11px] font-black text-brand-gold uppercase tracking-[0.6em] mb-6">Credits (致謝)</h3>
+                                <div className="text-xs text-slate-500 leading-loose whitespace-pre-line font-mono uppercase tracking-widest">
+                                    {song.credits}
+                                </div>
+                            </div>
+                        )}
                     </div>
                 </div>
             </div>
         </div>
     </div>
   );
-}; export default SongDetail;
+}; 
+
+export default SongDetail;

@@ -1,3 +1,4 @@
+
 import React, { useState, useRef, useEffect } from 'react';
 import { getChatResponse } from '../services/geminiService';
 import { useUser } from '../context/UserContext';
@@ -5,6 +6,7 @@ import { useUser } from '../context/UserContext';
 interface Message {
   role: 'user' | 'model';
   text: string;
+  sources?: { title: string; uri: string }[];
 }
 
 const BrandIcon = () => (
@@ -19,7 +21,7 @@ const ChatWidget: React.FC = () => {
 
   // Initial greeting
   const [messages, setMessages] = useState<Message[]>([
-    { role: 'model', text: '哎呀，你是新來的朋友嗎？我是威威的代班阿嬤。\n威威現在在錄音室忙，有什麼不懂的可以問阿嬤，或是單純陪阿嬤聊聊天也可以喔。' }
+    { role: 'model', text: '哎呀，你是新來的朋友嗎？我是威威的代班阿嬤。\n威威現在在錄音室忙，有什麼不懂的可以問阿嬤，或是想知道最新的消息也可以問我喔。' }
   ]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -41,17 +43,22 @@ const ChatWidget: React.FC = () => {
   const handleSend = async () => {
     if (!input.trim() || isLoading || msgCount >= MAX_MESSAGES) return;
 
+    // Prepare history from existing messages (excluding the one we are about to add)
+    const historyForApi = messages.map(m => ({
+        role: m.role,
+        parts: [{ text: m.text }]
+    }));
+
     const userMessage = input.trim();
     setInput('');
+    
     setMessages(prev => [...prev, { role: 'user', text: userMessage }]);
     setIsLoading(true);
-    
-    const newCount = msgCount + 1;
-    setMsgCount(newCount);
+    setMsgCount(prev => prev + 1);
 
     try {
-      const responseText = await getChatResponse(userMessage, newCount);
-      setMessages(prev => [...prev, { role: 'model', text: responseText }]);
+      const { text, sources } = await getChatResponse(userMessage, historyForApi);
+      setMessages(prev => [...prev, { role: 'model', text, sources }]);
     } catch (error) {
       setMessages(prev => [...prev, { role: 'model', text: '阿嬤的老花眼鏡找不到了... (連線錯誤，請稍後再試)' }]);
     } finally {
@@ -102,13 +109,33 @@ const ChatWidget: React.FC = () => {
                  <div key={idx} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'} animate-fade`}>
                      <div className={`max-w-[85%] px-4 py-3 text-xs leading-relaxed rounded-xl ${msg.role === 'user' ? 'bg-white text-slate-900 font-medium rounded-tr-none' : 'bg-slate-800 text-slate-200 border border-white/10 rounded-tl-none'}`}>
                          {msg.text.split('\n').map((line, i) => <React.Fragment key={i}>{line}<br/></React.Fragment>)}
+                         
+                         {/* Grounding Sources */}
+                         {msg.sources && msg.sources.length > 0 && (
+                            <div className="mt-3 pt-3 border-t border-white/10">
+                                <p className="text-[9px] text-slate-400 font-bold mb-1 uppercase tracking-wider">Source:</p>
+                                <div className="flex flex-col gap-1">
+                                    {msg.sources.map((source, sIdx) => (
+                                        <a 
+                                            key={sIdx} 
+                                            href={source.uri} 
+                                            target="_blank" 
+                                            rel="noreferrer" 
+                                            className="text-[9px] text-brand-gold hover:underline truncate block flex items-center gap-1"
+                                        >
+                                            <span className="text-white/30">🔗</span> {source.title}
+                                        </a>
+                                    ))}
+                                </div>
+                            </div>
+                         )}
                      </div>
                  </div>
              ))}
              {isLoading && (
                  <div className="flex justify-start animate-fade">
                      <div className="bg-slate-800 text-slate-400 px-4 py-2 rounded-xl rounded-tl-none text-[10px] border border-white/5 flex gap-1 items-center">
-                        <span>輸入中</span>
+                        <span>搜尋思考中</span>
                         <span className="animate-bounce">.</span><span className="animate-bounce delay-100">.</span><span className="animate-bounce delay-200">.</span>
                      </div>
                  </div>
@@ -134,7 +161,7 @@ const ChatWidget: React.FC = () => {
                             value={input}
                             onChange={(e) => setInput(e.target.value)}
                             onKeyDown={handleKeyDown}
-                            placeholder="問阿嬤問題..."
+                            placeholder="問阿嬤問題 (支援聯網搜尋)..."
                             className="flex-grow bg-transparent px-4 py-3 text-xs text-white focus:outline-none placeholder-slate-600"
                             disabled={isLoading}
                             autoFocus
