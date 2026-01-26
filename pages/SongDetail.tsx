@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { useParams, useNavigate, Link } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import { useData, resolveDirectLink } from '../context/DataContext';
 import { Song } from '../types';
 import { useTranslation } from '../context/LanguageContext';
@@ -9,51 +9,29 @@ const SongDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { songs, getSong } = useData(); 
-  const { lang } = useTranslation();
   
   const [song, setSong] = useState<Song | undefined>(undefined);
-  const [activeTrackId, setActiveTrackId] = useState<string | null>(null);
-  const [lyricsView, setLyricsView] = useState<'original' | 'translated'>('original');
-  
+  const [isPlayerActive, setIsPlayerActive] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
-  const [isPlayerActive, setIsPlayerActive] = useState(false);
 
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
   useEffect(() => {
     if (id) {
       const found = getSong(id);
-      if (found) {
-          setSong(found);
-          setActiveTrackId(found.id);
-      }
+      if (found) setSong(found);
     }
   }, [id, getSong]);
 
-  const albumTracks = useMemo(() => {
-    if (!song) return [];
-    if (!song.upc) return [song];
-    const normalizedUpc = (song.upc || '').trim().replace(/[^A-Z0-9]/gi, '').toUpperCase();
-    return songs.filter(s => {
-      const sUpc = (s.upc || '').trim().replace(/[^A-Z0-9]/gi, '').toUpperCase();
-      return sUpc === normalizedUpc;
-    }).sort((a, b) => a.title.localeCompare(b.title));
-  }, [song, songs]);
-
-  const activeTrack = useMemo(() => {
-    return albumTracks.find(t => t.id === activeTrackId) || song;
-  }, [albumTracks, activeTrackId, song]);
-
-  const handlePlay = (track: Song) => {
-    if (!audioRef.current) return;
-    if (activeTrackId === track.id && !audioRef.current.paused) {
+  const handlePlay = () => {
+    if (!audioRef.current || !song) return;
+    if (isPlayerActive) {
         audioRef.current.pause();
         setIsPlayerActive(false);
     } else {
-        const url = resolveDirectLink(track.audioUrl || track.dropboxUrl || '');
-        if (!url) return alert("此曲目尚未配置音訊");
-        setActiveTrackId(track.id);
+        const url = resolveDirectLink(song.audioUrl || '');
+        if (!url) return;
         audioRef.current.src = url;
         audioRef.current.play();
         setIsPlayerActive(true);
@@ -69,158 +47,137 @@ const SongDetail: React.FC = () => {
   if (!song) return null;
 
   return (
-    <div className="min-h-screen bg-black relative flex flex-col overflow-hidden">
+    <div className="min-h-screen bg-black relative flex flex-col font-sans font-light pt-32 px-10 lg:px-24 pb-60">
       
-      {/* Immersive Background - Prioritize Video if available */}
-      <div className="absolute inset-0 z-0">
-          {activeTrack?.videoUrl ? (
-             <video 
-               src={resolveDirectLink(activeTrack.videoUrl)} 
-               autoPlay loop muted playsInline 
-               className="absolute inset-0 w-full h-full object-cover opacity-20 blur-[20px]" 
-             />
-          ) : (
-            <div 
-              className="absolute inset-0 bg-cover bg-center opacity-30 blur-[100px] scale-125 transition-all duration-[3000ms]"
-              style={{ backgroundImage: `url(${activeTrack?.coverUrl})` }}
-            ></div>
-          )}
-          <div className="absolute inset-0 bg-black/60"></div>
-          <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-black/80"></div>
-      </div>
-
-      <div className="relative z-10 flex-1 flex flex-col md:flex-row pt-40 px-10 md:px-24 gap-16 md:gap-32">
-          
-          {/* Left: Art & Tracklist */}
-          <div className="w-full md:w-[400px] space-y-16 animate-fade-in shrink-0">
-              <div className="aspect-square w-full bg-slate-900 border border-white/10 rounded-sm overflow-hidden shadow-[0_0_100px_rgba(0,0,0,0.8)] relative group">
-                  <img src={activeTrack?.coverUrl} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-[8s]" alt="" />
-              </div>
-
-              <div className="space-y-10">
-                  <div className="flex justify-between items-end border-b border-white/10 pb-6">
-                      <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-[0.4em]">Album Tracks</h3>
-                      <span className="text-[9px] text-slate-700 font-black uppercase tracking-widest">{albumTracks.length} Items</span>
-                  </div>
-                  <div className="space-y-4 max-h-[400px] overflow-y-auto custom-scrollbar pr-4">
-                      {albumTracks.map((track, idx) => (
-                          <div 
-                            key={track.id} 
-                            onClick={() => handlePlay(track)}
-                            className={`group flex items-center justify-between p-4 cursor-pointer transition-all border-l-2 ${activeTrackId === track.id ? 'bg-white/5 border-brand-gold' : 'border-transparent hover:bg-white/[0.02] hover:border-white/20'}`}
-                          >
-                             <div className="flex items-center gap-6">
-                                <span className={`text-[10px] font-mono ${activeTrackId === track.id ? 'text-brand-gold' : 'text-slate-600'}`}>{(idx+1).toString().padStart(2, '0')}</span>
-                                <span className={`text-[11px] font-black uppercase tracking-widest transition-colors ${activeTrackId === track.id ? 'text-white' : 'text-slate-400 group-hover:text-white'}`}>{track.title}</span>
-                             </div>
-                             {activeTrackId === track.id && isPlayerActive && (
-                                 <div className="flex gap-1 items-end h-3">
-                                    <div className="w-0.5 h-full bg-brand-gold animate-bounce"></div>
-                                    <div className="w-0.5 h-2/3 bg-brand-gold animate-bounce [animation-delay:0.2s]"></div>
-                                    <div className="w-0.5 h-1/2 bg-brand-gold animate-bounce [animation-delay:0.4s]"></div>
-                                 </div>
-                             )}
-                          </div>
-                      ))}
+      {/* AUTHORITY ASSET HEADER */}
+      <div className="flex flex-col lg:flex-row gap-20 mb-32 items-start border-b border-white/10 pb-24">
+          <div className="w-full lg:w-[500px] shrink-0">
+              <div className="aspect-square bg-slate-900 border border-white/10 relative overflow-hidden group shadow-2xl">
+                  <img src={song.coverUrl} className="w-full h-full object-cover grayscale opacity-50 group-hover:opacity-100 group-hover:grayscale-0 transition-all duration-[1.5s]" />
+                  <div className="absolute top-6 left-6 flex gap-3">
+                      <span className="px-3 py-1 bg-brand-accent text-black text-[10px] font-black uppercase tracking-widest shadow-xl">MXM_VERIFIED</span>
+                      <span className="px-3 py-1 bg-black/80 border border-white/20 text-white text-[10px] font-mono uppercase">{song.language}</span>
                   </div>
               </div>
           </div>
 
-          {/* Right: Detailed Info & Lyrics */}
-          <div className="flex-1 space-y-24 animate-fade-in-up [animation-delay:0.3s] pb-40">
+          <div className="flex-1 flex flex-col justify-between self-stretch py-2">
               <div className="space-y-8">
-                  <div className="flex items-center gap-6">
-                      <div className="w-12 h-[1px] bg-brand-gold"></div>
-                      <span className="text-brand-gold text-[10px] font-black uppercase tracking-[0.6em]">{activeTrack?.releaseCompany || activeTrack?.projectType}</span>
+                  <div className="space-y-2">
+                    <span className="text-[12px] text-white/20 uppercase tracking-[1em] font-bold">Global Asset ID: {song.id}</span>
+                    <h1 className="text-7xl lg:text-[10rem] font-black text-white tracking-tighter uppercase leading-[0.8]">{song.title}</h1>
                   </div>
-                  <h1 className="text-6xl md:text-9xl font-black text-white tracking-tighter uppercase leading-none">{activeTrack?.title}</h1>
-                  <div className="flex flex-wrap items-center gap-8 pt-4">
-                      <div className="flex flex-col">
-                        <span className="text-[9px] text-slate-500 font-black uppercase tracking-widest mb-1">Release Date</span>
-                        <span className="text-sm font-black text-white">{activeTrack?.releaseDate}</span>
+
+                  {/* DATA GRID */}
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-12 pt-16 border-t border-white/5">
+                      <div className="space-y-3">
+                          <span className="block text-[10px] text-white/20 uppercase tracking-[0.3em]">ISRC Identification</span>
+                          <span className="block text-lg font-mono text-white tracking-tighter font-bold">{song.isrc || 'UNREGISTERED'}</span>
                       </div>
-                      <div className="w-[1px] h-8 bg-white/10"></div>
-                      <div className="flex flex-col">
-                        <span className="text-[9px] text-slate-500 font-black uppercase tracking-widest mb-1">ISRC</span>
-                        <span className="text-sm font-mono text-slate-300 tracking-wider">{activeTrack?.isrc || 'NO ISRC'}</span>
+                      <div className="space-y-3">
+                          <span className="block text-[10px] text-white/20 uppercase tracking-[0.3em]">UPC Repository</span>
+                          <span className="block text-lg font-mono text-white tracking-tighter font-bold">{song.upc || 'UNREGISTERED'}</span>
                       </div>
-                      {activeTrack?.publisher && (
-                        <>
-                          <div className="w-[1px] h-8 bg-white/10"></div>
-                          <div className="flex flex-col">
-                            <span className="text-[9px] text-slate-500 font-black uppercase tracking-widest mb-1">Publisher</span>
-                            <span className="text-sm font-black text-white">{activeTrack?.publisher}</span>
-                          </div>
-                        </>
+                      <div className="space-y-3">
+                          <span className="block text-[10px] text-white/20 uppercase tracking-[0.3em]">Release Cycle</span>
+                          <span className="block text-lg font-mono text-white tracking-tighter font-bold">{song.releaseDate}</span>
+                      </div>
+                      <div className="space-y-3">
+                          <span className="block text-[10px] text-white/20 uppercase tracking-[0.3em]">Status</span>
+                          <span className="block text-lg font-mono text-emerald-500 tracking-tighter font-bold">ACTIVE_OK</span>
+                      </div>
+                  </div>
+              </div>
+
+              {/* INTERACTION TOOLS */}
+              <div className="flex flex-wrap gap-6 pt-16">
+                  <button 
+                    onClick={handlePlay}
+                    className="flex-1 min-w-[250px] py-7 bg-white text-black text-[12px] font-black uppercase tracking-[0.6em] hover:bg-brand-accent transition-all shadow-[0_20px_60px_rgba(255,255,255,0.05)]"
+                  >
+                    {isPlayerActive ? 'Terminate Stream' : 'Initiate Session'}
+                  </button>
+                  <button 
+                    onClick={() => navigate('/interactive')}
+                    className="px-16 py-7 border border-white/10 text-white text-[12px] font-black uppercase tracking-[0.6em] hover:border-brand-accent transition-all"
+                  >
+                    Enter Sync Studio
+                  </button>
+              </div>
+          </div>
+      </div>
+
+      {/* CORE CONTENT LAYOUT */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-32">
+          <div className="lg:col-span-8 space-y-16">
+              <h3 className="text-[11px] text-white/10 uppercase tracking-[1.2em] border-b border-white/5 pb-8">Official Curated Metadata (Lyrics)</h3>
+              <div className="bg-white/[0.01] border border-white/5 p-20 lg:p-32 relative group">
+                  <div className="absolute top-0 right-0 p-4 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <span className="text-[9px] text-brand-accent font-mono uppercase">Read-Only_Asset</span>
+                  </div>
+                  <pre className="text-4xl lg:text-7xl text-white font-light leading-[1.4] whitespace-pre-wrap uppercase tracking-tighter font-sans">
+                    {song.lyrics || 'ASSET_LYRIC_NULL'}
+                  </pre>
+              </div>
+          </div>
+
+          <div className="lg:col-span-4 space-y-20">
+              <div className="space-y-10">
+                  <h3 className="text-[11px] text-white/10 uppercase tracking-[1.2em] border-b border-white/5 pb-8">Platform Routing</h3>
+                  <div className="grid grid-cols-1 gap-5">
+                      {song.spotifyLink && (
+                          <a href={song.spotifyLink} target="_blank" className="flex justify-between items-center p-8 bg-white/[0.02] border border-white/5 hover:border-brand-accent transition-all group">
+                              <span className="text-[12px] text-white font-bold uppercase tracking-widest">Spotify Asset</span>
+                              <span className="text-[11px] font-mono text-brand-accent opacity-40 group-hover:opacity-100">→ CONNECTED</span>
+                          </a>
+                      )}
+                      {song.appleMusicLink && (
+                          <a href={song.appleMusicLink} target="_blank" className="flex justify-between items-center p-8 bg-white/[0.02] border border-white/5 hover:border-brand-accent transition-all group">
+                              <span className="text-[12px] text-white font-bold uppercase tracking-widest">Apple ID</span>
+                              <span className="text-[11px] font-mono text-brand-accent opacity-40 group-hover:opacity-100">→ CONNECTED</span>
+                          </a>
+                      )}
+                      {song.youtubeUrl && (
+                          <a href={song.youtubeUrl} target="_blank" className="flex justify-between items-center p-8 bg-white/[0.02] border border-white/5 hover:border-brand-accent transition-all group">
+                              <span className="text-[12px] text-white font-bold uppercase tracking-widest">YouTube SRC</span>
+                              <span className="text-[11px] font-mono text-brand-accent opacity-40 group-hover:opacity-100">→ CONNECTED</span>
+                          </a>
                       )}
                   </div>
               </div>
 
-              {/* Lyrics Block */}
-              <div className="space-y-16">
-                  <div className="flex items-center gap-12 border-b border-white/5 pb-8">
-                      <button onClick={() => setLyricsView('original')} className={`text-[11px] font-black uppercase tracking-[0.4em] transition-all relative ${lyricsView === 'original' ? 'text-brand-gold' : 'text-slate-600 hover:text-white'}`}>
-                        Lyrics
-                        {lyricsView === 'original' && <div className="absolute -bottom-8 left-0 w-full h-1 bg-brand-gold"></div>}
-                      </button>
-                      <button onClick={() => setLyricsView('translated')} className={`text-[11px] font-black uppercase tracking-[0.4em] transition-all relative ${lyricsView === 'translated' ? 'text-brand-gold' : 'text-slate-600 hover:text-white'}`}>
-                        Translation
-                        {lyricsView === 'translated' && <div className="absolute -bottom-8 left-0 w-full h-1 bg-brand-gold"></div>}
-                      </button>
-                      <Link to="/interactive" className="ml-auto flex items-center gap-3 group">
-                        <span className="text-[10px] font-black uppercase tracking-widest text-brand-gold group-hover:text-white transition-colors">Start Interactive Session</span>
-                        <div className="w-8 h-8 rounded-full border border-brand-gold flex items-center justify-center group-hover:bg-brand-gold group-hover:text-black transition-all">
-                          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M14 5l7 7m0 0l-7 7m7-7H3" /></svg>
-                        </div>
-                      </Link>
-                  </div>
-
-                  <div className="max-w-4xl">
-                      <pre className="text-3xl md:text-5xl font-black uppercase leading-tight text-white/80 whitespace-pre-wrap font-sans tracking-tight cinema-lyrics-blur">
-                        {lyricsView === 'original' ? activeTrack?.lyrics : (activeTrack?.translations?.[lang]?.lyrics || activeTrack?.lyrics)}
-                      </pre>
-                  </div>
-
-                  {activeTrack?.credits && (
-                      <div className="pt-24 border-t border-white/5">
-                          <h4 className="text-[10px] text-slate-600 font-black uppercase tracking-[0.5em] mb-8">Production Credits</h4>
-                          <pre className="text-xs font-mono text-slate-500 leading-loose uppercase tracking-widest whitespace-pre-wrap">
-                            {activeTrack?.credits}
-                          </pre>
-                      </div>
-                  )}
+              <div className="space-y-10">
+                  <h3 className="text-[11px] text-white/10 uppercase tracking-[1.2em] border-b border-white/5 pb-8">Credit Registry</h3>
+                  <pre className="text-[12px] font-mono text-slate-500 leading-loose uppercase tracking-[0.2em] whitespace-pre-wrap p-8 border border-white/5">
+                    {song.credits || 'NO_CREDIT_RECORD_FOUND'}
+                  </pre>
               </div>
           </div>
       </div>
 
-      {/* Persistent Mini Player at Bottom */}
-      <div className={`fixed bottom-0 left-0 w-full z-[100] transition-transform duration-700 bg-black/80 backdrop-blur-3xl border-t border-white/10 ${isPlayerActive ? 'translate-y-0' : 'translate-y-full'}`}>
-          <div className="max-w-screen-2xl mx-auto px-10 h-24 flex items-center justify-between">
-              <div className="flex items-center gap-6 w-1/3">
-                  <img src={activeTrack?.coverUrl} className="w-12 h-12 rounded-sm border border-white/5" />
-                  <div className="overflow-hidden">
-                    <span className="block text-xs font-black uppercase tracking-widest text-white truncate">{activeTrack?.title}</span>
-                    <span className="block text-[10px] font-bold text-slate-500 uppercase truncate">{activeTrack?.projectType}</span>
+      {/* FOOTER AUTHORITY PLAYER */}
+      <div className={`fixed bottom-0 left-0 w-full z-[1000] transition-transform duration-1000 bg-black border-t border-white/10 ${isPlayerActive ? 'translate-y-0' : 'translate-y-full'}`}>
+          <div className="max-w-screen-2xl mx-auto px-10 h-28 flex items-center justify-between">
+              <div className="flex items-center gap-10 w-1/3">
+                  <div className="w-16 h-16 bg-slate-900 border border-white/10 overflow-hidden shadow-2xl">
+                    <img src={song.coverUrl} className="w-full h-full object-cover" />
+                  </div>
+                  <div className="min-w-0">
+                    <span className="block text-[14px] text-white font-black tracking-widest uppercase truncate">{song.title}</span>
+                    <span className="block text-[9px] text-brand-accent font-mono uppercase tracking-tighter mt-1">{song.isrc}</span>
                   </div>
               </div>
-              <div className="flex flex-col items-center gap-3 w-1/3">
-                  <div className="flex items-center gap-8">
-                      <button className="text-slate-600 hover:text-white transition-colors"><svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M6 6h2v12H6zm3.5 6l8.5 6V6z"/></svg></button>
-                      <button onClick={() => { if(audioRef.current) isPlayerActive ? audioRef.current.pause() : audioRef.current.play(); setIsPlayerActive(!isPlayerActive); }} className="w-12 h-12 bg-white text-black rounded-full flex items-center justify-center hover:bg-brand-gold transition-all">
-                        {isPlayerActive ? <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg> : <svg className="w-6 h-6 ml-1" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>}
-                      </button>
-                      <button className="text-slate-600 hover:text-white transition-colors"><svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M16 18h2V6h-2zM14.5 12l-8.5 6V6z"/></svg></button>
+              <div className="flex flex-col items-center gap-4 w-1/3">
+                  <div className="w-full h-[2px] bg-white/5 relative overflow-hidden">
+                      <div className="absolute h-full bg-brand-accent" style={{ width: `${(currentTime/duration)*100}%` }}></div>
                   </div>
-                  <div className="w-full max-w-md flex items-center gap-4">
-                      <span className="text-[9px] font-mono text-slate-500">{formatTime(currentTime)}</span>
-                      <div className="flex-1 h-1 bg-white/10 rounded-full overflow-hidden relative group cursor-pointer">
-                          <div className="absolute h-full bg-brand-gold transition-all" style={{ width: `${(currentTime/duration)*100}%` }}></div>
-                      </div>
-                      <span className="text-[9px] font-mono text-slate-500">{formatTime(duration)}</span>
+                  <div className="flex justify-between w-full px-1">
+                      <span className="text-[10px] font-mono text-white/30 font-bold">{formatTime(currentTime)}</span>
+                      <span className="text-[10px] font-mono text-white/30 font-bold">{formatTime(duration)}</span>
                   </div>
               </div>
-              <div className="w-1/3 flex justify-end gap-6 items-center">
-                  <button onClick={() => setIsPlayerActive(false)} className="text-[10px] font-black text-slate-600 hover:text-white uppercase tracking-widest">Minimize</button>
+              <div className="w-1/3 flex justify-end">
+                  <button onClick={() => setIsPlayerActive(false)} className="text-[11px] text-white/20 hover:text-white uppercase tracking-[0.5em] px-10 py-4 border border-white/10 transition-all">TERMINATE_SESSION</button>
               </div>
           </div>
       </div>

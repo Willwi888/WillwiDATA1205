@@ -9,39 +9,19 @@ const TRANSLATIONS = {
     nav_interactive: "STUDIO",
     nav_catalog: "CATALOG",
     nav_about: "ABOUT",
-    nav_manager: "MANAGER",
-    manifesto_title: "EXISTENCE MANIFESTO",
-    manifesto_content: "I am not making a tool\nI am leaving a place\nNot for being remembered but for remembering",
-    before_start_title: "DECLARATION",
-    before_start_content: "No previews here. If you haven't heard this song, please go to Spotify or Apple Music to meet it fully. When you're ready to walk with it for a while, then we begin.",
-    btn_understand: "I AM READY",
-    btn_start_studio: "ENTER STUDIO",
-    btn_get_mp4: "🎬 GET MY HANDCRAFTED VIDEO",
-    db_search_placeholder: "SEARCH ALBUM / ISRC...",
-    db_empty: "No works found",
-    
-    // Modal Translations
-    modal_title: "INTERACTIVE ACCESS",
+    nav_manager: "CONSOLE",
+    db_search_placeholder: "SEARCH...",
+    modal_title: "ACCESS CONTROL",
     modal_close: "CLOSE"
   },
   zh: {
     nav_home: "首頁",
-    nav_interactive: "互動實驗室",
+    nav_interactive: "工作室",
     nav_catalog: "作品庫",
     nav_about: "關於",
-    nav_manager: "管理員",
-    manifesto_title: "存在宣言",
-    manifesto_content: "我不是在做一個工具\n我是在留一個地方\n讓記憶裡的那個人有一個地方可以站著",
-    before_start_title: "開始之前",
-    before_start_content: "這裡不提供試聽。若你尚未聽過這首歌，請先前往 Spotify 或 Apple Music 完整的遇見它。當你準備好要陪它走一段時，我們再開始。",
-    btn_understand: "我準備好了，開始對時",
-    btn_start_studio: "進入工作室",
-    btn_get_mp4: "🎬 獲取手作對時影片",
-    db_search_placeholder: "搜尋作品 / 專輯 / ISRC...",
-    db_empty: "目前尚無資料",
-
-    // Modal Translations
-    modal_title: "互動實驗室存取權",
+    nav_manager: "中控台",
+    db_search_placeholder: "搜尋...",
+    modal_title: "存取權限",
     modal_close: "關閉"
   }
 };

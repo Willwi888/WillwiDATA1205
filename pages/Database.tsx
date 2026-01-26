@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useData, normalizeIdentifier } from '../context/DataContext';
@@ -13,7 +14,7 @@ const Database: React.FC = () => {
   const groupedAlbums = useMemo(() => {
     const groups: Record<string, Song[]> = {};
     songs.forEach(song => {
-      const groupKey = song.upc ? normalizeIdentifier(song.upc) : `SINGLE_${normalizeIdentifier(song.id)}`;
+      const groupKey = song.upc ? normalizeIdentifier(song.upc) : `SGL_${normalizeIdentifier(song.id)}`;
       if (!groups[groupKey]) groups[groupKey] = [];
       groups[groupKey].push(song);
     });
@@ -21,7 +22,8 @@ const Database: React.FC = () => {
     return Object.values(groups).filter(group => {
       const matchesSearch = group.some(s => 
           s.title.toLowerCase().includes(searchTerm.toLowerCase()) || 
-          (s.upc && s.upc.includes(searchTerm))
+          (s.upc && s.upc.includes(searchTerm)) ||
+          (s.isrc && s.isrc.includes(searchTerm))
       );
       const matchesLang = filterLang === 'All' || group.some(s => s.language === filterLang);
       return matchesSearch && matchesLang;
@@ -29,61 +31,60 @@ const Database: React.FC = () => {
   }, [songs, searchTerm, filterLang]);
 
   return (
-    <div className="max-w-screen-2xl mx-auto px-10 pt-48 pb-60 animate-fade-in">
-      
-      <div className="mb-24 space-y-16">
-          <div className="flex items-end justify-between border-b border-white/5 pb-12">
-            <h2 className="text-7xl md:text-9xl font-thin text-white tracking-tighter uppercase leading-none">Catalog</h2>
-            <div className="text-right">
-               <span className="text-[10px] uppercase tracking-[1em] text-white/20 block mb-2">Total Archives</span>
-               <span className="text-4xl font-thin text-brand-gold">{groupedAlbums.length}</span>
-            </div>
-          </div>
-
-          <div className="flex flex-col md:flex-row items-center gap-10">
-            <div className="flex-1 w-full border-b border-white/10">
-                <input
-                  type="text"
-                  placeholder="SEARCH..."
-                  className="w-full bg-transparent py-4 text-white outline-none text-2xl font-thin uppercase tracking-tight placeholder:text-white/5"
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                />
-            </div>
-            {/* 橫式橫向濾鏡 */}
-            <div className="flex items-center gap-6 overflow-x-auto no-scrollbar py-2">
-                <span className="text-[9px] uppercase tracking-widest text-white/20 whitespace-nowrap">Region:</span>
-                <div className="flex gap-4">
-                    {['All', ...Object.values(Language)].map(l => (
-                        <button 
-                            key={l}
-                            onClick={() => setFilterLang(l)}
-                            className={`text-[9px] uppercase tracking-widest px-4 py-1 border transition-all whitespace-nowrap ${filterLang === l ? 'border-brand-gold text-brand-gold' : 'border-white/5 text-white/20 hover:text-white'}`}
-                        >
-                            {l}
-                        </button>
-                    ))}
-                </div>
-            </div>
-          </div>
+    <div className="min-h-screen bg-black pt-48 px-10 lg:px-24 pb-60">
+      <div className="mb-24 flex flex-col lg:flex-row justify-between items-start lg:items-end border-b border-white/5 pb-16 gap-8">
+           <div className="space-y-4">
+              <span className="text-brand-accent/60 text-[10px] font-bold uppercase tracking-[1em]">Master Curation</span>
+              <h2 className="text-5xl lg:text-8xl font-black text-white tracking-tighter uppercase leading-none">Global Registry</h2>
+           </div>
+           <div className="text-right">
+              <span className="text-[10px] text-white/20 uppercase tracking-widest mb-2 block">Identified Assets</span>
+              <span className="text-5xl text-white/40 font-thin font-mono leading-none">{groupedAlbums.length}</span>
+           </div>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-x-10 gap-y-20">
+      <div className="flex flex-col md:flex-row gap-8 mb-24 items-center bg-white/[0.02] p-8 border border-white/5">
+          <div className="flex-1 relative w-full">
+            <input
+                type="text"
+                placeholder="SEARCH REGISTRY (TITLE, ISRC, UPC)..."
+                className="w-full bg-transparent border-b border-white/10 py-3 text-white font-thin outline-none text-base uppercase tracking-widest placeholder:text-white/5"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+            />
+          </div>
+          <select 
+            className="w-full md:w-auto bg-transparent text-white/40 text-[10px] font-bold uppercase tracking-[0.4em] outline-none cursor-pointer border border-white/10 px-6 py-3" 
+            value={filterLang} 
+            onChange={(e) => setFilterLang(e.target.value)}
+          >
+              <option value="All">All Regions</option>
+              {Object.values(Language).map(l => <option key={l} value={l} className="bg-black">{l}</option>)}
+          </select>
+      </div>
+
+      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-x-12 gap-y-20">
           {groupedAlbums.map(albumSongs => {
               const main = albumSongs[0];
               return (
                   <div key={main.id} onClick={() => navigate(`/song/${main.id}`)} className="group cursor-pointer">
-                      <div className="aspect-square w-full relative overflow-hidden border border-white/5 group-hover:border-brand-gold transition-all duration-700 bg-white/[0.01]">
-                          <img src={main.coverUrl} className="w-full h-full object-cover grayscale opacity-40 group-hover:opacity-100 group-hover:grayscale-0 group-hover:scale-105 transition-all duration-[2s]" />
-                          <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 bg-black/40 backdrop-blur-sm transition-all duration-500">
-                             <span className="text-[9px] uppercase tracking-[1em] border border-white/20 px-6 py-3">Open</span>
+                      <div className="aspect-square bg-slate-900 border border-white/10 mb-6 overflow-hidden relative">
+                          <img 
+                            src={main.coverUrl} 
+                            className="w-full h-full object-cover grayscale opacity-20 group-hover:opacity-100 group-hover:grayscale-0 transition-all duration-700" 
+                            alt=""
+                          />
+                          <div className="absolute top-2 left-2 px-1.5 py-0.5 bg-black/80 text-[7px] text-brand-accent border border-brand-accent/20 uppercase font-bold tracking-widest opacity-0 group-hover:opacity-100 transition-opacity">
+                              {main.isrc ? 'ISRC_VERIFIED' : 'PENDING'}
                           </div>
                       </div>
-                      <div className="mt-8 space-y-2">
-                          <h4 className="text-xl font-thin uppercase tracking-tight truncate group-hover:text-brand-gold transition-colors">{main.title}</h4>
-                          <div className="flex items-center gap-4 text-[9px] font-mono text-white/20">
-                              <span>{main.releaseDate.split('-')[0]}</span>
-                              <span className="truncate">{main.upc || 'NO UPC'}</span>
+                      <div className="space-y-1">
+                          <h4 className="text-[11px] text-white/30 uppercase tracking-widest group-hover:text-brand-accent transition-colors truncate">
+                            {main.title}
+                          </h4>
+                          <div className="flex justify-between items-center text-[8px] font-mono text-white/5 group-hover:text-white/10 tracking-widest uppercase">
+                            <span>{main.releaseDate.split('-')[0]}</span>
+                            <span>{main.language}</span>
                           </div>
                       </div>
                   </div>

@@ -1,12 +1,13 @@
+
 <!DOCTYPE html>
 <html lang="zh-TW">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Willwi Music Database | Official</title>
+    <title>WILLWI | GLOBAL ASSET AUTHORITY</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@100;300;400;600&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@100;300;400;700;900&family=JetBrains+Mono:wght@100;300;500&display=swap" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
       tailwind.config = {
@@ -14,63 +15,57 @@
           extend: {
             fontFamily: {
               sans: ['Montserrat', 'sans-serif'],
+              mono: ['JetBrains Mono', 'monospace'],
             },
             colors: {
               brand: {
-                dark: '#020617',
-                gold: '#fbbf24',
+                dark: '#000000',
+                accent: '#fbbf24', 
+                tech: '#0f172a',
+                success: '#10b981'
               }
-            },
-            animation: {
-              'fade-in': 'fadeIn 0.6s ease-out forwards',
-              'splash-exit': 'splashExit 0.5s cubic-bezier(0.7, 0, 0.3, 1) forwards'
-            },
-            keyframes: {
-              fadeIn: { '0%': { opacity: 0 }, '100%': { opacity: 1 } },
-              splashExit: { '0%': { opacity: '1' }, '100%': { opacity: '0', visibility: 'hidden' } }
             }
           }
         }
       }
     </script>
     <style>
-      body {
-        font-weight: 300;
-        background-color: #000;
-        color: #fff;
-        letter-spacing: 0.1em;
+      body { background-color: #000000; color: #94a3b8; overflow-x: hidden; }
+      
+      /* 靜態全球資產網格 - 移除動畫 */
+      .bg-registry {
+        position: fixed;
+        inset: 0;
+        background-image: 
+          linear-gradient(rgba(255, 255, 255, 0.02) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(255, 255, 255, 0.02) 1px, transparent 1px);
+        background-size: 40px 40px;
+        pointer-events: none;
+        z-index: 0;
       }
-      #splash-screen {
-        position: fixed; inset: 0; background: #000;
-        display: flex; align-items: center; justify-content: center; z-index: 9999;
-      }
-      .custom-scrollbar::-webkit-scrollbar { width: 2px; }
-      .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(251, 191, 36, 0.2); }
+
+      .custom-scrollbar::-webkit-scrollbar { width: 4px; }
+      .custom-scrollbar::-webkit-scrollbar-track { background: rgba(0,0,0,0.5); }
+      .custom-scrollbar::-webkit-scrollbar-thumb { background: #fbbf24; border-radius: 10px; }
+
+      .asset-border { border: 1px solid rgba(255, 255, 255, 0.1); }
+      .asset-border-active { border: 1px solid #fbbf24; }
     </style>
-  <script type="importmap">
+<script type="importmap">
 {
   "imports": {
-    "react": "https://aistudiocdn.com/react@^19.2.1",
-    "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.1/",
-    "react/": "https://aistudiocdn.com/react@^19.2.1/",
-    "@google/genai": "https://aistudiocdn.com/@google/genai@^1.31.0",
-    "react-router-dom": "https://aistudiocdn.com/react-router-dom@^7.10.1",
-    "idb": "https://cdn.jsdelivr.net/npm/idb@8.0.0/+esm"
+    "react-dom/": "https://esm.sh/react-dom@^19.2.4/",
+    "react/": "https://esm.sh/react@^19.2.4/",
+    "react": "https://esm.sh/react@^19.2.4",
+    "react-router-dom": "https://esm.sh/react-router-dom@^7.13.0",
+    "@google/genai": "https://esm.sh/@google/genai@^1.38.0",
+    "idb": "https://esm.sh/idb@^8.0.3"
   }
 }
 </script>
 </head>
-  <body class="antialiased">
-    <div id="splash-screen">
-      <h2 class="text-xl text-white tracking-[1.5em] animate-pulse">WILLWI</h2>
-    </div>
+  <body class="antialiased font-sans font-light selection:bg-brand-accent selection:text-black">
+    <div class="bg-registry"></div>
     <div id="root"></div>
-    <script>
-      window.addEventListener('load', () => {
-        setTimeout(() => {
-          document.getElementById('splash-screen').classList.add('animate-splash-exit');
-        }, 500);
-      });
-    </script>
   </body>
 </html>

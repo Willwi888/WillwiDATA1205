@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useMemo } from 'react';
 import { useUser } from '../context/UserContext';
 import { useTranslation } from '../context/LanguageContext';
@@ -45,11 +46,14 @@ const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, initialMod
       }
   }, [isOpen, initialMode, user]);
 
+  if (!isOpen) return null;
+
   const currentQr = useMemo(() => {
     let q = '';
     if (supportMode === 'production') q = globalSettings.qr_production;
     else if (supportMode === 'cinema') q = globalSettings.qr_cinema;
     else q = globalSettings.qr_support;
+    
     return q || globalSettings.qr_global_payment || "https://placehold.co/300x300/020617/fbbf24?text=WILLWI+PAY";
   }, [supportMode, globalSettings]);
 
@@ -60,137 +64,94 @@ const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, initialMod
       setIsProcessing(true);
       setErrorMsg('');
       await new Promise(r => setTimeout(r, 1000));
-      const correctCode = globalSettings.accessCode || '8520';
+      const correctCode = globalSettings.accessCode || '8888';
       if (inputCode === correctCode) {
           if (supportMode === 'production') addCredits(pointCount, true, totalAmount);
           else recordDonation(totalAmount);
           onClose();
-          alert("ACCESS GRANTED");
+          alert("解鎖成功！");
       } else {
-          setErrorMsg("INVALID_CODE");
+          setErrorMsg("通行碼錯誤。");
           setIsProcessing(false);
       }
   };
 
-  if (!isOpen) return null;
-
   return (
-    <div className="fixed inset-0 z-[200] flex items-center justify-center p-6 md:p-12">
-      <div className="absolute inset-0 bg-black/90 backdrop-blur-3xl animate-fade-in" onClick={onClose}></div>
-      
-      <div className="relative z-10 w-full max-w-4xl bg-[#050505] border border-white/5 shadow-[0_0_100px_rgba(0,0,0,1)] flex flex-col max-h-full overflow-hidden animate-fade-in-up">
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-black/95" onClick={onClose}></div>
+      <div className="relative z-10 bg-black border border-white/10 max-w-5xl w-full overflow-hidden shadow-[0_0_100px_rgba(0,0,0,1)] animate-fade-in flex flex-col max-h-[90vh] font-thin">
         
-        {/* Header - Unified Horizontal */}
-        <div className="px-10 py-8 border-b border-white/5 flex items-center justify-between">
-            <div className="flex items-center gap-8">
-                <span className="text-[10px] font-thin uppercase tracking-[0.8em] text-brand-gold">Transaction</span>
-                <div className="h-4 w-[0.5px] bg-white/20"></div>
-                <span className="text-[10px] font-thin uppercase tracking-[0.4em] text-white/40">{supportMode} ACCESS</span>
+        <div className="p-10 border-b border-white/5">
+            <div className="flex justify-between items-start mb-12">
+                <div>
+                    <h3 className="text-3xl font-thin text-white uppercase tracking-[0.5em]">{t('modal_title')}</h3>
+                    <p className="text-[10px] text-brand-accent font-thin uppercase tracking-widest mt-4 opacity-40">{supportMode} ACCESS CENTER</p>
+                </div>
+                <button onClick={onClose} className="text-white/20 hover:text-white text-[10px] uppercase tracking-widest transition-all">{t('modal_close')}</button>
             </div>
-            <button onClick={onClose} className="text-[9px] uppercase tracking-widest text-slate-700 hover:text-white transition-all">TERMINATE</button>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
+                <input className="bg-transparent border-b border-white/10 px-0 py-4 text-white text-base outline-none focus:border-brand-accent transition-all uppercase tracking-widest placeholder:text-white/5" placeholder="Your Name" value={name} onChange={(e) => setName(e.target.value)} />
+                <input className="bg-transparent border-b border-white/10 px-0 py-4 text-white text-base outline-none focus:border-brand-accent transition-all uppercase tracking-widest placeholder:text-white/5" placeholder="Your Email" value={email} onChange={(e) => setEmail(e.target.value)} />
+            </div>
         </div>
 
-        <div className="flex-1 flex flex-col md:flex-row overflow-hidden">
-            
-            {/* Left: Configuration & Details */}
-            <div className="w-full md:w-[350px] border-r border-white/5 p-10 flex flex-col gap-12 bg-white/[0.01]">
-                <div className="space-y-6">
-                    <span className="text-[9px] uppercase tracking-widest text-slate-700">Identity Details</span>
-                    <input className="w-full bg-transparent border-b border-white/10 py-3 text-xs uppercase tracking-widest outline-none focus:border-brand-gold" placeholder="FULL NAME" value={name} onChange={e => setName(e.target.value)} />
-                    <input className="w-full bg-transparent border-b border-white/10 py-3 text-xs tracking-widest outline-none focus:border-brand-gold" placeholder="EMAIL ADDRESS" value={email} onChange={e => setEmail(e.target.value)} />
-                </div>
-
-                <div className="space-y-6">
-                    <span className="text-[9px] uppercase tracking-widest text-slate-700">Access Mode</span>
-                    <div className="flex flex-col gap-2">
-                        {(['production', 'support', 'cinema'] as const).map(m => (
-                            <button 
-                                key={m} 
-                                onClick={() => setSupportMode(m)}
-                                className={`text-left px-4 py-3 text-[10px] uppercase tracking-widest border transition-all ${supportMode === m ? 'border-brand-gold text-brand-gold bg-brand-gold/5' : 'border-white/5 text-slate-600 hover:text-white hover:border-white/20'}`}
-                            >
-                                {m}
-                            </button>
-                        ))}
-                    </div>
-                </div>
-
-                {supportMode === 'production' && (
-                    <div className="space-y-6">
-                        <span className="text-[9px] uppercase tracking-widest text-slate-700">Access Volume</span>
-                        <div className="flex items-center justify-between border border-white/10 p-4">
-                            <button onClick={() => setPointCount(Math.max(1, pointCount-1))} className="w-8 h-8 text-slate-500 hover:text-white">-</button>
-                            <span className="text-xl font-mono text-white">{pointCount}</span>
-                            <button onClick={() => setPointCount(pointCount+1)} className="w-8 h-8 text-slate-500 hover:text-white">+</button>
-                        </div>
-                    </div>
-                )}
-
-                <div className="mt-auto pt-8 border-t border-white/5">
-                    <span className="text-[9px] uppercase tracking-widest text-slate-700 block mb-2">Total Amount</span>
-                    <div className="text-4xl font-thin text-white tracking-tighter">NT$ {totalAmount.toLocaleString()}</div>
-                </div>
-            </div>
-
-            {/* Right: Payment Flow */}
-            <div className="flex-1 p-10 flex flex-col items-center justify-center bg-black">
+        <div className="flex flex-col lg:flex-row overflow-y-auto custom-scrollbar flex-grow p-10 gap-16">
+            <div className="flex-1 bg-white p-12 text-slate-900">
                 {step === 'qr' ? (
-                    <div className="w-full max-w-sm space-y-12 text-center animate-fade-in">
-                        <div className="space-y-4">
-                            <span className="text-[9px] uppercase tracking-[0.5em] text-brand-gold block mb-2">Manual Transfer Required</span>
-                            <div className="aspect-square w-full border border-white/10 p-8 relative group bg-white">
-                                <img src={currentQr} className="w-full h-full object-contain mix-blend-multiply" alt="QR" />
+                    <div className="space-y-12">
+                        <div className="flex justify-between items-end border-b border-slate-100 pb-10">
+                            <div>
+                                <span className="block text-[10px] text-slate-400 font-black uppercase mb-2 tracking-widest">Amount Due</span>
+                                <span className="text-5xl font-thin tracking-tighter">NT$ {totalAmount.toLocaleString()}</span>
                             </div>
+                        </div>
+                        
+                        <div className="bg-slate-50 border border-slate-100 p-8 flex flex-col items-center justify-center">
+                            <img src={currentQr} alt="QR" className="w-48 h-48 object-contain mix-blend-multiply" />
+                            <p className="text-[10px] text-slate-400 font-black uppercase mt-6 tracking-[0.4em]">SCAN TO COMPLETE</p>
                         </div>
 
                         <div className="space-y-4">
-                            <div className="flex flex-col items-center">
-                                <span className="text-[8px] uppercase tracking-widest text-slate-700 mb-2">Account Number</span>
-                                <div className="text-2xl font-mono text-emerald-500 tracking-wider flex items-center gap-4">
-                                    {BANK_INFO.account}
-                                    <button onClick={() => { navigator.clipboard.writeText(BANK_INFO.account); alert("COPIED"); }} className="text-[9px] uppercase tracking-widest text-slate-700 hover:text-white border border-white/10 px-3 py-1">Copy</button>
-                                </div>
+                            <div className="flex justify-between text-[10px] uppercase tracking-widest text-slate-400">
+                                <span>Bank Account</span>
+                                <button onClick={() => { navigator.clipboard.writeText(BANK_INFO.account); alert("Copied!"); }} className="text-slate-900 border-b border-slate-200">Copy</button>
                             </div>
+                            <p className="text-xl font-mono text-slate-900 text-center py-4 border border-slate-100">{BANK_INFO.account}</p>
                         </div>
 
-                        <button 
-                            onClick={() => { if(isFormValid) { login(name, email); setStep('verify'); } else alert("IDENTITY REQUIRED"); }} 
-                            className="w-full py-6 border border-brand-gold/30 text-brand-gold text-[10px] uppercase tracking-[0.8em] hover:bg-brand-gold hover:text-black transition-all"
-                        >
-                            Confirm Transfer
+                        <button onClick={() => { if (isFormValid) { login(name, email); setStep('verify'); } }} disabled={!isFormValid} className="w-full py-6 bg-slate-900 text-white font-black uppercase text-[11px] tracking-[0.5em] hover:bg-black transition-all">
+                            Verify Transaction
                         </button>
                     </div>
                 ) : (
-                    <div className="w-full max-w-sm space-y-16 text-center animate-fade-in">
-                        <div className="space-y-4">
-                            <span className="text-[9px] uppercase tracking-[1em] text-brand-gold block">Verification</span>
-                            <p className="text-[10px] text-slate-600 uppercase tracking-widest leading-loose">Enter the system access code provided after payment to unlock resources.</p>
-                        </div>
-                        
-                        <div className="relative">
-                            <input 
-                                type="text" 
-                                placeholder="----" 
-                                className="w-full bg-transparent border-b-2 border-white/5 py-6 text-center text-6xl font-mono text-white outline-none focus:border-brand-gold transition-all tracking-[0.5em] placeholder:text-white/5" 
-                                value={inputCode} 
-                                onChange={e => setInputCode(e.target.value)} 
-                                autoFocus 
-                            />
-                            {errorMsg && <p className="absolute -bottom-8 left-0 w-full text-rose-500 text-[9px] uppercase tracking-widest">{errorMsg}</p>}
-                        </div>
-
-                        <div className="flex flex-col gap-4">
-                            <button 
-                                onClick={handleVerifyCode} 
-                                disabled={!inputCode || isProcessing}
-                                className="w-full py-6 bg-white text-black text-[10px] uppercase tracking-[0.8em] hover:bg-brand-gold transition-all disabled:opacity-20"
-                            >
-                                {isProcessing ? 'PROCESSING...' : 'Unlock System'}
-                            </button>
-                            <button onClick={() => setStep('qr')} className="text-[9px] uppercase tracking-widest text-slate-700 hover:text-white transition-all">Review Transfer Details</button>
+                    <div className="py-24 text-center space-y-12 animate-fade-in">
+                        <h4 className="text-[11px] font-black uppercase tracking-[1em] text-slate-400">Access Authentication</h4>
+                        <input type="text" placeholder="CODE" className="w-full text-center text-5xl font-mono border-b border-slate-200 outline-none py-6 text-slate-900 tracking-[1em] placeholder:opacity-10" value={inputCode} onChange={(e) => setInputCode(e.target.value)} autoFocus />
+                        {errorMsg && <p className="text-rose-600 text-[10px] font-black uppercase">{errorMsg}</p>}
+                        <div className="flex gap-10">
+                            <button onClick={() => setStep('qr')} className="flex-1 py-4 text-slate-400 font-black text-[10px] uppercase tracking-widest">Back</button>
+                            <button onClick={handleVerifyCode} disabled={!inputCode || isProcessing} className="flex-1 py-4 bg-slate-950 text-white font-black text-[10px] uppercase tracking-widest">Unlock</button>
                         </div>
                     </div>
                 )}
+            </div>
+            
+            <div className="w-full lg:w-80 space-y-12">
+                <div className="p-10 border border-white/5">
+                    <h4 className="text-[10px] text-white/20 uppercase tracking-[1em] mb-10">Order</h4>
+                    {supportMode === 'production' && (
+                        <div className="space-y-8">
+                            <div className="flex justify-between items-center text-xs text-white/60 tracking-widest uppercase">
+                                <span>Credits</span>
+                                <div className="flex items-center gap-6">
+                                    <button onClick={() => setPointCount(Math.max(1, pointCount - 1))} className="text-brand-accent">-</button>
+                                    <span className="font-mono">{pointCount}</span>
+                                    <button onClick={() => setPointCount(pointCount + 1)} className="text-brand-accent">+</button>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+                </div>
             </div>
         </div>
       </div>

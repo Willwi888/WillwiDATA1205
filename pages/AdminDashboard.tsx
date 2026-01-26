@@ -1,6 +1,7 @@
+
 import React, { useRef, useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useData, resolveDirectLink, normalizeIdentifier } from '../context/DataContext';
+import { useData, resolveDirectLink } from '../context/DataContext';
 import { useUser } from '../context/UserContext';
 import { Song, ProjectType, Language } from '../types';
 import { useToast } from '../components/Layout';
@@ -11,55 +12,27 @@ const AdminDashboard: React.FC = () => {
   const { showToast } = useToast();
   const navigate = useNavigate();
   
-  const [activeTab, setActiveTab] = useState<'catalog' | 'settings' | 'backup'>('catalog');
+  const [activeTab, setActiveTab] = useState<'catalog' | 'settings'>('catalog');
   const [passwordInput, setPasswordInput] = useState('');
-  const [loginError, setLoginError] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
-  
-  const [adminPlayingId, setAdminPlayingId] = useState<string | null>(null);
-  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const [langFilter, setLangFilter] = useState('');
 
-  const groupedCatalog = useMemo(() => {
-    const filtered = songs.filter(s => 
-      s.title.toLowerCase().includes(searchTerm.toLowerCase()) || 
-      (s.isrc && s.isrc.toLowerCase().includes(searchTerm.toLowerCase()))
-    );
-    const groups: Record<string, Song[]> = {};
-    filtered.forEach(s => {
-      const key = s.upc ? normalizeIdentifier(s.upc) : `SINGLE_${s.id}`;
-      if (!groups[key]) groups[key] = [];
-      groups[key].push(s);
+  const filteredSongs = useMemo(() => {
+    return songs.filter(s => {
+      const matchesSearch = s.title.toLowerCase().includes(searchTerm.toLowerCase());
+      const matchesLang = !langFilter || s.language === langFilter;
+      return matchesSearch && matchesLang;
     });
-    return Object.values(groups).sort((a, b) => b[0].releaseDate.localeCompare(a[0].releaseDate));
-  }, [songs, searchTerm]);
-
-  const handleAdminPlay = (song: Song) => {
-    if (!audioRef.current) return;
-    if (adminPlayingId === song.id) {
-      audioRef.current.pause();
-      setAdminPlayingId(null);
-    } else {
-      const url = resolveDirectLink(song.audioUrl || '');
-      if (!url) return showToast("INVALID AUDIO", "error");
-      setAdminPlayingId(song.id);
-      audioRef.current.src = url;
-      audioRef.current.play().catch(() => showToast("FAILED", "error"));
-    }
-  };
+  }, [songs, searchTerm, langFilter]);
 
   if (!isAdmin) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-black px-10">
-        <div className="w-full max-w-sm text-center space-y-12 animate-fade-in">
-          <h2 className="text-xl font-thin uppercase tracking-[1em]">Console</h2>
-          <form onSubmit={(e) => { e.preventDefault(); if (passwordInput === '8520') enableAdmin(); else setLoginError('FAIL'); }} className="space-y-8">
-            <input 
-              type="password" 
-              placeholder="CODE" 
-              className="w-full bg-transparent border-b border-white/10 px-4 py-4 text-white text-center tracking-[1.5em] font-mono text-2xl outline-none focus:border-brand-gold" 
-              value={passwordInput} onChange={(e) => setPasswordInput(e.target.value)} autoFocus 
-            />
-            <button className="w-full py-4 border border-white/10 text-[10px] uppercase tracking-[0.8em] hover:bg-white hover:text-black transition-all">Unlock</button>
+      <div className="min-h-screen flex items-center justify-center bg-black font-sans font-light">
+        <div className="p-16 w-full max-w-sm text-center space-y-12 bg-white/[0.01] border border-white/5">
+          <h2 className="text-xl uppercase tracking-[0.8em] text-white/40">Access</h2>
+          <form onSubmit={(e) => { e.preventDefault(); if (passwordInput === '8520') enableAdmin(); else showToast('Error','error'); }} className="space-y-8">
+            <input type="password" placeholder="CODE" className="w-full bg-transparent border-b border-white/10 px-4 py-6 text-white text-center tracking-[1.5em] text-2xl outline-none" value={passwordInput} onChange={(e) => setPasswordInput(e.target.value)} autoFocus />
+            <button className="w-full py-4 border border-white/10 text-white/50 text-[9px] uppercase tracking-[0.6em] hover:bg-white hover:text-black transition-all">ENTER CONSOLE</button>
           </form>
         </div>
       </div>
@@ -67,102 +40,111 @@ const AdminDashboard: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen pt-32 pb-40 px-10 md:px-20 animate-fade-in">
-      <audio ref={audioRef} onEnded={() => setAdminPlayingId(null)} crossOrigin="anonymous" />
-      
-      <div className="flex flex-col md:flex-row justify-between items-end mb-16 gap-10">
-        <h1 className="text-5xl font-thin uppercase tracking-tighter">Management</h1>
-        <div className="flex items-center gap-8">
-          <button onClick={() => navigate('/add')} className="text-[9px] uppercase tracking-[0.4em] bg-white text-black px-6 py-2 hover:bg-brand-gold transition-all">New Entry</button>
-          <button onClick={logoutAdmin} className="text-[9px] uppercase tracking-[0.4em] text-white/20 hover:text-white">Logout</button>
+    <div className="min-h-screen bg-black pt-32 pb-40 px-10 md:px-24 font-sans font-light">
+      <div className="flex justify-between items-end mb-24">
+        <div className="space-y-4">
+          <h1 className="text-4xl uppercase tracking-[0.6em] text-white">Management</h1>
+          <p className="text-[9px] text-slate-600 uppercase tracking-[0.4em]">System Status: {songs.length} Records Operational</p>
+        </div>
+        <div className="flex gap-8">
+          <button onClick={() => navigate('/add')} className="text-[9px] uppercase tracking-[0.4em] text-white border-b border-white/10 pb-1 hover:border-brand-gold transition-all">New Track</button>
+          <button onClick={logoutAdmin} className="text-[9px] uppercase tracking-[0.4em] text-rose-500/40 hover:text-rose-500 transition-all">Logout</button>
         </div>
       </div>
 
-      <div className="flex items-center gap-10 border-b border-white/5 mb-16 overflow-x-auto no-scrollbar">
-        {[
-          { id: 'catalog', label: 'Catalog' },
-          { id: 'settings', label: 'Settings' },
-          { id: 'backup', label: 'Backup' }
-        ].map(tab => (
-          <button 
-            key={tab.id} 
-            onClick={() => setActiveTab(tab.id as any)} 
-            className={`pb-4 text-[10px] uppercase tracking-[0.6em] transition-all relative whitespace-nowrap ${activeTab === tab.id ? 'text-brand-gold' : 'text-white/20 hover:text-white'}`}
-          >
-            {tab.label}
-            {activeTab === tab.id && <div className="absolute bottom-0 left-0 w-full h-[0.5px] bg-brand-gold"></div>}
+      <div className="flex border-b border-white/5 mb-16 gap-12">
+        {['catalog', 'settings'].map(tab => (
+          <button key={tab} onClick={() => setActiveTab(tab as any)} className={`pb-4 text-[10px] uppercase tracking-[0.4em] transition-all relative ${activeTab === tab ? 'text-brand-gold' : 'text-slate-600 hover:text-white'}`}>
+            {tab}
+            {activeTab === tab && <div className="absolute bottom-0 left-0 w-full h-[0.5px] bg-brand-gold"></div>}
           </button>
         ))}
       </div>
 
       {activeTab === 'catalog' && (
-        <div className="space-y-12">
-          <input 
-            type="text" 
-            placeholder="SEARCH ENTRIES..." 
-            className="w-full bg-transparent border-b border-white/5 py-3 text-lg font-thin text-white outline-none focus:border-brand-gold tracking-widest" 
-            value={searchTerm} onChange={e => setSearchTerm(e.target.value)} 
-          />
-          <div className="grid grid-cols-1 gap-6">
-              {groupedCatalog.map(group => (
-                <div key={group[0].id} className="border border-white/5 p-6 bg-white/[0.01] hover:border-white/10 transition-all">
-                    <div className="flex items-center justify-between mb-6">
-                        <div className="flex items-center gap-6">
-                            <img src={group[0].coverUrl} className="w-12 h-12 object-cover opacity-60" />
-                            <h3 className="text-xl font-thin uppercase tracking-widest">{group.length > 1 ? `UPC: ${group[0].upc}` : group[0].title}</h3>
-                        </div>
-                        <span className="text-[9px] font-mono text-white/10">{group[0].releaseDate}</span>
-                    </div>
-                    <div className="space-y-2">
-                        {group.map(song => (
-                            <div key={song.id} className="flex items-center justify-between py-2 px-4 hover:bg-white/5 transition-all text-[11px] uppercase tracking-widest">
-                                <div className="flex items-center gap-4">
-                                    <button onClick={() => handleAdminPlay(song)} className={`w-8 h-8 flex items-center justify-center border border-white/10 rounded-full ${adminPlayingId === song.id ? 'text-brand-gold border-brand-gold' : 'text-white/20 hover:text-white'}`}>
-                                        {adminPlayingId === song.id ? '||' : '>'}
-                                    </button>
-                                    <span>{song.title}</span>
+        <div className="space-y-12 animate-fade-in">
+          <div className="flex gap-12 items-center">
+            <input type="text" placeholder="Search title..." className="flex-1 bg-transparent border-b border-white/10 py-3 text-lg text-white outline-none placeholder:text-white/5 uppercase tracking-widest font-thin" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
+            <select value={langFilter} onChange={e => setLangFilter(e.target.value)} className="bg-transparent border border-white/5 text-[10px] text-slate-500 px-6 py-3 uppercase tracking-widest outline-none">
+              <option value="">All Regions</option>
+              {Object.values(Language).map(l => <option key={l} value={l} className="bg-slate-900">{l}</option>)}
+            </select>
+          </div>
+          
+          <div className="bg-[#030303] border border-white/5">
+            <table className="w-full text-left">
+                <thead className="text-[8px] text-slate-600 uppercase tracking-[0.8em] border-b border-white/5">
+                    <tr>
+                        <th className="p-8 font-light">Metadata</th>
+                        <th className="p-8 font-light">Type</th>
+                        <th className="p-8 font-light text-center">Studio</th>
+                        <th className="p-8 font-light text-right">Actions</th>
+                    </tr>
+                </thead>
+                <tbody className="divide-y divide-white/5">
+                    {filteredSongs.map(song => (
+                        <tr key={song.id} className="group hover:bg-white/[0.01] transition-all">
+                            <td className="p-8">
+                                <div className="flex items-center gap-6">
+                                    <div className="w-12 h-12 bg-white/5 border border-white/5 overflow-hidden">
+                                      <img src={song.coverUrl} className="w-full h-full object-cover opacity-60" />
+                                    </div>
+                                    <div>
+                                        <h4 className="text-white text-xs uppercase tracking-widest mb-1">{song.title}</h4>
+                                        <p className="text-[9px] text-slate-600 font-mono tracking-tighter">{song.isrc || 'NO ISRC'}</p>
+                                    </div>
                                 </div>
-                                <div className="flex items-center gap-8">
-                                    <span className="text-[9px] font-mono text-white/10">{song.isrc}</span>
-                                    <button onClick={() => navigate(`/add?edit=${song.id}`)} className="text-white/20 hover:text-white">Edit</button>
-                                    <button onClick={() => { if(confirm('Delete?')) deleteSong(song.id); }} className="text-rose-900/40 hover:text-rose-500">Del</button>
+                            </td>
+                            <td className="p-8 text-[9px] text-slate-500 uppercase tracking-widest">{song.projectType}</td>
+                            <td className="p-8 text-center">
+                                <button onClick={() => updateSong(song.id, { isInteractiveActive: !song.isInteractiveActive })} className={`text-[8px] uppercase tracking-widest px-4 py-2 border transition-all ${song.isInteractiveActive ? 'text-emerald-500 border-emerald-500/20' : 'text-slate-800 border-white/5'}`}>
+                                   {song.isInteractiveActive ? 'OPEN' : 'LOCKED'}
+                                </button>
+                            </td>
+                            <td className="p-8 text-right">
+                                <div className="flex justify-end gap-6">
+                                  <button onClick={() => navigate(`/add?edit=${song.id}`)} className="text-[9px] text-slate-600 hover:text-white transition-all uppercase tracking-widest">Edit</button>
+                                  <button onClick={() => deleteSong(song.id)} className="text-[9px] text-rose-900/40 hover:text-rose-500 transition-all uppercase tracking-widest">Delete</button>
                                 </div>
-                            </div>
-                        ))}
-                    </div>
-                </div>
-              ))}
+                            </td>
+                        </tr>
+                    ))}
+                </tbody>
+            </table>
           </div>
         </div>
       )}
 
       {activeTab === 'settings' && (
-        <div className="max-w-xl space-y-12">
-            <div className="space-y-4">
-                <label className="text-[9px] uppercase tracking-[0.4em] text-white/20">Access Passcode</label>
-                <input className="w-full bg-transparent border-b border-white/10 py-3 text-brand-gold font-mono text-2xl outline-none focus:border-brand-gold" value={globalSettings.accessCode} onChange={e => setGlobalSettings({...globalSettings, accessCode: e.target.value})} />
+        <div className="max-w-2xl animate-fade-in space-y-24">
+          <div className="space-y-12">
+            <h4 className="text-[10px] text-slate-500 uppercase tracking-[0.8em]">Platform Assets</h4>
+            <div className="grid grid-cols-2 gap-8">
+              {(['qr_support', 'qr_production', 'qr_cinema'] as const).map(qr => (
+                <div key={qr} className="space-y-4">
+                  <div className="aspect-square bg-white/[0.02] border border-white/5 flex items-center justify-center p-8">
+                    {(globalSettings as any)[qr] ? <img src={(globalSettings as any)[qr]} className="w-full h-full object-contain opacity-40 grayscale" /> : <span className="text-[9px] text-slate-800 uppercase tracking-widest">Empty</span>}
+                  </div>
+                  <label className="block text-center py-2 text-[8px] uppercase tracking-widest text-slate-600 border border-white/5 hover:bg-white hover:text-black cursor-pointer transition-all">
+                    Upload {qr.replace('qr_','')}
+                    <input type="file" className="hidden" accept="image/*" onChange={e => {
+                      const f = e.target.files?.[0];
+                      if(f){
+                        const r = new FileReader();
+                        r.onloadend = () => setGlobalSettings({...globalSettings, [qr]: r.result as string});
+                        r.readAsDataURL(f);
+                      }
+                    }} />
+                  </label>
+                </div>
+              ))}
             </div>
-            <button onClick={() => uploadSettingsToCloud(globalSettings)} className="text-[9px] uppercase tracking-[0.4em] border border-brand-gold/40 text-brand-gold px-10 py-3 hover:bg-brand-gold hover:text-black transition-all">Update System</button>
-        </div>
-      )}
-
-      {activeTab === 'backup' && (
-        <div className="py-12 text-center">
-            <button 
-                onClick={() => {
-                    const blob = new Blob([JSON.stringify(songs, null, 2)], { type: 'application/json' });
-                    const url = URL.createObjectURL(blob);
-                    const a = document.createElement('a');
-                    a.href = url;
-                    a.download = `WILLWI_EXPORT.json`;
-                    a.click();
-                }}
-                className="text-[10px] uppercase tracking-[0.8em] border border-white/10 px-12 py-4 hover:bg-white hover:text-black transition-all"
-            >
-                Generate Data Archive
-            </button>
+          </div>
+          <button onClick={() => uploadSettingsToCloud(globalSettings)} className="px-16 py-4 border border-brand-gold/40 text-brand-gold text-[9px] uppercase tracking-[0.5em] hover:bg-brand-gold hover:text-black transition-all shadow-2xl">SYNC CLOUD DATA</button>
         </div>
       )}
     </div>
   );
-}; export default AdminDashboard;
+}; 
+
+export default AdminDashboard;

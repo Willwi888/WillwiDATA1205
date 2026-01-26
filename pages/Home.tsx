@@ -1,190 +1,116 @@
 
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useTranslation } from '../context/LanguageContext';
-import { useData, resolveDirectLink } from '../context/DataContext';
-import PaymentModal from '../components/PaymentModal';
+import { useData } from '../context/DataContext';
 
 const Home: React.FC = () => {
-  const { t } = useTranslation();
-  const { globalSettings } = useData();
+  const { songs } = useData();
   const navigate = useNavigate();
   
-  // 支付彈窗狀態管理
-  const [isPaymentOpen, setIsPaymentOpen] = useState(false);
-  const [payMode, setPayMode] = useState<'support' | 'production' | 'cinema'>('support');
-
-  const openPayment = (mode: 'support' | 'production' | 'cinema') => {
-      setPayMode(mode);
-      setIsPaymentOpen(true);
-  };
-
-  // 判斷是否為影片格式
-  const isVideo = globalSettings.portraitUrl?.toLowerCase().match(/\.(mp4|webm|ogg|mov)/i) || 
-                  globalSettings.portraitUrl?.includes('raw=1') || 
-                  globalSettings.portraitUrl?.includes('dl=1');
+  const recentAssets = songs.slice(0, 10);
 
   return (
-    <div className="min-h-screen relative flex flex-col items-center overflow-hidden bg-black">
+    <div className="min-h-screen relative flex flex-col bg-black overflow-hidden font-sans font-light">
       
-      {/* Background Layers - Optimized for MP4 or Image display */}
-      <div className="absolute inset-0 z-0">
-        {isVideo ? (
-          <video 
-            src={resolveDirectLink(globalSettings.portraitUrl)}
-            autoPlay 
-            loop 
-            muted 
-            playsInline 
-            className="w-full h-full object-cover opacity-30 transition-opacity duration-1000"
-          />
-        ) : (
-          <div 
-            className="absolute inset-0 bg-cover bg-center opacity-30 transition-transform duration-[10000ms] scale-110"
-            style={{ backgroundImage: `url(${globalSettings.portraitUrl})` }}
-          ></div>
-        )}
-      </div>
-      
-      {/* Zen Ambient Ring - Inspired by the new logo */}
-      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[80vw] h-[80vw] border-[1px] border-orange-500/10 rounded-full animate-zen-spin pointer-events-none"></div>
-      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[60vw] h-[60vw] border-[1px] border-orange-500/5 rounded-full animate-zen-spin [animation-duration:90s] pointer-events-none"></div>
+      {/* GLOBAL HUB HEADER */}
+      <header className="fixed top-0 left-0 w-full h-20 border-b border-white/5 flex items-center justify-between px-10 lg:px-24 z-[100] bg-black/80 backdrop-blur-md">
+          <div className="flex items-center gap-8">
+              <span className="text-white text-lg tracking-[1.2em] uppercase font-bold">Willwi</span>
+              <div className="hidden md:flex items-center gap-4 text-[9px] font-mono text-emerald-500 uppercase tracking-widest">
+                  <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse"></span>
+                  STATION_ACTIVE: 12.05_HUB
+              </div>
+          </div>
+          <button 
+            onClick={() => navigate('/admin')}
+            className="px-6 py-2 border border-brand-accent/30 text-brand-accent text-[9px] font-bold uppercase tracking-widest hover:bg-brand-accent hover:text-black transition-all"
+          >
+            Access Console
+          </button>
+      </header>
 
-      <div className="absolute inset-0 bg-gradient-to-b from-black via-transparent to-black pointer-events-none"></div>
-
-      <section className="relative z-10 w-full min-h-screen flex flex-col items-center justify-center px-6 md:px-24 pt-48 pb-32">
+      <main className="relative z-10 flex-1 flex flex-col pt-40 px-10 lg:px-24 pb-40">
         
-        {/* Manifesto Section */}
-        <div className="flex flex-col items-center text-center mb-12 animate-fade-in-up">
-            <div className="w-12 h-[1px] bg-orange-600 mb-6 opacity-40"></div>
-            <span className="text-orange-500 font-black text-[11px] uppercase tracking-[0.8em] mb-12 opacity-80">
-                {t('manifesto_title')}
-            </span>
-            
-            <h1 className="text-[20vw] md:text-[16rem] font-black tracking-tighter uppercase leading-[0.7] mb-12 text-white select-none filter drop-shadow-[0_0_60px_rgba(0,0,0,0.5)]">
-              WILLWI
-            </h1>
-            
-            <div className="max-w-3xl px-4 relative">
-                {/* Decorative Brush Stroke Silhouette */}
-                <div className="absolute -top-10 -left-10 w-20 h-20 border-l-2 border-t-2 border-orange-500/20 rounded-tl-3xl"></div>
-                <div className="absolute -bottom-10 -right-10 w-20 h-20 border-r-2 border-b-2 border-orange-500/20 rounded-br-3xl"></div>
-                
-                <p className="text-slate-300 text-sm md:text-xl tracking-[0.4em] uppercase font-bold leading-relaxed opacity-60">
-                    {t('manifesto_content').split('\n').map((s, i) => <React.Fragment key={i}>{s}<br/></React.Fragment>)}
+        {/* HERO DATA ROW */}
+        <div className="flex flex-col lg:flex-row justify-between items-start gap-16 mb-40">
+            <div className="space-y-10 max-w-3xl">
+                <div className="inline-flex items-center gap-3 px-4 py-1.5 border border-brand-accent/20 bg-brand-accent/5">
+                    <span className="text-[10px] text-brand-accent font-black uppercase tracking-[0.5em]">Global Asset Authority</span>
+                </div>
+                <h1 className="text-7xl lg:text-[11rem] font-black text-white tracking-tighter uppercase leading-[0.8] mix-blend-difference">
+                    Technical<br/>
+                    <span className="text-brand-accent">Database</span><br/>
+                    Interface
+                </h1>
+                <p className="text-xs text-slate-500 uppercase tracking-[0.3em] leading-loose max-w-lg">
+                    High-fidelity repository for metadata curation, lyric synchronization, and global distribution tracking. Engineered for professional music asset management.
                 </p>
             </div>
-        </div>
 
-        {/* Action Tiers Grid - 100, 320, 2800 */}
-        <div className="w-full max-w-[1400px] mt-24">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-8 items-stretch">
-                
-                {/* Mode 1: Support ($100 單純支持) */}
+            <div className="w-full lg:max-w-md space-y-4">
                 <div 
-                  className="group relative bg-white/[0.01] border border-white/5 p-10 flex flex-col hover:border-orange-500/30 hover:bg-white/[0.04] transition-all duration-700 rounded-sm backdrop-blur-3xl"
+                  onClick={() => navigate('/database')}
+                  className="group w-full p-10 border border-white/10 hover:border-brand-accent transition-all flex justify-between items-center bg-white/[0.01] cursor-pointer"
                 >
-                    <div className="mb-8">
-                        <h3 className="text-slate-400 font-black text-[11px] uppercase tracking-[0.4em] mb-4 group-hover:text-orange-400 transition-colors">熱能贊助方案</h3>
-                        <p className="text-slate-600 text-[9px] uppercase tracking-widest font-bold opacity-60">Thermal Support</p>
+                    <div className="text-left">
+                        <span className="block text-[10px] text-white/20 uppercase tracking-[0.5em] mb-3">Index Catalog</span>
+                        <span className="text-2xl text-white font-thin uppercase tracking-[0.3em] group-hover:text-brand-accent">Primary Registry</span>
                     </div>
-                    
-                    <div className="mb-10">
-                        <div className="text-5xl font-black text-white tracking-tighter flex items-baseline gap-2">
-                            <span className="text-xs font-normal opacity-30 tracking-normal">NT$</span>100
-                        </div>
-                        <p className="text-[9px] text-slate-500 uppercase tracking-widest mt-6 font-bold leading-relaxed">單純支持創作。請團隊喝杯咖啡，協助平台數據維護。</p>
-                    </div>
-
-                    <ul className="text-[9px] text-slate-600 space-y-4 mb-10 uppercase tracking-widest font-bold flex-grow">
-                        <li className="flex items-center gap-3"><span className="w-1 h-1 bg-slate-700 rounded-full"></span> 創作能量補充</li>
-                        <li className="flex items-center gap-3"><span className="w-1 h-1 bg-slate-700 rounded-full"></span> 優先獲取最新作品情報</li>
-                    </ul>
-
-                    <button 
-                      onClick={() => openPayment('support')}
-                      className="w-full py-5 bg-white/5 text-white font-black text-[9px] uppercase tracking-[0.6em] group-hover:bg-white group-hover:text-black transition-all duration-500"
-                    >
-                        SUPPORT NOW
-                    </button>
+                    <span className="text-3xl font-thin text-white/10 group-hover:text-brand-accent">→</span>
                 </div>
-
-                {/* Mode 2: Production ($320 手作對時) */}
                 <div 
-                  className="group relative bg-white/[0.02] border border-orange-500/20 p-10 flex flex-col hover:border-orange-500 hover:bg-white/[0.05] transition-all duration-700 rounded-sm backdrop-blur-3xl shadow-[0_0_50px_rgba(217,119,6,0.05)] scale-105 z-10"
+                  onClick={() => navigate('/interactive')}
+                  className="group w-full p-10 border border-white/10 hover:border-brand-accent transition-all flex justify-between items-center bg-white/[0.01] cursor-pointer"
                 >
-                    <div className="mb-8">
-                        <h3 className="text-orange-500 font-black text-[11px] uppercase tracking-[0.4em] mb-4">手作對時體驗</h3>
-                        <p className="text-slate-500 text-[9px] uppercase tracking-widest font-bold">Production Access</p>
+                    <div className="text-left">
+                        <span className="block text-[10px] text-white/20 uppercase tracking-[0.5em] mb-3">Operational Hub</span>
+                        <span className="text-2xl text-white font-thin uppercase tracking-[0.3em] group-hover:text-brand-accent">Studio Console</span>
                     </div>
-                    
-                    <div className="mb-10">
-                        <div className="text-5xl font-black text-white tracking-tighter flex items-baseline gap-2">
-                            <span className="text-xs font-normal opacity-30 tracking-normal">NT$</span>320
-                        </div>
-                        <p className="text-[9px] text-slate-400 uppercase tracking-widest mt-6 font-bold leading-relaxed">取得錄製室存取權，親手紀錄每一句歌詞的呼吸與節奏。</p>
-                    </div>
-
-                    <ul className="text-[9px] text-slate-500 space-y-4 mb-10 uppercase tracking-widest font-bold flex-grow">
-                        <li className="flex items-center gap-3"><span className="w-1 h-1 bg-orange-500 rounded-full shadow-[0_0_8px_rgba(217,119,6,0.8)]"></span> 專業級對時工具</li>
-                        <li className="flex items-center gap-3"><span className="w-1 h-1 bg-orange-500 rounded-full"></span> 8 秒有機噪點背景渲染</li>
-                        <li className="flex items-center gap-3"><span className="w-1 h-1 bg-orange-500 rounded-full"></span> 導出策展成品影片</li>
-                    </ul>
-
-                    <button 
-                      onClick={() => openPayment('production')}
-                      className="w-full py-5 bg-orange-600 text-white font-black text-[9px] uppercase tracking-[0.6em] hover:bg-white hover:text-black transition-all duration-500 shadow-xl"
-                    >
-                        GET ACCESS
-                    </button>
-                    
-                    <button 
-                      onClick={() => navigate('/interactive')}
-                      className="w-full mt-2 py-2 text-orange-500/40 hover:text-orange-500 text-[8px] font-black uppercase tracking-widest transition-colors"
-                    >
-                      Skip to Studio (Debug)
-                    </button>
-                </div>
-
-                {/* Mode 3: Cinema ($2800 大師方案) */}
-                <div 
-                  className="group relative bg-white/[0.01] border border-white/5 p-10 flex flex-col hover:border-brand-accent/40 hover:bg-white/[0.04] transition-all duration-700 rounded-sm backdrop-blur-3xl"
-                >
-                    <div className="mb-8">
-                        <h3 className="text-brand-accent font-black text-[11px] uppercase tracking-[0.4em] mb-4">大師影視方案</h3>
-                        <p className="text-slate-500 text-[9px] uppercase tracking-widest font-bold opacity-60">Cinema Master</p>
-                    </div>
-                    
-                    <div className="mb-10">
-                        <div className="text-5xl font-black text-white tracking-tighter flex items-baseline gap-2">
-                            <span className="text-xs font-normal opacity-30 tracking-normal">NT$</span>2800
-                        </div>
-                        <p className="text-[9px] text-slate-400 uppercase tracking-widest mt-6 font-bold leading-relaxed">提供最高品質的創作支持，獲取數位簽名與錄音室優先權。</p>
-                    </div>
-
-                    <ul className="text-[9px] text-slate-500 space-y-4 mb-10 uppercase tracking-widest font-bold flex-grow">
-                        <li className="flex items-center gap-3"><span className="w-1 h-1 bg-brand-accent rounded-full"></span> 4K 高畫質渲染權限</li>
-                        <li className="flex items-center gap-3"><span className="w-1 h-1 bg-brand-accent rounded-full"></span> 專屬數位收藏證明</li>
-                        <li className="flex items-center gap-3"><span className="w-1 h-1 bg-brand-accent rounded-full"></span> 贊助錄音室與後期資源</li>
-                    </ul>
-
-                    <button 
-                      onClick={() => openPayment('cinema')}
-                      className="w-full py-5 bg-white/5 text-white font-black text-[9px] uppercase tracking-[0.6em] group-hover:bg-brand-accent group-hover:text-black transition-all duration-500"
-                    >
-                        BECOME MASTER
-                    </button>
+                    <span className="text-3xl font-thin text-white/10 group-hover:text-brand-accent">→</span>
                 </div>
             </div>
         </div>
-      </section>
 
-      {/* 支付彈窗組件 */}
-      <PaymentModal 
-        isOpen={isPaymentOpen} 
-        onClose={() => setIsPaymentOpen(false)} 
-        initialMode={payMode}
-      />
+        {/* DATA FEED TABLE */}
+        <div className="space-y-8">
+            <div className="flex justify-between items-end border-b border-white/10 pb-6">
+                <h3 className="text-[10px] text-white/40 uppercase tracking-[1.5em]">Live Registry Feed</h3>
+                <span className="text-[9px] font-mono text-white/10 uppercase tracking-widest">TS: {new Date().toISOString()}</span>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-x-12 gap-y-4">
+                {recentAssets.map((asset, idx) => (
+                    <div 
+                        key={asset.id}
+                        onClick={() => navigate(`/song/${asset.id}`)}
+                        className="group flex items-center gap-8 py-6 px-8 border border-white/5 hover:border-white/20 hover:bg-white/[0.02] cursor-pointer transition-all"
+                    >
+                        <span className="text-[10px] font-mono text-white/10 group-hover:text-brand-accent transition-colors">{(idx+1).toString().padStart(2, '0')}</span>
+                        <div className="w-12 h-12 bg-slate-900 border border-white/10 grayscale group-hover:grayscale-0 transition-all overflow-hidden">
+                            <img src={asset.coverUrl} className="w-full h-full object-cover" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                            <h4 className="text-[14px] text-white/40 uppercase tracking-widest group-hover:text-white truncate">{asset.title}</h4>
+                            <div className="flex gap-6 mt-1.5">
+                                <span className="text-[9px] text-slate-700 font-mono group-hover:text-slate-500 uppercase">ISRC: {asset.isrc || 'UNKNOWN'}</span>
+                                <span className="text-[9px] text-brand-accent/20 group-hover:text-brand-accent/60 font-bold uppercase tracking-widest">{asset.language}</span>
+                            </div>
+                        </div>
+                    </div>
+                ))}
+            </div>
+        </div>
+
+      </main>
+
+      <footer className="h-16 px-10 lg:px-24 flex justify-between items-center border-t border-white/5 bg-black z-[100]">
+          <div className="flex items-center gap-10">
+              <span className="text-[9px] text-white/10 tracking-[0.8em] uppercase font-bold">Security: MASTER_CURATOR</span>
+              <div className="w-1 h-1 bg-emerald-500 rounded-full"></div>
+              <span className="text-[9px] text-white/10 tracking-[0.5em] uppercase font-bold">Node: SG_W1205</span>
+          </div>
+          <p className="text-[9px] text-white/5 tracking-[1em] uppercase">Willwi Global Authority © 2025</p>
+      </footer>
     </div>
   );
 };
