@@ -1,16 +1,15 @@
-
 import React, { useRef, useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useData, normalizeIdentifier } from '../context/DataContext';
 import { useUser } from '../context/UserContext';
 import { dbService } from '../services/db';
-import { Song, ProjectType, Language, ReleaseCategory } from '../types';
+import { Song, ProjectType, ReleaseCategory } from '../types';
 
 type Tab = 'catalog' | 'settings' | 'payment' | 'curation';
 type SortKey = 'releaseDate' | 'title' | 'language';
 
 const AdminDashboard: React.FC = () => {
-  const { songs, updateSong, deleteSong, bulkAddSongs } = useData();
+  const { songs, updateSong, deleteSong } = useData();
   const { isAdmin, enableAdmin, logoutAdmin, getAllUsers, getAllTransactions } = useUser();
   const navigate = useNavigate();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -94,18 +93,6 @@ const AdminDashboard: React.FC = () => {
           key,
           direction: prev.key === key && prev.direction === 'desc' ? 'asc' : 'desc'
       }));
-  };
-
-  const handleSelectAll = () => {
-      if (selectedIds.size === filteredSongs.length) setSelectedIds(new Set());
-      else setSelectedIds(new Set(filteredSongs.map(s => s.id)));
-  };
-
-  const handleSelectOne = (id: string) => {
-      const newSet = new Set(selectedIds);
-      if (newSet.has(id)) newSet.delete(id);
-      else newSet.add(id);
-      setSelectedIds(newSet);
   };
 
   const handleBulkDelete = async () => {

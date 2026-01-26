@@ -32,7 +32,7 @@ export const initDB = () => {
         dbPromise = null;
       },
       terminated() {
-        console.error('DB terminated abnormally.');
+        console.warn('DB connection terminated. Reconnecting on next request.');
         dbPromise = null;
       },
     });
