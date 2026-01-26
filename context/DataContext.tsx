@@ -1,7 +1,7 @@
-
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
 import { Song, SongContextType, Language, ProjectType, ReleaseCategory } from '../types';
 import { dbService } from '../services/db';
+import { OFFICIAL_CATALOG } from './InitialData';
 
 interface GlobalSettings {
     portraitUrl: string;
@@ -37,26 +37,49 @@ const SUPABASE_KEY = "sb_publishable_z_v9ig8SbqNnKHHTwEgOhw_S3g4yhba";
 
 export const ASSETS = {
     willwiPortrait: "https://drive.google.com/thumbnail?id=18rpLhJQKHKK5EeonFqutlOoKAI2Eq_Hd&sz=w2000",
-    official1205Cover: "https://drive.google.com/thumbnail?id=1N8W0s0uS8_f0G5w4s5F_S3_E8_v0M_V_&sz=w2000",
+    official1205Cover: "https://i.scdn.co/image/ab67616d0000b27346ea8a7ca41dfa894132e36c",
     defaultCover: "https://placehold.co/1000x1000/020617/fbbf24?text=Willwi+1205"
 };
 
 const SETTINGS_LOCAL_KEY = 'willwi_settings_backup';
 
 export const normalizeIdentifier = (val: string) => (val || '').trim().replace(/[^A-Z0-9]/gi, '').toUpperCase();
+
+/**
+ * 核心連結修復機制：確保音訊必須可播放
+ */
 export const resolveDirectLink = (url: string) => {
     if (!url || typeof url !== 'string') return '';
     let cleanUrl = url.trim();
+    
+    // Dropbox 處理邏輯
     if (cleanUrl.includes('dropbox.com')) {
+        // 先移除所有現有的參數
         let base = cleanUrl.split('?')[0];
-        base = base.replace('www.dropbox.com', 'dl.dropboxusercontent.com').replace('dropbox.com', 'dl.dropboxusercontent.com');
+        // 替換域名為直連域名
+        base = base.replace('www.dropbox.com', 'dl.dropboxusercontent.com')
+                   .replace('dropbox.com', 'dl.dropboxusercontent.com');
+        
+        // 如果是 scl/ 類型的連結 (通常包含 rlkey)，需要保留原始 key 並補上 raw=1
+        if (cleanUrl.includes('rlkey=')) {
+            const rlkey = new URL(cleanUrl).searchParams.get('rlkey');
+            return `${base}?rlkey=${rlkey}&raw=1`;
+        }
+        
         return `${base}?raw=1`;
     }
+    
+    // Google Drive 簡易處理 (如有)
+    if (cleanUrl.includes('drive.google.com/file/d/')) {
+        const id = cleanUrl.split('/d/')[1]?.split('/')[0];
+        return `https://docs.google.com/uc?export=download&id=${id}`;
+    }
+
     return cleanUrl;
 };
 
 export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const [songs, setSongs] = useState<Song[]>([]);
+  const [songs, setSongs] = useState<Song[]>(OFFICIAL_CATALOG);
   const [isSyncing, setIsSyncing] = useState(false);
   const [syncSuccess, setSyncSuccess] = useState(true);
   const [syncProgress, setSyncProgress] = useState(100);
@@ -68,7 +91,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       if (backup) return JSON.parse(backup);
       return { 
           portraitUrl: ASSETS.willwiPortrait, qr_global_payment: '', qr_line: '', 
-          qr_production: '', qr_cinema: '', qr_support: '', accessCode: '8888',
+          qr_production: '', qr_cinema: '', qr_support: '', accessCode: '8520',
           exclusiveYoutubeUrl: ''
       };
   });
@@ -82,13 +105,13 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     setSyncProgress(10);
     try {
         const list = data || songs;
-        // 分批推送避免 URL 過長或 Payload 過大
         const payload = list.map(s => ({ 
             id: s.id, title: s.title, isrc: s.isrc || '', upc: s.upc || '', 
             cover_url: s.coverUrl, audio_url: s.audioUrl || '', 
             youtube_url: s.youtubeUrl || '', lyrics: s.lyrics || '', 
             language: s.language, project_type: s.projectType, 
-            release_date: s.releaseDate, is_interactive_active: !!s.isInteractiveActive 
+            release_date: s.releaseDate, is_interactive_active: !!s.isInteractiveActive,
+            credits: s.credits || '', description: s.description || ''
         }));
         
         setSyncProgress(50);
@@ -124,9 +147,13 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const loadData = useCallback(async () => {
       setIsSyncing(true);
       setSyncProgress(10);
+      
       const localSongs = await dbService.getAllSongs();
       if (localSongs.length > 0) {
           setSongs(localSongs.sort((a,b)=>new Date(b.releaseDate).getTime() - new Date(a.releaseDate).getTime()));
+      } else {
+          await dbService.bulkAdd(OFFICIAL_CATALOG);
+          setSongs(OFFICIAL_CATALOG.sort((a,b)=>new Date(b.releaseDate).getTime() - new Date(a.releaseDate).getTime()));
       }
 
       try {
@@ -145,15 +172,18 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                   } catch(e) {} 
               }
               
-              const cloudSongs = songList.map((s: any) => ({ 
-                  ...s, 
-                  coverUrl: s.cover_url || s.coverUrl || ASSETS.defaultCover, 
-                  audioUrl: s.audio_url, youtubeUrl: s.youtube_url,
-                  language: s.language, projectType: s.project_type, 
-                  releaseDate: s.release_date, isInteractiveActive: s.is_interactive_active 
-              }));
+              if (songList.length > 0) {
+                  const cloudSongs = songList.map((s: any) => ({ 
+                      ...s, 
+                      coverUrl: s.cover_url || s.coverUrl || ASSETS.defaultCover, 
+                      audioUrl: s.audio_url || s.audioUrl || '', 
+                      youtubeUrl: s.youtube_url || s.youtubeUrl || '',
+                      language: s.language as Language, 
+                      projectType: s.project_type as ProjectType, 
+                      releaseDate: s.release_date || s.releaseDate, 
+                      isInteractiveActive: s.is_interactive_active !== undefined ? s.is_interactive_active : s.isInteractiveActive 
+                  }));
 
-              if (cloudSongs.length > 0) {
                   const sorted = cloudSongs.sort((a: any, b: any) => new Date(b.releaseDate).getTime() - new Date(a.releaseDate).getTime());
                   setSongs(sorted);
                   await dbService.clearAllSongs();
@@ -173,7 +203,6 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             const song = { ...s, id: normalizeIdentifier(s.isrc || s.id), origin: 'local' as const };
             await dbService.addSong(song);
             setSongs(prev => [song, ...prev].sort((a,b)=>new Date(b.releaseDate).getTime() - new Date(a.releaseDate).getTime()));
-            await uploadSongsToCloud([song, ...songs]);
             return true;
         },
         updateSong: async (id, s) => {
@@ -182,23 +211,19 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                 const updated = { ...existing, ...s };
                 await dbService.updateSong(updated);
                 setSongs(prev => prev.map(x => x.id === id ? updated : x));
-                await uploadSongsToCloud(songs.map(x => x.id === id ? updated : x));
             }
             return true;
         },
         deleteSong: async (id) => {
             await dbService.deleteSong(id);
-            const nextSongs = songs.filter(x => x.id !== id);
-            setSongs(nextSongs);
-            // 這裡推送剩餘的給雲端，模擬刪除效果
-            await uploadSongsToCloud(nextSongs);
+            setSongs(prev => prev.filter(x => x.id !== id));
         },
         getSong: (id) => songs.find(s => s.id === id),
         bulkAddSongs: async (s) => {
             await dbService.clearAllSongs();
             await dbService.bulkAdd(s);
             setSongs(s);
-            return await uploadSongsToCloud(s);
+            return true;
         },
         bulkAppendSongs: async (newSongs) => {
             const combined = [...songs];
@@ -208,7 +233,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             const sorted = combined.sort((a,b)=>new Date(b.releaseDate).getTime() - new Date(a.releaseDate).getTime());
             await dbService.bulkAdd(sorted);
             setSongs(sorted);
-            return await uploadSongsToCloud(sorted);
+            return true;
         },
         isSyncing, syncSuccess, syncProgress, refreshData: loadData, 
         uploadSongsToCloud, uploadSettingsToCloud, globalSettings, setGlobalSettings,

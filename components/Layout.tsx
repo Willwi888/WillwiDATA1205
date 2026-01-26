@@ -42,8 +42,8 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
           </div>
         )}
 
-        <nav className={`fixed top-0 left-0 w-full z-[100] transition-all duration-700 px-10 md:px-20 py-8 ${scrolled ? 'bg-black/80 backdrop-blur-3xl border-b border-white/5 py-5' : ''}`}>
-          <div className="max-w-[1600px] mx-auto grid grid-cols-2 md:grid-cols-3 items-center">
+        <nav className={`fixed top-0 left-0 w-full z-[100] transition-all duration-700 px-10 md:px-20 py-8 ${scrolled ? 'bg-black/90 backdrop-blur-3xl border-b border-white/5 py-5' : ''}`}>
+          <div className="max-w-[1600px] mx-auto grid grid-cols-3 items-center">
             
             {/* Logo Section - Left */}
             <div className="flex justify-start">
@@ -57,8 +57,8 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
               </Link>
             </div>
             
-            {/* Navigation Links - Centered (Desktop Only) */}
-            <div className="hidden md:flex justify-center items-center gap-14">
+            {/* Navigation Links - Centered */}
+            <div className="hidden md:flex justify-center items-center gap-12 lg:gap-16">
               <Link to="/database" className={`text-[10px] font-black uppercase tracking-[0.4em] transition-all hover:text-brand-gold ${location.pathname === '/database' ? 'text-brand-gold' : 'text-white/60 hover:text-white'}`}>作品庫</Link>
               <Link to="/interactive" className={`text-[10px] font-black uppercase tracking-[0.4em] transition-all hover:text-brand-gold ${location.pathname === '/interactive' ? 'text-brand-gold' : 'text-white/60 hover:text-white'}`}>錄製室</Link>
               <Link to="/about" className={`text-[10px] font-black uppercase tracking-[0.4em] transition-all hover:text-brand-gold ${location.pathname === '/about' ? 'text-brand-gold' : 'text-white/60 hover:text-white'}`}>關於</Link>
