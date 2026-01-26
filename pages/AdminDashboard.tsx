@@ -18,7 +18,8 @@ const AdminDashboard: React.FC = () => {
     refreshData,
     globalSettings,
     setGlobalSettings,
-    uploadSettingsToCloud
+    uploadSettingsToCloud,
+    isSyncing
   } = useData();
   const { isAdmin, enableAdmin, logoutAdmin } = useUser();
   const { showToast } = useToast();
@@ -187,7 +188,9 @@ const AdminDashboard: React.FC = () => {
       <div className="flex justify-between items-end mb-24">
         <div>
           <h1 className="text-7xl font-black text-white uppercase tracking-tighter leading-none">Management</h1>
-          <p className="text-brand-gold text-[11px] font-black uppercase tracking-[0.6em] mt-6">Database Health: {songs.length} Tracks Synchronized</p>
+          <p className={`text-brand-gold text-[11px] font-black uppercase tracking-[0.6em] mt-6 flex items-center gap-4 ${isSyncing ? 'animate-pulse' : ''}`}>
+             {isSyncing ? '🔄 Syncing with Supabase...' : `Database Health: ${songs.length} Tracks Synchronized`}
+          </p>
         </div>
         <div className="flex gap-6">
           <button onClick={() => navigate('/add')} className="h-14 px-12 bg-white text-black text-[11px] font-black uppercase tracking-widest hover:bg-brand-gold transition-all">手動錄入單曲</button>
@@ -195,53 +198,70 @@ const AdminDashboard: React.FC = () => {
         </div>
       </div>
 
-      <div className="flex border-b border-white/5 mb-16 gap-16">
-        <button onClick={() => setActiveTab('catalog')} className={`pb-8 text-[11px] font-black uppercase tracking-[0.4em] transition-all ${activeTab === 'catalog' ? 'text-brand-gold border-b-2 border-brand-gold' : 'text-slate-500 hover:text-white'}`}>作品列表總庫</button>
-        <button onClick={() => setActiveTab('discovery')} className={`pb-8 text-[11px] font-black uppercase tracking-[0.4em] transition-all ${activeTab === 'discovery' ? 'text-brand-gold border-b-2 border-brand-gold' : 'text-slate-500 hover:text-white'}`}>SPOTIFY 採集與匯入</button>
-        <button onClick={() => setActiveTab('json')} className={`pb-8 text-[11px] font-black uppercase tracking-[0.4em] transition-all ${activeTab === 'json' ? 'text-brand-gold border-b-2 border-brand-gold' : 'text-slate-500 hover:text-white'}`}>數據中心 (JSON)</button>
-        <button onClick={() => setActiveTab('settings')} className={`pb-8 text-[11px] font-black uppercase tracking-[0.4em] transition-all ${activeTab === 'settings' ? 'text-brand-gold border-b-2 border-brand-gold' : 'text-slate-500 hover:text-white'}`}>環境設置</button>
+      <div className="flex border-b border-white/5 mb-16 gap-16 overflow-x-auto no-scrollbar">
+        <button onClick={() => setActiveTab('catalog')} className={`pb-8 text-[11px] font-black uppercase whitespace-nowrap tracking-[0.4em] transition-all ${activeTab === 'catalog' ? 'text-brand-gold border-b-2 border-brand-gold' : 'text-slate-500 hover:text-white'}`}>作品列表總庫</button>
+        <button onClick={() => setActiveTab('discovery')} className={`pb-8 text-[11px] font-black uppercase whitespace-nowrap tracking-[0.4em] transition-all ${activeTab === 'discovery' ? 'text-brand-gold border-b-2 border-brand-gold' : 'text-slate-500 hover:text-white'}`}>SPOTIFY 採集與匯入</button>
+        <button onClick={() => setActiveTab('json')} className={`pb-8 text-[11px] font-black uppercase whitespace-nowrap tracking-[0.4em] transition-all ${activeTab === 'json' ? 'text-brand-gold border-b-2 border-brand-gold' : 'text-slate-500 hover:text-white'}`}>數據中心 (JSON)</button>
+        <button onClick={() => setActiveTab('settings')} className={`pb-8 text-[11px] font-black uppercase whitespace-nowrap tracking-[0.4em] transition-all ${activeTab === 'settings' ? 'text-brand-gold border-b-2 border-brand-gold' : 'text-slate-500 hover:text-white'}`}>環境設置</button>
       </div>
 
       {activeTab === 'catalog' && (
-        <div className="space-y-16 animate-fade-in">
+        <div className="space-y-12 animate-fade-in">
           <div className="relative">
             <input type="text" placeholder="SEARCH TITLE / ISRC / UPC..." className="w-full bg-transparent border-b border-white/10 py-8 text-3xl outline-none focus:border-brand-gold text-white font-black uppercase tracking-widest placeholder:text-white/5" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
             <div className="absolute right-0 bottom-8 text-[10px] font-black text-slate-700 uppercase tracking-widest">Total: {filteredSongs.length}</div>
           </div>
           
-          <div className="grid grid-cols-1 gap-6">
-              {filteredSongs.map(song => (
-                  <div key={song.id} className="flex items-center gap-12 p-10 border border-white/5 bg-white/[0.01] rounded-sm group hover:bg-white/[0.03] transition-all">
-                      <button 
-                        onClick={() => handleAdminPlay(song)}
-                        className={`w-16 h-16 rounded-full border flex items-center justify-center transition-all ${adminPlayingId === song.id ? 'bg-brand-gold text-black border-brand-gold' : 'border-white/10 text-white/30 hover:border-brand-gold hover:text-brand-gold'}`}
-                      >
-                        {adminPlayingId === song.id ? <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg> : <svg className="w-6 h-6 ml-1" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>}
-                      </button>
-
-                      <img src={song.coverUrl} className="w-24 h-24 object-cover shadow-2xl rounded-sm group-hover:scale-105 transition-transform" />
-                      
-                      <div className="flex-1">
-                          <h4 className="text-2xl font-black text-white uppercase tracking-tight mb-2">{song.title}</h4>
-                          <div className="flex items-center gap-10">
-                             <p className="text-[10px] text-slate-600 font-mono uppercase tracking-[0.2em]">
-                                {song.isrc || 'NO ISRC'} • {song.releaseDate} • {song.upc || 'NO UPC'}
-                             </p>
-                             {song.lyrics && (
-                                <span className="text-[8px] text-emerald-500 font-black uppercase tracking-widest border border-emerald-500/20 px-2 py-0.5">Lyrics Embedded</span>
-                             )}
-                          </div>
-                      </div>
-
-                      <div className="flex gap-8 items-center">
-                          <button onClick={() => updateSong(song.id, { isInteractiveActive: !song.isInteractiveActive })} className={`text-[10px] font-black uppercase py-3 px-6 rounded-sm border transition-all ${song.isInteractiveActive ? 'text-emerald-400 border-emerald-400/30' : 'text-slate-700 border-white/5'}`}>
-                             {song.isInteractiveActive ? '開放中' : '關閉中'}
-                          </button>
-                          <button onClick={() => navigate(`/add?edit=${song.id}`)} className="text-[10px] font-black uppercase text-slate-500 hover:text-white px-4">編輯</button>
-                          <button onClick={() => { if (window.confirm(`確定要將「${song.title}」移除嗎？`)) deleteSong(song.id); }} className="text-[10px] font-black uppercase text-rose-900 hover:text-rose-500 transition-colors">刪除</button>
-                      </div>
-                  </div>
-              ))}
+          <div className="bg-[#0f172a]/50 border border-white/5 rounded-sm overflow-hidden">
+              <table className="w-full text-left border-collapse">
+                  <thead className="bg-black text-[9px] font-black text-slate-500 uppercase tracking-[0.4em] border-b border-white/5">
+                      <tr>
+                          <th className="p-8 w-24">Play</th>
+                          <th className="p-8">Work Information</th>
+                          <th className="p-8 hidden md:table-cell">ISRC / Release</th>
+                          <th className="p-8 text-center">Interactive</th>
+                          <th className="p-8 text-right">Actions</th>
+                      </tr>
+                  </thead>
+                  <tbody className="divide-y divide-white/5">
+                      {filteredSongs.map(song => (
+                          <tr key={song.id} className="group hover:bg-white/[0.02] transition-colors">
+                              <td className="p-8">
+                                  <button 
+                                    onClick={() => handleAdminPlay(song)}
+                                    className={`w-12 h-12 rounded-full border flex items-center justify-center transition-all ${adminPlayingId === song.id ? 'bg-brand-gold text-black border-brand-gold' : 'border-white/10 text-white/30 hover:border-brand-gold hover:text-brand-gold'}`}
+                                  >
+                                    {adminPlayingId === song.id ? <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg> : <svg className="w-5 h-5 ml-1" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>}
+                                  </button>
+                              </td>
+                              <td className="p-8">
+                                  <div className="flex items-center gap-6">
+                                      <img src={song.coverUrl} className="w-14 h-14 object-cover rounded-sm shadow-xl" />
+                                      <div>
+                                          <h4 className="text-white font-black uppercase tracking-wider text-base">{song.title}</h4>
+                                          <p className="text-[9px] text-slate-600 font-bold uppercase tracking-widest mt-1">{song.projectType || 'Indie'}</p>
+                                      </div>
+                                  </div>
+                              </td>
+                              <td className="p-8 hidden md:table-cell">
+                                  <div className="space-y-1">
+                                      <p className="text-[10px] text-slate-400 font-mono tracking-widest">{song.isrc || 'NO ISRC'}</p>
+                                      <p className="text-[9px] text-slate-600 font-bold tracking-widest uppercase">{song.releaseDate}</p>
+                                  </div>
+                              </td>
+                              <td className="p-8 text-center">
+                                  <button onClick={() => updateSong(song.id, { isInteractiveActive: !song.isInteractiveActive })} className={`text-[10px] font-black uppercase py-2 px-6 rounded-sm border transition-all ${song.isInteractiveActive ? 'text-emerald-400 border-emerald-400/30 bg-emerald-400/5' : 'text-slate-700 border-white/5 bg-transparent'}`}>
+                                     {song.isInteractiveActive ? '開放中' : '關閉中'}
+                                  </button>
+                              </td>
+                              <td className="p-8 text-right space-x-6">
+                                  <button onClick={() => navigate(`/add?edit=${song.id}`)} className="text-[10px] font-black uppercase text-slate-500 hover:text-white">Edit</button>
+                                  <button onClick={() => { if (window.confirm(`確定要移除「${song.title}」嗎？`)) deleteSong(song.id); }} className="text-[10px] font-black uppercase text-rose-900 hover:text-rose-500">Delete</button>
+                              </td>
+                          </tr>
+                      ))}
+                  </tbody>
+              </table>
           </div>
         </div>
       )}
@@ -331,62 +351,76 @@ const AdminDashboard: React.FC = () => {
         <div className="max-w-6xl space-y-24 animate-fade-in">
           
           {/* 金流 QR Code 設置區域 */}
-          <div className="space-y-12">
-            <div>
-              <h3 className="text-brand-gold font-black text-2xl uppercase tracking-[0.2em] mb-4">金流 QR Code 與驗證設置</h3>
-              <p className="text-slate-500 text-[10px] uppercase tracking-widest">在此管理不同方案的收款圖片與通行碼。</p>
+          <div className="space-y-16">
+            <div className="border-l-4 border-brand-gold pl-8 py-2">
+              <h3 className="text-white font-black text-3xl uppercase tracking-[0.2em] mb-2">金流 QR Code 與驗證設置</h3>
+              <p className="text-slate-500 text-[11px] uppercase tracking-widest font-bold">在此管理不同方案的收款圖片與錄製室解鎖通行碼。</p>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
               {[
-                { id: 'qr_support', label: '熱能贊助 ($100)', key: 'support' },
-                { id: 'qr_production', label: '手作對時 ($320)', key: 'production' },
-                { id: 'qr_cinema', label: '大師影視 ($2800)', key: 'cinema' },
-                { id: 'qr_global_payment', label: '通用支付 (Global)', key: 'global' },
+                { id: 'qr_support', label: '熱能贊助 ($100)', key: 'support', color: 'slate' },
+                { id: 'qr_production', label: '手作對時 ($320)', key: 'production', color: 'brand-gold' },
+                { id: 'qr_cinema', label: '大師影視 ($2800)', key: 'cinema', color: 'brand-accent' },
+                { id: 'qr_global_payment', label: '通用支付 (Global)', key: 'global', color: 'white' },
               ].map((qr) => (
-                <div key={qr.id} className="bg-[#0f172a] border border-white/5 p-8 rounded-sm text-center flex flex-col items-center">
-                  <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-6">{qr.label}</h4>
-                  <div className="w-full aspect-square bg-black/40 border border-white/10 rounded-sm mb-6 flex items-center justify-center overflow-hidden">
+                <div key={qr.id} className="bg-[#0f172a] border border-white/5 p-8 rounded-sm text-center flex flex-col items-center hover:border-white/20 transition-all">
+                  <h4 className={`text-[10px] font-black uppercase tracking-widest mb-6 ${qr.key === 'production' ? 'text-brand-gold' : 'text-slate-400'}`}>{qr.label}</h4>
+                  <div className="w-full aspect-square bg-black/60 border border-white/10 rounded-sm mb-8 flex items-center justify-center overflow-hidden p-4">
                     {(globalSettings as any)[qr.id] ? (
                       <img src={(globalSettings as any)[qr.id]} className="w-full h-full object-contain" alt="" />
                     ) : (
-                      <span className="text-[9px] text-slate-800 font-black">NO IMAGE</span>
+                      <div className="text-center space-y-2">
+                          <svg className="w-8 h-8 text-white/5 mx-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+                          <span className="text-[9px] text-slate-800 font-black tracking-widest uppercase">NOT CONFIGURED</span>
+                      </div>
                     )}
                   </div>
-                  <label className="w-full py-3 bg-white/5 text-white font-black text-[9px] uppercase tracking-widest hover:bg-white hover:text-black transition-all cursor-pointer">
-                    UPLOAD QR
+                  <label className="w-full py-4 bg-white/5 text-white font-black text-[10px] uppercase tracking-widest hover:bg-white hover:text-black transition-all cursor-pointer border border-white/10">
+                    SELECT QR IMAGE
                     <input type="file" className="hidden" accept="image/*" onChange={handleQrUpload(qr.id as any)} />
                   </label>
                 </div>
               ))}
             </div>
 
-            <div className="bg-[#0f172a] p-12 border border-white/5 rounded-sm flex flex-col md:flex-row items-center gap-12">
-               <div className="flex-1">
-                  <h4 className="text-white font-black text-sm uppercase tracking-widest mb-2">系統通行碼 (Access Code)</h4>
-                  <p className="text-slate-500 text-[10px] uppercase tracking-widest">當使用者完成轉帳後，系統會要求輸入此代碼以完成解鎖。</p>
+            <div className="bg-[#0f172a] p-16 border border-white/5 rounded-sm flex flex-col md:flex-row items-center gap-16">
+               <div className="flex-1 space-y-4">
+                  <h4 className="text-white font-black text-xl uppercase tracking-widest">系統通行碼 (Access Code)</h4>
+                  <p className="text-slate-500 text-[11px] uppercase tracking-widest font-bold leading-loose max-w-xl">
+                      當使用者完成轉帳後，系統會要求輸入此代碼以完成解鎖。<br/>
+                      建議定期更換以維持安全性。目前的解鎖碼將同步至所有客戶端。
+                  </p>
                </div>
-               <input 
-                  type="text" 
-                  className="bg-black border border-brand-gold/50 px-8 py-4 text-white font-mono text-4xl text-center w-full md:w-64 outline-none focus:border-brand-gold"
-                  value={globalSettings.accessCode}
-                  onChange={(e) => setGlobalSettings({ ...globalSettings, accessCode: e.target.value })}
-               />
+               <div className="flex flex-col items-center gap-4">
+                   <input 
+                      type="text" 
+                      className="bg-black border border-brand-gold/50 px-10 py-6 text-brand-gold font-mono text-5xl text-center w-full md:w-80 outline-none focus:border-brand-gold shadow-[0_0_40px_rgba(251,191,36,0.1)]"
+                      value={globalSettings.accessCode}
+                      onChange={(e) => setGlobalSettings({ ...globalSettings, accessCode: e.target.value })}
+                   />
+                   <span className="text-[9px] text-slate-700 font-black tracking-[0.4em] uppercase">Security Level: High</span>
+               </div>
             </div>
 
             <button 
               onClick={handleSaveSettings}
-              className="w-full py-8 bg-brand-gold text-black font-black text-xs uppercase tracking-[0.5em] hover:bg-white transition-all shadow-[0_0_50px_rgba(251,191,36,0.2)]"
+              className="w-full py-10 bg-brand-gold text-black font-black text-sm uppercase tracking-[0.6em] hover:bg-white transition-all shadow-[0_0_80px_rgba(251,191,36,0.15)] rounded-sm"
             >
-               儲存並同步環境設置 (SAVE SETTINGS)
+               儲存並同步環境設置 (SAVE & SYNC SETTINGS)
             </button>
           </div>
 
-          <div className="bg-[#0f172a] p-16 border border-white/5 space-y-12 rounded-sm">
-              <h3 className="text-brand-gold font-black text-xs uppercase tracking-[0.5em]">系統環境與雲端同步</h3>
-              <div className="space-y-8">
-                 <button onClick={refreshData} className="w-full h-16 border border-white/10 text-white font-black text-[11px] uppercase tracking-widest hover:bg-white hover:text-black transition-all">重新從雲端伺服器 (Supabase) 獲取最新 Catalog</button>
-                 <p className="text-[10px] text-slate-700 text-center uppercase tracking-widest">此操作會與雲端主庫進行對比並合併數據</p>
+          <div className="bg-[#0f172a]/30 p-20 border border-white/5 space-y-16 rounded-sm text-center">
+              <div className="space-y-4">
+                  <h3 className="text-brand-gold font-black text-xs uppercase tracking-[0.6em]">系統資料與雲端主庫同步</h3>
+                  <p className="text-slate-600 text-[10px] uppercase tracking-widest max-w-2xl mx-auto font-bold leading-relaxed">
+                      若發現資料與無痕模式或其他裝置不一致，請執行強制刷新。<br/>
+                      系統將從雲端伺服器 (Supabase) 重新拉取最新的作品集與配置數據。
+                  </p>
+              </div>
+              <div className="flex justify-center">
+                 <button onClick={refreshData} className="px-20 h-20 border border-white/20 text-white font-black text-[11px] uppercase tracking-[0.5em] hover:bg-white hover:text-black transition-all">強制刷新雲端數據 (FORCE REFRESH)</button>
               </div>
           </div>
 
