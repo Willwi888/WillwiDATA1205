@@ -1,3 +1,4 @@
+
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';
@@ -13,3 +14,11 @@ root.render(
     <App />
   </React.StrictMode>
 );
+
+// Optional: Force removal of splash screen if the native 'load' event is delayed
+setTimeout(() => {
+  const splash = document.getElementById('splash-screen');
+  if (splash && !splash.classList.contains('animate-splash-exit')) {
+    splash.classList.add('animate-splash-exit');
+  }
+}, 5000);

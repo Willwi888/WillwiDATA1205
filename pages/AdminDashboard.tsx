@@ -1,4 +1,3 @@
-
 import React, { useRef, useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useData, resolveDirectLink } from '../context/DataContext';
@@ -27,8 +26,9 @@ const AdminDashboard: React.FC = () => {
   
   const [activeTab, setActiveTab] = useState<'catalog' | 'json' | 'discovery' | 'settings' | 'backup'>('catalog');
   const [passwordInput, setPasswordInput] = useState('');
+  const [loginError, setLoginError] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
-  const [upcFilter, setUpcFilter] = useState(''); // New UPC Filter state
+  const [upcFilter, setUpcFilter] = useState('');
   const [jsonInput, setJsonInput] = useState('');
   
   // Selection State
@@ -39,20 +39,22 @@ const AdminDashboard: React.FC = () => {
   const [spotifyQuery, setSpotifyQuery] = useState('');
   const [spotifyResults, setSpotifyResults] = useState<SpotifyTrack[]>([]);
   const [isSearchingSpotify, setIsSearchingSpotify] = useState(false);
+  const [isImporting, setIsImporting] = useState(false);
 
   const [adminPlayingId, setAdminPlayingId] = useState<string | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const filteredSongs = songs.filter(s => {
-    const matchesSearch = s.title.toLowerCase().includes(searchTerm.toLowerCase()) || 
-      (s.isrc && s.isrc.includes(searchTerm)) ||
-      (s.upc && s.upc.includes(searchTerm));
-    
-    const matchesUpc = !upcFilter || (s.upc && s.upc.includes(upcFilter));
-    
-    return matchesSearch && matchesUpc;
-  });
+  const filteredSongs = useMemo(() => {
+    return songs.filter(s => {
+      const matchesSearch = s.title.toLowerCase().includes(searchTerm.toLowerCase()) || 
+        (s.isrc && s.isrc.toLowerCase().includes(searchTerm.toLowerCase())) ||
+        (s.upc && s.upc.toLowerCase().includes(searchTerm.toLowerCase()));
+      
+      const matchesUpc = !upcFilter || (s.upc && s.upc.includes(upcFilter));
+      
+      return matchesSearch && matchesUpc;
+    });
+  }, [songs, searchTerm, upcFilter]);
 
   const handleAdminPlay = (song: Song) => {
     if (!audioRef.current) return;
@@ -83,12 +85,12 @@ const AdminDashboard: React.FC = () => {
   };
 
   const handleSaveSettings = async () => {
-      try {
-          await uploadSettingsToCloud(globalSettings);
-          showToast("全站設定已同步至雲端");
-      } catch (e) {
-          showToast("同步失敗", "error");
-      }
+    try {
+      await uploadSettingsToCloud(globalSettings);
+      showToast("全站設定已同步至雲端");
+    } catch (e) {
+      showToast("同步失敗", "error");
+    }
   };
 
   const handleSpotifySearch = async () => {
@@ -150,29 +152,44 @@ const AdminDashboard: React.FC = () => {
   const handleBulkImportSpotify = async () => {
     const toImport = spotifyResults.filter(t => selectedSpotifyIds.has(t.id));
     if (toImport.length === 0) return;
-    const formattedSongs: Song[] = toImport.map(t => ({
-      id: t.external_ids?.isrc || t.id,
-      title: t.name,
-      coverUrl: t.album?.images?.[0]?.url || '',
-      language: Language.Mandarin,
-      projectType: ProjectType.Indie,
-      releaseCategory: t.album?.total_tracks > 1 ? ReleaseCategory.Album : ReleaseCategory.Single,
-      releaseDate: t.album?.release_date || new Date().toISOString().split('T')[0],
-      isEditorPick: false,
-      isInteractiveActive: true,
-      isrc: t.external_ids?.isrc || '',
-      upc: t.album?.external_ids?.upc || '',
-      spotifyLink: t.external_urls?.spotify || '',
-      releaseCompany: t.album?.label || '',
-      publisher: '',
-      credits: `© ${new Date().getFullYear()} Willwi Music. All rights reserved.`,
-      origin: 'local'
-    }));
-    await bulkAppendSongs(formattedSongs);
-    showToast(`已匯入 ${formattedSongs.length} 首作品`);
-    setSpotifyResults([]);
-    setSelectedSpotifyIds(new Set());
-    setActiveTab('catalog');
+    
+    setIsImporting(true);
+    showToast(`正在匯入 ${toImport.length} 首選取作品...`);
+    
+    const formattedSongs: Song[] = toImport.map(t => {
+      const artistNames = t.artists.map(a => a.name).join(', ');
+      return {
+        id: t.external_ids?.isrc || t.id,
+        title: t.name,
+        coverUrl: t.album?.images?.[0]?.url || '',
+        language: Language.Mandarin,
+        projectType: ProjectType.Indie,
+        // Defaulting to Single for track search imports
+        releaseCategory: ReleaseCategory.Single,
+        releaseDate: t.album?.release_date || new Date().toISOString().split('T')[0],
+        isEditorPick: false,
+        isInteractiveActive: true,
+        isrc: t.external_ids?.isrc || '',
+        upc: t.album?.external_ids?.upc || '',
+        spotifyLink: t.external_urls?.spotify || '',
+        releaseCompany: '',
+        publisher: '',
+        credits: `Artist: ${artistNames} | © ${new Date().getFullYear()} Willwi Music. All rights reserved.`,
+        origin: 'local' as const
+      };
+    });
+
+    try {
+        await bulkAppendSongs(formattedSongs);
+        showToast(`成功匯入 ${formattedSongs.length} 首作品至資料庫`);
+        setSpotifyResults([]);
+        setSelectedSpotifyIds(new Set());
+        setActiveTab('catalog'); // Navigate to catalog to show results
+    } catch (e) {
+        showToast("匯入失敗，請稍後再試", "error");
+    } finally {
+        setIsImporting(false);
+    }
   };
 
   const handleJsonImport = async () => {
@@ -194,8 +211,9 @@ const AdminDashboard: React.FC = () => {
       <div className="min-h-screen flex items-center justify-center bg-black px-8">
         <div className="p-16 max-w-md w-full text-center space-y-12 bg-white/[0.02] border border-white/5 rounded-sm">
           <h2 className="text-4xl font-black text-white uppercase tracking-[0.3em]">Console</h2>
-          <form onSubmit={(e) => { e.preventDefault(); if (passwordInput === '8520') enableAdmin(); else setPasswordInput(''); }} className="space-y-8">
+          <form onSubmit={(e) => { e.preventDefault(); if (passwordInput === '8520') enableAdmin(); else setLoginError('密碼錯誤'); }} className="space-y-8">
             <input type="password" placeholder="ACCESS CODE" className="w-full bg-black border-b border-white/20 px-4 py-8 text-white text-center tracking-[1em] font-mono text-4xl outline-none focus:border-brand-gold" value={passwordInput} onChange={(e) => setPasswordInput(e.target.value)} autoFocus />
+            {loginError && <p className="text-rose-500 text-[10px] font-black uppercase tracking-widest">{loginError}</p>}
             <button className="w-full py-6 bg-brand-gold text-slate-950 font-black uppercase tracking-[0.4em] text-xs hover:bg-white transition-all">Identify Manager</button>
           </form>
         </div>
@@ -204,10 +222,10 @@ const AdminDashboard: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-black pt-24 pb-40 px-10 md:px-20">
+    <div className="min-h-screen bg-black pt-24 pb-40 px-10 md:px-20 animate-fade-in">
       <audio ref={audioRef} onEnded={() => setAdminPlayingId(null)} crossOrigin="anonymous" />
       
-      {/* Header Section */}
+      {/* Refined Management Header */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-end mb-16 gap-10">
         <div>
           <h1 className="text-8xl font-black text-white uppercase tracking-tighter leading-none mb-4">MANAGEMENT</h1>
@@ -219,12 +237,12 @@ const AdminDashboard: React.FC = () => {
           </div>
         </div>
         <div className="flex gap-4">
-          <button onClick={() => navigate('/add')} className="h-12 px-8 bg-white text-black text-[10px] font-black uppercase tracking-[0.2em] hover:bg-brand-gold transition-all">手動錄入單曲</button>
+          <button onClick={() => navigate('/add')} className="h-12 px-8 bg-white text-black text-[10px] font-black uppercase tracking-[0.2em] hover:bg-brand-gold transition-all shadow-xl">手動錄入單曲</button>
           <button onClick={logoutAdmin} className="h-12 px-6 border border-white/10 text-white/50 text-[10px] font-black uppercase tracking-[0.2em] hover:bg-rose-900/20 transition-all">安全退出</button>
         </div>
       </div>
 
-      {/* Tabs */}
+      {/* Navigation Tabs */}
       <div className="flex border-b border-white/5 mb-16 gap-12 overflow-x-auto no-scrollbar">
         {[
           { id: 'catalog', label: '作品列表總庫' },
@@ -246,45 +264,46 @@ const AdminDashboard: React.FC = () => {
 
       {activeTab === 'catalog' && (
         <div className="space-y-10 animate-fade-in">
-          <div className="flex flex-col lg:flex-row justify-between items-end border-b border-white/5 pb-6 gap-6">
+          {/* Enhanced Controls Bar with UPC Filter */}
+          <div className="flex flex-col lg:flex-row justify-between items-end border-b border-white/5 pb-8 gap-6">
             <div className="flex-1 w-full max-w-2xl">
               <input 
                 type="text" 
                 placeholder="SEARCH TITLE / ISRC / UPC..." 
-                className="w-full bg-transparent py-4 text-3xl outline-none text-white font-black uppercase tracking-widest placeholder:text-white/5" 
+                className="w-full bg-transparent py-4 text-3xl outline-none text-white font-black uppercase tracking-widest placeholder:text-white/10 focus:placeholder:text-white/20" 
                 value={searchTerm} 
                 onChange={e => { setSearchTerm(e.target.value); setSelectedCatalogIds(new Set()); }} 
               />
             </div>
             
-            <div className="flex flex-wrap gap-4 items-center mb-1">
-              {/* UPC Filter Option */}
-              <div className="flex items-center gap-2">
-                <span className="text-[9px] text-slate-500 font-black uppercase tracking-widest">UPC Filter:</span>
+            <div className="flex flex-wrap gap-6 items-center mb-1">
+              <div className="flex items-center gap-3">
+                <span className="text-[10px] text-slate-600 font-black uppercase tracking-widest">UPC Filter:</span>
                 <input 
                   type="text" 
                   placeholder="EXACT UPC..." 
-                  className="bg-white/5 border border-white/10 px-4 py-2 text-xs text-white font-bold outline-none focus:border-brand-gold rounded-sm w-40"
+                  className="bg-white/5 border border-white/10 px-4 py-2 text-[11px] text-white font-black outline-none focus:border-brand-gold rounded-sm w-44 placeholder:text-white/20 transition-all"
                   value={upcFilter}
                   onChange={e => { setUpcFilter(e.target.value); setSelectedCatalogIds(new Set()); }}
                 />
               </div>
 
               {selectedCatalogIds.size > 0 && (
-                <div className="flex gap-4 animate-fade-in">
-                  <button onClick={handleBulkToggleInteractive} className="h-10 px-6 bg-emerald-600/20 text-emerald-400 border border-emerald-600/50 text-[10px] font-black uppercase tracking-widest hover:bg-emerald-600 hover:text-white transition-all">切換互動狀態 ({selectedCatalogIds.size})</button>
-                  <button onClick={handleBulkDelete} className="h-10 px-6 bg-rose-600/20 text-rose-400 border border-rose-600/50 text-[10px] font-black uppercase tracking-widest hover:bg-rose-600 hover:text-white transition-all">批次刪除 ({selectedCatalogIds.size})</button>
+                <div className="flex gap-3 animate-fade-in">
+                  <button onClick={handleBulkToggleInteractive} className="h-10 px-5 bg-emerald-600/10 text-emerald-400 border border-emerald-600/30 text-[10px] font-black uppercase tracking-widest hover:bg-emerald-600 hover:text-white transition-all">切換互動 ({selectedCatalogIds.size})</button>
+                  <button onClick={handleBulkDelete} className="h-10 px-5 bg-rose-600/10 text-rose-400 border border-rose-600/30 text-[10px] font-black uppercase tracking-widest hover:bg-rose-600 hover:text-white transition-all">批次刪除 ({selectedCatalogIds.size})</button>
                 </div>
               )}
             </div>
           </div>
           
-          <div className="overflow-x-auto custom-scrollbar">
-            <table className="w-full text-left border-collapse">
+          {/* Catalog Table */}
+          <div className="overflow-x-auto custom-scrollbar bg-[#0a0a0a] border border-white/5 rounded-sm shadow-2xl">
+            <table className="w-full text-left border-collapse min-w-[1200px]">
                 <thead>
-                    <tr className="bg-white/[0.02] text-[9px] font-black text-slate-500 uppercase tracking-[0.4em] border-y border-white/5">
+                    <tr className="bg-white/[0.02] text-[10px] font-black text-slate-500 uppercase tracking-[0.5em] border-b border-white/10">
                         <th className="p-8 w-12 text-center">
-                          <input type="checkbox" className="w-4 h-4 rounded-sm bg-black border border-white/20 checked:bg-brand-gold" onChange={toggleAllCatalog} checked={selectedCatalogIds.size > 0 && selectedCatalogIds.size === filteredSongs.length} />
+                          <input type="checkbox" className="w-4 h-4 rounded-sm bg-black border border-white/20 checked:bg-brand-gold cursor-pointer transition-all" onChange={toggleAllCatalog} checked={selectedCatalogIds.size > 0 && selectedCatalogIds.size === filteredSongs.length} />
                         </th>
                         <th className="p-8 w-24">AUDITION</th>
                         <th className="p-8">WORK INFORMATION</th>
@@ -297,49 +316,62 @@ const AdminDashboard: React.FC = () => {
                     {filteredSongs.map(song => (
                         <tr key={song.id} className={`group hover:bg-white/[0.01] transition-all duration-300 ${selectedCatalogIds.has(song.id) ? 'bg-brand-gold/5' : ''}`}>
                             <td className="p-8 text-center">
-                              <input type="checkbox" className="w-4 h-4 rounded-sm bg-black border border-white/20 checked:bg-brand-gold" checked={selectedCatalogIds.has(song.id)} onChange={() => toggleCatalogSelection(song.id)} />
+                              <input type="checkbox" className="w-4 h-4 rounded-sm bg-black border border-white/20 checked:bg-brand-gold cursor-pointer transition-all" checked={selectedCatalogIds.has(song.id)} onChange={() => toggleCatalogSelection(song.id)} />
                             </td>
                             <td className="p-8">
                                 <button 
                                   onClick={() => handleAdminPlay(song)}
-                                  className={`w-12 h-12 rounded-full border flex items-center justify-center transition-all ${adminPlayingId === song.id ? 'bg-brand-gold text-black border-brand-gold shadow-[0_0_20px_rgba(251,191,36,0.3)]' : 'border-white/10 text-white/20 hover:border-white hover:text-white hover:scale-110'}`}
+                                  className={`w-14 h-14 rounded-full border flex items-center justify-center transition-all ${adminPlayingId === song.id ? 'bg-brand-gold text-black border-brand-gold shadow-[0_0_30px_rgba(251,191,36,0.4)] scale-110' : 'border-white/10 text-white/30 hover:border-white hover:text-white hover:scale-110'}`}
                                 >
-                                  {adminPlayingId === song.id ? <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg> : <svg className="w-5 h-5 ml-1" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>}
+                                  {adminPlayingId === song.id ? (
+                                    <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
+                                  ) : (
+                                    <svg className="w-6 h-6 ml-1" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+                                  )}
                                 </button>
                             </td>
                             <td className="p-8">
-                                <div className="flex items-center gap-6">
-                                    <div className="w-14 h-14 bg-slate-900 border border-white/10 overflow-hidden shadow-2xl shrink-0">
-                                      <img src={song.coverUrl} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-[4s]" alt="" />
+                                <div className="flex items-center gap-8">
+                                    <div className="w-16 h-16 bg-slate-900 border border-white/10 overflow-hidden shadow-2xl shrink-0 rounded-sm">
+                                      <img src={song.coverUrl} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-[5s] ease-out" alt="" />
                                     </div>
                                     <div>
-                                        <h4 className="text-white font-black uppercase tracking-wider text-base mb-1 group-hover:text-brand-gold transition-colors">{song.title}</h4>
-                                        <div className="flex items-center gap-3">
-                                            <p className="text-[9px] text-slate-600 font-bold uppercase tracking-widest">{song.projectType || '獨立發行'}</p>
-                                            {song.videoUrl && <span className="text-[7px] bg-brand-gold text-black px-2 py-0.5 font-black rounded-sm">MP4 上檔</span>}
+                                        <h4 className="text-white font-black uppercase tracking-wider text-lg mb-2 group-hover:text-brand-gold transition-colors">{song.title}</h4>
+                                        <div className="flex items-center gap-4">
+                                            <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">{song.projectType || '獨立發行'}</p>
+                                            {song.videoUrl && <span className="text-[8px] bg-brand-gold text-black px-2 py-0.5 font-black rounded-[1px] shadow-[0_0_10px_rgba(251,191,36,0.3)]">VIDEO ASSET</span>}
                                         </div>
                                     </div>
                                 </div>
                             </td>
                             <td className="p-8">
-                                <div className="space-y-1">
-                                    <p className="text-[10px] text-slate-400 font-mono tracking-widest">{song.isrc || 'NO ISRC'}</p>
-                                    <div className="flex flex-wrap gap-2">
-                                        <p className="text-[9px] text-slate-600 font-black tracking-widest uppercase">{song.releaseDate}</p>
-                                        <p className="text-[9px] text-slate-700 font-bold uppercase tracking-widest">UPC: {song.upc || 'N/A'}</p>
+                                <div className="space-y-2">
+                                    <p className="text-[11px] text-slate-400 font-mono tracking-widest">{song.isrc || 'NO ISRC REGISTERED'}</p>
+                                    <div className="flex flex-wrap gap-4 items-center">
+                                        <p className="text-[10px] text-slate-600 font-black tracking-[0.2em] uppercase">{song.releaseDate}</p>
+                                        <div className="h-3 w-[1px] bg-white/10"></div>
+                                        <p className="text-[10px] text-slate-500 font-bold uppercase tracking-[0.2em]">UPC: {song.upc || 'N/A'}</p>
                                     </div>
-                                    {song.lyrics && <span className="text-[7px] border border-emerald-500/30 text-emerald-500/60 px-2 py-0.5 rounded-sm font-black uppercase tracking-widest">LYRICS EMBEDDED</span>}
+                                    {song.lyrics && (
+                                      <div className="inline-flex items-center gap-2 px-2 py-0.5 border border-emerald-500/20 bg-emerald-500/5 rounded-sm">
+                                        <div className="w-1 h-1 bg-emerald-500 rounded-full animate-pulse"></div>
+                                        <span className="text-[8px] text-emerald-500 font-black uppercase tracking-widest">LYRICS ACTIVE</span>
+                                      </div>
+                                    )}
                                 </div>
                             </td>
                             <td className="p-8 text-center">
-                                <button onClick={() => updateSong(song.id, { isInteractiveActive: !song.isInteractiveActive })} className={`text-[9px] font-black uppercase py-2 px-5 rounded-sm border transition-all ${song.isInteractiveActive ? 'text-emerald-400 border-emerald-400/30 bg-emerald-400/5 hover:bg-emerald-400 hover:text-black' : 'text-slate-700 border-white/5 bg-transparent'}`}>
-                                   {song.isInteractiveActive ? '開放中' : '關閉中'}
+                                <button 
+                                  onClick={() => updateSong(song.id, { isInteractiveActive: !song.isInteractiveActive })} 
+                                  className={`text-[10px] font-black uppercase py-3 px-8 rounded-[2px] border transition-all duration-500 ${song.isInteractiveActive ? 'text-emerald-400 border-emerald-400/30 bg-emerald-400/5 hover:bg-emerald-400 hover:text-black hover:shadow-[0_0_20px_rgba(52,211,153,0.3)]' : 'text-slate-700 border-white/5 bg-transparent hover:border-white/20 hover:text-white'}`}
+                                >
+                                   {song.isInteractiveActive ? 'STUDIO OPEN' : 'RESTRICTED'}
                                 </button>
                             </td>
                             <td className="p-8 text-right">
-                                <div className="flex justify-end items-center gap-6">
-                                  <button onClick={() => navigate(`/add?edit=${song.id}`)} className="text-[10px] font-black uppercase text-slate-600 hover:text-white transition-colors">EDIT</button>
-                                  <button onClick={() => { if (window.confirm(`確定要移除「${song.title}」嗎？`)) deleteSong(song.id); }} className="text-[10px] font-black uppercase text-rose-900/60 hover:text-rose-500 transition-colors">DELETE</button>
+                                <div className="flex justify-end items-center gap-10">
+                                  <button onClick={() => navigate(`/add?edit=${song.id}`)} className="text-[11px] font-black uppercase text-slate-500 hover:text-white transition-colors tracking-widest">EDIT</button>
+                                  <button onClick={() => { if (window.confirm(`確定要移除「${song.title}」嗎？`)) deleteSong(song.id); }} className="text-[11px] font-black uppercase text-rose-900/40 hover:text-rose-500 transition-colors tracking-widest">DELETE</button>
                                 </div>
                             </td>
                         </tr>
@@ -350,92 +382,64 @@ const AdminDashboard: React.FC = () => {
         </div>
       )}
 
-      {/* Settings Tab Overhaul */}
-      {activeTab === 'settings' && (
-        <div className="max-w-[1400px] mx-auto space-y-24 animate-fade-in">
-          <div className="space-y-4">
-            <h3 className="text-white font-black text-3xl uppercase tracking-widest">環境設置與資產管理</h3>
-            <p className="text-slate-600 text-[11px] uppercase tracking-widest font-bold">管理各項專案的收款 QR 與錄製室解鎖機制</p>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-            {[
-              { id: 'qr_support', label: '熱能贊助 ($100)' },
-              { id: 'qr_production', label: '手作對時 ($320)' },
-              { id: 'qr_cinema', label: '大師影視 ($2800)' },
-              { id: 'qr_global_payment', label: '通用支付 (GLOBAL)' },
-            ].map((qr) => (
-              <div key={qr.id} className="bg-[#0f172a] border border-white/5 p-8 rounded-sm text-center flex flex-col items-center group hover:border-brand-gold/20 transition-all">
-                <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-10 group-hover:text-brand-gold transition-colors">{qr.label}</h4>
-                <div className="w-full aspect-square bg-black/60 border border-white/10 rounded-sm mb-10 flex flex-col items-center justify-center p-4 relative group-hover:border-brand-gold/30 transition-all">
-                  {(globalSettings as any)[qr.id] ? (
-                    <img src={(globalSettings as any)[qr.id]} className="w-full h-full object-contain" alt="" />
-                  ) : (
-                    <div className="text-center opacity-20 flex flex-col items-center gap-4">
-                        <svg className="w-10 h-10 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
-                        <span className="text-[9px] font-black uppercase tracking-[0.4em]">NOT CONFIGURED</span>
-                    </div>
-                  )}
-                </div>
-                <label className="w-full py-4 bg-white/5 text-white/50 font-black text-[9px] uppercase tracking-[0.4em] hover:bg-white hover:text-black transition-all cursor-pointer border border-white/10">
-                  上傳 QR CODE
-                  <input type="file" className="hidden" accept="image/*" onChange={handleQrUpload(qr.id as any)} />
-                </label>
-              </div>
-            ))}
-          </div>
-
-          <div className="bg-[#0f172a] p-16 border border-white/5 rounded-sm flex flex-col md:flex-row items-center gap-20">
-             <div className="flex-1 space-y-6">
-                <h4 className="text-white font-black text-2xl uppercase tracking-widest">系統解鎖通行碼 (ACCESS CODE)</h4>
-                <p className="text-slate-600 text-[11px] uppercase tracking-widest font-bold leading-loose max-w-lg">
-                    這是系統模擬高級解鎖功能的最後一道門檻。<br/>
-                    目前的設定將即時同步至雲端主庫，確保所有客戶端都能讀取最新的驗證邏輯。
-                </p>
-             </div>
-             <div className="flex flex-col items-center gap-4">
-                 <div className="bg-black border border-white/20 p-8 min-w-[300px] flex flex-col items-center gap-4 group hover:border-brand-gold transition-all duration-700">
-                    <input 
-                        type="text" 
-                        className="bg-transparent text-white font-mono text-7xl text-center w-full outline-none tracking-widest"
-                        value={globalSettings.accessCode}
-                        onChange={(e) => setGlobalSettings({ ...globalSettings, accessCode: e.target.value })}
-                    />
-                    <div className="h-[1px] w-full bg-white/10"></div>
-                    <span className="text-[9px] text-slate-700 font-black tracking-[0.4em] uppercase">SYSTEM ENCRYPTION: ACTIVE</span>
-                 </div>
-             </div>
-          </div>
-
-          <div className="pt-20 border-t border-white/5 space-y-12">
-              <div className="text-center space-y-4">
-                  <h3 className="text-slate-600 font-black text-[11px] uppercase tracking-[0.8em]">DATABASE MAINTENANCE</h3>
-                  <p className="text-slate-800 text-[9px] uppercase tracking-widest max-w-xl mx-auto leading-relaxed font-bold">
-                      若發現不同裝置間的資料不一致，請執行強制同步。<br/>
-                      這會清空目前的本地快取並重新從 SUPABASE 提取最新狀態。
-                  </p>
-              </div>
-              <div className="flex justify-center gap-6">
-                 <button onClick={refreshData} className="px-16 h-14 border border-white/5 text-slate-600 font-black text-[10px] uppercase tracking-[0.4em] hover:text-white hover:border-white/20 transition-all">強制刷新雲端數據 (FORCE REFRESH)</button>
-                 <button onClick={handleSaveSettings} className="px-16 h-14 bg-brand-gold text-black font-black text-[10px] uppercase tracking-[0.4em] hover:bg-white transition-all shadow-2xl">儲存並同步資產 (SAVE & SYNC)</button>
-              </div>
-          </div>
-        </div>
-      )}
-
       {/* Discovery Tab */}
       {activeTab === 'discovery' && (
-        <div className="max-w-4xl mx-auto space-y-12 animate-fade-in">
-           <input type="text" placeholder="SPOTIFY TRACK TITLE..." className="w-full bg-black border border-white/10 px-8 py-6 text-3xl outline-none focus:border-brand-gold text-white font-black uppercase tracking-widest" value={spotifyQuery} onChange={e => setSpotifyQuery(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleSpotifySearch()} />
-           <button onClick={handleSpotifySearch} className="w-full py-6 bg-brand-gold text-black font-black uppercase tracking-[0.4em]">SEARCH SPOTIFY</button>
+        <div className="max-w-4xl mx-auto space-y-12 animate-fade-in py-12">
+           <div className="relative group">
+             <input 
+               type="text" 
+               placeholder="ENTER TRACK TITLE FOR SPOTIFY HARVEST..." 
+               className="w-full bg-black border border-white/10 px-8 py-8 text-4xl outline-none focus:border-brand-gold text-white font-black uppercase tracking-widest placeholder:text-white/5 transition-all" 
+               value={spotifyQuery} 
+               onChange={e => setSpotifyQuery(e.target.value)} 
+               onKeyDown={e => e.key === 'Enter' && handleSpotifySearch()} 
+             />
+             <div className="absolute bottom-0 left-0 w-0 group-focus-within:w-full h-1 bg-brand-gold transition-all duration-700"></div>
+           </div>
+           <button 
+             onClick={handleSpotifySearch} 
+             disabled={isSearchingSpotify}
+             className="w-full py-8 bg-brand-gold text-black font-black uppercase tracking-[0.5em] text-xs hover:bg-white transition-all shadow-2xl disabled:opacity-50"
+           >
+              {isSearchingSpotify ? 'SCANNING SYSTEM...' : 'INITIATE SPOTIFY SCAN'}
+           </button>
+           
            {spotifyResults.length > 0 && (
-             <div className="space-y-6">
-                <button onClick={handleBulkImportSpotify} className="w-full py-4 bg-white text-black font-black uppercase tracking-widest">BULK IMPORT SELECTED</button>
-                <div className="grid grid-cols-2 gap-4">
+             <div className="space-y-8 pt-12 animate-fade-in-up">
+                <div className="flex justify-between items-center border-b border-white/5 pb-6">
+                   <h3 className="text-white font-black text-xs uppercase tracking-widest">HARVESTED RESULTS ({spotifyResults.length})</h3>
+                   <div className="flex gap-4">
+                      <button 
+                        onClick={() => {
+                          if (selectedSpotifyIds.size === spotifyResults.length) setSelectedSpotifyIds(new Set());
+                          else setSelectedSpotifyIds(new Set(spotifyResults.map(t => t.id)));
+                        }} 
+                        className="px-8 py-4 border border-white/10 text-white/60 font-black uppercase tracking-widest text-[10px] hover:text-white transition-all"
+                      >
+                        {selectedSpotifyIds.size === spotifyResults.length ? 'DESELECT ALL' : 'SELECT ALL'}
+                      </button>
+                      <button 
+                        onClick={handleBulkImportSpotify} 
+                        disabled={selectedSpotifyIds.size === 0 || isImporting}
+                        className="px-12 py-4 bg-emerald-600 text-white font-black uppercase tracking-widest text-[10px] hover:bg-emerald-400 transition-all shadow-lg disabled:opacity-50"
+                      >
+                        {isImporting ? 'IMPORTING...' : `IMPORT SELECTED (${selectedSpotifyIds.size})`}
+                      </button>
+                   </div>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {spotifyResults.map(t => (
-                        <div key={t.id} onClick={() => toggleSpotifySelection(t.id)} className={`p-4 border flex items-center gap-4 cursor-pointer ${selectedSpotifyIds.has(t.id) ? 'border-brand-gold bg-brand-gold/5' : 'border-white/5'}`}>
-                            <img src={t.album.images?.[0]?.url} className="w-10 h-10 object-cover" />
-                            <span className="text-[10px] font-bold text-white uppercase truncate">{t.name}</span>
+                        <div 
+                          key={t.id} 
+                          onClick={() => toggleSpotifySelection(t.id)} 
+                          className={`p-6 border flex items-center gap-6 cursor-pointer transition-all ${selectedSpotifyIds.has(t.id) ? 'border-brand-gold bg-brand-gold/5 shadow-[0_0_20px_rgba(251,191,36,0.1)]' : 'border-white/5 bg-white/[0.02] hover:bg-white/[0.04]'}`}
+                        >
+                            <img src={t.album.images?.[0]?.url} className="w-14 h-14 object-cover shadow-xl" alt="" />
+                            <div className="overflow-hidden">
+                              <span className="block text-sm font-black text-white uppercase truncate mb-1">{t.name}</span>
+                              <span className="block text-[10px] text-slate-500 uppercase tracking-widest truncate">{t.artists[0].name}</span>
+                              <span className="block text-[8px] text-slate-700 font-mono mt-1">ISRC: {t.external_ids?.isrc || 'N/A'}</span>
+                            </div>
                         </div>
                     ))}
                 </div>
@@ -444,28 +448,131 @@ const AdminDashboard: React.FC = () => {
         </div>
       )}
 
-      {/* JSON Tab */}
+      {/* Settings Tab */}
+      {activeTab === 'settings' && (
+        <div className="max-w-[1400px] mx-auto space-y-24 animate-fade-in py-12">
+          <div className="space-y-4">
+            <h3 className="text-white font-black text-4xl uppercase tracking-widest mb-2">環境設置與資產</h3>
+            <p className="text-slate-600 text-[11px] uppercase tracking-widest font-bold">CORE PLATFORM ASSETS & SECURITY CONTROLS</p>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
+            {[
+              { id: 'qr_support', label: '熱能贊助 ($100)' },
+              { id: 'qr_production', label: '手作對時 ($320)' },
+              { id: 'qr_cinema', label: '大師影視 ($2800)' },
+              { id: 'qr_global_payment', label: '通用支付 (GLOBAL)' },
+            ].map((qr) => (
+              <div key={qr.id} className="bg-[#0f172a]/50 border border-white/5 p-10 rounded-sm text-center flex flex-col items-center group hover:border-brand-gold/30 transition-all shadow-2xl">
+                <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-10 group-hover:text-brand-gold transition-colors">{qr.label}</h4>
+                <div className="w-full aspect-square bg-black border border-white/10 rounded-sm mb-10 flex flex-col items-center justify-center p-6 relative group-hover:border-brand-gold/20 transition-all">
+                  {(globalSettings as any)[qr.id] ? (
+                    <img src={(globalSettings as any)[qr.id]} className="w-full h-full object-contain" alt="" />
+                  ) : (
+                    <div className="text-center opacity-20 flex flex-col items-center gap-6">
+                        <svg className="w-12 h-12 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+                        <span className="text-[10px] font-black uppercase tracking-[0.4em]">OFFLINE</span>
+                    </div>
+                  )}
+                </div>
+                <label className="w-full py-4 bg-white/5 text-white/50 font-black text-[10px] uppercase tracking-[0.4em] hover:bg-white hover:text-black transition-all cursor-pointer border border-white/10 text-center">
+                  UPLOAD QR
+                  <input type="file" className="hidden" accept="image/*" onChange={handleQrUpload(qr.id as any)} />
+                </label>
+              </div>
+            ))}
+          </div>
+
+          <div className="bg-[#0f172a] p-20 border border-white/5 rounded-sm flex flex-col md:flex-row items-center gap-24 shadow-2xl">
+             <div className="flex-1 space-y-8">
+                <h4 className="text-white font-black text-3xl uppercase tracking-widest leading-none">解鎖通行碼<br/><span className="text-brand-gold text-lg">ACCESS KEY</span></h4>
+                <p className="text-slate-600 text-[12px] uppercase tracking-widest font-bold leading-loose max-w-lg">
+                    This code acts as the final gate for manual transaction verification. 
+                    Changes are synchronized immediately across all active instances.
+                </p>
+             </div>
+             <div className="flex flex-col items-center gap-6">
+                 <div className="bg-black border border-white/10 p-12 min-w-[350px] flex flex-col items-center gap-6 group hover:border-brand-gold/50 transition-all duration-1000 shadow-inner">
+                    <input 
+                        type="text" 
+                        className="bg-transparent text-white font-mono text-8xl text-center w-full outline-none tracking-widest selection:bg-brand-gold selection:text-black"
+                        value={globalSettings.accessCode}
+                        onChange={(e) => setGlobalSettings({ ...globalSettings, accessCode: e.target.value })}
+                    />
+                    <div className="h-[2px] w-full bg-white/5 group-hover:bg-brand-gold/20 transition-all"></div>
+                    <span className="text-[10px] text-slate-700 font-black tracking-[0.6em] uppercase">AES-256 SIMULATED ENCRYPTION</span>
+                 </div>
+             </div>
+          </div>
+
+          <div className="pt-24 border-t border-white/5 space-y-16">
+              <div className="text-center space-y-6">
+                  <h3 className="text-slate-700 font-black text-[12px] uppercase tracking-[1em]">SYSTEM STABILITY</h3>
+                  <p className="text-slate-800 text-[10px] uppercase tracking-widest max-w-2xl mx-auto leading-relaxed font-bold">
+                      Perform a Force Refresh if catalog data appears out of sync across devices. 
+                      This wipes local IDB cache and re-fetches the master manifest from Supabase.
+                  </p>
+              </div>
+              <div className="flex justify-center gap-8">
+                 <button onClick={refreshData} className="px-20 h-16 border border-white/5 text-slate-600 font-black text-[11px] uppercase tracking-[0.5em] hover:text-white hover:border-white/30 transition-all">FORCE REFRESH</button>
+                 <button onClick={handleSaveSettings} className="px-20 h-16 bg-brand-gold text-black font-black text-[11px] uppercase tracking-[0.5em] hover:bg-white transition-all shadow-[0_0_50px_rgba(251,191,36,0.1)]">COMMIT & SYNC</button>
+              </div>
+          </div>
+        </div>
+      )}
+
       {activeTab === 'json' && (
-        <div className="max-w-6xl mx-auto animate-fade-in space-y-8">
-            <textarea className="w-full h-[500px] bg-[#0f172a] border border-white/5 p-10 text-emerald-500 text-xs font-mono outline-none resize-none custom-scrollbar" value={jsonInput} onChange={e => setJsonInput(e.target.value)} placeholder="PASTE JSON MANIFEST HERE..." />
-            <div className="flex justify-end gap-6">
-                <button onClick={handleJsonImport} className="px-12 py-5 bg-rose-900/40 text-rose-500 border border-rose-900/50 font-black uppercase text-[10px] tracking-widest">🚨 OVERWRITE MASTER DB</button>
+        <div className="max-w-7xl mx-auto animate-fade-in space-y-12 py-12">
+            <div className="bg-[#0f172a] p-12 border border-white/5 rounded-sm shadow-2xl space-y-8">
+               <div className="flex justify-between items-center">
+                  <h3 className="text-white font-black text-sm uppercase tracking-widest">MASTER JSON MANIFEST</h3>
+                  <span className="text-emerald-500 text-[10px] font-mono font-bold uppercase tracking-widest animate-pulse">LIVE EDITING ACTIVE</span>
+               </div>
+               <textarea 
+                 className="w-full h-[600px] bg-black border border-white/10 p-12 text-emerald-400 text-xs font-mono outline-none resize-none custom-scrollbar leading-loose shadow-inner" 
+                 value={jsonInput} 
+                 onChange={e => setJsonInput(e.target.value)} 
+                 placeholder="PASTE JSON DATA HERE..." 
+               />
+               <div className="flex justify-end gap-6 pt-4">
+                  <button onClick={async () => {
+                    const all = await dbService.getAllSongs();
+                    setJsonInput(JSON.stringify(all, null, 2));
+                    showToast("Manifest Loaded");
+                  }} className="px-10 py-5 border border-white/10 text-white/40 font-black uppercase text-[10px] tracking-widest hover:text-white transition-all">LOAD CLOUD STATE</button>
+                  <button onClick={handleJsonImport} className="px-16 py-5 bg-rose-900/60 text-white border border-rose-900/50 font-black uppercase text-[10px] tracking-widest hover:bg-rose-600 transition-all shadow-xl">🚨 OVERWRITE MASTER DATABASE</button>
+               </div>
             </div>
         </div>
       )}
 
-      {/* Backup Tab */}
       {activeTab === 'backup' && (
-        <div className="max-w-2xl mx-auto text-center space-y-12 py-20 animate-fade-in">
-            <h3 className="text-white font-black text-2xl uppercase tracking-widest">DATABASE BACKUP</h3>
-            <button onClick={() => {
-                const blob = new Blob([JSON.stringify(songs, null, 2)], { type: 'application/json' });
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = `WILLWI_DB_EXPORT.json`;
-                a.click();
-            }} className="px-20 py-8 bg-white/5 border border-white/10 text-white font-black uppercase tracking-[0.4em] hover:bg-white hover:text-black transition-all">GENERATE MASTER EXPORT</button>
+        <div className="max-w-3xl mx-auto text-center space-y-16 py-32 animate-fade-in">
+            <div className="space-y-4">
+              <h3 className="text-white font-black text-5xl uppercase tracking-tighter">ARCHIVE</h3>
+              <p className="text-slate-600 text-[12px] uppercase tracking-[0.6em] font-bold">PROTECT YOUR CREATIVE ASSETS</p>
+            </div>
+            
+            <div className="bg-[#0f172a] p-16 border border-white/5 rounded-sm flex flex-col items-center gap-12">
+                <p className="text-slate-400 text-sm leading-loose max-w-md">
+                   Download a portable version of your entire discography. 
+                   This file includes all metadata, ISRC codes, lyrics, and asset pointers.
+                </p>
+                <button 
+                  onClick={() => {
+                      const blob = new Blob([JSON.stringify(songs, null, 2)], { type: 'application/json' });
+                      const url = URL.createObjectURL(blob);
+                      const a = document.createElement('a');
+                      a.href = url;
+                      a.download = `WILLWI_DISCOGRAPHY_${new Date().toISOString().split('T')[0]}.json`;
+                      a.click();
+                      showToast("Backup Generated");
+                  }} 
+                  className="px-24 py-10 bg-white text-black font-black uppercase tracking-[0.8em] text-xs hover:bg-brand-gold transition-all shadow-[0_30px_60px_rgba(0,0,0,0.5)] scale-105"
+                >
+                  GENERATE EXPORT
+                </button>
+            </div>
         </div>
       )}
     </div>

@@ -1,8 +1,8 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from '../context/LanguageContext';
-import { useData } from '../context/DataContext';
+import { useData, resolveDirectLink } from '../context/DataContext';
 import PaymentModal from '../components/PaymentModal';
 
 const Home: React.FC = () => {
@@ -19,21 +19,45 @@ const Home: React.FC = () => {
       setIsPaymentOpen(true);
   };
 
+  // 判斷是否為影片格式
+  const isVideo = globalSettings.portraitUrl?.toLowerCase().match(/\.(mp4|webm|ogg|mov)/i) || 
+                  globalSettings.portraitUrl?.includes('raw=1') || 
+                  globalSettings.portraitUrl?.includes('dl=1');
+
   return (
     <div className="min-h-screen relative flex flex-col items-center overflow-hidden bg-black">
-      {/* Background Layers - Connected to dynamic portraitUrl */}
-      <div 
-        className="absolute inset-0 bg-cover bg-center opacity-30 transition-transform duration-[10000ms] scale-110"
-        style={{ backgroundImage: `url(${globalSettings.portraitUrl})` }}
-      ></div>
-      <div className="absolute inset-0 bg-gradient-to-b from-black via-transparent to-black"></div>
+      
+      {/* Background Layers - Optimized for MP4 or Image display */}
+      <div className="absolute inset-0 z-0">
+        {isVideo ? (
+          <video 
+            src={resolveDirectLink(globalSettings.portraitUrl)}
+            autoPlay 
+            loop 
+            muted 
+            playsInline 
+            className="w-full h-full object-cover opacity-30 transition-opacity duration-1000"
+          />
+        ) : (
+          <div 
+            className="absolute inset-0 bg-cover bg-center opacity-30 transition-transform duration-[10000ms] scale-110"
+            style={{ backgroundImage: `url(${globalSettings.portraitUrl})` }}
+          ></div>
+        )}
+      </div>
+      
+      {/* Zen Ambient Ring - Inspired by the new logo */}
+      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[80vw] h-[80vw] border-[1px] border-orange-500/10 rounded-full animate-zen-spin pointer-events-none"></div>
+      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[60vw] h-[60vw] border-[1px] border-orange-500/5 rounded-full animate-zen-spin [animation-duration:90s] pointer-events-none"></div>
+
+      <div className="absolute inset-0 bg-gradient-to-b from-black via-transparent to-black pointer-events-none"></div>
 
       <section className="relative z-10 w-full min-h-screen flex flex-col items-center justify-center px-6 md:px-24 pt-48 pb-32">
         
         {/* Manifesto Section */}
         <div className="flex flex-col items-center text-center mb-12 animate-fade-in-up">
-            <div className="w-12 h-[1px] bg-brand-gold mb-6 opacity-30"></div>
-            <span className="text-brand-gold font-black text-[11px] uppercase tracking-[0.8em] mb-12 opacity-80">
+            <div className="w-12 h-[1px] bg-orange-600 mb-6 opacity-40"></div>
+            <span className="text-orange-500 font-black text-[11px] uppercase tracking-[0.8em] mb-12 opacity-80">
                 {t('manifesto_title')}
             </span>
             
@@ -41,7 +65,11 @@ const Home: React.FC = () => {
               WILLWI
             </h1>
             
-            <div className="max-w-3xl px-4">
+            <div className="max-w-3xl px-4 relative">
+                {/* Decorative Brush Stroke Silhouette */}
+                <div className="absolute -top-10 -left-10 w-20 h-20 border-l-2 border-t-2 border-orange-500/20 rounded-tl-3xl"></div>
+                <div className="absolute -bottom-10 -right-10 w-20 h-20 border-r-2 border-b-2 border-orange-500/20 rounded-br-3xl"></div>
+                
                 <p className="text-slate-300 text-sm md:text-xl tracking-[0.4em] uppercase font-bold leading-relaxed opacity-60">
                     {t('manifesto_content').split('\n').map((s, i) => <React.Fragment key={i}>{s}<br/></React.Fragment>)}
                 </p>
@@ -54,10 +82,10 @@ const Home: React.FC = () => {
                 
                 {/* Mode 1: Support ($100 單純支持) */}
                 <div 
-                  className="group relative bg-white/[0.02] border border-white/5 p-10 flex flex-col hover:border-brand-gold/30 hover:bg-white/[0.04] transition-all duration-700 rounded-sm backdrop-blur-3xl"
+                  className="group relative bg-white/[0.01] border border-white/5 p-10 flex flex-col hover:border-orange-500/30 hover:bg-white/[0.04] transition-all duration-700 rounded-sm backdrop-blur-3xl"
                 >
                     <div className="mb-8">
-                        <h3 className="text-slate-400 font-black text-[11px] uppercase tracking-[0.4em] mb-4 group-hover:text-brand-gold transition-colors">熱能贊助方案</h3>
+                        <h3 className="text-slate-400 font-black text-[11px] uppercase tracking-[0.4em] mb-4 group-hover:text-orange-400 transition-colors">熱能贊助方案</h3>
                         <p className="text-slate-600 text-[9px] uppercase tracking-widest font-bold opacity-60">Thermal Support</p>
                     </div>
                     
@@ -83,10 +111,10 @@ const Home: React.FC = () => {
 
                 {/* Mode 2: Production ($320 手作對時) */}
                 <div 
-                  className="group relative bg-white/[0.03] border border-brand-gold/20 p-10 flex flex-col hover:border-brand-gold hover:bg-white/[0.05] transition-all duration-700 rounded-sm backdrop-blur-3xl shadow-[0_0_50px_rgba(251,191,36,0.05)] scale-105 z-10"
+                  className="group relative bg-white/[0.02] border border-orange-500/20 p-10 flex flex-col hover:border-orange-500 hover:bg-white/[0.05] transition-all duration-700 rounded-sm backdrop-blur-3xl shadow-[0_0_50px_rgba(217,119,6,0.05)] scale-105 z-10"
                 >
                     <div className="mb-8">
-                        <h3 className="text-brand-gold font-black text-[11px] uppercase tracking-[0.4em] mb-4">手作對時體驗</h3>
+                        <h3 className="text-orange-500 font-black text-[11px] uppercase tracking-[0.4em] mb-4">手作對時體驗</h3>
                         <p className="text-slate-500 text-[9px] uppercase tracking-widest font-bold">Production Access</p>
                     </div>
                     
@@ -98,21 +126,21 @@ const Home: React.FC = () => {
                     </div>
 
                     <ul className="text-[9px] text-slate-500 space-y-4 mb-10 uppercase tracking-widest font-bold flex-grow">
-                        <li className="flex items-center gap-3"><span className="w-1 h-1 bg-brand-gold rounded-full shadow-[0_0_8px_rgba(251,191,36,0.8)]"></span> 專業級對時工具</li>
-                        <li className="flex items-center gap-3"><span className="w-1 h-1 bg-brand-gold rounded-full"></span> 8 秒有機噪點背景渲染</li>
-                        <li className="flex items-center gap-3"><span className="w-1 h-1 bg-brand-gold rounded-full"></span> 導出策展成品影片</li>
+                        <li className="flex items-center gap-3"><span className="w-1 h-1 bg-orange-500 rounded-full shadow-[0_0_8px_rgba(217,119,6,0.8)]"></span> 專業級對時工具</li>
+                        <li className="flex items-center gap-3"><span className="w-1 h-1 bg-orange-500 rounded-full"></span> 8 秒有機噪點背景渲染</li>
+                        <li className="flex items-center gap-3"><span className="w-1 h-1 bg-orange-500 rounded-full"></span> 導出策展成品影片</li>
                     </ul>
 
                     <button 
                       onClick={() => openPayment('production')}
-                      className="w-full py-5 bg-brand-gold text-black font-black text-[9px] uppercase tracking-[0.6em] hover:bg-white transition-all duration-500"
+                      className="w-full py-5 bg-orange-600 text-white font-black text-[9px] uppercase tracking-[0.6em] hover:bg-white hover:text-black transition-all duration-500 shadow-xl"
                     >
                         GET ACCESS
                     </button>
                     
                     <button 
                       onClick={() => navigate('/interactive')}
-                      className="w-full mt-2 py-2 text-brand-gold/40 hover:text-brand-gold text-[8px] font-black uppercase tracking-widest transition-colors"
+                      className="w-full mt-2 py-2 text-orange-500/40 hover:text-orange-500 text-[8px] font-black uppercase tracking-widest transition-colors"
                     >
                       Skip to Studio (Debug)
                     </button>
@@ -120,7 +148,7 @@ const Home: React.FC = () => {
 
                 {/* Mode 3: Cinema ($2800 大師方案) */}
                 <div 
-                  className="group relative bg-white/[0.02] border border-white/5 p-10 flex flex-col hover:border-brand-accent/40 hover:bg-white/[0.04] transition-all duration-700 rounded-sm backdrop-blur-3xl"
+                  className="group relative bg-white/[0.01] border border-white/5 p-10 flex flex-col hover:border-brand-accent/40 hover:bg-white/[0.04] transition-all duration-700 rounded-sm backdrop-blur-3xl"
                 >
                     <div className="mb-8">
                         <h3 className="text-brand-accent font-black text-[11px] uppercase tracking-[0.4em] mb-4">大師影視方案</h3>

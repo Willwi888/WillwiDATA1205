@@ -22,7 +22,8 @@
                 darker: '#000000',
                 accent: '#38bdf8',
                 gold: '#fbbf24',
-                surface: '#0f172a'
+                surface: '#0f172a',
+                zen: '#d97706' /* A warm, brush-stroke orange */
               }
             },
             animation: {
@@ -32,6 +33,8 @@
               'light-leak': 'lightLeak 20s ease-in-out infinite alternate',
               'blur-in': 'blurIn 0.8s ease-out forwards',
               'zen-spin': 'zenSpin 60s linear infinite',
+              'logo-draw': 'logoDraw 2s cubic-bezier(0.4, 0, 0.2, 1) forwards',
+              'splash-exit': 'splashExit 1s cubic-bezier(0.7, 0, 0.3, 1) forwards'
             },
             keyframes: {
               zenSpin: {
@@ -39,24 +42,21 @@
                 '100%': { transform: 'rotate(360deg)' }
               },
               pulseGlow: {
-                '0%, 100% { opacity: 0.15; transform: scale(1); }',
-                '50% { opacity: 0.35; transform: scale(1.1); }',
-              },
-              studioBreathe: {
-                '0%, 100% { transform: scale(1.0); }',
-                '50% { transform: scale(1.05); }',
+                '0%, 100%': { opacity: 0.15, transform: 'scale(1)' },
+                '50%': { opacity: 0.35, transform: 'scale(1.1)' },
               },
               fadeInUp: {
-                '0% { opacity: 0; transform: translate3d(0, 40px, 0); }',
-                '100% { opacity: 1; transform: translate3d(0, 0, 0); }',
+                '0%': { opacity: 0, transform: 'translate3d(0, 40px, 0)' },
+                '100%': { opacity: 1, transform: 'translate3d(0, 0, 0)' },
               },
-              lightLeak: {
-                '0% { transform: translate(-10%, -10%) rotate(0deg); opacity: 0.05; }',
-                '100% { transform: translate(10%, 10%) rotate(5deg); opacity: 0.15; }',
+              logoDraw: {
+                '0%': { strokeDashoffset: '1000', opacity: '0' },
+                '20%': { opacity: '1' },
+                '100%': { strokeDashoffset: '0', opacity: '1' }
               },
-              blurIn: {
-                '0% { filter: blur(20px); opacity: 0; transform: scale(0.95); }',
-                '100% { filter: blur(0); opacity: 1; transform: scale(1); }'
+              splashExit: {
+                '0%': { opacity: '1', transform: 'scale(1)' },
+                '100%': { opacity: '0', transform: 'scale(1.1)', visibility: 'hidden' }
               }
             }
           }
@@ -72,16 +72,34 @@
         overflow-x: hidden;
       }
 
-      .cinema-lyrics-blur {
-        animation: blurIn 0.8s cubic-bezier(0.23, 1, 0.32, 1) forwards;
+      #splash-screen {
+        position: fixed;
+        inset: 0;
+        background: #000;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 9999;
+        transition: opacity 1s ease-in-out;
       }
 
-      .studio-ambient-glow {
-        background: radial-gradient(circle at 65% 45%, rgba(251, 191, 36, 0.2) 0%, transparent 75%);
-        pointer-events: none;
-        mix-blend-mode: screen;
+      .splash-circle {
+        stroke-dasharray: 1000;
+        stroke-dashoffset: 1000;
+        animation: logoDraw 2.5s cubic-bezier(0.4, 0, 0.2, 1) forwards;
       }
-      
+
+      .splash-w {
+        stroke-dasharray: 500;
+        stroke-dashoffset: 500;
+        animation: logoDraw 2s cubic-bezier(0.4, 0, 0.2, 1) 0.8s forwards;
+      }
+
+      .splash-text {
+        opacity: 0;
+        animation: fadeInUp 1.5s cubic-bezier(0.16, 1, 0.3, 1) 1.5s forwards;
+      }
+
       .dynamic-light-leak {
         position: fixed;
         width: 150vw;
@@ -112,7 +130,36 @@
 </script>
 </head>
   <body class="antialiased font-sans">
+    <div id="splash-screen">
+      <div class="relative flex flex-col items-center">
+        <!-- Zen Brush Circle & W Logo -->
+        <svg width="240" height="240" viewBox="0 0 240 240" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <!-- Brush-style Circle -->
+          <circle cx="120" cy="120" r="90" stroke="#d97706" stroke-width="6" stroke-linecap="round" stroke-dasharray="15 25" class="splash-circle" opacity="0.6"/>
+          <circle cx="120" cy="120" r="92" stroke="#d97706" stroke-width="2" stroke-dasharray="500" class="splash-circle"/>
+          
+          <!-- Stylized W -->
+          <path d="M70 100L95 160L120 100L145 160L170 100" stroke="white" stroke-width="8" stroke-linecap="round" stroke-linejoin="round" class="splash-w"/>
+        </svg>
+        
+        <!-- Text Logo -->
+        <div class="splash-text mt-8 text-center">
+          <h2 class="text-3xl font-black text-white uppercase tracking-[0.5em] mb-2">WILLWI</h2>
+          <p class="text-[10px] text-brand-gold font-bold uppercase tracking-[0.8em] opacity-60">Music Database</p>
+        </div>
+      </div>
+    </div>
+
     <div class="dynamic-light-leak"></div>
     <div id="root"></div>
+
+    <script>
+      window.addEventListener('load', () => {
+        const splash = document.getElementById('splash-screen');
+        setTimeout(() => {
+          splash.classList.add('animate-splash-exit');
+        }, 3000);
+      });
+    </script>
   </body>
 </html>
