@@ -81,40 +81,62 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const loadData = useCallback(async () => {
       setIsSyncing(true);
       try {
-          const localSongs = await dbService.getAllSongs();
-          if (localSongs.length > 0) {
-              setSongs([...localSongs].sort((a,b)=>new Date(b.releaseDate).getTime() - new Date(a.releaseDate).getTime()));
-          } else {
-              await dbService.bulkAdd(OFFICIAL_CATALOG);
-              setSongs([...OFFICIAL_CATALOG].sort((a,b)=>new Date(b.releaseDate).getTime() - new Date(a.releaseDate).getTime()));
+          // 1. 嘗試從 Supabase 抓取最新設置
+          const settingsRes = await fetch(`${SUPABASE_URL}/rest/v1/songs?id=eq.SYSTEM_CONFIG`, {
+              headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` }
+          });
+          if (settingsRes.ok) {
+              const settingsData = await settingsRes.json();
+              if (settingsData[0]?.description) {
+                  const cloudSettings = JSON.parse(settingsData[0].description);
+                  setGlobalSettings(cloudSettings);
+                  localStorage.setItem(SETTINGS_LOCAL_KEY, JSON.stringify(cloudSettings));
+              }
           }
+
+          // 2. 嘗試從 Supabase 抓取作品集
+          const songsRes = await fetch(`${SUPABASE_URL}/rest/v1/songs?id=neq.SYSTEM_CONFIG`, {
+              headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` }
+          });
+          
+          let finalSongs: Song[] = [];
+          if (songsRes.ok) {
+              const cloudSongs = await songsRes.json();
+              finalSongs = cloudSongs.map((s: any) => ({
+                  id: s.id,
+                  title: s.title,
+                  isrc: s.isrc,
+                  upc: s.upc,
+                  coverUrl: s.cover_url,
+                  audioUrl: s.audio_url,
+                  youtubeUrl: s.youtube_url,
+                  lyrics: s.lyrics,
+                  language: s.language,
+                  projectType: s.project_type,
+                  releaseDate: s.release_date,
+                  isInteractiveActive: s.is_interactive_active,
+                  origin: 'cloud'
+              }));
+          }
+
+          // 如果雲端沒資料，使用本地或預設
+          if (finalSongs.length === 0) {
+              const localSongs = await dbService.getAllSongs();
+              finalSongs = localSongs.length > 0 ? localSongs : OFFICIAL_CATALOG;
+          }
+
+          setSongs([...finalSongs].sort((a,b)=>new Date(b.releaseDate).getTime() - new Date(a.releaseDate).getTime()));
+          // 同步到本地 IDB
+          await dbService.bulkAdd(finalSongs);
+
       } catch (e) {
-          console.error("DB Load Failed", e);
+          console.error("Critical Sync Failed", e);
       } finally {
           setIsSyncing(false);
       }
   }, []);
 
   useEffect(() => { loadData(); }, [loadData]);
-
-  const bulkAddSongs = async (s: Song[]) => {
-      setIsSyncing(true);
-      await dbService.clearAllSongs();
-      await dbService.bulkAdd(s);
-      setSongs([...s]);
-      setIsSyncing(false);
-      return true;
-  };
-
-  const bulkAppendSongs = async (newSongs: Song[]) => {
-      const combined = [...songs];
-      newSongs.forEach(ns => {
-          if (!combined.find(c => c.id === ns.id)) combined.push(ns);
-      });
-      await dbService.bulkAdd(newSongs); // 存入本地
-      setSongs(combined.sort((a,b)=>new Date(b.releaseDate).getTime() - new Date(a.releaseDate).getTime()));
-      return true;
-  };
 
   return (
     <DataContext.Provider value={{ 
@@ -139,8 +161,23 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             setSongs(prev => prev.filter(x => x.id !== id));
         },
         getSong: (id) => songs.find(s => s.id === id),
-        bulkAddSongs,
-        bulkAppendSongs,
+        bulkAddSongs: async (s) => {
+            setIsSyncing(true);
+            await dbService.clearAllSongs();
+            await dbService.bulkAdd(s);
+            setSongs([...s]);
+            setIsSyncing(false);
+            return true;
+        },
+        bulkAppendSongs: async (newSongs) => {
+            const combined = [...songs];
+            newSongs.forEach(ns => {
+                if (!combined.find(c => c.id === ns.id)) combined.push(ns);
+            });
+            await dbService.bulkAdd(newSongs);
+            setSongs(combined.sort((a,b)=>new Date(b.releaseDate).getTime() - new Date(a.releaseDate).getTime()));
+            return true;
+        },
         isSyncing, syncSuccess, syncProgress, refreshData: loadData, 
         uploadSongsToCloud: async (data) => {
             setIsSyncing(true);

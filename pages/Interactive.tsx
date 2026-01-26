@@ -1,5 +1,5 @@
 
-// Fix: Completed the truncated Interactive component and added the missing default export
+// Fix: Corrected progress bar width logic to handle initial 0/NaN states
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useData, resolveDirectLink } from '../context/DataContext';
 import { useUser } from '../context/UserContext';
@@ -23,7 +23,6 @@ const Interactive: React.FC = () => {
   const [selectedSong, setSelectedSong] = useState<Song | null>(null);
   const [isPaused, setIsPaused] = useState(true);
   
-  // Studio UI States (Matching Screenshot)
   const [layoutMode, setLayoutMode] = useState<LayoutMode>('lyrics');
   const [lyricsPosition, setLyricsPosition] = useState<LyricsPosition>('left');
   const [showTrackInfo, setShowTrackInfo] = useState(true);
@@ -36,10 +35,8 @@ const Interactive: React.FC = () => {
   const [stamps, setStamps] = useState<number[]>([]);
 
   const audioRef = useRef<HTMLAudioElement>(null);
-  const scrollRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
-  // Initialize Lyrics
   useEffect(() => {
     if (selectedSong?.lyrics) {
         setLyricsLines(selectedSong.lyrics.split('\n').filter(l => l.trim().length > 0));
@@ -48,7 +45,6 @@ const Interactive: React.FC = () => {
     }
   }, [selectedSong]);
 
-  // Audio Control
   const handleTogglePlay = async () => {
       if (!audioRef.current) return;
       if (isPaused) {
@@ -74,29 +70,6 @@ const Interactive: React.FC = () => {
         if (window.navigator.vibrate) window.navigator.vibrate(20);
     }
   };
-
-  // Mock Waveform Visualization
-  useEffect(() => {
-      if (mode === 'playing' && canvasRef.current) {
-          const canvas = canvasRef.current;
-          const ctx = canvas.getContext('2d');
-          if (!ctx) return;
-          
-          const draw = () => {
-              ctx.clearRect(0, 0, canvas.width, canvas.height);
-              ctx.fillStyle = 'rgba(255, 255, 255, 0.1)';
-              const barWidth = 4;
-              const gap = 2;
-              const count = canvas.width / (barWidth + gap);
-              for (let i = 0; i < count; i++) {
-                  const h = Math.random() * canvas.height * 0.6;
-                  ctx.fillRect(i * (barWidth + gap), (canvas.height - h) / 2, barWidth, h);
-              }
-              if (!isPaused) requestAnimationFrame(draw);
-          };
-          draw();
-      }
-  }, [mode, isPaused]);
 
   const startExportProcess = async () => {
       // @ts-ignore
@@ -131,10 +104,12 @@ const Interactive: React.FC = () => {
       return `${min}:${sec.toString().padStart(2, '0')}`;
   };
 
+  // 進度計算：確保不出現 NaN
+  const progressPercent = duration > 0 ? (currentTime / duration) * 100 : 0;
+
   return (
     <div className="min-h-screen bg-[#0a0a0a] text-white flex flex-col font-sans selection:bg-brand-gold selection:text-black">
       
-      {/* Top Header - Studio Status */}
       <div className="h-16 border-b border-white/5 flex items-center justify-between px-8 bg-black/50 backdrop-blur-md fixed top-0 w-full z-50">
           <div className="flex items-center gap-4">
               <span className="text-[10px] font-black uppercase tracking-[0.4em] text-brand-gold">Master Studio</span>
@@ -147,11 +122,9 @@ const Interactive: React.FC = () => {
       </div>
 
       <div className="flex-1 flex pt-16">
-          {/* Sidebar - Controls (Matching Screenshot Left Panel) */}
           {(mode === 'playing' || mode === 'finished') && (
               <div className="w-80 border-r border-white/5 bg-[#0e0e0e] flex flex-col overflow-y-auto custom-scrollbar animate-fade-in">
                   <div className="p-8 space-y-12">
-                      {/* Structure Tab */}
                       <div className="space-y-6">
                           <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Layout Structure</h4>
                           <div className="grid grid-cols-3 gap-3">
@@ -167,8 +140,6 @@ const Interactive: React.FC = () => {
                               ))}
                           </div>
                       </div>
-
-                      {/* Lyrics Position */}
                       <div className="space-y-6">
                           <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Lyrics Position</h4>
                           <div className="grid grid-cols-2 gap-3">
@@ -184,8 +155,6 @@ const Interactive: React.FC = () => {
                               ))}
                           </div>
                       </div>
-
-                      {/* Track Info Toggle */}
                       <div className="flex justify-between items-center py-6 border-t border-white/5">
                           <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Track Info</span>
                           <button 
@@ -199,7 +168,6 @@ const Interactive: React.FC = () => {
               </div>
           )}
 
-          {/* Main Workspace */}
           <div className="flex-1 bg-black relative flex items-center justify-center overflow-hidden">
                 {mode === 'intro' && (
                     <div className="text-center max-w-xl animate-fade-in-up">
@@ -240,7 +208,6 @@ const Interactive: React.FC = () => {
                             ))}
                         </div>
 
-                        {/* Player Controls Overlay */}
                         <div className="absolute bottom-12 left-1/2 -translate-x-1/2 flex items-center gap-12 bg-black/80 backdrop-blur-2xl border border-white/10 rounded-full px-12 py-6 shadow-2xl">
                              <button onClick={handleTogglePlay} className="w-12 h-12 bg-white text-black rounded-full flex items-center justify-center hover:bg-brand-gold transition-all">
                                 {isPaused ? <svg className="w-6 h-6 ml-1" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg> : <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>}
@@ -250,8 +217,11 @@ const Interactive: React.FC = () => {
                                     <span>{formatTime(currentTime)}</span>
                                     <span>{formatTime(duration)}</span>
                                 </div>
-                                <div className="h-1 bg-white/10 w-full rounded-full overflow-hidden">
-                                    <div className="h-full bg-brand-gold transition-all duration-300" style={{ width: `${(currentTime/duration)*100}%` }}></div>
+                                <div className="h-1 bg-white/10 w-full rounded-full overflow-hidden relative">
+                                    <div 
+                                      className="h-full bg-brand-gold transition-all duration-300" 
+                                      style={{ width: `${progressPercent}%` }}
+                                    ></div>
                                 </div>
                              </div>
                              <button onClick={startExportProcess} className="h-12 px-8 bg-brand-gold text-black font-black text-[10px] uppercase tracking-widest rounded-full hover:bg-white transition-all">
