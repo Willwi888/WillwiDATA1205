@@ -11,7 +11,7 @@ const Database: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterLang, setFilterLang] = useState<string>('All');
 
-  // UPC 聚合邏輯：將相同 UPC 的歌曲分組為專輯
+  // UPC 聚合邏輯：策展核心 - 將相同 UPC 的單曲聚合為一張專輯
   const groupedAlbums = useMemo(() => {
     const groups: Record<string, Song[]> = {};
     
@@ -35,19 +35,25 @@ const Database: React.FC = () => {
 
   return (
     <div className="animate-fade-in max-w-screen-2xl mx-auto px-10 pt-48 pb-60">
-      <div className="mb-24">
-           <div className="flex items-center gap-6 mb-4">
-              <div className="w-12 h-[1px] bg-brand-gold"></div>
-              <span className="text-brand-gold font-black text-[11px] uppercase tracking-[0.6em]">Official Discography</span>
+      <div className="mb-24 flex flex-col md:flex-row justify-between items-end gap-10">
+           <div>
+              <div className="flex items-center gap-6 mb-4">
+                  <div className="w-12 h-[1px] bg-brand-gold"></div>
+                  <span className="text-brand-gold font-black text-[11px] uppercase tracking-[0.6em]">Curated Discography</span>
+              </div>
+              <h2 className="text-8xl font-black text-white tracking-tighter uppercase leading-none">Catalog</h2>
            </div>
-           <h2 className="text-8xl font-black text-white tracking-tighter uppercase leading-none">Catalog</h2>
+           <div className="text-right">
+              <span className="text-[10px] font-black text-slate-700 uppercase tracking-[0.5em] block mb-2">Total Collections</span>
+              <span className="text-4xl font-black text-white">{groupedAlbums.length}</span>
+           </div>
       </div>
 
       <div className="flex flex-col md:flex-row gap-6 mb-24 border-b border-white/10 pb-12">
         <div className="flex-1 relative">
             <input
               type="text"
-              placeholder="SEARCH BY UPC / ISRC / TITLE..."
+              placeholder="SEARCH BY ALBUM UPC / ISRC / TITLE..."
               className="w-full bg-transparent border-none py-4 text-white outline-none text-2xl font-bold uppercase tracking-widest placeholder:text-white/10"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
@@ -69,7 +75,7 @@ const Database: React.FC = () => {
 
       {groupedAlbums.length === 0 ? (
         <div className="py-40 text-center">
-            <p className="text-slate-600 font-black uppercase tracking-[1em]">No records found in current database</p>
+            <p className="text-slate-600 font-black uppercase tracking-[1em]">No records found for current curation</p>
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-x-10 gap-y-20">
@@ -97,7 +103,7 @@ const Database: React.FC = () => {
                             </div>
 
                             <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-500 flex items-center justify-center backdrop-blur-sm">
-                                <span className="text-[10px] font-black text-white uppercase tracking-[0.5em] border border-white/20 px-6 py-3 bg-black/40">Open Folder</span>
+                                <span className="text-[10px] font-black text-white uppercase tracking-[0.5em] border border-white/20 px-6 py-3 bg-black/40">Inspect Collection</span>
                             </div>
                         </div>
 

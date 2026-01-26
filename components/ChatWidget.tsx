@@ -50,7 +50,8 @@ const ChatWidget: React.FC = () => {
     setMsgCount(newCount);
 
     try {
-      const responseText = await getChatResponse(userMessage, newCount);
+      // Fix: getChatResponse only expects 1 argument (the message string) as defined in geminiService.ts
+      const responseText = await getChatResponse(userMessage);
       setMessages(prev => [...prev, { role: 'model', text: responseText }]);
     } catch (error) {
       setMessages(prev => [...prev, { role: 'model', text: '阿嬤的老花眼鏡找不到了... (連線錯誤，請稍後再試)' }]);

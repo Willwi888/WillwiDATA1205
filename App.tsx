@@ -9,7 +9,6 @@ import SongDetail from './pages/SongDetail';
 import Interactive from './pages/Interactive';
 import About from './pages/About';
 import AdminDashboard from './pages/AdminDashboard';
-import ChatWidget from './components/ChatWidget';
 import { DataProvider } from './context/DataContext';
 import { UserProvider } from './context/UserContext';
 import { LanguageProvider } from './context/LanguageContext';
@@ -30,7 +29,7 @@ const App: React.FC = () => {
                     <Route path="/interactive" element={<Interactive />} />
                     <Route path="/admin" element={<AdminDashboard />} />
                   </Routes>
-                  <ChatWidget />
+                  {/* ChatWidget 已被移除，回歸工具純粹性 */}
               </Layout>
               </HashRouter>
           </DataProvider>
