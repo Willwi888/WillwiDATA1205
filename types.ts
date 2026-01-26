@@ -53,6 +53,9 @@ export interface Song {
   credits?: string;
   origin?: 'local' | 'cloud';
   description?: string;
+  // The Storyline Fields
+  creativeNote?: string; // 創作筆記
+  labLog?: string;      // 實驗室日誌
   // Multi-language translation support
   translations?: Record<string, SongTranslation>; 
 }

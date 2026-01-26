@@ -42,14 +42,29 @@ const SUPABASE_KEY = "sb_publishable_z_v9ig8SbqNnKHHTwEgOhw_S3g4yhba";
 const SETTINGS_LOCAL_KEY = 'willwi_settings_backup';
 
 export const normalizeIdentifier = (val: string) => (val || '').trim().replace(/[^A-Z0-9]/gi, '').toUpperCase();
+
 export const resolveDirectLink = (url: string) => {
     if (!url || typeof url !== 'string') return '';
     let cleanUrl = url.trim();
+    
+    // Dropbox Logic
     if (cleanUrl.includes('dropbox.com')) {
         let base = cleanUrl.split('?')[0];
-        base = base.replace('www.dropbox.com', 'dl.dropboxusercontent.com').replace('dropbox.com', 'dl.dropboxusercontent.com');
+        // Replace www or just domain to dl.dropboxusercontent.com
+        base = base.replace('//www.dropbox.com', '//dl.dropboxusercontent.com')
+                   .replace('//dropbox.com', '//dl.dropboxusercontent.com');
         return `${base}?raw=1`;
     }
+
+    // Google Drive Logic (Convert view link to download link)
+    // Format: https://drive.google.com/file/d/[ID]/view -> https://drive.google.com/uc?export=download&id=[ID]
+    if (cleanUrl.includes('drive.google.com') && cleanUrl.includes('/file/d/')) {
+        const idMatch = cleanUrl.match(/\/file\/d\/([a-zA-Z0-9_-]+)/);
+        if (idMatch && idMatch[1]) {
+            return `https://drive.google.com/uc?export=download&id=${idMatch[1]}`;
+        }
+    }
+
     return cleanUrl;
 };
 
@@ -87,7 +102,8 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             cover_url: s.coverUrl, audio_url: s.audioUrl || '', 
             youtube_url: s.youtubeUrl || '', lyrics: s.lyrics || '', 
             language: s.language, project_type: s.projectType, 
-            release_date: s.releaseDate, is_interactive_active: !!s.isInteractiveActive 
+            release_date: s.releaseDate, is_interactive_active: !!s.isInteractiveActive,
+            creative_note: s.creativeNote || '', lab_log: s.labLog || '' 
         }));
         
         await fetch(`${SUPABASE_URL}/rest/v1/songs`, { 
@@ -151,7 +167,9 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                   coverUrl: s.cover_url || s.coverUrl || ASSETS.defaultCover, 
                   audioUrl: s.audio_url, youtubeUrl: s.youtube_url,
                   language: s.language, projectType: s.project_type, 
-                  releaseDate: s.release_date, isInteractiveActive: s.is_interactive_active 
+                  releaseDate: s.release_date, isInteractiveActive: s.is_interactive_active,
+                  creativeNote: s.creative_note || s.creativeNote,
+                  labLog: s.lab_log || s.labLog
               }));
 
               if (cloudSongs.length > 0) {

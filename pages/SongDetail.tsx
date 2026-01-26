@@ -54,9 +54,10 @@ const SongDetail: React.FC = () => {
 
   return (
     <div className="min-h-screen pb-60 pt-48 px-6 md:px-24 animate-fade-in relative bg-black overflow-x-hidden">
+        {/* Cinema Player 2.0 Static Backdrop */}
         <div className="absolute inset-0 z-[-1] overflow-hidden">
-            <div className="absolute inset-0 bg-cover bg-center blur-[120px] opacity-10 scale-125 transition-all duration-1000" style={{ backgroundImage: `url(${song.coverUrl})` }}></div>
-            <div className="absolute inset-0 bg-gradient-to-b from-black via-black/80 to-black"></div>
+            <div className="absolute inset-0 bg-cover bg-center blur-[120px] opacity-20 scale-125 transition-all duration-1000 animate-studio-breathe" style={{ backgroundImage: `url(${song.coverUrl})` }}></div>
+            <div className="absolute inset-0 bg-gradient-to-b from-black via-[#020617]/90 to-[#020617]"></div>
         </div>
 
         <div className="max-w-[1700px] mx-auto">
@@ -84,7 +85,7 @@ const SongDetail: React.FC = () => {
                         </div>
                         <div className="space-y-2 max-h-[500px] overflow-y-auto custom-scrollbar pr-4">
                             {albumTracks.map((track, index) => (
-                                <div key={track.id} className="flex items-center gap-6 p-5 border border-white/5 bg-white/[0.02] rounded-sm">
+                                <div key={track.id} className="flex items-center gap-6 p-5 border border-white/5 bg-white/[0.02] rounded-sm hover:border-brand-gold/30 transition-all cursor-pointer" onClick={() => navigate(`/song/${track.id}`)}>
                                     <div className="w-10 h-10 flex items-center justify-center shrink-0">
                                         <span className="text-xs font-mono text-slate-600">{(index + 1).toString().padStart(2, '0')}</span>
                                     </div>
@@ -103,7 +104,7 @@ const SongDetail: React.FC = () => {
                     </div>
                 </div>
 
-                <div className="lg:col-span-7 space-y-16">
+                <div className="lg:col-span-7 space-y-20">
                     <div>
                         <div className="flex items-center gap-6 mb-8">
                             <span className="px-3 py-1 bg-brand-gold/10 border border-brand-gold/30 text-brand-gold text-[9px] font-black uppercase tracking-widest">{song.releaseCategory || 'SINGLE'}</span>
@@ -111,6 +112,27 @@ const SongDetail: React.FC = () => {
                         </div>
                         <h1 className="text-6xl md:text-9xl font-black uppercase tracking-tighter text-white leading-[0.85] mb-8">{displayTitle}</h1>
                     </div>
+                    
+                    {/* THE STORYLINE */}
+                    {(song.creativeNote || song.labLog) && (
+                        <div className="border-t border-b border-white/10 py-12 space-y-12 animate-fade-in">
+                            <h3 className="text-[12px] font-black text-brand-gold uppercase tracking-[0.6em]">The Storyline</h3>
+                            {song.creativeNote && (
+                                <div className="space-y-4">
+                                    <h4 className="text-[10px] text-white font-black uppercase tracking-widest opacity-50">Creative Note (創作筆記)</h4>
+                                    <p className="text-sm md:text-base text-slate-300 leading-loose whitespace-pre-line text-justify font-light tracking-wide">{song.creativeNote}</p>
+                                </div>
+                            )}
+                            {song.labLog && (
+                                <div className="space-y-4 pt-6">
+                                    <h4 className="text-[10px] text-white font-black uppercase tracking-widest opacity-50">Lab Log (實驗室日誌)</h4>
+                                    <div className="p-6 bg-white/[0.03] border border-white/5 rounded-sm">
+                                        <p className="text-xs text-slate-400 leading-loose whitespace-pre-line font-mono">{song.labLog}</p>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    )}
 
                     <div className="space-y-12">
                         <div className="flex justify-between items-center border-b border-white/10 pb-6">

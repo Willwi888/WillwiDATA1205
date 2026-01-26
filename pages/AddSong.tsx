@@ -17,6 +17,7 @@ const AddSong: React.FC = () => {
   const queryParams = new URLSearchParams(location.search);
   const editId = queryParams.get('edit');
 
+  const [activeTab, setActiveTab] = useState<'content' | 'storyline'>('content');
   const [activeLangTab, setActiveLangTab] = useState<'original' | 'en' | 'jp' | 'zh'>('original');
   const [spotifySearch, setSpotifySearch] = useState('');
   const [spotifyResults, setSpotifyResults] = useState<any[]>([]);
@@ -40,6 +41,8 @@ const AddSong: React.FC = () => {
     youtubeUrl: '',
     soundcloudUrl: '',
     credits: '',
+    creativeNote: '',
+    labLog: '',
     isInteractiveActive: true,
     translations: {}
   });
@@ -62,12 +65,7 @@ const AddSong: React.FC = () => {
     let finalValue = value;
     if (name === 'audioUrl') {
         const val = value.trim();
-        // 偵測 Showcase 連結 (這是不支援直接播放的)
-        if (val.includes('dropbox.com/sc/')) {
-            showToast("⚠️ 此為 Dropbox Showcase 連結，無法直接播放。請使用檔案分享連結 (s/ 或 scl/)", "error");
-        } 
-        // 偵測並修復為 raw=1 格式
-        else if (val.includes('dropbox.com') && !val.includes('raw=1')) {
+        if (val.includes('dropbox.com') && !val.includes('raw=1')) {
             const base = val.split('?')[0];
             finalValue = `${base}?raw=1`;
             showToast("Dropbox 連結已自動優化為「原始音訊流」格式 (raw=1)");
@@ -195,63 +193,86 @@ const AddSong: React.FC = () => {
 
             {/* Right Editor: Main Form */}
             <div className="lg:col-span-8 bg-[#0f172a]/40 backdrop-blur-3xl border border-white/5 p-12 relative rounded-sm shadow-2xl">
-                <form onSubmit={handleSubmit} className="space-y-12">
-                    <div className="flex border-b border-white/10 gap-10">
-                        {[
-                            { id: 'original', label: '原文 (CORE)' },
-                            { id: 'en', label: 'EN 翻譯' },
-                            { id: 'jp', label: 'JP 翻譯' },
-                            { id: 'zh', label: 'ZH 翻譯' }
-                        ].map(tab => (
-                            <button 
-                                key={tab.id} 
-                                type="button" 
-                                onClick={() => setActiveLangTab(tab.id as any)}
-                                className={`pb-5 text-[11px] font-black uppercase tracking-[0.3em] transition-all ${activeLangTab === tab.id ? 'text-brand-gold border-b-2 border-brand-gold' : 'text-slate-500 hover:text-white'}`}
-                            >
-                                {tab.label}
-                            </button>
-                        ))}
+                <form onSubmit={handleSubmit} className="space-y-8">
+                    {/* Top Tabs */}
+                    <div className="flex border-b border-white/10 gap-8 mb-8">
+                        <button type="button" onClick={() => setActiveTab('content')} className={`pb-4 text-[10px] font-black uppercase tracking-[0.3em] transition-all ${activeTab === 'content' ? 'text-brand-gold border-b-2 border-brand-gold' : 'text-slate-500 hover:text-white'}`}>MAIN CONTENT</button>
+                        <button type="button" onClick={() => setActiveTab('storyline')} className={`pb-4 text-[10px] font-black uppercase tracking-[0.3em] transition-all ${activeTab === 'storyline' ? 'text-brand-gold border-b-2 border-brand-gold' : 'text-slate-500 hover:text-white'}`}>THE STORYLINE</button>
                     </div>
 
-                    {activeLangTab === 'original' ? (
-                        <div className="space-y-10 animate-fade-in">
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
-                                <div className="space-y-4">
-                                    <label className="text-[10px] text-slate-500 font-black uppercase tracking-widest">歌曲名稱</label>
-                                    <input name="title" value={formData.title} onChange={handleChange} className="w-full bg-black border border-white/10 p-6 text-white font-bold text-lg focus:border-brand-gold outline-none" placeholder="If I could" />
-                                </div>
-                                <div className="space-y-4">
-                                    <label className="text-[10px] text-slate-500 font-black uppercase tracking-widest">主要語言</label>
-                                    <select name="language" value={formData.language} onChange={handleChange} className="w-full bg-black border border-white/10 p-6 text-white font-bold focus:border-brand-gold outline-none appearance-none">
-                                        {Object.values(Language).map(l => <option key={l} value={l}>{l}</option>)}
-                                    </select>
-                                </div>
-                            </div>
-                            <div className="space-y-4">
-                                <label className="text-[10px] text-slate-500 font-black uppercase tracking-widest">歌詞</label>
-                                <textarea name="lyrics" value={formData.lyrics} onChange={handleChange} className="w-full h-[350px] bg-black border border-white/10 p-8 text-white text-sm font-mono resize-none custom-scrollbar outline-none focus:border-brand-gold" />
-                            </div>
+                    {activeTab === 'content' && (
+                        <>
+                        <div className="flex border-b border-white/10 gap-10">
+                            {[
+                                { id: 'original', label: '原文 (CORE)' },
+                                { id: 'en', label: 'EN 翻譯' },
+                                { id: 'jp', label: 'JP 翻譯' },
+                                { id: 'zh', label: 'ZH 翻譯' }
+                            ].map(tab => (
+                                <button 
+                                    key={tab.id} 
+                                    type="button" 
+                                    onClick={() => setActiveLangTab(tab.id as any)}
+                                    className={`pb-5 text-[11px] font-black uppercase tracking-[0.3em] transition-all ${activeLangTab === tab.id ? 'text-brand-gold border-b-2 border-brand-gold' : 'text-slate-500 hover:text-white'}`}
+                                >
+                                    {tab.label}
+                                </button>
+                            ))}
                         </div>
-                    ) : (
+
+                        {activeLangTab === 'original' ? (
+                            <div className="space-y-10 animate-fade-in">
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
+                                    <div className="space-y-4">
+                                        <label className="text-[10px] text-slate-500 font-black uppercase tracking-widest">歌曲名稱</label>
+                                        <input name="title" value={formData.title} onChange={handleChange} className="w-full bg-black border border-white/10 p-6 text-white font-bold text-lg focus:border-brand-gold outline-none" placeholder="If I could" />
+                                    </div>
+                                    <div className="space-y-4">
+                                        <label className="text-[10px] text-slate-500 font-black uppercase tracking-widest">主要語言</label>
+                                        <select name="language" value={formData.language} onChange={handleChange} className="w-full bg-black border border-white/10 p-6 text-white font-bold focus:border-brand-gold outline-none appearance-none">
+                                            {Object.values(Language).map(l => <option key={l} value={l}>{l}</option>)}
+                                        </select>
+                                    </div>
+                                </div>
+                                <div className="space-y-4">
+                                    <label className="text-[10px] text-slate-500 font-black uppercase tracking-widest">歌詞</label>
+                                    <textarea name="lyrics" value={formData.lyrics} onChange={handleChange} className="w-full h-[350px] bg-black border border-white/10 p-8 text-white text-sm font-mono resize-none custom-scrollbar outline-none focus:border-brand-gold" />
+                                </div>
+                            </div>
+                        ) : (
+                            <div className="space-y-10 animate-fade-in">
+                                <div className="space-y-4">
+                                    <label className="text-[10px] text-slate-500 font-black uppercase tracking-widest">{activeLangTab.toUpperCase()} 標題</label>
+                                    <input 
+                                        value={formData.translations?.[activeLangTab]?.title || ''} 
+                                        onChange={(e) => handleTranslationChange(activeLangTab, 'title', e.target.value)}
+                                        className="w-full bg-black border border-white/10 p-6 text-brand-gold font-bold text-lg outline-none focus:border-brand-gold" 
+                                        placeholder={`Enter ${activeLangTab.toUpperCase()} Title`}
+                                    />
+                                </div>
+                                <div className="space-y-4">
+                                    <label className="text-[10px] text-slate-500 font-black uppercase tracking-widest">{activeLangTab.toUpperCase()} 歌詞翻譯</label>
+                                    <textarea 
+                                        value={formData.translations?.[activeLangTab]?.lyrics || ''} 
+                                        onChange={(e) => handleTranslationChange(activeLangTab, 'lyrics', e.target.value)}
+                                        className="w-full h-[350px] bg-black border border-white/10 p-8 text-brand-gold text-sm font-mono resize-none custom-scrollbar outline-none focus:border-brand-gold"
+                                        placeholder={`Enter ${activeLangTab.toUpperCase()} Lyrics`}
+                                    />
+                                </div>
+                            </div>
+                        )}
+                        </>
+                    )}
+
+                    {activeTab === 'storyline' && (
                         <div className="space-y-10 animate-fade-in">
-                            <div className="space-y-4">
-                                <label className="text-[10px] text-slate-500 font-black uppercase tracking-widest">{activeLangTab.toUpperCase()} 標題</label>
-                                <input 
-                                    value={formData.translations?.[activeLangTab]?.title || ''} 
-                                    onChange={(e) => handleTranslationChange(activeLangTab, 'title', e.target.value)}
-                                    className="w-full bg-black border border-white/10 p-6 text-brand-gold font-bold text-lg outline-none focus:border-brand-gold" 
-                                    placeholder={`Enter ${activeLangTab.toUpperCase()} Title`}
-                                />
+                             <div className="space-y-4">
+                                <label className="text-[10px] text-brand-gold font-black uppercase tracking-widest">Creative Note (創作筆記)</label>
+                                <textarea name="creativeNote" value={formData.creativeNote} onChange={handleChange} className="w-full h-[200px] bg-black border border-white/10 p-8 text-white text-sm font-medium resize-none custom-scrollbar outline-none focus:border-brand-gold" placeholder="關於這首歌的起源、靈感或故事..." />
                             </div>
                             <div className="space-y-4">
-                                <label className="text-[10px] text-slate-500 font-black uppercase tracking-widest">{activeLangTab.toUpperCase()} 歌詞翻譯</label>
-                                <textarea 
-                                    value={formData.translations?.[activeLangTab]?.lyrics || ''} 
-                                    onChange={(e) => handleTranslationChange(activeLangTab, 'lyrics', e.target.value)}
-                                    className="w-full h-[350px] bg-black border border-white/10 p-8 text-brand-gold text-sm font-mono resize-none custom-scrollbar outline-none focus:border-brand-gold"
-                                    placeholder={`Enter ${activeLangTab.toUpperCase()} Lyrics`}
-                                />
+                                <label className="text-[10px] text-slate-400 font-black uppercase tracking-widest">Lab Log (實驗室日誌)</label>
+                                <textarea name="labLog" value={formData.labLog} onChange={handleChange} className="w-full h-[200px] bg-black border border-white/10 p-8 text-slate-400 font-mono text-xs resize-none custom-scrollbar outline-none focus:border-brand-gold" placeholder="技術筆記、錄音細節或混音心得..." />
                             </div>
                         </div>
                     )}
@@ -269,7 +290,7 @@ const AddSong: React.FC = () => {
                             </div>
                             <div className="space-y-3">
                                 <label className="text-[9px] text-slate-600 font-black uppercase tracking-widest">音訊網址 (AUDIO URL)</label>
-                                <input name="audioUrl" value={formData.audioUrl} onChange={handleChange} className="w-full bg-black border border-white/5 p-4 text-[11px] text-slate-400 outline-none focus:border-brand-gold" placeholder="Dropbox link (raw=1)" />
+                                <input name="audioUrl" value={formData.audioUrl} onChange={handleChange} className="w-full bg-black border border-white/5 p-4 text-[11px] text-slate-400 outline-none focus:border-brand-gold" placeholder="Dropbox / Google Drive link" />
                             </div>
                             <div className="space-y-3">
                                 <label className="text-[9px] text-slate-600 font-black uppercase tracking-widest">工作室狀態 (STUDIO)</label>

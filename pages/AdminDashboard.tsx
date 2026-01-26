@@ -1,3 +1,4 @@
+
 import React, { useRef, useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useData, normalizeIdentifier } from '../context/DataContext';
@@ -5,7 +6,7 @@ import { useUser } from '../context/UserContext';
 import { dbService } from '../services/db';
 import { Song, ProjectType, ReleaseCategory } from '../types';
 
-type Tab = 'catalog' | 'settings' | 'payment' | 'curation';
+type Tab = 'catalog' | 'insights' | 'settings' | 'payment';
 type SortKey = 'releaseDate' | 'title' | 'language';
 
 const AdminDashboard: React.FC = () => {
@@ -34,15 +35,9 @@ const AdminDashboard: React.FC = () => {
       incomeProduction: 0,
       incomeDonation: 0,
       activeSongs: 0,
-      missingDataSongs: 0
-  });
-
-  // Global Brand Configuration
-  const [platformConfig, setPlatformConfig] = useState({
-    defaultCompany: 'Willwi Music',
-    defaultProject: ProjectType.Indie,
-    youtubeFeaturedUrl: '',
-    homeTitle: ''
+      totalSongs: 0,
+      hasLyricsCount: 0,
+      hasAudioCount: 0
   });
 
   // QR Code Images State
@@ -56,9 +51,6 @@ const AdminDashboard: React.FC = () => {
   const [accessCode, setAccessCode] = useState('8888');
 
   useEffect(() => {
-      const savedConfig = localStorage.getItem('willwi_platform_config');
-      if (savedConfig) setPlatformConfig(JSON.parse(savedConfig));
-      
       setQrImages({
           global_payment: localStorage.getItem('qr_global_payment') || '',
           production: localStorage.getItem('qr_production') || '',
@@ -76,14 +68,17 @@ const AdminDashboard: React.FC = () => {
           const donaIncome = txs.filter(t => t.type === 'donation').reduce((acc, t) => acc + t.amount, 0);
           
           const activeCount = songs.filter(s => s.isInteractiveActive).length;
-          const missingCount = songs.filter(s => !s.lyrics || !s.audioUrl).length;
+          const hasLyrics = songs.filter(s => s.lyrics && s.lyrics.length > 10).length;
+          const hasAudio = songs.filter(s => s.audioUrl && s.audioUrl.length > 5).length;
 
           setStats({
               totalUsers: users.length,
               incomeProduction: prodIncome,
               incomeDonation: donaIncome,
               activeSongs: activeCount,
-              missingDataSongs: missingCount
+              totalSongs: songs.length,
+              hasLyricsCount: hasLyrics,
+              hasAudioCount: hasAudio
           });
       }
   }, [isAdmin, getAllUsers, getAllTransactions, songs]);
@@ -163,8 +158,6 @@ const AdminDashboard: React.FC = () => {
       if (filterStatus === 'inactive') result = result.filter(s => !s.isInteractiveActive);
       if (filterStatus === 'missing_assets') result = result.filter(s => !s.lyrics || !s.audioUrl);
       
-      // Secondary Sort for track order within albums usually happens naturally or by track number if available, 
-      // but here we sort globally just in case.
       return result.sort((a, b) => {
           let valA = a[sortConfig.key] || '';
           let valB = b[sortConfig.key] || '';
@@ -177,13 +170,10 @@ const AdminDashboard: React.FC = () => {
   const groupedCatalog = useMemo(() => {
     const groups: Record<string, Song[]> = {};
     filteredSongs.forEach(song => {
-        // Use UPC as grouping key, fallback to unique ID if no UPC (Singles without UPC)
         const key = song.upc ? normalizeIdentifier(song.upc) : `SINGLE_${song.id}`;
         if (!groups[key]) groups[key] = [];
         groups[key].push(song);
     });
-
-    // Sort groups by the release date of the *first* item in the group (Album Date)
     return Object.values(groups).sort((a, b) => {
         const dateA = new Date(a[0].releaseDate).getTime();
         const dateB = new Date(b[0].releaseDate).getTime();
@@ -213,6 +203,22 @@ const AdminDashboard: React.FC = () => {
       );
   }
 
+  // Helper for Circular Progress
+  const CircularProgress = ({ percentage, color, label }: { percentage: number, color: string, label: string }) => (
+      <div className="flex flex-col items-center">
+          <div className="relative w-32 h-32 mb-4">
+               <svg className="w-full h-full transform -rotate-90">
+                   <circle cx="64" cy="64" r="60" stroke="#1e293b" strokeWidth="8" fill="transparent" />
+                   <circle cx="64" cy="64" r="60" stroke={color} strokeWidth="8" fill="transparent" strokeDasharray={377} strokeDashoffset={377 - (377 * percentage) / 100} className="transition-all duration-1000" strokeLinecap="round" />
+               </svg>
+               <div className="absolute inset-0 flex items-center justify-center flex-col">
+                   <span className="text-2xl font-black text-white">{percentage}%</span>
+               </div>
+          </div>
+          <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">{label}</span>
+      </div>
+  );
+
   return (
     <div className="max-w-screen-2xl mx-auto px-6 py-12 animate-fade-in pb-40">
       
@@ -230,14 +236,14 @@ const AdminDashboard: React.FC = () => {
           </div>
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4 mb-10">
+      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-4 gap-4 mb-10">
           <div className="bg-slate-900 border border-white/5 p-5 rounded-xl cursor-pointer hover:bg-slate-800" onClick={() => setActiveTab('catalog')}>
               <div className="text-[10px] text-slate-500 font-bold uppercase tracking-widest mb-2">Total Catalog</div>
               <div className="text-3xl font-black text-white">{songs.length}</div>
           </div>
-          <div className="bg-slate-900 border border-white/5 p-5 rounded-xl border-l-4 border-l-emerald-500" onClick={() => setActiveTab('curation')}>
-              <div className="text-[10px] text-emerald-400 font-bold uppercase tracking-widest mb-2">Interactive Active</div>
-              <div className="text-3xl font-black text-emerald-400">{stats.activeSongs}</div>
+          <div className="bg-slate-900 border border-white/5 p-5 rounded-xl border-l-4 border-l-emerald-500" onClick={() => setActiveTab('insights')}>
+              <div className="text-[10px] text-emerald-400 font-bold uppercase tracking-widest mb-2">Data Insights</div>
+              <div className="text-3xl font-black text-emerald-400">{Math.floor((stats.hasLyricsCount / (stats.totalSongs || 1)) * 100)}%</div>
           </div>
           <div className="bg-slate-900 border border-white/5 p-5 rounded-xl border-l-4 border-l-brand-gold" onClick={() => setActiveTab('payment')}>
               <div className="text-[10px] text-brand-gold font-bold uppercase tracking-widest mb-2">Payment Setup</div>
@@ -248,6 +254,29 @@ const AdminDashboard: React.FC = () => {
               <div className="text-3xl font-black text-white">JSON</div>
           </div>
       </div>
+
+      {activeTab === 'insights' && (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 animate-fade-in">
+             <div className="col-span-full bg-slate-900 border border-white/5 p-10 rounded-xl mb-8 flex justify-around items-center">
+                 <CircularProgress percentage={Math.floor((stats.hasLyricsCount / (stats.totalSongs || 1)) * 100)} color="#fbbf24" label="Lyrics Completion" />
+                 <CircularProgress percentage={Math.floor((stats.hasAudioCount / (stats.totalSongs || 1)) * 100)} color="#38bdf8" label="Audio Readiness" />
+                 <CircularProgress percentage={Math.floor((stats.activeSongs / (stats.totalSongs || 1)) * 100)} color="#10b981" label="Interactive Active" />
+             </div>
+             <div className="col-span-full bg-black/40 border border-white/5 p-8 rounded-xl">
+                 <h4 className="text-brand-gold font-black uppercase tracking-widest text-xs mb-6">Interaction Stats</h4>
+                 <div className="grid grid-cols-2 gap-8">
+                     <div>
+                         <span className="block text-slate-500 text-[10px] uppercase font-bold">Total Support</span>
+                         <span className="text-3xl font-black text-white">NT$ {(stats.incomeProduction + stats.incomeDonation).toLocaleString()}</span>
+                     </div>
+                     <div>
+                         <span className="block text-slate-500 text-[10px] uppercase font-bold">Registered Users</span>
+                         <span className="text-3xl font-black text-white">{stats.totalUsers}</span>
+                     </div>
+                 </div>
+             </div>
+          </div>
+      )}
 
       {activeTab === 'catalog' && (
           <div className="space-y-6">

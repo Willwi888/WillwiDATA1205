@@ -76,20 +76,35 @@ const Interactive: React.FC = () => {
     }
   }, [currentLineIndex]);
 
+  // Sync Pro: Spacebar Support
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+        if (e.code === 'Space' && mode === 'playing' && !isPaused && audioRef.current) {
+            e.preventDefault();
+            // Advance line on spacebar
+            const nextIndex = currentLineIndex + 1;
+            if (nextIndex < lyricsLines.length) {
+                handleLyricClick(nextIndex);
+            }
+        }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [mode, isPaused, currentLineIndex, lyricsLines]);
+
   const handleLyricClick = (index: number) => {
     if (mode !== 'playing' || isPaused || !audioRef.current) return;
     const now = audioRef.current.currentTime;
+    
+    // Strict Mode: Can only advance one by one unless Admin
     if (index === currentLineIndex + 1 || isAdmin) {
         const newStamps = [...stamps];
         newStamps[index] = now;
         setStamps(newStamps);
         setCurrentLineIndex(index);
-        if (window.navigator.vibrate) window.navigator.vibrate(10);
-    } else if (index === currentLineIndex) {
-        const newStamps = [...stamps];
-        newStamps[index] = now;
-        setStamps(newStamps);
-    }
+        // Haptic feedback if available
+        if (window.navigator.vibrate) window.navigator.vibrate(15);
+    } 
   };
 
   const handleTogglePlay = async () => {
@@ -106,7 +121,7 @@ const Interactive: React.FC = () => {
               console.error("Playback failed:", error);
               setIsPaused(true);
               setIsAudioLoading(false);
-              setAudioError("音訊載入失敗：請檢查後台連結是否為「檔案分享連結」而非「Showcase 頁面」。");
+              setAudioError("音訊載入失敗：請檢查後台連結是否為「檔案分享連結」。");
               showToast("播放失敗，請檢查網路或音訊連結格式", "error");
           }
       } else {
@@ -168,13 +183,24 @@ const Interactive: React.FC = () => {
 
   return (
     <div className="min-h-screen flex flex-col pt-24 pb-32 relative overflow-hidden bg-[#020617] transition-colors duration-1000">
+      
+      {/* Cinema Player 2.0 Dynamic Background */}
       <div className="fixed inset-0 z-0 overflow-hidden">
           {bgVideoUrl ? (
               <video src={bgVideoUrl} autoPlay loop muted playsInline className="w-full h-full object-cover blur-sm opacity-30" />
           ) : (
-              <img src={selectedSong?.coverUrl || ''} className="w-full h-full object-cover blur-[120px] scale-125 opacity-10 animate-studio-breathe" alt="" />
+              <div className="w-full h-full relative">
+                  <div 
+                    className="absolute inset-0 bg-cover bg-center transition-all duration-[3000ms] animate-studio-breathe"
+                    style={{ 
+                        backgroundImage: `url(${selectedSong?.coverUrl || ''})`,
+                        filter: 'blur(100px) brightness(0.6)'
+                    }} 
+                  />
+                  <div className="absolute inset-0 bg-black/60 mix-blend-multiply"></div>
+              </div>
           )}
-          <div className="absolute inset-0 bg-gradient-to-b from-black/80 via-transparent to-black"></div>
+          <div className="absolute inset-0 bg-gradient-to-b from-[#020617]/90 via-transparent to-[#020617]"></div>
       </div>
 
       <div className="flex-1 flex flex-col items-center justify-center relative z-10 px-10 animate-fade-in">
@@ -207,10 +233,10 @@ const Interactive: React.FC = () => {
                    <h2 className="text-4xl font-black uppercase tracking-[0.4em] mb-12 border-b border-white/10 pb-6 text-white">Recording Vault</h2>
                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                        {songs.filter(s => s.isInteractiveActive || isAdmin).map(song => (
-                           <div key={song.id} onClick={() => { setSelectedSong(song); setMode('philosophy'); }} className="group cursor-pointer bg-slate-900/40 p-10 rounded-sm border border-white/20 hover:border-brand-gold transition-all flex items-center gap-10">
+                           <div key={song.id} onClick={() => { setSelectedSong(song); setMode('philosophy'); }} className="group cursor-pointer bg-slate-900/40 p-10 rounded-sm border border-white/20 hover:border-brand-gold transition-all flex items-center gap-10 hover:bg-white/[0.05]">
                                <img src={song.coverUrl} className="w-32 h-32 object-cover shadow-2xl" alt="" />
                                <div className="text-left">
-                                 <h4 className="text-2xl font-black uppercase tracking-widest text-white group-hover:text-brand-gold">{song.title}</h4>
+                                 <h4 className="text-2xl font-black uppercase tracking-widest text-white group-hover:text-brand-gold transition-colors">{song.title}</h4>
                                  <span className="text-[11px] text-brand-gold font-mono tracking-widest uppercase font-bold">{song.isrc}</span>
                                </div>
                            </div>
@@ -238,13 +264,12 @@ const Interactive: React.FC = () => {
 
            {mode === 'guide' && (
                <div className="max-w-4xl w-full bg-slate-900/80 border border-white/10 p-16 rounded-sm backdrop-blur-3xl animate-fade-in shadow-2xl">
-                   <h3 className="text-brand-gold font-black uppercase tracking-[0.5em] text-sm mb-12 border-b border-white/5 pb-6 text-center">開始前 (STUDIO RULES)</h3>
+                   <h3 className="text-brand-gold font-black uppercase tracking-[0.5em] text-sm mb-12 border-b border-white/5 pb-6 text-center">SYNC PRO GUIDE</h3>
                    <div className="space-y-8 text-center mb-16 px-4">
                        <p className="text-xl md:text-2xl text-slate-200 font-bold leading-relaxed tracking-widest">
-                           這裡沒有再來一次也沒有修到完美<br/>
-                           你現在做的就是最後的樣子<br/>
-                           對歌詞的時候慢一點沒關係<br/>
-                           你只是在找這一句應該落在哪裡
+                           恢復手動捕捉模式<br/>
+                           你可以點擊滑鼠，或使用空白鍵 (Space) 對時<br/>
+                           你的節奏就是這首歌這次的呼吸
                        </p>
                    </div>
                    <div className="grid grid-cols-1 md:grid-cols-3 gap-10 mb-16">
@@ -255,13 +280,13 @@ const Interactive: React.FC = () => {
                        </div>
                        <div className="space-y-4 p-6 bg-white/5 border border-white/5 rounded-sm">
                            <div className="w-8 h-8 bg-brand-gold text-black flex items-center justify-center font-black text-xs rounded-full">02</div>
-                           <h4 className="text-white font-black text-xs uppercase tracking-widest">點擊第一字</h4>
-                           <p className="text-slate-400 text-[9px] leading-relaxed uppercase tracking-widest">聽見該行「第一個字」唱出的瞬間，立即點擊畫面中央的文字。</p>
+                           <h4 className="text-white font-black text-xs uppercase tracking-widest">捕捉第一字</h4>
+                           <p className="text-slate-400 text-[9px] leading-relaxed uppercase tracking-widest">聽見該行「第一個字」唱出的瞬間，按下空白鍵。</p>
                        </div>
                        <div className="space-y-4 p-6 bg-white/5 border border-white/5 rounded-sm">
                            <div className="w-8 h-8 bg-brand-gold text-black flex items-center justify-center font-black text-xs rounded-full">03</div>
                            <h4 className="text-white font-black text-xs uppercase tracking-widest">真實紀錄</h4>
-                           <p className="text-slate-400 text-[9px] leading-relaxed uppercase tracking-widest">依序錄製到最後。你的節奏就是這首歌這次的呼吸。</p>
+                           <p className="text-slate-400 text-[9px] leading-relaxed uppercase tracking-widest">依序錄製到最後。沒有再來一次。</p>
                        </div>
                    </div>
                    <button onClick={() => isAdmin ? setMode('playing') : setMode('gate')} className="w-full py-10 bg-brand-gold text-black font-black uppercase tracking-[0.4em] text-sm hover:bg-white transition-all shadow-2xl">進入錄製室 (GO TO STUDIO)</button>
@@ -278,6 +303,7 @@ const Interactive: React.FC = () => {
                </div>
            )}
 
+           {/* CINEMA PLAYER 2.0 */}
            {mode === 'playing' && (
                <div className="w-full max-w-5xl h-full flex flex-col items-center animate-fade-in">
                    <div className="w-full mb-16 animate-fade-in-up">
@@ -285,7 +311,7 @@ const Interactive: React.FC = () => {
                            <div className="flex items-center gap-4">
                                <div className={`w-2 h-2 rounded-full ${isPaused ? (isAudioLoading ? 'bg-brand-gold animate-bounce' : 'bg-slate-600') : 'bg-brand-gold animate-pulse'}`}></div>
                                <span className="text-[10px] font-black uppercase tracking-[0.4em] text-slate-400">
-                                   {isAudioLoading ? 'BUFFERING...' : isPaused ? 'SESSION STANDBY' : 'LIVE RECORDING...'}
+                                   {isAudioLoading ? 'BUFFERING...' : isPaused ? 'CINEMA STANDBY' : 'SYNC PRO ACTIVE'}
                                </span>
                            </div>
                            <span className="text-[11px] font-mono font-bold text-brand-gold/60">{Math.floor(currentTime)} / {Math.floor(duration)}s</span>
@@ -315,14 +341,20 @@ const Interactive: React.FC = () => {
                            )}
                        </div>
                    </div>
-                   <div ref={scrollRef} className="w-full flex-1 max-h-[60vh] overflow-y-auto custom-scrollbar pr-10 space-y-24 py-48 text-center">
+                   <div ref={scrollRef} className="w-full flex-1 max-h-[60vh] overflow-y-auto custom-scrollbar pr-10 space-y-16 py-48 text-center mask-image-gradient">
                        {lyricsLines.map((line, idx) => {
                            const isStamped = stamps[idx] !== undefined;
                            const isActive = idx === currentLineIndex;
+                           
+                           // Cinema 2.0 Dynamic Blur Logic
+                           let blurClass = 'blur-[3px] opacity-30 scale-95';
+                           if (isActive) blurClass = 'blur-0 opacity-100 scale-105 text-brand-gold drop-shadow-[0_0_15px_rgba(251,191,36,0.6)]';
+                           else if (idx === currentLineIndex + 1) blurClass = 'blur-[1px] opacity-60 scale-100';
+
                            return (
-                               <div key={idx} onClick={() => handleLyricClick(idx)} className={`transition-all duration-1000 cursor-pointer py-4 group origin-center ${isActive ? 'scale-110 translate-y-[-5px]' : 'hover:opacity-90'}`}>
-                                   <p className={`text-3xl md:text-6xl font-black tracking-[0.2em] leading-relaxed transition-all duration-1000 ${isActive ? 'text-white drop-shadow-[0_0_30px_rgba(255,255,255,0.7)]' : isStamped ? 'text-brand-gold/20' : 'text-slate-800'}`}>{line}</p>
-                                   {isStamped && <div className="flex items-center justify-center gap-2 mt-4 opacity-30"><div className="h-[1px] w-8 bg-brand-gold/40"></div><span className="text-[10px] font-mono text-brand-gold font-bold tracking-[0.3em]">{stamps[idx].toFixed(2)}s</span><div className="h-[1px] w-8 bg-brand-gold/40"></div></div>}
+                               <div key={idx} onClick={() => handleLyricClick(idx)} className={`transition-all duration-700 cursor-pointer py-6 group origin-center ${blurClass}`}>
+                                   <p className={`text-3xl md:text-5xl font-black tracking-[0.2em] leading-relaxed transition-all duration-700`}>{line}</p>
+                                   {isStamped && <div className="flex items-center justify-center gap-2 mt-4 opacity-50"><div className="h-[1px] w-8 bg-brand-gold/60"></div><span className="text-[10px] font-mono text-brand-gold font-bold tracking-[0.3em]">{stamps[idx].toFixed(2)}s</span><div className="h-[1px] w-8 bg-brand-gold/60"></div></div>}
                                </div>
                            );
                        })}
@@ -400,7 +432,7 @@ const Interactive: React.FC = () => {
             onTimeUpdate={() => setCurrentTime(audioRef.current?.currentTime || 0)} 
             onError={(e) => {
                 console.error("Audio Load Error:", e);
-                setAudioError("音訊無法加載。原因可能為：1. 連結格式錯誤 2. 檔案權限未開啟 3. 此連結為網頁而非原始音訊檔案。");
+                setAudioError("音訊無法加載。請檢查後台連結是否為「原始音訊流」(raw=1)。");
             }}
             preload="auto" 
           />
