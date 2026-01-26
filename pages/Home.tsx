@@ -2,11 +2,12 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from '../context/LanguageContext';
-import { ASSETS } from '../context/DataContext';
+import { useData } from '../context/DataContext';
 import PaymentModal from '../components/PaymentModal';
 
 const Home: React.FC = () => {
   const { t } = useTranslation();
+  const { globalSettings } = useData();
   const navigate = useNavigate();
   
   // 支付彈窗狀態管理
@@ -20,10 +21,10 @@ const Home: React.FC = () => {
 
   return (
     <div className="min-h-screen relative flex flex-col items-center overflow-hidden bg-black">
-      {/* Background Layers */}
+      {/* Background Layers - Connected to dynamic portraitUrl */}
       <div 
         className="absolute inset-0 bg-cover bg-center opacity-30 transition-transform duration-[10000ms] scale-110"
-        style={{ backgroundImage: `url(${ASSETS.willwiPortrait})` }}
+        style={{ backgroundImage: `url(${globalSettings.portraitUrl})` }}
       ></div>
       <div className="absolute inset-0 bg-gradient-to-b from-black via-transparent to-black"></div>
 
