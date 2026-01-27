@@ -44,7 +44,8 @@ const SETTINGS_LOCAL_KEY = 'willwi_settings_backup';
 export const normalizeIdentifier = (val: string) => (val || '').trim().replace(/[^A-Z0-9]/gi, '').toUpperCase();
 
 /**
- * 將雲端空間連結轉換為瀏覽器可直接播放的原始流地址
+ * Resolves cloud storage links into direct browser-playable streams.
+ * Handles Dropbox (?raw=1) and Google Drive (uc?id=) formats.
  */
 export const resolveDirectLink = (url: string) => {
     if (!url || typeof url !== 'string') return '';
@@ -144,7 +145,12 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                       ...s, coverUrl: s.cover_url, audioUrl: s.audio_url, releaseDate: s.release_date,
                       isInteractiveActive: s.is_interactive_active, creativeNote: s.creative_note
                   }));
-                  const sorted = cloudSongs.sort((a: any, b: any) => new Date(b.releaseDate).getTime() - new Date(a.releaseDate).getTime());
+                  const combined = [...localSongs];
+                  cloudSongs.forEach((cs: any) => {
+                      const idx = combined.findIndex(ls => ls.id === cs.id);
+                      if (idx >= 0) combined[idx] = cs; else combined.push(cs);
+                  });
+                  const sorted = combined.sort((a,b) => new Date(b.releaseDate).getTime() - new Date(a.releaseDate).getTime());
                   setSongs(sorted);
                   await dbService.bulkAdd(sorted);
               } else if (localSongs.length === 0) {

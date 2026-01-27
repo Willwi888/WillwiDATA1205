@@ -36,6 +36,12 @@ const SongDetail: React.FC = () => {
     }).sort((a, b) => a.title.localeCompare(b.title));
   }, [song, songs]);
 
+  const spotifyId = useMemo(() => {
+      if (!song?.spotifyLink) return null;
+      const match = song.spotifyLink.match(/track\/([a-zA-Z0-9]+)/);
+      return match ? match[1] : null;
+  }, [song]);
+
   const displayTitle = (lyricsView === 'translated' && song?.translations?.[lang]?.title) || song?.title;
   const displayLyrics = (lyricsView === 'translated' && song?.translations?.[lang]?.lyrics) || song?.lyrics;
 
@@ -52,16 +58,15 @@ const SongDetail: React.FC = () => {
         </div>
 
         <div className="max-w-[1700px] mx-auto">
-            <div className="mb-16 flex justify-between items-center">
+            <div className="mb-16 flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
                 <Link to="/database" className="text-[10px] text-slate-500 hover:text-white uppercase tracking-[0.5em] font-black">← BACK TO CATALOG</Link>
-                <div className="flex gap-4">
-                    {/* 權限控制：僅管理員可在詳情頁進行播放測試 */}
+                <div className="flex flex-wrap gap-4">
                     {isAdmin && (
                         <button 
                             onClick={() => playSong(song)} 
                             className={`px-8 py-3 text-[10px] font-black uppercase tracking-widest transition-all ${isCurrentPlaying && isPlaying ? 'bg-brand-gold text-black' : 'bg-white text-black hover:bg-brand-gold'}`}
                         >
-                            {isCurrentPlaying && isPlaying ? 'PLAYING TEST' : 'LISTEN (ADMIN ONLY)'}
+                            {isCurrentPlaying && isPlaying ? 'DIAGNOSTIC ACTIVE' : 'TEST STREAM (ADMIN)'}
                         </button>
                     )}
                     
@@ -81,6 +86,27 @@ const SongDetail: React.FC = () => {
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-20">
                 <div className="lg:col-span-5 space-y-12">
                     <img src={cover} className="w-full aspect-square object-cover rounded shadow-2xl border border-white/10" alt="" />
+                    
+                    {/* Responsive Spotify Embed Player */}
+                    {spotifyId && (
+                        <div className="space-y-6">
+                            <h3 className="text-[11px] font-black text-brand-gold uppercase tracking-[0.6em] border-b border-white/10 pb-4">Streaming Portal</h3>
+                            <div className="w-full overflow-hidden rounded-xl shadow-2xl border border-white/5 bg-black/40">
+                                <iframe 
+                                    style={{ borderRadius: '12px' }} 
+                                    src={`https://open.spotify.com/embed/track/${spotifyId}?utm_source=generator&theme=0`} 
+                                    width="100%" 
+                                    height="152" 
+                                    frameBorder="0" 
+                                    allowFullScreen 
+                                    allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture" 
+                                    loading="lazy"
+                                ></iframe>
+                            </div>
+                            <p className="text-[9px] text-slate-500 uppercase tracking-widest font-bold text-center">Full track available via Spotify service</p>
+                        </div>
+                    )}
+
                     <div className="space-y-6">
                         <h3 className="text-[11px] font-black text-brand-gold uppercase tracking-[0.6em] border-b border-white/10 pb-4">Album Tracks ({albumTracks.length})</h3>
                         <div className="space-y-2 max-h-[400px] overflow-y-auto custom-scrollbar pr-4">
@@ -91,7 +117,7 @@ const SongDetail: React.FC = () => {
                                         <h5 className="text-sm font-bold uppercase truncate text-white">{track.title}</h5>
                                     </div>
                                     {isAdmin && (
-                                        <button onClick={(e) => { e.stopPropagation(); playSong(track); }} className="opacity-0 group-hover:opacity-100 transition-opacity text-brand-gold text-[10px] font-black">PLAY</button>
+                                        <button onClick={(e) => { e.stopPropagation(); playSong(track); }} className="opacity-0 group-hover:opacity-100 transition-opacity text-brand-gold text-[10px] font-black">TEST</button>
                                     )}
                                 </div>
                             ))}
@@ -105,11 +131,18 @@ const SongDetail: React.FC = () => {
                             <span className="px-3 py-1 bg-brand-gold/10 border border-brand-gold/30 text-brand-gold text-[9px] font-black uppercase tracking-widest">{song.releaseCategory || 'SINGLE'}</span>
                             <span className="text-white/30 text-[9px] font-black uppercase tracking-widest">{song.releaseDate}</span>
                         </div>
-                        <h1 className="text-6xl md:text-9xl font-black uppercase tracking-tighter text-white leading-none">{displayTitle}</h1>
+                        <h1 className="text-5xl md:text-8xl lg:text-9xl font-black uppercase tracking-tighter text-white leading-none break-words">{displayTitle}</h1>
                     </div>
                     <div className="space-y-12">
-                        <h3 className="text-[12px] font-black text-white uppercase tracking-[0.6em] border-b border-white/10 pb-6">Lyrics 歌詞</h3>
-                        <div className="text-base md:text-lg text-slate-300 leading-relaxed whitespace-pre-line uppercase tracking-widest font-medium">
+                        <div className="flex justify-between items-center border-b border-white/10 pb-6">
+                            <h3 className="text-[12px] font-black text-white uppercase tracking-[0.6em]">Lyrics 歌詞</h3>
+                            {song.translations?.[lang]?.lyrics && (
+                                <button onClick={() => setLyricsView(prev => prev === 'original' ? 'translated' : 'original')} className="text-[9px] font-black text-brand-gold uppercase tracking-widest hover:text-white transition-colors">
+                                    {lyricsView === 'original' ? `VIEW ${lang.toUpperCase()}` : 'VIEW ORIGINAL'}
+                                </button>
+                            )}
+                        </div>
+                        <div className="text-base md:text-xl text-slate-300 leading-[2.2] whitespace-pre-line uppercase tracking-[0.2em] font-medium">
                             {displayLyrics || 'NO LYRICS AVAILABLE IN DATABASE'}
                         </div>
                     </div>
