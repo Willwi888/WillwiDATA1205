@@ -10,7 +10,7 @@ const PlatformIcon = ({ name }: { name: string }) => {
     if (name === 'spotify') return <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.66 0 12 0zm5.521 17.34c-.24.359-.66.48-1.021.24-2.82-1.74-6.36-2.101-10.561-1.141-.418.122-.779-.179-.899-.539-.12-.421.18-.78.54-.9 4.56-1.021 8.52-.6 11.64 1.32.42.18.479.659.301 1.02zm1.44-3.3c-.301.42-.841.6-1.262.3-3.239-1.98-8.159-2.58-11.939-1.38-.479.12-1.02-.12-1.14-.6-.12-.48.12-1.021.6-1.141C9.6 9.9 15 10.561 18.72 12.84c.361.181.54.78.241 1.2zm.12-3.36C15.24 8.4 8.82 8.16 5.16 9.301c-.6.179-1.2-.181-1.38-.721-.18-.601.18-1.2.72-1.381 4.26-1.26 11.28-1.02 15.721 1.621.539.3.719 1.02.419 1.56-.299.421-1.02.599-1.559.3z"/></svg>;
     if (name === 'apple') return <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor"><path d="M22.256 9.471c.882 3.033-1.605 5.922-3.896 5.584-3.567-.532-3.141-5.748.182-6.666 1.487-.411 3.25.109 3.714 1.082zm-9.98 4.793c1.996-2.583 2.502-6.526-.81-7.85-3.376-1.35-6.636 2.454-4.225 6.784 1.246 2.238 3.528 2.923 5.035 1.066zm8.851 5.679c-2.321 4.958-9.455 5.592-13.627 2.066-4.524-3.824-2.85-11.758 2.651-13.344 5.955-1.719 10.601 2.373 12.396 6.824.582 1.442.22 3.298-1.42 4.454zm-14.755-7.81c.216-4.135 4.312-6.551 7.42-4.996 3.109 1.554 3.791 6.221.725 8.783-3.035 2.535-7.957.575-8.145-3.787z"/></svg>;
     if (name === 'youtube') return <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor"><path d="M19.615 3.184c-3.604-.246-11.631-.245-15.23 0-3.897.266-4.356 2.62-4.385 8.816.029 6.185.484 8.549 4.385 8.816 3.6.245 11.626.246 15.23 0 3.897-.266 4.356-2.62 4.385-8.816-.029-6.185-.484-8.549-4.385-8.816zm-10.615 12.816v-8l8 3.993-8 4.007z"/></svg>;
-    if (name === 'tidal') return <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor"><path d="M12.012 8.036l-3.571-3.571-3.571 3.571 3.571 3.571 3.571-3.571zm-3.571-3.572l-3.572-3.571-3.571 3.571 3.571 3.571 3.572-3.571zm7.143 3.572l-3.571-3.571-3.571 3.571 3.571 3.571 3.571-3.571zm-3.571 3.571l-3.571-3.571-3.571 3.571 3.571 3.571 3.571-3.571zm3.571 3.571l-3.571-3.571-3.571 3.571 3.571 3.571 3.571-3.571zm7.143 0l-3.571-3.571-3.571 3.571 3.571 3.571 3.571-3.571z"/></svg>;
+    if (name === 'tidal') return <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor"><path d="M12.012 8.036l-3.571-3.571-3.571 3.571 3.571 3.571 3.571-3.571zm-3.571-3.572l-3.572-3.571-3.571 3.571 3.571 3.571 3.572-3.571zm7.143 3.572l-3.571-3.571-3.571 3.571 3.571 3.571 3.571-3.571zm-3.571 3.571l-3.571-3.571-3.572 3.571 3.572 3.571 3.571-3.571zm3.571 3.571l-3.571-3.571-3.571 3.571 3.571 3.571 3.571-3.571zm7.143 0l-3.571-3.571-3.571 3.571 3.571 3.571 3.571-3.571z"/></svg>;
     return null;
 }
 
@@ -163,64 +163,77 @@ const SongDetail: React.FC = () => {
                     </div>
 
                     {/* STREAMING CONSOLE: TIDAL-INSPIRED LIST AESTHETIC */}
-                    <div className="pt-8 animate-fade-in-up space-y-6">
-                        <h4 className="text-[10px] text-slate-500 font-black uppercase tracking-[0.2em] border-b border-white/5 pb-2">Streaming Console</h4>
+                    <div className="pt-8 animate-fade-in-up space-y-8">
+                        <div className="flex items-center justify-between border-b border-white/10 pb-4 mb-4">
+                            <h4 className="text-[11px] text-brand-gold font-black uppercase tracking-[0.4em]">Streaming Console</h4>
+                            <span className="text-[8px] text-slate-600 font-mono uppercase tracking-widest">Digital Distribution Hub</span>
+                        </div>
                         
                         {/* 1. Embeds Area (Visual Priority) */}
-                        <div className="space-y-4">
+                        <div className="space-y-10">
                             {spotifyTrackId && (
-                                <div className="w-full rounded-sm overflow-hidden shadow-2xl border border-white/10">
-                                    <iframe src={`https://open.spotify.com/embed/track/${spotifyTrackId}?utm_source=generator&theme=0`} width="100%" height="80" frameBorder="0" allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture" loading="lazy" className="bg-[#020617]"></iframe>
+                                <div className="space-y-4 group">
+                                    <div className="flex items-center justify-between px-2">
+                                        <div className="flex items-center gap-3">
+                                            <div className="w-5 h-5 text-[#1DB954]"><PlatformIcon name="spotify" /></div>
+                                            <span className="text-[10px] font-black uppercase tracking-[0.3em] text-white">Spotify</span>
+                                        </div>
+                                        <a href={song.spotifyLink} target="_blank" className="text-[8px] font-black text-slate-500 hover:text-white transition-colors uppercase tracking-widest">Open in App ↗</a>
+                                    </div>
+                                    <div className="w-full rounded-md overflow-hidden shadow-[0_20px_50px_rgba(0,0,0,0.5)] border border-white/5 bg-[#121212] transition-transform duration-500 hover:scale-[1.02]">
+                                        <iframe 
+                                            src={`https://open.spotify.com/embed/track/${spotifyTrackId}?utm_source=generator&theme=0`} 
+                                            width="100%" 
+                                            height="152" 
+                                            frameBorder="0" 
+                                            allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture" 
+                                            loading="lazy" 
+                                            className="bg-[#121212]"
+                                        ></iframe>
+                                    </div>
                                 </div>
                             )}
+                            
                             {appleMusicEmbedUrl && (
-                                <div className="w-full rounded-sm overflow-hidden shadow-2xl border border-white/10">
-                                    <iframe allow="autoplay *; encrypted-media *; fullscreen *; clipboard-write" frameBorder="0" height="150" style={{width:'100%', maxWidth:'660px', overflow:'hidden', background:'transparent'}} sandbox="allow-forms allow-popups allow-same-origin allow-scripts allow-storage-access-by-user-activation allow-top-navigation-by-user-activation" src={appleMusicEmbedUrl}></iframe>
+                                <div className="space-y-4 group">
+                                    <div className="flex items-center justify-between px-2">
+                                        <div className="flex items-center gap-3">
+                                            <div className="w-5 h-5 text-[#FA243C]"><PlatformIcon name="apple" /></div>
+                                            <span className="text-[10px] font-black uppercase tracking-[0.3em] text-white">Apple Music</span>
+                                        </div>
+                                        <a href={song.appleMusicLink} target="_blank" className="text-[8px] font-black text-slate-500 hover:text-white transition-colors uppercase tracking-widest">Open in App ↗</a>
+                                    </div>
+                                    <div className="w-full rounded-md overflow-hidden shadow-[0_20px_50px_rgba(0,0,0,0.5)] border border-white/5 transition-transform duration-500 hover:scale-[1.02]">
+                                        <iframe allow="autoplay *; encrypted-media *; fullscreen *; clipboard-write" frameBorder="0" height="150" style={{width:'100%', maxWidth:'100%', overflow:'hidden', background:'transparent'}} sandbox="allow-forms allow-popups allow-same-origin allow-scripts allow-storage-access-by-user-activation allow-top-navigation-by-user-activation" src={appleMusicEmbedUrl}></iframe>
+                                    </div>
                                 </div>
                             )}
+
                             {youtubeVideoId && (
-                                <div className="w-full aspect-video rounded-sm overflow-hidden shadow-2xl border border-white/10">
-                                    <iframe width="100%" height="100%" src={`https://www.youtube.com/embed/${youtubeVideoId}`} title="YouTube video player" frameBorder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowFullScreen></iframe>
+                                <div className="space-y-4 group">
+                                    <div className="flex items-center justify-between px-2">
+                                        <div className="flex items-center gap-3">
+                                            <div className="w-5 h-5 text-[#FF0000]"><PlatformIcon name="youtube" /></div>
+                                            <span className="text-[10px] font-black uppercase tracking-[0.3em] text-white">YouTube Music</span>
+                                        </div>
+                                        <a href={song.youtubeUrl} target="_blank" className="text-[8px] font-black text-slate-500 hover:text-white transition-colors uppercase tracking-widest">Open in App ↗</a>
+                                    </div>
+                                    <div className="w-full aspect-video rounded-md overflow-hidden shadow-[0_20px_50px_rgba(0,0,0,0.5)] border border-white/5 transition-transform duration-500 hover:scale-[1.02]">
+                                        <iframe width="100%" height="100%" src={`https://www.youtube.com/embed/${youtubeVideoId}`} title="YouTube video player" frameBorder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowFullScreen></iframe>
+                                    </div>
                                 </div>
                             )}
                         </div>
 
                         {/* 2. Platform List (Clean TIDAL Style) */}
-                        <div className="flex flex-col gap-2 mt-4">
+                        <div className="flex flex-col gap-3 mt-10">
                             {song.tidalUrl && (
-                                <a href={song.tidalUrl} target="_blank" className="group flex items-center justify-between p-4 bg-[#0f172a]/50 border border-white/5 rounded-sm hover:border-white transition-all cursor-pointer">
-                                    <div className="flex items-center gap-4">
-                                        <div className="text-white opacity-60 group-hover:opacity-100 transition-opacity"><PlatformIcon name="tidal" /></div>
-                                        <span className="text-[11px] font-black uppercase tracking-widest text-slate-300 group-hover:text-white transition-colors">TIDAL</span>
+                                <a href={song.tidalUrl} target="_blank" className="group flex items-center justify-between p-5 bg-[#0f172a]/30 border border-white/5 rounded-sm hover:border-white transition-all cursor-pointer">
+                                    <div className="flex items-center gap-5">
+                                        <div className="text-white opacity-40 group-hover:opacity-100 transition-all"><PlatformIcon name="tidal" /></div>
+                                        <span className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 group-hover:text-white transition-colors">Listen on TIDAL</span>
                                     </div>
-                                    <span className="text-slate-600 group-hover:text-white text-xs transition-colors">→</span>
-                                </a>
-                            )}
-                            {song.spotifyLink && (
-                                <a href={song.spotifyLink} target="_blank" className="group flex items-center justify-between p-4 bg-[#0f172a]/50 border border-white/5 rounded-sm hover:border-[#1DB954] transition-all cursor-pointer">
-                                    <div className="flex items-center gap-4">
-                                        <div className="text-white opacity-60 group-hover:opacity-100 group-hover:text-[#1DB954] transition-all"><PlatformIcon name="spotify" /></div>
-                                        <span className="text-[11px] font-black uppercase tracking-widest text-slate-300 group-hover:text-[#1DB954] transition-colors">Spotify</span>
-                                    </div>
-                                    <span className="text-slate-600 group-hover:text-[#1DB954] text-xs transition-colors">→</span>
-                                </a>
-                            )}
-                            {song.appleMusicLink && (
-                                <a href={song.appleMusicLink} target="_blank" className="group flex items-center justify-between p-4 bg-[#0f172a]/50 border border-white/5 rounded-sm hover:border-[#FA243C] transition-all cursor-pointer">
-                                    <div className="flex items-center gap-4">
-                                        <div className="text-white opacity-60 group-hover:opacity-100 group-hover:text-[#FA243C] transition-all"><PlatformIcon name="apple" /></div>
-                                        <span className="text-[11px] font-black uppercase tracking-widest text-slate-300 group-hover:text-[#FA243C] transition-colors">Apple Music</span>
-                                    </div>
-                                    <span className="text-slate-600 group-hover:text-[#FA243C] text-xs transition-colors">→</span>
-                                </a>
-                            )}
-                            {song.youtubeUrl && (
-                                <a href={song.youtubeUrl} target="_blank" className="group flex items-center justify-between p-4 bg-[#0f172a]/50 border border-white/5 rounded-sm hover:border-[#FF0000] transition-all cursor-pointer">
-                                    <div className="flex items-center gap-4">
-                                        <div className="text-white opacity-60 group-hover:opacity-100 group-hover:text-[#FF0000] transition-all"><PlatformIcon name="youtube" /></div>
-                                        <span className="text-[11px] font-black uppercase tracking-widest text-slate-300 group-hover:text-[#FF0000] transition-colors">YouTube</span>
-                                    </div>
-                                    <span className="text-slate-600 group-hover:text-[#FF0000] text-xs transition-colors">→</span>
+                                    <span className="text-slate-700 group-hover:text-white text-xs transition-colors">→</span>
                                 </a>
                             )}
                         </div>
