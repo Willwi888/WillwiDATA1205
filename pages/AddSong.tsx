@@ -55,11 +55,9 @@ const AddSong: React.FC = () => {
   const handleImportSpotify = async (track: any) => {
     showToast("正在從 Spotify 獲取詳細資料...", "success");
     
-    // Default data from track search
     let upc = '';
     let label = '';
     
-    // Attempt to fetch full album details for UPC and Label if album ID exists
     if (track.album?.id) {
         try {
             const fullAlbum = await getSpotifyAlbum(track.album.id);
@@ -101,7 +99,6 @@ const AddSong: React.FC = () => {
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
     
-    // 連結自動檢測與修復 (針對 Dropbox)
     let finalValue = value;
     if (name === 'audioUrl') {
         const val = value.trim();
@@ -161,9 +158,25 @@ const AddSong: React.FC = () => {
       }
   };
 
+  // YouTube URL Validation Helper
+  const isValidYouTubeUrl = (url: string) => {
+      if (!url) return true; // Optional field
+      const pattern = /^(https?:\/\/)?(www\.|music\.)?(youtube\.com|youtu\.be)\/(watch\?v=|embed\/|v\/|shorts\/|playlist\?list=)?([a-zA-Z0-9_-]+)/;
+      return pattern.test(url);
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.title || !formData.isrc) return showToast("必須填寫歌名與 ISRC", "error");
+    
+    // 1. Basic Mandatory Check
+    if (!formData.title || !formData.isrc) {
+        return showToast("必須填寫歌名與 ISRC", "error");
+    }
+
+    // 2. YouTube URL Validation
+    if (formData.youtubeUrl && !isValidYouTubeUrl(formData.youtubeUrl)) {
+        return showToast("無效的 YouTube 連結格式", "error");
+    }
     
     setIsSubmitting(true);
     const success = editId ? await updateSong(editId, formData) : await addSong(formData as Song);
@@ -313,7 +326,6 @@ const AddSong: React.FC = () => {
                         </div>
                     )}
 
-                    {/* Metadata Section */}
                     <div className="pt-12 border-t border-white/5 space-y-10">
                         <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
                             <div className="space-y-3">
@@ -338,7 +350,13 @@ const AddSong: React.FC = () => {
                             <div className="col-span-1 md:col-span-2 space-y-3 relative">
                                 <label className="text-[9px] text-red-500 font-black uppercase tracking-widest">YouTube Music</label>
                                 <div className="flex gap-2">
-                                    <input name="youtubeUrl" value={formData.youtubeUrl} onChange={handleChange} className="flex-1 bg-black border border-white/5 p-4 text-[11px] text-slate-400 outline-none focus:border-red-500" placeholder="https://music.youtube.com/..." />
+                                    <input 
+                                        name="youtubeUrl" 
+                                        value={formData.youtubeUrl} 
+                                        onChange={handleChange} 
+                                        className={`flex-1 bg-black border p-4 text-[11px] text-slate-400 outline-none transition-all ${formData.youtubeUrl && !isValidYouTubeUrl(formData.youtubeUrl) ? 'border-rose-500 focus:border-rose-500' : 'border-white/5 focus:border-red-500'}`} 
+                                        placeholder="https://music.youtube.com/..." 
+                                    />
                                     <button 
                                         type="button" 
                                         onClick={handleAutoFindYouTube} 
@@ -348,6 +366,9 @@ const AddSong: React.FC = () => {
                                         {isFindingYT ? "..." : "AI"}
                                     </button>
                                 </div>
+                                {formData.youtubeUrl && !isValidYouTubeUrl(formData.youtubeUrl) && (
+                                    <p className="text-[8px] text-rose-500 font-bold uppercase tracking-widest absolute -bottom-5">格式不正確</p>
+                                )}
                             </div>
                              <div className="space-y-3">
                                 <label className="text-[9px] text-pink-500 font-black uppercase tracking-widest">Apple Music</label>
@@ -382,4 +403,6 @@ const AddSong: React.FC = () => {
         </div>
     </div>
   );
-}; export default AddSong;
+};
+
+export default AddSong;
