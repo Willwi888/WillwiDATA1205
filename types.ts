@@ -43,6 +43,7 @@ export interface Song {
   isInteractiveActive: boolean;
   isrc?: string;
   upc?: string;
+  spotifyId?: string; // New: Spotify unique ID
   spotifyLink?: string;
   appleMusicLink?: string;
   youtubeUrl?: string;
@@ -54,10 +55,8 @@ export interface Song {
   credits?: string;
   origin?: 'local' | 'cloud';
   description?: string;
-  // The Storyline Fields
-  creativeNote?: string; // 創作筆記
-  labLog?: string;      // 實驗室日誌
-  // Multi-language translation support
+  creativeNote?: string;
+  labLog?: string;
   translations?: Record<string, SongTranslation>; 
 }
 

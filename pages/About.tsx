@@ -19,11 +19,11 @@ const About: React.FC = () => {
             <p className="text-sm md:text-base text-brand-gold font-bold uppercase tracking-[0.3em]">Chen Wei-Er • Independent Musician</p>
         </div>
 
-        {/* GLOBAL RECOGNITION (New Section) */}
+        {/* GLOBAL RECOGNITION (Minimal & Authoritative) */}
         <div className="mb-24 p-10 bg-gradient-to-br from-[#0f172a] to-black border border-white/10 rounded-sm relative overflow-hidden group shadow-2xl">
             {/* Decoration */}
             <div className="absolute top-0 right-0 p-8 opacity-5 group-hover:opacity-10 transition-opacity">
-                <svg className="w-48 h-48 text-white" viewBox="0 0 24 24" fill="currentColor"><path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"/></svg>
+                <svg className="w-48 h-48 text-white" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm4.5 14H15v-4.5l-2.5 4.5-2.5-4.5v4.5H8.5V8h2l1.5 2.7L13.5 8h2v8z"/></svg>
             </div>
             
             <div className="relative z-10">
@@ -32,23 +32,19 @@ const About: React.FC = () => {
                      <h3 className="text-[10px] font-black text-[#FF6050] uppercase tracking-[0.4em]">Global Recognition</h3>
                 </div>
                 
-                <h2 className="text-4xl md:text-6xl font-black text-white uppercase tracking-tighter mb-4 leading-tight">
+                <h2 className="text-4xl md:text-6xl font-black text-white uppercase tracking-tighter mb-8 leading-tight">
                     Musixmatch <br /> Official Verified
                 </h2>
-                
-                <p className="text-sm md:text-base text-slate-400 font-bold uppercase tracking-widest leading-loose mb-12 max-w-2xl">
-                    Historical 2nd Artist with Triple Identity<br/>
-                    <span className="text-white border-b-2 border-brand-gold pb-1">Artist • Curator • Specialist</span>
-                </p>
 
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-y-8 gap-x-4">
-                    {['Master Rank Qualified', 'Academy Certified', 'Global Core Circle', 'Founding Curator'].map(tag => (
-                        <div key={tag} className="border-l border-white/20 pl-4 py-1">
-                            <span className="text-[9px] text-slate-500 font-black uppercase tracking-widest block mb-2 opacity-60">Badge</span>
-                            <span className="text-[10px] md:text-xs font-bold text-white uppercase tracking-wider">{tag}</span>
-                        </div>
-                    ))}
-                </div>
+                <p className="text-xs md:text-sm text-slate-500 font-bold uppercase tracking-[0.2em] mb-12 max-w-lg leading-relaxed">
+                    Certified Identity within the Global Music Metadata Ecosystem.<br/>
+                    Ensuring lyrical integrity and creative transparency across all platforms.
+                </p>
+                
+                <a href="https://www.musixmatch.com/artist/Willwi-1798471457" target="_blank" rel="noreferrer" className="inline-flex items-center gap-6 group cursor-pointer border border-white/10 px-10 py-5 bg-white/5 hover:bg-white hover:text-black transition-all rounded-sm">
+                    <span className="text-[10px] md:text-xs font-black uppercase tracking-[0.3em]">View Verified Profile</span>
+                    <span className="text-brand-gold group-hover:text-black text-lg">→</span>
+                </a>
             </div>
         </div>
 
