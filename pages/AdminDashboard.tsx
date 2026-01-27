@@ -323,7 +323,10 @@ const AdminDashboard: React.FC = () => {
                                     <td className="p-4"><div className="flex items-center gap-4"><img src={song.coverUrl} className="w-10 h-10 object-cover rounded" alt="" /><div className="font-bold text-sm text-white">{song.title}</div></div></td>
                                     <td className="p-4 hidden md:table-cell text-xs font-mono text-slate-400">{song.releaseDate}</td>
                                     <td className="p-4 text-center" onClick={(e) => e.stopPropagation()}><button onClick={() => updateSong(song.id, { isInteractiveActive: !song.isInteractiveActive })} className={`px-4 py-1 text-[9px] font-black uppercase border rounded ${song.isInteractiveActive ? 'bg-emerald-500 text-black border-emerald-500' : 'text-slate-500 border-white/10'}`}>{song.isInteractiveActive ? 'ON' : 'OFF'}</button></td>
-                                    <td className="p-4 text-right"><button onClick={(e) => { e.stopPropagation(); navigate(`/song/${song.id}`); }} className="text-[10px] font-black text-slate-400 hover:text-white">編輯</button></td>
+                                    <td className="p-4 text-right">
+                                        {/* CRITICAL FIX: Direct to AddSong (Edit Mode) instead of SongDetail */}
+                                        <button onClick={(e) => { e.stopPropagation(); navigate(`/add?edit=${song.id}`); }} className="text-[10px] font-black text-slate-400 hover:text-white">編輯</button>
+                                    </td>
                                 </tr>
                             )) : (
                                 <tr><td colSpan={5} className="p-20 text-center text-slate-600 font-bold uppercase tracking-widest text-xs">NO LOCAL SONGS FOUND</td></tr>

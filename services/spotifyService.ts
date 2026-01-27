@@ -20,6 +20,7 @@ export interface SpotifyTrack {
     release_date: string;
     images: { url: string }[];
     external_ids?: { upc?: string; ean?: string };
+    label?: string;
   };
   external_ids: { isrc?: string };
   external_urls: { spotify: string };
@@ -102,24 +103,6 @@ export const searchSpotifyTracks = async (query: string): Promise<SpotifyTrack[]
   }
 };
 
-export const searchSpotifyAlbums = async (query: string): Promise<SpotifyAlbum[]> => {
-  const token = await getSpotifyToken();
-  if (!token) return [];
-
-  try {
-    const response = await fetch(`https://api.spotify.com/v1/search?q=${encodeURIComponent(query)}&type=album&limit=5`, {
-      headers: { 'Authorization': `Bearer ${token}` }
-    });
-
-    if (!response.ok) return [];
-    const data = await response.json();
-    return data.albums?.items || [];
-  } catch (error) {
-    console.error("Spotify Album Search Error:", error);
-    return [];
-  }
-};
-
 export const getSpotifyAlbum = async (albumId: string): Promise<SpotifyAlbum | null> => {
   const token = await getSpotifyToken();
   if (!token) return null;
@@ -134,45 +117,5 @@ export const getSpotifyAlbum = async (albumId: string): Promise<SpotifyAlbum | n
   } catch (error) {
     console.error("Get Spotify Album Error:", error);
     return null;
-  }
-};
-
-export const getSpotifyAlbumTracks = async (albumId: string): Promise<SpotifyTrack[]> => {
-  const token = await getSpotifyToken();
-  if (!token) return [];
-
-  try {
-    // 1. Get Simplified Track Objects first (limit 50)
-    // The simplified object DOES NOT contain ISRC.
-    const albumResponse = await fetch(`https://api.spotify.com/v1/albums/${albumId}/tracks?limit=50`, {
-      headers: { 'Authorization': `Bearer ${token}` }
-    });
-
-    if (!albumResponse.ok) return [];
-    const albumData = await albumResponse.json();
-    const simplifiedTracks = albumData.items || [];
-
-    if (simplifiedTracks.length === 0) return [];
-
-    // 2. Extract IDs to fetch Full Track Objects
-    // The full object DOES contain ISRC.
-    const trackIds = simplifiedTracks.map((t: any) => t.id).join(',');
-
-    const fullTracksResponse = await fetch(`https://api.spotify.com/v1/tracks?ids=${trackIds}`, {
-      headers: { 'Authorization': `Bearer ${token}` }
-    });
-
-    if (!fullTracksResponse.ok) {
-        console.error("Failed to fetch full track details");
-        // Fallback to simplified if full fetch fails (though ISRC will be missing)
-        return simplifiedTracks;
-    }
-
-    const fullTracksData = await fullTracksResponse.json();
-    return fullTracksData.tracks || [];
-
-  } catch (error) {
-    console.error("Spotify Album Tracks Error:", error);
-    return [];
   }
 };

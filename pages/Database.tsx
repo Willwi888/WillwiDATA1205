@@ -2,10 +2,12 @@
 import React, { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useData, normalizeIdentifier } from '../context/DataContext';
+import { useUser } from '../context/UserContext';
 import { Language, Song } from '../types';
 
 const Database: React.FC = () => {
   const { songs, globalSettings, playSong, currentSong, isPlaying } = useData();
+  const { isAdmin } = useUser(); // 引入權限檢查
   const navigate = useNavigate();
   
   const [searchTerm, setSearchTerm] = useState('');
@@ -81,19 +83,21 @@ const Database: React.FC = () => {
                           {/* Subtle gradient for tag visibility */}
                           <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent pointer-events-none opacity-60"></div>
                           
-                          {/* Play Button Overlay */}
-                          <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-300 bg-black/40 backdrop-blur-[2px]">
-                              <button 
-                                onClick={(e) => { e.stopPropagation(); playSong(main); }}
-                                className="w-14 h-14 bg-brand-gold text-black rounded-full flex items-center justify-center shadow-[0_0_30px_#fbbf24] hover:scale-110 transition-transform active:scale-95"
-                              >
-                                  {isCurrentPlaying && isPlaying ? (
-                                      <svg className="w-5 h-5 ml-[1px]" fill="currentColor" viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
-                                  ) : (
-                                      <svg className="w-6 h-6 ml-[3px]" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
-                                  )}
-                              </button>
-                          </div>
+                          {/* Play Button Overlay - ONLY FOR ADMIN */}
+                          {isAdmin && (
+                            <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-300 bg-black/40 backdrop-blur-[2px]">
+                                <button 
+                                    onClick={(e) => { e.stopPropagation(); playSong(main); }}
+                                    className="w-14 h-14 bg-brand-gold text-black rounded-full flex items-center justify-center shadow-[0_0_30px_#fbbf24] hover:scale-110 transition-transform active:scale-95"
+                                >
+                                    {isCurrentPlaying && isPlaying ? (
+                                        <svg className="w-5 h-5 ml-[1px]" fill="currentColor" viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
+                                    ) : (
+                                        <svg className="w-6 h-6 ml-[3px]" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+                                    )}
+                                </button>
+                            </div>
+                          )}
 
                           <div className="absolute bottom-3 left-3 pointer-events-none">
                               <span className="text-[9px] font-black text-white bg-black/90 px-3 py-1 uppercase tracking-widest border border-white/20 backdrop-blur-md shadow-lg">

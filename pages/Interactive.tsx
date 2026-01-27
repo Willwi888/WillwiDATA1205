@@ -49,8 +49,12 @@ const Interactive: React.FC = () => {
         const s = songs.find(x => x.id === location.state.targetSongId);
         if (s) { 
           setSelectedSong(s); 
-          if (isSessionUnlocked()) setMode('philosophy');
-          else setMode('unlock');
+          // 如果已經有 target song，直接進入 unlock 檢查
+          if (isSessionUnlocked()) {
+              setMode('philosophy');
+          } else {
+              setMode('unlock'); 
+          }
         }
     }
   }, [location.state, songs, isSessionUnlocked]);
@@ -176,16 +180,20 @@ const Interactive: React.FC = () => {
   };
 
   const currentAudioSrc = useMemo(() => {
-      if (!selectedSong) return '';
+      // Audio source is ONLY provided if we are in authorized modes
+      // This prevents audio from being inspectable/playable in unlock/intro screens
+      const authorizedModes: InteractionMode[] = ['philosophy', 'guide', 'gate', 'playing', 'mastered'];
+      if (!selectedSong || !authorizedModes.includes(mode)) return '';
+      
       const rawUrl = selectedSong.audioUrl || selectedSong.dropboxUrl || '';
       return resolveDirectLink(rawUrl);
-  }, [selectedSong]);
+  }, [selectedSong, mode]);
 
   return (
     <div className="min-h-screen flex flex-col pt-24 pb-32 relative overflow-hidden bg-[#020617] transition-colors duration-1000">
       
-      {/* Cinema Player 2.0 Dynamic Background */}
-      <div className="fixed inset-0 z-0 overflow-hidden">
+      {/* Background: Cover Art - Enhanced Visibility */}
+      <div className="fixed inset-0 z-0 overflow-hidden pointer-events-none">
           {bgVideoUrl ? (
               <video src={bgVideoUrl} autoPlay loop muted playsInline className="w-full h-full object-cover blur-sm opacity-30" />
           ) : (
@@ -194,7 +202,8 @@ const Interactive: React.FC = () => {
                     className="absolute inset-0 bg-cover bg-center transition-all duration-[3000ms] animate-studio-breathe"
                     style={{ 
                         backgroundImage: `url(${selectedSong?.coverUrl || ''})`,
-                        filter: 'blur(100px) brightness(0.6)'
+                        // Less blur in unlock mode so cover is visible
+                        filter: mode === 'unlock' ? 'blur(40px) brightness(0.4)' : 'blur(100px) brightness(0.6)'
                     }} 
                   />
                   <div className="absolute inset-0 bg-black/60 mix-blend-multiply"></div>
@@ -217,13 +226,46 @@ const Interactive: React.FC = () => {
            )}
 
            {mode === 'unlock' && (
-             <div className="max-w-md w-full bg-slate-900/80 border border-white/10 p-16 rounded-sm backdrop-blur-3xl animate-fade-in-up text-center shadow-2xl">
-                <h3 className="text-brand-gold font-black uppercase tracking-[0.4em] text-xs mb-10">Studio Access Required</h3>
-                <p className="text-slate-400 text-[10px] uppercase tracking-widest mb-10 font-bold leading-relaxed">此區域僅供獲得授權的使用者進入。<br/>請輸入專屬解鎖碼以繼續。</p>
-                <div className="space-y-8">
-                  <input type="text" placeholder="••••" className="w-full bg-black border border-white/10 px-6 py-8 text-white text-center tracking-[1em] font-mono text-4xl outline-none focus:border-brand-gold" value={unlockInput} onChange={(e) => setUnlockInput(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleVerifyUnlock()} autoFocus />
-                  <button onClick={handleVerifyUnlock} className="w-full py-6 bg-brand-gold text-black font-black uppercase tracking-widest text-xs hover:bg-white transition-all shadow-xl">Verify & Unlock</button>
-                  <button onClick={() => setMode('intro')} className="text-slate-600 hover:text-white text-[9px] font-black uppercase tracking-widest transition-colors">Back to Manifesto</button>
+             <div className="max-w-5xl w-full grid grid-cols-1 md:grid-cols-2 gap-12 items-center animate-fade-in-up">
+                {/* Visual Side: Full Cover Display */}
+                <div className="hidden md:block">
+                     {selectedSong ? (
+                        <div className="relative group aspect-square rounded-sm overflow-hidden shadow-2xl border border-white/10">
+                            <img 
+                                src={selectedSong.coverUrl} 
+                                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-[2s]" 
+                                alt={selectedSong.title}
+                            />
+                            <div className="absolute inset-0 bg-black/20 group-hover:bg-transparent transition-colors"></div>
+                        </div>
+                     ) : (
+                         <div className="aspect-square bg-slate-900 border border-white/10 flex items-center justify-center">
+                             <span className="text-white/20 font-black tracking-widest uppercase">Select a song</span>
+                         </div>
+                     )}
+                </div>
+
+                {/* Logic Side: Unlock Form */}
+                <div className="bg-slate-900/80 border border-white/10 p-16 rounded-sm backdrop-blur-3xl shadow-2xl text-center">
+                    <h3 className="text-brand-gold font-black uppercase tracking-[0.4em] text-xs mb-8">Studio Access Required</h3>
+                    
+                    {selectedSong && (
+                        <div className="mb-8 border-b border-white/5 pb-8">
+                            <h2 className="text-3xl font-black uppercase text-white tracking-widest mb-2">{selectedSong.title}</h2>
+                            <p className="text-[10px] text-slate-400 font-mono tracking-widest">{selectedSong.isrc || 'UNKNOWN ISRC'}</p>
+                        </div>
+                    )}
+
+                    <p className="text-slate-400 text-[10px] uppercase tracking-widest mb-10 font-bold leading-relaxed">
+                        此區域為實驗性音訊空間。<br/>
+                        請輸入專屬解鎖碼以聆聽並參與創作。
+                    </p>
+                    <div className="space-y-8">
+                        <input type="password" placeholder="••••" className="w-full bg-black border border-white/10 px-6 py-8 text-white text-center tracking-[1em] font-mono text-4xl outline-none focus:border-brand-gold" value={unlockInput} onChange={(e) => setUnlockInput(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleVerifyUnlock()} autoFocus />
+                        <button onClick={handleVerifyUnlock} className="w-full py-6 bg-brand-gold text-black font-black uppercase tracking-widest text-xs hover:bg-white transition-all shadow-xl">
+                            Unlock Audio (解鎖音訊)
+                        </button>
+                    </div>
                 </div>
              </div>
            )}
@@ -296,9 +338,9 @@ const Interactive: React.FC = () => {
            {mode === 'gate' && (
                <div className="w-full flex items-center justify-center animate-fade-in">
                    <div className="max-w-xl w-full bg-slate-900/80 border border-white/10 p-16 text-center rounded-sm shadow-2xl space-y-12 backdrop-blur-3xl">
-                       <img src={selectedSong?.coverUrl} className="w-48 h-48 mx-auto border-2 border-brand-gold shadow-2xl" alt="" />
+                       <img src={selectedSong?.coverUrl} className="w-64 h-64 mx-auto border-2 border-brand-gold shadow-2xl object-cover" alt="" />
                        <h3 className="text-3xl font-black uppercase tracking-widest text-white">{selectedSong?.title}</h3>
-                       <button onClick={() => setShowPayment(true)} className="w-full py-10 bg-brand-gold text-black font-black uppercase text-xl tracking-[0.2em] hover:bg-white transition-all">ACCESS STUDIO</button>
+                       <button onClick={() => setShowPayment(true)} className="w-full py-10 bg-brand-gold text-black font-black uppercase text-xl tracking-[0.2em] hover:bg-white transition-all">ACCESS STUDIO (付款/驗證)</button>
                    </div>
                </div>
            )}
@@ -419,7 +461,8 @@ const Interactive: React.FC = () => {
       </div>
 
       <PaymentModal isOpen={showPayment} onClose={() => { setShowPayment(false); setMode('playing'); }} />
-      {selectedSong && (
+      {/* Audio Element is conditionally rendered based on src availability (which is gated by mode) */}
+      {currentAudioSrc && (
           <audio 
             key={currentAudioSrc} 
             ref={audioRef} 

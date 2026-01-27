@@ -74,13 +74,37 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
 
         <main className="pb-24">{children}</main>
 
-        <footer className="py-24 px-10 border-t border-white/5 text-center bg-black/50 mb-20">
-            <div className="flex justify-center gap-10 mb-10 opacity-30 grayscale hover:grayscale-0 transition-all duration-500">
-                <span className="text-[10px] font-black tracking-widest uppercase">Spotify</span>
-                <span className="text-[10px] font-black tracking-widest uppercase">Apple Music</span>
-                <span className="text-[10px] font-black tracking-widest uppercase">YouTube</span>
+        <footer className="py-24 px-10 border-t border-white/5 text-center bg-[#020617] mb-20 relative overflow-hidden">
+            <div className="absolute inset-0 bg-gradient-to-t from-black to-transparent pointer-events-none"></div>
+            
+            <div className="relative z-10 flex flex-wrap justify-center items-center gap-12 md:gap-16 mb-16">
+                {/* Spotify */}
+                <a href="https://open.spotify.com/artist/3ascZ8Rb2KDw4QyCy29Om4" target="_blank" rel="noreferrer" className="group opacity-30 hover:opacity-100 transition-all duration-500 hover:scale-110" aria-label="Spotify">
+                    <svg className="w-6 h-6 text-white group-hover:text-[#1DB954]" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.66 0 12 0zm5.521 17.34c-.24.359-.66.48-1.021.24-2.82-1.74-6.36-2.101-10.561-1.141-.418.122-.779-.179-.899-.539-.12-.421.18-.78.54-.9 4.56-1.021 8.52-.6 11.64 1.32.42.18.479.659.301 1.02zm1.44-3.3c-.301.42-.841.6-1.262.3-3.239-1.98-8.159-2.58-11.939-1.38-.479.12-1.02-.12-1.14-.6-.12-.48.12-1.021.6-1.141C9.6 9.9 15 10.561 18.72 12.84c.361.181.54.78.241 1.2zm.12-3.36C15.24 8.4 8.82 8.16 5.16 9.301c-.6.179-1.2-.181-1.38-.721-.18-.601.18-1.2.72-1.381 4.26-1.26 11.28-1.02 15.721 1.621.539.3.719 1.02.419 1.56-.299.421-1.02.599-1.559.3z"/></svg>
+                </a>
+                
+                {/* Apple Music */}
+                <a href="https://music.apple.com/us/artist/willwi/1798471457" target="_blank" rel="noreferrer" className="group opacity-30 hover:opacity-100 transition-all duration-500 hover:scale-110" aria-label="Apple Music">
+                    <svg className="w-6 h-6 text-white group-hover:text-[#FA243C]" viewBox="0 0 24 24" fill="currentColor"><path d="M22.256 9.471c.882 3.033-1.605 5.922-3.896 5.584-3.567-.532-3.141-5.748.182-6.666 1.487-.411 3.25.109 3.714 1.082zm-9.98 4.793c1.996-2.583 2.502-6.526-.81-7.85-3.376-1.35-6.636 2.454-4.225 6.784 1.246 2.238 3.528 2.923 5.035 1.066zm8.851 5.679c-2.321 4.958-9.455 5.592-13.627 2.066-4.524-3.824-2.85-11.758 2.651-13.344 5.955-1.719 10.601 2.373 12.396 6.824.582 1.442.22 3.298-1.42 4.454zm-14.755-7.81c.216-4.135 4.312-6.551 7.42-4.996 3.109 1.554 3.791 6.221.725 8.783-3.035 2.535-7.957.575-8.145-3.787z"/></svg>
+                </a>
+
+                {/* YouTube */}
+                <a href="https://www.youtube.com/@Willwi888" target="_blank" rel="noreferrer" className="group opacity-30 hover:opacity-100 transition-all duration-500 hover:scale-110" aria-label="YouTube">
+                    <svg className="w-7 h-7 text-white group-hover:text-[#FF0000]" viewBox="0 0 24 24" fill="currentColor"><path d="M19.615 3.184c-3.604-.246-11.631-.245-15.23 0-3.897.266-4.356 2.62-4.385 8.816.029 6.185.484 8.549 4.385 8.816 3.6.245 11.626.246 15.23 0 3.897-.266 4.356-2.62 4.385-8.816-.029-6.185-.484-8.549-4.385-8.816zm-10.615 12.816v-8l8 3.993-8 4.007z"/></svg>
+                </a>
+
+                {/* TIDAL */}
+                <a href="https://tidal.com/artist/54856609" target="_blank" rel="noreferrer" className="group opacity-30 hover:opacity-100 transition-all duration-500 hover:scale-110" aria-label="TIDAL">
+                    <svg className="w-6 h-6 text-white group-hover:text-white" viewBox="0 0 24 24" fill="currentColor"><path d="M12.012 8.036l-3.571-3.571-3.571 3.571 3.571 3.571 3.571-3.571zm-3.571-3.572l-3.572-3.571-3.571 3.571 3.571 3.571 3.572-3.571zm7.143 3.572l-3.571-3.571-3.571 3.571 3.571 3.571 3.571-3.571zm-3.571 3.571l-3.571-3.571-3.572 3.571 3.572 3.571 3.571-3.571zm3.571 3.571l-3.571-3.571-3.571 3.571 3.571 3.571 3.571-3.571zm7.143 0l-3.571-3.571-3.571 3.571 3.571 3.571 3.571-3.571z"/></svg>
+                </a>
+
+                {/* Musixmatch Verified */}
+                <a href="https://www.musixmatch.com/artist/Willwi-1798471457" target="_blank" rel="noreferrer" className="group opacity-30 hover:opacity-100 transition-all duration-500 hover:scale-110" aria-label="Musixmatch Verified">
+                    <svg className="w-6 h-6 text-white group-hover:text-[#FF6050]" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm4.5 14H15v-4.5l-2.5 4.5-2.5-4.5v4.5H8.5V8h2l1.5 2.7L13.5 8h2v8z"/></svg>
+                </a>
             </div>
-            <p className="text-[9px] text-slate-700 font-black uppercase tracking-[0.5em]">Willwi Official Music Database • 2025</p>
+            <p className="text-[9px] text-slate-500 font-black uppercase tracking-[0.5em] mb-2">Willwi Official Music Database</p>
+            <p className="text-[8px] text-slate-700 font-mono uppercase tracking-[0.2em]">© 2025 ALL RIGHTS RESERVED.</p>
         </footer>
 
         <GlobalPlayer />

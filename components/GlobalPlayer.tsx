@@ -1,10 +1,12 @@
 
 import React, { useRef, useState, useEffect, useMemo } from 'react';
 import { useData, resolveDirectLink } from '../context/DataContext';
+import { useUser } from '../context/UserContext';
 import { useLocation } from 'react-router-dom';
 
 const GlobalPlayer: React.FC = () => {
   const { currentSong, isPlaying, setIsPlaying, globalSettings } = useData();
+  const { isAdmin } = useUser(); // 引入權限檢查
   const audioRef = useRef<HTMLAudioElement>(null);
   const location = useLocation();
   
@@ -73,7 +75,9 @@ const GlobalPlayer: React.FC = () => {
       return resolveDirectLink(rawUrl);
   }, [currentSong]);
 
-  if (!currentSong || isInteractiveMode) return null;
+  // CRITICAL: 只有管理員可以看見並使用播放器
+  // 一般聽眾只能看資料，不能聽原始檔
+  if (!isAdmin || !currentSong || isInteractiveMode) return null;
 
   return (
     <div 
