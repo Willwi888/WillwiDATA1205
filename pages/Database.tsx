@@ -71,11 +71,12 @@ const Database: React.FC = () => {
               const isCurrentPlaying = currentSong?.id === main.id;
 
               return (
-                  <div key={main.id} className="group cursor-pointer" onClick={() => navigate(`/song/${main.id}`)}>
+                  <div key={main.id} className="group cursor-pointer">
                       <div className="aspect-square w-full relative overflow-hidden bg-slate-900 mb-5 border border-white/10 group-hover:border-brand-gold transition-all duration-500 shadow-2xl rounded-sm">
                           {/* Real Album Cover Presentation */}
                           <img 
                             src={cover} 
+                            onClick={() => navigate(`/song/${main.id}`)}
                             className="w-full h-full object-cover opacity-100 grayscale-0 transition-all duration-700 group-hover:scale-105" 
                             alt={main.title} 
                           />
@@ -104,7 +105,7 @@ const Database: React.FC = () => {
                               </span>
                           </div>
                       </div>
-                      <div>
+                      <div onClick={() => navigate(`/song/${main.id}`)}>
                         <h4 className="text-sm font-bold text-white uppercase truncate tracking-widest group-hover:text-brand-gold transition-colors">{main.title}</h4>
                         <div className="flex flex-col gap-1 mt-2">
                             <p className="text-[10px] text-slate-400 font-mono uppercase tracking-widest font-bold opacity-80">

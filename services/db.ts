@@ -14,10 +14,6 @@ const DB_VERSION = 1;
 
 let dbPromise: Promise<IDBPDatabase<WillwiDB>> | null = null;
 
-/**
- * Initializes or returns the existing IDB connection.
- * Includes robust error handling for unexpected terminations.
- */
 export const initDB = () => {
   if (!dbPromise) {
     dbPromise = openDB<WillwiDB>(DB_NAME, DB_VERSION, {
@@ -28,17 +24,15 @@ export const initDB = () => {
         }
       },
       blocked() {
-        console.warn('Database access blocked. Please close other tabs of this site.');
+        console.warn('DB blocked: Close other tabs with this site open.');
       },
       blocking() {
-        if (dbPromise) {
-            dbPromise.then(db => db.close());
-            dbPromise = null;
-        }
+        console.warn('DB blocking: Closing connection for upgrade.');
+        if (dbPromise) dbPromise.then(db => db.close());
+        dbPromise = null;
       },
       terminated() {
-        // Soften the log and ensure the next call triggers a fresh connection
-        console.info('Database connection reset. Re-establishing on next request...');
+        console.warn('DB connection terminated. Reconnecting on next request.');
         dbPromise = null;
       },
     });
@@ -49,14 +43,11 @@ export const initDB = () => {
 export const dbService = {
   async checkHealth(): Promise<{ status: 'ok' | 'error', message?: string }> {
       try {
-          if (!window.indexedDB) return { status: 'error', message: 'IndexedDB not supported' };
-          const db = await initDB();
-          // Verify we can actually perform a read
-          await db.get('songs', 'HEALTH_CHECK');
+          if (!window.indexedDB) return { status: 'error', message: 'Browser not supported' };
+          await initDB();
           return { status: 'ok' };
       } catch (e: any) {
-          dbPromise = null; // Reset on failure
-          return { status: 'error', message: e.message || 'Database initialization failed' };
+          return { status: 'error', message: e.message || 'IndexedDB access denied' };
       }
   },
 
@@ -75,11 +66,7 @@ export const dbService = {
     try {
         const db = await initDB();
         return await db.getAll('songs');
-    } catch (e) { 
-        console.warn("DB Read Warning:", e); 
-        dbPromise = null; // Attempt reset
-        return []; 
-    }
+    } catch (e) { console.error("DB Read Error", e); return []; }
   },
 
   async getSong(id: string): Promise<Song | undefined> {
@@ -107,6 +94,8 @@ export const dbService = {
   async bulkAdd(songs: Song[]): Promise<void> {
     const db = await initDB();
     const tx = db.transaction('songs', 'readwrite');
+    // Using Promise.all inside a transaction can be tricky with some browsers,
+    // but idb library handles it well usually. Sequential putting is safer for bulk.
     for (const song of songs) {
         await tx.store.put(song);
     }

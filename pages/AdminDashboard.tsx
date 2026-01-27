@@ -1,495 +1,485 @@
 
 import React, { useRef, useState, useEffect, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useData, normalizeIdentifier } from '../context/DataContext';
 import { useUser } from '../context/UserContext';
-import { Song, Language, ProjectType, ReleaseCategory, SongTranslation } from '../types';
-import { searchSpotifyTracks, getSpotifyAlbum } from '../services/spotifyService';
-import { useToast } from '../components/Layout';
+import { dbService } from '../services/db';
+import { Song, ProjectType, Language, ReleaseCategory } from '../types';
+import { searchSpotifyTracks } from '../services/spotifyService';
 
-type Tab = 'catalog' | 'payment' | 'settings';
+type Tab = 'catalog' | 'settings' | 'payment' | 'curation' | 'visuals';
+type SortKey = 'releaseDate' | 'title' | 'language';
 
 const AdminDashboard: React.FC = () => {
-  const { 
-    songs, updateSong, addSong, deleteSong, 
-    playSong, currentSong, isPlaying, uploadSongsToCloud, isSyncing, globalSettings, setGlobalSettings
-  } = useData();
-  const { isAdmin, enableAdmin, logoutAdmin } = useUser(); 
-  const { showToast } = useToast();
+  const { songs, updateSong, deleteSong, bulkAddSongs, globalSettings, setGlobalSettings, uploadSettingsToCloud } = useData();
+  const { isAdmin, enableAdmin, logoutAdmin, getAllUsers, getAllTransactions } = useUser();
+  const navigate = useNavigate();
+  const fileInputRef = useRef<HTMLInputElement>(null);
   
+  // UI State
   const [activeTab, setActiveTab] = useState<Tab>('catalog');
-  const [searchTerm, setSearchTerm] = useState('');
   const [passwordInput, setPasswordInput] = useState('');
-  
-  // 工作空間狀態 (Workspace State)
-  const [isEditorOpen, setIsEditorOpen] = useState(false);
-  const [editingSong, setEditingSong] = useState<Partial<Song> | null>(null);
-  const [editorTab, setEditorTab] = useState<'basic' | 'story' | 'meta'>('basic');
-  const [activeLangTab, setActiveLangTab] = useState<'original' | 'en' | 'jp' | 'zh'>('original');
+  const [loginError, setLoginError] = useState('');
 
-  // Spotify 搜尋狀態
-  const [spotifySearch, setSpotifySearch] = useState('');
+  // Filters & Sorting & Spotify
+  const [searchTerm, setSearchTerm] = useState('');
+  const [searchMode, setSearchMode] = useState<'local' | 'spotify'>('local');
   const [spotifyResults, setSpotifyResults] = useState<any[]>([]);
   const [isSearchingSpotify, setIsSearchingSpotify] = useState(false);
+  const [filterStatus, setFilterStatus] = useState<'all' | 'active' | 'inactive' | 'missing_assets'>('all');
+  const [sortConfig, setSortConfig] = useState<{ key: SortKey; direction: 'asc' | 'desc' }>({ key: 'releaseDate', direction: 'desc' });
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
-  // 分組與過濾作品集
-  const groupedCatalog = useMemo(() => {
-      const groups: Record<string, Song[]> = {};
-      const filtered = songs.filter(s => 
-          s.title.toLowerCase().includes(searchTerm.toLowerCase()) || 
-          (s.upc && s.upc.includes(searchTerm)) ||
-          (s.isrc && s.isrc.includes(searchTerm))
-      );
+  // Stats
+  const [stats, setStats] = useState({
+      totalUsers: 0,
+      incomeProduction: 0,
+      incomeDonation: 0,
+      activeSongs: 0,
+      missingDataSongs: 0
+  });
+
+  // Global Brand Configuration
+  const [platformConfig, setPlatformConfig] = useState({
+    defaultCompany: 'Willwi Music',
+    defaultProject: ProjectType.Indie,
+    youtubeFeaturedUrl: '',
+    homeTitle: ''
+  });
+
+  // QR Code Images State
+  const [qrImages, setQrImages] = useState({
+      global_payment: '',
+      production: '',
+      cinema: '',
+      support: '',
+      line: ''
+  });
+  const [accessCode, setAccessCode] = useState('8888');
+
+  // Visuals Edit State
+  const [visualsForm, setVisualsForm] = useState({
+      portraitUrl: '',
+      defaultCoverUrl: ''
+  });
+
+  useEffect(() => {
+      const savedConfig = localStorage.getItem('willwi_platform_config');
+      if (savedConfig) setPlatformConfig(JSON.parse(savedConfig));
       
-      filtered.forEach(song => {
-          const key = song.upc ? normalizeIdentifier(song.upc) : `SINGLE_${song.id}`;
-          if (!groups[key]) groups[key] = [];
-          groups[key].push(song);
+      setQrImages({
+          global_payment: localStorage.getItem('qr_global_payment') || '',
+          production: localStorage.getItem('qr_production') || '',
+          cinema: localStorage.getItem('qr_cinema') || '',
+          support: localStorage.getItem('qr_support') || '',
+          line: localStorage.getItem('qr_line') || ''
       });
-      return Object.values(groups).sort((a, b) => new Date(b[0].releaseDate).getTime() - new Date(a[0].releaseDate).getTime());
-  }, [songs, searchTerm]);
 
-  // --- 操作邏輯 ---
-  const handleOpenEditor = (song: Song | null = null) => {
-      if (song) {
-          setEditingSong({ ...song });
-      } else {
-          setEditingSong({
-              title: '',
-              language: Language.Mandarin,
-              projectType: ProjectType.Indie,
-              releaseCategory: ReleaseCategory.Single,
-              releaseDate: new Date().toISOString().split('T')[0],
-              isInteractiveActive: true,
-              translations: {}
+      setAccessCode(localStorage.getItem('willwi_access_code') || '8888');
+      
+      if (isAdmin) {
+          const users = getAllUsers();
+          const txs = getAllTransactions();
+          const prodIncome = txs.filter(t => t.type === 'production').reduce((acc, t) => acc + t.amount, 0);
+          const donaIncome = txs.filter(t => t.type === 'donation').reduce((acc, t) => acc + t.amount, 0);
+          
+          const activeCount = songs.filter(s => s.isInteractiveActive).length;
+          const missingCount = songs.filter(s => !s.lyrics || !s.audioUrl).length;
+
+          setStats({
+              totalUsers: users.length,
+              incomeProduction: prodIncome,
+              incomeDonation: donaIncome,
+              activeSongs: activeCount,
+              missingDataSongs: missingCount
+          });
+
+          // Sync Visuals Form
+          setVisualsForm({
+              portraitUrl: globalSettings.portraitUrl,
+              defaultCoverUrl: globalSettings.defaultCoverUrl
           });
       }
-      setIsEditorOpen(true);
-      setEditorTab('basic');
+  }, [isAdmin, getAllUsers, getAllTransactions, songs, globalSettings]);
+
+  useEffect(() => {
+    if (searchMode === 'spotify') {
+        if (searchTerm.length >= 2) {
+            const timer = setTimeout(async () => {
+                setIsSearchingSpotify(true);
+                try {
+                    const res = await searchSpotifyTracks(searchTerm);
+                    setSpotifyResults(res);
+                } catch(e) {
+                    console.error(e);
+                } finally {
+                    setIsSearchingSpotify(false);
+                }
+            }, 600);
+            return () => clearTimeout(timer);
+        } else {
+            setSpotifyResults([]);
+        }
+    }
+  }, [searchMode, searchTerm]);
+
+  const handleSort = (key: SortKey) => {
+      setSortConfig(prev => ({
+          key,
+          direction: prev.key === key && prev.direction === 'desc' ? 'asc' : 'desc'
+      }));
   };
 
-  const handleSaveSong = async () => {
-      if (!editingSong?.title || !editingSong?.isrc) {
-          showToast("請填寫歌名與 ISRC", "error");
-          return;
-      }
-      const success = editingSong.id 
-          ? await updateSong(editingSong.id, editingSong)
-          : await addSong(editingSong as Song);
-      
-      if (success) {
-          showToast("作品已儲存並推送到雲端");
-          setIsEditorOpen(false);
-          setEditingSong(null);
+  const handleSelectAll = () => {
+      if (selectedIds.size === filteredSongs.length) setSelectedIds(new Set());
+      else setSelectedIds(new Set(filteredSongs.map(s => s.id)));
+  };
+
+  const handleSelectOne = (id: string) => {
+      const newSet = new Set(selectedIds);
+      if (newSet.has(id)) newSet.delete(id);
+      else newSet.add(id);
+      setSelectedIds(newSet);
+  };
+
+  const handleBulkDelete = async () => {
+      if (selectedIds.size === 0) return;
+      if (!window.confirm(`警告：確定要刪除選取的 ${selectedIds.size} 首歌曲嗎？此動作不可逆。`)) return;
+      for (const id of selectedIds) { await deleteSong(id); }
+      setSelectedIds(new Set());
+  };
+
+  const saveVisuals = async () => {
+      const newSettings = {
+          ...globalSettings,
+          portraitUrl: visualsForm.portraitUrl,
+          defaultCoverUrl: visualsForm.defaultCoverUrl
+      };
+      setGlobalSettings(newSettings);
+      await uploadSettingsToCloud(newSettings);
+      alert("網站視覺設定已更新 (Visual Settings Updated)");
+  };
+
+  const downloadFullBackup = async () => {
+      const allSongs = await dbService.getAllSongs();
+      const blob = new Blob([JSON.stringify(allSongs, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `WILLWI_DB_BACKUP_${new Date().toISOString().split('T')[0]}.json`;
+      a.click();
+  };
+
+  const handleImportFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = async (event) => {
+          try {
+            const result = event.target?.result;
+            if (typeof result !== 'string') return;
+            const data = JSON.parse(result);
+            if (Array.isArray(data)) {
+                if (window.confirm(`即將匯入 ${data.length} 筆資料。建議先點擊「導出 JSON」備份當前資料。確定匯入並覆蓋嗎？`)) {
+                    await dbService.clearAllSongs();
+                    await dbService.bulkAdd(data);
+                    window.location.reload();
+                }
+            } else alert("無效的 JSON 格式。");
+          } catch (e) { alert("匯入失敗，請檢查檔案內容。"); }
+          finally { if (fileInputRef.current) fileInputRef.current.value = ''; }
+      };
+      reader.readAsText(file);
+  };
+
+  const handleQrUpload = (key: keyof typeof qrImages) => (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0];
+      if (file) {
+          const reader = new FileReader();
+          reader.onloadend = () => {
+              const base64 = reader.result as string;
+              setQrImages(prev => ({ ...prev, [key]: base64 }));
+              localStorage.setItem(`qr_${String(key)}`, base64);
+          };
+          reader.readAsDataURL(file);
       }
   };
 
-  const handleSpotifyImport = async (track: any) => {
-      setIsSearchingSpotify(true);
-      try {
-          const fullAlbum = await getSpotifyAlbum(track.album.id);
-          setEditingSong(prev => ({
-              ...prev,
-              title: track.name,
-              isrc: track.external_ids?.isrc || prev?.isrc,
-              upc: fullAlbum?.external_ids?.upc || prev?.upc,
-              coverUrl: track.album?.images?.[0]?.url || prev?.coverUrl,
-              releaseDate: track.album?.release_date || prev?.releaseDate,
-              spotifyLink: track.external_urls?.spotify || prev?.spotifyLink,
-              releaseCompany: fullAlbum?.label || prev?.releaseCompany
-          }));
-          setSpotifyResults([]);
-          showToast("Spotify 資料匯入成功");
-      } catch (e) {
-          showToast("Spotify 匯入失敗", "error");
-      } finally {
-          setIsSearchingSpotify(false);
-      }
+  const saveAccessCode = () => {
+      localStorage.setItem('willwi_access_code', accessCode);
+      alert("通行碼已更新");
   };
 
-  const handleUpdateGlobal = (updates: any) => {
-      setGlobalSettings(prev => ({ ...prev, ...updates }));
-      showToast("本地配置已更新，別忘了推送到雲端");
-  };
+  const filteredSongs = useMemo(() => {
+      let result = songs.filter(s => 
+          s.title.toLowerCase().includes(searchTerm.toLowerCase()) || 
+          (s.isrc && s.isrc.includes(searchTerm))
+      );
+      if (filterStatus === 'active') result = result.filter(s => s.isInteractiveActive);
+      if (filterStatus === 'inactive') result = result.filter(s => !s.isInteractiveActive);
+      if (filterStatus === 'missing_assets') result = result.filter(s => !s.lyrics || !s.audioUrl);
+      return result.sort((a, b) => {
+          let valA = a[sortConfig.key] || '';
+          let valB = b[sortConfig.key] || '';
+          if (sortConfig.direction === 'asc') return valA > valB ? 1 : -1;
+          return valA < valB ? 1 : -1;
+      });
+  }, [songs, searchTerm, filterStatus, sortConfig]);
 
   if (!isAdmin) {
       return (
-          <div className="min-h-screen flex items-center justify-center bg-black px-6">
-              <div className="bg-slate-900 border border-white/10 p-12 w-full max-w-md rounded-lg shadow-2xl animate-fade-in text-center">
-                  <h2 className="text-3xl font-black text-white uppercase tracking-[0.3em] mb-10">Admin Console</h2>
-                  <input 
-                    type="password" 
-                    placeholder="ENTER CODE" 
-                    className="w-full bg-black border border-white/10 p-6 text-white text-center font-mono tracking-[1em] text-2xl outline-none focus:border-brand-gold mb-6"
-                    value={passwordInput}
-                    onChange={(e) => setPasswordInput(e.target.value)}
-                    onKeyDown={(e) => e.key === 'Enter' && passwordInput === '8520' && enableAdmin()}
-                  />
-                  <button onClick={() => passwordInput === '8520' ? enableAdmin() : showToast("代碼錯誤", "error")} className="w-full py-5 bg-brand-gold text-black font-black uppercase tracking-widest hover:bg-white transition-all">Unlock Engine</button>
-              </div>
+          <div className="min-h-[60vh] flex items-center justify-center px-4">
+               <div className="bg-slate-900 border border-slate-800 rounded-xl p-10 max-w-md w-full shadow-2xl text-center">
+                   <h2 className="text-2xl font-black text-white mb-8 uppercase tracking-[0.2em]">Manager Login</h2>
+                   <form onSubmit={(e) => { e.preventDefault(); if (passwordInput === '8520') enableAdmin(); else setLoginError('密碼錯誤'); }} className="space-y-6">
+                       <input type="password" placeholder="ACCESS CODE" className="w-full bg-black border border-slate-700 rounded px-4 py-4 text-white text-center tracking-[0.8em] font-mono outline-none focus:border-brand-gold transition-all" value={passwordInput} onChange={(e) => setPasswordInput(e.target.value)} />
+                       {loginError && <p className="text-red-500 text-[10px] font-bold uppercase tracking-widest">{loginError}</p>}
+                       <button className="w-full py-4 bg-brand-gold text-slate-950 font-black rounded uppercase tracking-widest text-xs hover:bg-white transition-all">Unlock Console</button>
+                   </form>
+               </div>
           </div>
       );
   }
 
   return (
-    <div className="min-h-screen bg-black text-white pt-32 pb-60 px-6 md:px-12 animate-fade-in">
+    <div className="max-w-screen-2xl mx-auto px-6 py-12 animate-fade-in pb-40">
       
-      {/* 頂部標頭：解決重疊問題 */}
-      <div className="max-w-[1600px] mx-auto mb-16">
-          <div className="flex flex-col lg:flex-row justify-between items-start lg:items-end gap-10 border-b border-white/5 pb-12">
-              <div className="space-y-3">
-                  <h1 className="text-5xl md:text-8xl font-black uppercase tracking-tighter leading-none">Console</h1>
-                  <p className="text-brand-gold text-xs font-bold uppercase tracking-[0.5em]">Central Music Metadata Management</p>
-              </div>
-              <div className="flex flex-wrap items-center gap-4">
-                  <button onClick={() => uploadSongsToCloud()} disabled={isSyncing} className="h-14 px-8 bg-white text-black text-[11px] font-black uppercase tracking-widest hover:bg-brand-gold transition-all flex items-center gap-3 disabled:opacity-50">
-                      {isSyncing ? <div className="w-4 h-4 border-2 border-black border-t-transparent rounded-full animate-spin"></div> : "PUSH CLOUD SYNC"}
-                  </button>
-                  <button onClick={() => handleOpenEditor()} className="h-14 px-8 bg-brand-gold text-black text-[11px] font-black uppercase tracking-widest hover:bg-white transition-all">Add New Release</button>
-                  <button onClick={logoutAdmin} className="h-14 px-6 border border-white/10 text-slate-500 text-[10px] font-black uppercase hover:text-white transition-all">Logout</button>
-              </div>
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-10 gap-6">
+          <div>
+            <h1 className="text-4xl font-black text-white uppercase tracking-tighter">Admin Console</h1>
+            <p className="text-slate-500 text-[10px] font-bold uppercase tracking-[0.4em] mt-2">Willwi Music Central Control</p>
+          </div>
+          <div className="flex items-center gap-3">
+            <button onClick={() => navigate('/add')} className="h-10 px-6 bg-brand-accent text-slate-950 text-[10px] font-black uppercase tracking-widest rounded hover:bg-white transition-all shadow-lg flex items-center gap-2">
+                <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M12 4v16m8-8H4" /></svg>
+                New Song
+            </button>
+            <button onClick={logoutAdmin} className="h-10 px-6 border border-slate-700 text-slate-400 text-[10px] font-black uppercase tracking-widest rounded hover:bg-slate-800 hover:text-white transition-all">Exit</button>
           </div>
       </div>
 
-      <div className="max-w-[1600px] mx-auto grid grid-cols-1 lg:grid-cols-12 gap-12">
-          
-          {/* 左側導覽列 */}
-          <div className="lg:col-span-3 space-y-8">
-              <nav className="flex flex-col gap-2">
-                  {(['catalog', 'payment', 'settings'] as Tab[]).map(tab => (
-                      <button 
-                        key={tab} 
-                        onClick={() => setActiveTab(tab)}
-                        className={`text-left px-8 py-5 text-[12px] font-black uppercase tracking-[0.4em] transition-all border ${activeTab === tab ? 'bg-white text-black border-white' : 'text-slate-500 border-white/5 hover:border-white/20'}`}
-                      >
-                          {tab}
-                      </button>
-                  ))}
-              </nav>
+      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4 mb-10">
+          <div className="bg-slate-900 border border-white/5 p-5 rounded-xl cursor-pointer hover:bg-slate-800" onClick={() => setActiveTab('catalog')}>
+              <div className="text-[10px] text-slate-500 font-bold uppercase tracking-widest mb-2">Total Catalog</div>
+              <div className="text-3xl font-black text-white">{songs.length}</div>
+          </div>
+          <div className="bg-slate-900 border border-white/5 p-5 rounded-xl border-l-4 border-l-emerald-500" onClick={() => setActiveTab('curation')}>
+              <div className="text-[10px] text-emerald-400 font-bold uppercase tracking-widest mb-2">Interactive Active</div>
+              <div className="text-3xl font-black text-emerald-400">{stats.activeSongs}</div>
+          </div>
+          <div className="bg-slate-900 border border-white/5 p-5 rounded-xl border-l-4 border-l-brand-gold" onClick={() => setActiveTab('payment')}>
+              <div className="text-[10px] text-brand-gold font-bold uppercase tracking-widest mb-2">Payment Setup</div>
+              <div className="text-3xl font-black text-white">QR</div>
+          </div>
+          <div className="bg-slate-900 border border-white/5 p-5 rounded-xl border-l-4 border-l-brand-accent" onClick={() => setActiveTab('settings')}>
+              <div className="text-[10px] text-brand-accent font-bold uppercase tracking-widest mb-2">Data Center</div>
+              <div className="text-3xl font-black text-white">JSON</div>
+          </div>
+          <div className="bg-slate-900 border border-white/5 p-5 rounded-xl border-l-4 border-l-purple-500 cursor-pointer hover:bg-slate-800" onClick={() => setActiveTab('visuals')}>
+              <div className="text-[10px] text-purple-400 font-bold uppercase tracking-widest mb-2">System Visuals</div>
+              <div className="text-3xl font-black text-white">UI/UX</div>
+          </div>
+      </div>
 
-              <div className="bg-slate-900/40 p-10 border border-white/5 space-y-10">
-                  <div className="space-y-2">
-                      <span className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">Database Health</span>
-                      <p className="text-4xl font-black">{songs.length} <span className="text-xs text-slate-600">RECORDS</span></p>
+      {activeTab === 'catalog' && (
+          <div className="space-y-4">
+              <div className="bg-slate-900/50 border border-white/10 p-2 rounded-lg flex flex-col md:flex-row gap-2">
+                  <div className="flex bg-black/50 rounded-md p-1 border border-white/5">
+                      <button onClick={() => setSearchMode('local')} className={`px-4 py-2 text-[10px] font-black uppercase rounded-sm transition-all ${searchMode === 'local' ? 'bg-brand-gold text-black shadow-lg' : 'text-slate-500 hover:text-white'}`}>Database</button>
+                      <button onClick={() => setSearchMode('spotify')} className={`px-4 py-2 text-[10px] font-black uppercase rounded-sm transition-all flex items-center gap-2 ${searchMode === 'spotify' ? 'bg-[#1DB954] text-black shadow-lg' : 'text-slate-500 hover:text-white'}`}>Spotify</button>
                   </div>
-                  <div className="space-y-2">
-                      <span className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">Network Status</span>
-                      <p className="text-sm font-black text-emerald-500 flex items-center gap-2">
-                          <span className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></span>
-                          SUPABASE ONLINE
-                      </p>
+                  <div className="flex-1 relative">
+                      <input type="text" placeholder={searchMode === 'local' ? "搜尋作品或 ISRC..." : "輸入歌曲關鍵字搜尋 Spotify..."} className="w-full bg-black/50 border border-transparent focus:border-brand-accent/50 rounded-md pl-10 pr-4 py-3 text-white text-xs font-bold outline-none uppercase transition-all" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
+                      <svg className={`w-4 h-4 absolute left-3 top-3 transition-colors ${isSearchingSpotify ? 'text-brand-accent animate-spin' : 'text-slate-500'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          {isSearchingSpotify ? <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v1m0 14v1m8-8h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707" /> : <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />}
+                      </svg>
                   </div>
+                  {searchMode === 'local' && (
+                    <select className="bg-black/50 text-slate-300 text-xs font-bold px-4 py-3 rounded-md outline-none cursor-pointer border-l border-white/5" value={filterStatus} onChange={(e) => setFilterStatus(e.target.value as any)}>
+                        <option value="all">所有狀態</option>
+                        <option value="active">已開放互動</option>
+                        <option value="missing_assets">⚠️ 缺音檔或歌詞</option>
+                    </select>
+                  )}
+                  {searchMode === 'local' && selectedIds.size > 0 && <button onClick={handleBulkDelete} className="bg-red-600 text-white text-[10px] font-black uppercase tracking-widest px-6 py-3 rounded-md">刪除選取 ({selectedIds.size})</button>}
+              </div>
+
+              <div className="bg-slate-900 border border-white/5 rounded-xl overflow-hidden shadow-2xl min-h-[400px]">
+                  {searchMode === 'local' ? (
+                    <table className="w-full text-left border-collapse table-auto">
+                        <thead className="bg-black text-[9px] font-black text-slate-500 uppercase tracking-widest">
+                            <tr>
+                                <th className="p-4 w-12 text-center"><input type="checkbox" onChange={handleSelectAll} checked={selectedIds.size > 0 && selectedIds.size === filteredSongs.length} /></th>
+                                <th className="p-4 cursor-pointer" onClick={() => handleSort('title')}>作品資訊</th>
+                                <th className="p-4 hidden md:table-cell" onClick={() => handleSort('releaseDate')}>發行日期</th>
+                                <th className="p-4 text-center">互動模式</th>
+                                <th className="p-4 text-right">管理</th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-white/5">
+                            {filteredSongs.length > 0 ? filteredSongs.map(song => (
+                                <tr key={song.id} className={`group transition-all ${selectedIds.has(song.id) ? 'bg-brand-gold/10' : 'hover:bg-white/[0.03]'}`} onClick={() => navigate(`/song/${song.id}`)}>
+                                    <td className="p-4 text-center" onClick={(e) => { e.stopPropagation(); handleSelectOne(song.id); }}><input type="checkbox" checked={selectedIds.has(song.id)} readOnly /></td>
+                                    <td className="p-4"><div className="flex items-center gap-4"><img src={song.coverUrl} className="w-10 h-10 object-cover rounded" alt="" /><div className="font-bold text-sm text-white">{song.title}</div></div></td>
+                                    <td className="p-4 hidden md:table-cell text-xs font-mono text-slate-400">{song.releaseDate}</td>
+                                    <td className="p-4 text-center" onClick={(e) => e.stopPropagation()}><button onClick={() => updateSong(song.id, { isInteractiveActive: !song.isInteractiveActive })} className={`px-4 py-1 text-[9px] font-black uppercase border rounded ${song.isInteractiveActive ? 'bg-emerald-500 text-black border-emerald-500' : 'text-slate-500 border-white/10'}`}>{song.isInteractiveActive ? 'ON' : 'OFF'}</button></td>
+                                    <td className="p-4 text-right">
+                                        {/* CRITICAL FIX: Direct to AddSong (Edit Mode) instead of SongDetail */}
+                                        <button onClick={(e) => { e.stopPropagation(); navigate(`/add?edit=${song.id}`); }} className="text-[10px] font-black text-slate-400 hover:text-white">編輯</button>
+                                    </td>
+                                </tr>
+                            )) : (
+                                <tr><td colSpan={5} className="p-20 text-center text-slate-600 font-bold uppercase tracking-widest text-xs">NO LOCAL SONGS FOUND</td></tr>
+                            )}
+                        </tbody>
+                    </table>
+                  ) : (
+                    <div className="p-4">
+                        {spotifyResults.length > 0 ? (
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                {spotifyResults.map(track => (
+                                    <div key={track.id} className="flex gap-4 p-4 bg-white/[0.03] hover:bg-white/[0.08] border border-white/5 rounded-lg group transition-all">
+                                        <img src={track.album.images?.[0]?.url} className="w-16 h-16 object-cover rounded-md shadow-lg" alt="" />
+                                        <div className="flex-1 min-w-0 flex flex-col justify-between py-1">
+                                            <div>
+                                                <div className="text-xs font-bold text-white truncate">{track.name}</div>
+                                                <div className="text-[10px] text-slate-400 truncate">{track.artists.map((a:any)=>a.name).join(', ')}</div>
+                                            </div>
+                                            <div className="flex justify-between items-end mt-2">
+                                                <span className="text-[9px] text-slate-600 font-mono">{track.album.release_date}</span>
+                                                <button onClick={() => navigate('/add', { state: { spotifyTrack: track } })} className="px-3 py-1 bg-[#1DB954] text-black text-[9px] font-black uppercase rounded hover:bg-white transition-all">Import</button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        ) : (
+                            <div className="flex flex-col items-center justify-center h-64 text-slate-600 space-y-4">
+                                <svg className="w-12 h-12 opacity-20" fill="currentColor" viewBox="0 0 24 24"><path d="M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.66 0 12 0zm5.521 17.34c-.24.359-.66.48-1.021.24-2.82-1.74-6.36-2.101-10.561-1.141-.418.122-.779-.179-.899-.539-.12-.421.18-.78.54-.9 4.56-1.021 8.52-.6 11.64 1.32.42.18.479.659.301 1.02zm1.44-3.3c-.301.42-.841.6-1.262.3-3.239-1.98-8.159-2.58-11.939-1.38-.479.12-1.02-.12-1.14-.6-.12-.48.12-1.021.6-1.141C9.6 9.9 15 10.561 18.72 12.84c.361.181.54.78.241 1.2zm.12-3.36C15.24 8.4 8.82 8.16 5.16 9.301c-.6.179-1.2-.181-1.38-.721-.18-.601.18-1.2.72-1.381 4.26-1.26 11.28-1.02 15.721 1.621.539.3.719 1.02.419 1.56-.299.421-1.02.599-1.559.3z"/></svg>
+                                <span className="text-xs font-black uppercase tracking-widest">Search Spotify to Import</span>
+                            </div>
+                        )}
+                    </div>
+                  )}
               </div>
           </div>
+      )}
 
-          {/* 右側內容區塊 */}
-          <div className="lg:col-span-9">
-              
-              {activeTab === 'catalog' && (
-                  <div className="space-y-10 animate-fade-in">
-                      {/* 搜尋欄位 */}
-                      <div className="bg-slate-900 border border-white/10 p-2 flex gap-2 rounded-sm shadow-2xl">
-                          <div className="flex items-center pl-6 text-slate-500">
-                             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
-                          </div>
-                          <input 
-                            type="text" 
-                            placeholder="SEARCH BY ISRC, UPC OR TITLE..." 
-                            className="flex-1 bg-transparent px-4 py-6 text-base font-bold text-white outline-none placeholder-slate-700"
-                            value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
-                          />
-                      </div>
-
-                      {/* 作品列表 */}
-                      <div className="grid grid-cols-1 gap-4">
-                          {groupedCatalog.map(group => {
-                              const main = group[0];
-                              const isCurrent = currentSong?.id === main.id;
-                              return (
-                                  <div key={main.id} className={`bg-slate-900/60 border p-5 flex items-center gap-8 hover:border-brand-gold/40 transition-all group ${isCurrent && isPlaying ? 'border-brand-gold/40' : 'border-white/5'}`}>
-                                      <div className="relative cursor-pointer shrink-0" onClick={() => playSong(main)}>
-                                          <img src={main.coverUrl} className="w-20 h-20 object-cover rounded-sm shadow-2xl" alt="" />
-                                          <div className={`absolute inset-0 flex items-center justify-center bg-black/60 transition-opacity ${isCurrent && isPlaying ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}>
-                                              {isCurrent && isPlaying ? (
-                                                  <div className="flex items-end gap-1 h-3">
-                                                      <div className="w-1 bg-brand-gold animate-bounce"></div>
-                                                      <div className="w-1 bg-brand-gold animate-bounce delay-75"></div>
-                                                      <div className="w-1 bg-brand-gold animate-bounce delay-150"></div>
-                                                  </div>
-                                              ) : (
-                                                  <svg className="w-8 h-8 text-white" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
-                                              )}
-                                          </div>
-                                      </div>
-                                      <div className="flex-1 min-w-0">
-                                          <h4 className="text-white font-black text-lg truncate uppercase tracking-widest">{main.title}</h4>
-                                          <div className="flex flex-wrap gap-x-6 gap-y-1 mt-2">
-                                              <span className="text-[10px] text-slate-500 font-mono">ISRC: {main.isrc}</span>
-                                              <span className="text-[10px] text-brand-gold font-bold uppercase tracking-widest">{main.releaseDate}</span>
-                                              <span className="text-[10px] text-slate-600 font-bold uppercase tracking-widest">{main.language}</span>
-                                          </div>
-                                      </div>
-                                      <div className="flex items-center gap-4">
-                                          <button 
-                                            onClick={() => updateSong(main.id, { isInteractiveActive: !main.isInteractiveActive })}
-                                            className={`px-4 py-2 text-[9px] font-black uppercase rounded-sm border transition-all ${main.isInteractiveActive ? 'bg-emerald-900/30 text-emerald-400 border-emerald-500/50' : 'text-slate-600 border-white/10 hover:border-white/30'}`}
-                                          >
-                                              Studio {main.isInteractiveActive ? 'ACTIVE' : 'OFF'}
-                                          </button>
-                                          <button onClick={() => handleOpenEditor(main)} className="h-10 px-6 bg-white text-black text-[10px] font-black uppercase hover:bg-brand-gold transition-all">Edit</button>
-                                          <button onClick={() => window.confirm('確定移除此作品？') && deleteSong(main.id)} className="w-10 h-10 flex items-center justify-center text-slate-800 hover:text-rose-500 transition-colors">
-                                              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
-                                          </button>
-                                      </div>
+      {activeTab === 'visuals' && (
+          <div className="max-w-4xl mx-auto animate-fade-in space-y-8">
+              <div className="bg-slate-900 border border-purple-500/30 p-10 rounded-xl shadow-[0_0_50px_rgba(168,85,247,0.1)]">
+                  <h3 className="text-xl font-black text-purple-500 uppercase tracking-[0.3em] mb-8 flex items-center gap-4">
+                      <span className="w-8 h-8 bg-purple-500 text-black rounded-full flex items-center justify-center text-sm">UI</span>
+                      System Visuals (視覺設定)
+                  </h3>
+                  
+                  <div className="space-y-10">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-start">
+                          <div className="space-y-4">
+                              <label className="text-xs font-black text-white uppercase tracking-widest">Home Background (首頁背景)</label>
+                              <div className="aspect-video bg-black rounded border border-white/10 overflow-hidden relative group">
+                                  <img src={visualsForm.portraitUrl} className="w-full h-full object-cover opacity-60" alt="Home BG" />
+                                  <div className="absolute inset-0 flex items-center justify-center bg-black/50 opacity-0 group-hover:opacity-100 transition-all">
+                                      <span className="text-xs text-white font-bold">Preview</span>
                                   </div>
-                              );
-                          })}
-                      </div>
-                  </div>
-              )}
-
-              {activeTab === 'payment' && (
-                  <div className="bg-slate-900 border border-white/10 p-12 space-y-12 shadow-2xl animate-fade-in rounded-sm">
-                      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-8 border-b border-white/5 pb-10">
-                          <div>
-                              <h3 className="text-3xl font-black uppercase tracking-widest text-brand-gold mb-2">Gateway Assets</h3>
-                              <p className="text-[10px] text-slate-500 uppercase tracking-widest">管理全站金流 QR Code 與存取驗證</p>
-                          </div>
-                          <div className="flex items-center gap-6 bg-black p-6 border border-white/10 rounded-sm">
-                              <span className="text-[11px] font-black uppercase tracking-widest text-slate-500">Master Access Code</span>
+                              </div>
                               <input 
-                                value={globalSettings.accessCode} 
-                                onChange={(e) => handleUpdateGlobal({ accessCode: e.target.value })} 
-                                className="bg-transparent text-white font-mono text-3xl w-24 text-center outline-none border-b border-brand-gold focus:border-white transition-colors" 
+                                  value={visualsForm.portraitUrl} 
+                                  onChange={(e) => setVisualsForm(p => ({ ...p, portraitUrl: e.target.value }))}
+                                  className="w-full bg-black border border-white/10 p-3 text-xs text-slate-300 outline-none focus:border-purple-500"
+                                  placeholder="Enter Image URL..."
                               />
                           </div>
-                      </div>
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-12">
-                          {[
-                              { key: 'qr_global_payment', label: 'LINE PAY QR' },
-                              { key: 'qr_production', label: 'STUDIO TICKET (320)' },
-                              { key: 'qr_support', label: 'MICRO SUPPORT (100)' }
-                          ].map(qr => (
-                              <div key={qr.key} className="space-y-6 flex flex-col items-center">
-                                  <span className="text-[11px] font-black uppercase tracking-widest text-white/40">{qr.label}</span>
-                                  <div className="w-full aspect-square bg-black border border-white/5 rounded-sm flex items-center justify-center overflow-hidden shadow-2xl">
-                                      {globalSettings[qr.key as keyof typeof globalSettings] ? (
-                                          <img src={globalSettings[qr.key as keyof typeof globalSettings] as string} className="w-full h-full object-contain" alt="" />
-                                      ) : (
-                                          <span className="text-slate-900 font-black text-[10px] uppercase">No Image Uploaded</span>
-                                      )}
-                                  </div>
-                                  <label className="block w-full py-4 bg-white text-black text-center text-[10px] font-black uppercase tracking-widest cursor-pointer hover:bg-brand-gold transition-all shadow-xl">
-                                      Upload New
-                                      <input type="file" className="hidden" accept="image/*" onChange={(e) => {
-                                          const file = e.target.files?.[0];
-                                          if (file) {
-                                              const reader = new FileReader();
-                                              reader.onloadend = () => handleUpdateGlobal({ [qr.key]: reader.result });
-                                              reader.readAsDataURL(file);
-                                          }
-                                      }} />
-                                  </label>
+
+                          <div className="space-y-4">
+                              <label className="text-xs font-black text-white uppercase tracking-widest">Global Default Cover (預設封面)</label>
+                              <div className="aspect-square w-48 bg-black rounded border border-white/10 overflow-hidden relative group">
+                                  <img src={visualsForm.defaultCoverUrl} className="w-full h-full object-cover" alt="Default Cover" />
                               </div>
-                          ))}
+                              <input 
+                                  value={visualsForm.defaultCoverUrl} 
+                                  onChange={(e) => setVisualsForm(p => ({ ...p, defaultCoverUrl: e.target.value }))}
+                                  className="w-full bg-black border border-white/10 p-3 text-xs text-slate-300 outline-none focus:border-purple-500"
+                                  placeholder="Enter Default Cover URL..."
+                              />
+                              <p className="text-[10px] text-slate-500">此封面將用於所有未設定專屬封面的歌曲 (Completes missing data covers).</p>
+                          </div>
+                      </div>
+
+                      <div className="pt-8 border-t border-white/10 flex justify-end">
+                          <button onClick={saveVisuals} className="px-10 py-4 bg-purple-600 text-white font-black text-xs uppercase tracking-widest hover:bg-white hover:text-black transition-all shadow-xl">
+                              SAVE CHANGES
+                          </button>
                       </div>
                   </div>
-              )}
+              </div>
+          </div>
+      )}
 
-              {activeTab === 'settings' && (
-                  <div className="bg-slate-900 border border-white/10 p-12 space-y-12 shadow-2xl animate-fade-in rounded-sm">
-                      <h3 className="text-3xl font-black uppercase tracking-widest">Engine Maintenance</h3>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
-                          <div className="p-10 bg-black/40 border border-white/5 space-y-6 rounded-sm">
-                              <h4 className="font-black text-white uppercase tracking-widest">Catalog Export</h4>
-                              <p className="text-xs text-slate-500 leading-loose">將目前本地資料庫中的所有曲目資訊、歌詞、ISRC 匯出為 JSON 備份檔。建議在大型修改前執行。</p>
-                              <button onClick={() => {
-                                  const blob = new Blob([JSON.stringify(songs, null, 2)], { type: 'application/json' });
-                                  const url = URL.createObjectURL(blob);
-                                  const a = document.createElement('a'); a.href = url; a.download = `willwi_db_export_${new Date().toISOString().split('T')[0]}.json`; a.click();
-                              }} className="w-full py-5 border border-white/10 text-white font-black text-[11px] uppercase tracking-widest hover:bg-white hover:text-black transition-all">
-                                  Download JSON Backup
-                              </button>
+      {activeTab === 'settings' && (
+          <div className="max-w-4xl mx-auto animate-fade-in space-y-8">
+              <div className="bg-slate-900 border border-brand-accent/30 p-10 rounded-xl shadow-[0_0_50px_rgba(56,189,248,0.1)]">
+                  <h3 className="text-xl font-black text-brand-accent uppercase tracking-[0.3em] mb-8 flex items-center gap-4">
+                      <span className="w-8 h-8 bg-brand-accent text-black rounded-full flex items-center justify-center text-sm">JSON</span>
+                      資料管理中心 (Data Center)
+                  </h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                      <div className="p-8 bg-black/40 border border-white/5 rounded-lg flex flex-col justify-between">
+                          <div>
+                              <h4 className="text-white text-base font-bold mb-3">導出作品集 (Export JSON)</h4>
+                              <p className="text-xs text-slate-500 leading-relaxed mb-8">將目前資料庫中所有的作品、歌詞與連結備份成單一 JSON 檔案，以便隨時復原或轉移。</p>
                           </div>
-                          <div className="p-10 bg-black/40 border border-red-900/20 space-y-6 rounded-sm">
-                              <h4 className="font-black text-red-500 uppercase tracking-widest">Wipe & Restore</h4>
-                              <p className="text-xs text-slate-500 leading-loose">匯入 JSON 並覆蓋現有資料。注意：此動作將會清除所有目前的本地作品紀錄。</p>
-                              <label className="block w-full py-5 border border-red-900/40 text-red-500 text-center font-black text-[11px] uppercase tracking-widest cursor-pointer hover:bg-red-500 hover:text-white transition-all">
-                                  Restore from JSON
-                                  <input type="file" className="hidden" accept=".json" onChange={async (e) => {
-                                      const file = e.target.files?.[0];
-                                      if (file && window.confirm('確定要執行資料復原？這將會覆寫目前的資料庫！')) {
-                                          const reader = new FileReader();
-                                          reader.onload = async (ev) => {
-                                              try {
-                                                  const data = JSON.parse(ev.target?.result as string);
-                                                  await addSong(data); // 簡化處理，實際建議使用批量 API
-                                                  window.location.reload();
-                                              } catch (e) { showToast("無效的 JSON 檔案", "error"); }
-                                          };
-                                          reader.readAsText(file);
-                                      }
-                                  }} />
+                          <button onClick={downloadFullBackup} className="w-full py-4 bg-slate-800 text-white font-black text-[11px] uppercase tracking-widest hover:bg-white hover:text-black transition-all rounded shadow-xl">
+                              立即下載備份檔案
+                          </button>
+                      </div>
+                      <div className="p-8 bg-black/40 border border-red-900/30 rounded-lg flex flex-col justify-between">
+                          <div>
+                              <h4 className="text-red-400 text-base font-bold mb-3">匯入作品集 (Import JSON)</h4>
+                              <p className="text-xs text-slate-500 leading-relaxed mb-8">上傳備份的 JSON 檔案。<span className="text-red-500 font-bold underline">注意：這會清空目前的資料庫並以新檔案覆蓋。</span></p>
+                          </div>
+                          <div className="relative">
+                              <button onClick={() => fileInputRef.current?.click()} className="w-full py-4 border border-red-500 text-red-500 font-black text-[11px] uppercase tracking-widest hover:bg-red-500 hover:text-white transition-all rounded">
+                                  選擇檔案並覆寫
+                              </button>
+                              <input ref={fileInputRef} type="file" className="hidden" accept=".json" onChange={handleImportFile} />
+                          </div>
+                      </div>
+                  </div>
+              </div>
+          </div>
+      )}
+
+      {activeTab === 'payment' && (
+          <div className="max-w-4xl mx-auto animate-fade-in space-y-8">
+              <div className="bg-slate-900 border border-white/10 p-10 rounded-xl">
+                  <h3 className="text-xl font-black text-brand-gold uppercase tracking-[0.3em] mb-8">金流 QR Code 設置</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                      <div className="col-span-full p-6 bg-emerald-900/20 border border-emerald-500/30 rounded-xl flex items-center justify-between">
+                          <div>
+                              <h4 className="text-emerald-400 font-bold uppercase tracking-widest text-xs">系統通行碼 (Access Code)</h4>
+                              <p className="text-slate-500 text-[10px] mt-1">使用者付款後需輸入此代碼解鎖互動權限。</p>
+                          </div>
+                          <div className="flex gap-2">
+                              <input value={accessCode} onChange={(e) => setAccessCode(e.target.value)} className="bg-black border border-emerald-500/50 px-4 py-2 text-white font-mono text-center w-24 outline-none" />
+                              <button onClick={saveAccessCode} className="px-6 py-2 bg-emerald-600 text-white font-bold text-xs uppercase tracking-widest hover:bg-emerald-400">更新</button>
+                          </div>
+                      </div>
+                      {[
+                          { key: 'global_payment', label: '主要收款 QR (Line Pay)' },
+                          { key: 'line', label: 'LINE 官方帳號 QR' }
+                      ].map((item) => (
+                          <div key={item.key} className="p-6 bg-black/40 border border-white/5 rounded-xl text-center">
+                              <h4 className="text-xs font-bold text-white uppercase mb-4">{item.label}</h4>
+                              <div className="aspect-square bg-slate-900 border border-white/10 rounded-lg flex items-center justify-center overflow-hidden mb-4">
+                                  {qrImages[item.key as keyof typeof qrImages] ? <img src={qrImages[item.key as keyof typeof qrImages]} className="w-full h-full object-contain" /> : <span className="text-slate-700 text-[9px]">未上傳</span>}
+                              </div>
+                              <label className="block w-full cursor-pointer py-3 border border-white/20 text-slate-300 font-black text-[9px] uppercase tracking-widest hover:bg-white hover:text-black transition-all rounded">
+                                  選擇圖片上傳
+                                  <input type="file" className="hidden" accept="image/*" onChange={handleQrUpload(item.key as keyof typeof qrImages)} />
                               </label>
                           </div>
-                      </div>
-                  </div>
-              )}
-
-          </div>
-      </div>
-
-      {/* --- 全能編輯器滑入面板 (Inline Editor Workspace) --- */}
-      {isEditorOpen && (
-          <div className="fixed inset-0 z-[1000] flex justify-end">
-              <div className="absolute inset-0 bg-black/90 backdrop-blur-md" onClick={() => setIsEditorOpen(false)}></div>
-              <div className="relative w-full max-w-5xl bg-[#020617] h-full shadow-[-40px_0_100px_rgba(0,0,0,1)] border-l border-white/10 flex flex-col animate-fade-in-right">
-                  
-                  {/* 編輯器頭部 */}
-                  <div className="p-10 border-b border-white/5 flex justify-between items-center bg-slate-900/30">
-                      <div>
-                        <h3 className="text-3xl font-black uppercase tracking-widest">{editingSong?.id ? 'Modify Metadata' : 'New Release Workspace'}</h3>
-                        <p className="text-xs text-brand-gold font-bold uppercase tracking-[0.4em] mt-2">{editingSong?.title || 'Initializing Metadata...'}</p>
-                      </div>
-                      <div className="flex gap-4">
-                          <button onClick={handleSaveSong} className="h-14 px-12 bg-brand-gold text-black font-black uppercase text-[11px] tracking-widest hover:bg-white transition-all shadow-2xl">Confirm & Save</button>
-                          <button onClick={() => setIsEditorOpen(false)} className="h-14 px-8 border border-white/10 text-slate-500 hover:text-white transition-all">Close</button>
-                      </div>
-                  </div>
-
-                  {/* 編輯器分頁導覽 */}
-                  <div className="px-10 py-6 flex gap-10 border-b border-white/5">
-                      {[
-                          { id: 'basic', label: 'Core Metadata' },
-                          { id: 'story', label: 'Story & Credits' },
-                          { id: 'meta', label: 'Spotify Smart Import' }
-                      ].map(t => (
-                          <button 
-                            key={t.id} 
-                            onClick={() => setEditorTab(t.id as any)}
-                            className={`text-[11px] font-black uppercase tracking-[0.3em] transition-all pb-2 border-b-2 ${editorTab === t.id ? 'text-brand-gold border-brand-gold' : 'text-slate-600 border-transparent hover:text-white'}`}
-                          >
-                              {t.label}
-                          </button>
                       ))}
-                  </div>
-
-                  {/* 編輯器主體內容 */}
-                  <div className="flex-1 overflow-y-auto p-12 space-y-16 custom-scrollbar bg-gradient-to-b from-transparent to-black/40">
-                      
-                      {editorTab === 'basic' && (
-                          <div className="space-y-12 animate-fade-in">
-                              <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
-                                  <div className="space-y-3">
-                                      <label className="text-[10px] font-black uppercase text-slate-500 tracking-widest">Song Title (Mandatory)</label>
-                                      <input value={editingSong?.title} onChange={e => setEditingSong(prev => ({ ...prev!, title: e.target.value }))} className="w-full bg-black border border-white/10 p-6 text-white font-bold text-lg outline-none focus:border-brand-gold transition-colors" placeholder="e.g. 黑灰色" />
-                                  </div>
-                                  <div className="space-y-3">
-                                      <label className="text-[10px] font-black uppercase text-slate-500 tracking-widest">ISRC Identifier</label>
-                                      <input value={editingSong?.isrc} onChange={e => setEditingSong(prev => ({ ...prev!, isrc: e.target.value }))} className="w-full bg-black border border-white/10 p-6 text-brand-gold font-mono text-lg outline-none focus:border-white transition-colors" placeholder="QZTAZ..." />
-                                  </div>
-                                  <div className="space-y-3">
-                                      <label className="text-[10px] font-black uppercase text-slate-500 tracking-widest">Primary Language</label>
-                                      <select value={editingSong?.language} onChange={e => setEditingSong(prev => ({ ...prev!, language: e.target.value as Language }))} className="w-full bg-black border border-white/10 p-6 text-white font-bold outline-none appearance-none">
-                                          {Object.values(Language).map(l => <option key={l} value={l}>{l}</option>)}
-                                      </select>
-                                  </div>
-                                  <div className="space-y-3">
-                                      <label className="text-[10px] font-black uppercase text-slate-500 tracking-widest">Official Release Date</label>
-                                      <input type="date" value={editingSong?.releaseDate} onChange={e => setEditingSong(prev => ({ ...prev!, releaseDate: e.target.value }))} className="w-full bg-black border border-white/10 p-6 text-white font-bold outline-none" />
-                                  </div>
-                              </div>
-                              <div className="space-y-3">
-                                  <label className="text-[10px] font-black uppercase text-slate-500 tracking-widest">Lyrics (Original Content)</label>
-                                  <textarea value={editingSong?.lyrics} onChange={e => setEditingSong(prev => ({ ...prev!, lyrics: e.target.value }))} className="w-full h-80 bg-black border border-white/10 p-8 text-white text-base font-mono custom-scrollbar outline-none focus:border-brand-gold leading-relaxed" placeholder="Paste lyrics line by line..." />
-                              </div>
-                              <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
-                                  <div className="space-y-3">
-                                      <label className="text-[10px] font-black uppercase text-brand-gold tracking-widest">High-Res Audio URL (Direct Link Only)</label>
-                                      <input value={editingSong?.audioUrl} onChange={e => setEditingSong(prev => ({ ...prev!, audioUrl: e.target.value }))} className="w-full bg-black border border-brand-gold/30 p-6 text-brand-gold text-xs font-mono" placeholder="Dropbox / S3 / Direct Stream Link" />
-                                  </div>
-                                  <div className="space-y-3">
-                                      <label className="text-[10px] font-black uppercase text-slate-500 tracking-widest">Cover Artwork URL</label>
-                                      <input value={editingSong?.coverUrl} onChange={e => setEditingSong(prev => ({ ...prev!, coverUrl: e.target.value }))} className="w-full bg-black border border-white/10 p-6 text-slate-400 text-xs" />
-                                  </div>
-                              </div>
-                          </div>
-                      )}
-
-                      {editorTab === 'story' && (
-                          <div className="space-y-12 animate-fade-in">
-                               <div className="space-y-3">
-                                  <label className="text-[10px] font-black uppercase text-brand-gold tracking-widest">Creative Note (創作筆記)</label>
-                                  <textarea value={editingSong?.creativeNote} onChange={e => setEditingSong(prev => ({ ...prev!, creativeNote: e.target.value }))} className="w-full h-48 bg-black border border-white/10 p-8 text-white text-sm leading-loose custom-scrollbar outline-none focus:border-brand-gold" placeholder="靈魂的碎片，紀錄這首歌的誕生..." />
-                              </div>
-                              <div className="space-y-3">
-                                  <label className="text-[10px] font-black uppercase text-slate-600 tracking-widest">Studio / Lab Log (技術日誌)</label>
-                                  <textarea value={editingSong?.labLog} onChange={e => setEditingSong(prev => ({ ...prev!, labLog: e.target.value }))} className="w-full h-48 bg-black border border-white/10 p-8 text-slate-500 font-mono text-xs custom-scrollbar outline-none focus:border-brand-gold" placeholder="錄音細節、實驗手段與技術參數..." />
-                              </div>
-                              <div className="space-y-3">
-                                  <label className="text-[10px] font-black uppercase text-slate-700 tracking-widest">Credits & Acknowledgements (製作群)</label>
-                                  <textarea value={editingSong?.credits} onChange={e => setEditingSong(prev => ({ ...prev!, credits: e.target.value }))} className="w-full h-32 bg-black border border-white/10 p-8 text-slate-600 font-mono text-[11px] outline-none" placeholder="Producer / Arrangement / Mixer / Special Thanks..." />
-                              </div>
-                          </div>
-                      )}
-
-                      {editorTab === 'meta' && (
-                          <div className="space-y-12 animate-fade-in">
-                              <div className="bg-[#1DB954]/5 border border-[#1DB954]/20 p-10 space-y-8 rounded-sm">
-                                  <h4 className="text-sm font-black uppercase tracking-widest text-[#1DB954] flex items-center gap-3">
-                                      <svg className="w-6 h-6" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.66 0 12 0zm5.521 17.34c-.24.359-.66.48-1.021.24-2.82-1.74-6.36-2.101-10.561-1.141-.418.122-.779-.179-.899-.539-.12-.421.18-.78.54-.9 4.56-1.021 8.52-.6 11.64 1.32.42.18.479.659.301 1.02zm1.44-3.3c-.301.42-.841.6-1.262.3-3.239-1.98-8.159-2.58-11.939-1.38-.479.12-1.02-.12-1.14-.6-.12-.48.12-1.021.6-1.141C9.6 9.9 15 10.561 18.72 12.84c.361.181.54.78.241 1.2zm.12-3.36C15.24 8.4 8.82 8.16 5.16 9.301c-.6.179-1.2-.181-1.38-.721-.18-.601.18-1.2.72-1.381 4.26-1.26 11.28-1.02 15.721 1.621.539.3.719 1.02.419 1.56-.299.421-1.02.599-1.559.3z"/></svg>
-                                      Spotify AI Metadata Discovery
-                                  </h4>
-                                  <div className="flex gap-4">
-                                      <input 
-                                        className="flex-1 bg-black border border-white/10 p-6 text-white text-sm outline-none focus:border-[#1DB954] transition-colors" 
-                                        placeholder="Enter Track Name or Artist..." 
-                                        value={spotifySearch} 
-                                        onChange={e => setSpotifySearch(e.target.value)}
-                                        onKeyDown={e => e.key === 'Enter' && (async () => {
-                                            setIsSearchingSpotify(true);
-                                            const results = await searchSpotifyTracks(spotifySearch);
-                                            setSpotifyResults(results);
-                                            setIsSearchingSpotify(false);
-                                        })()}
-                                      />
-                                      <button 
-                                        onClick={async () => {
-                                            setIsSearchingSpotify(true);
-                                            const results = await searchSpotifyTracks(spotifySearch);
-                                            setSpotifyResults(results);
-                                            setIsSearchingSpotify(false);
-                                        }} 
-                                        className="px-10 bg-[#1DB954] text-black font-black text-[11px] uppercase tracking-widest hover:bg-white transition-all shadow-xl"
-                                      >
-                                          Sync Scan
-                                      </button>
-                                  </div>
-                                  <div className="space-y-4 max-h-[400px] overflow-y-auto custom-scrollbar pr-4">
-                                      {spotifyResults.map(t => (
-                                          <div key={t.id} onClick={() => handleSpotifyImport(t)} className="flex items-center gap-6 p-5 bg-black/60 hover:bg-white/5 cursor-pointer border border-white/5 rounded-sm transition-all group">
-                                              <img src={t.album.images?.[0]?.url} className="w-14 h-14 object-cover shadow-2xl group-hover:scale-105 transition-transform" alt="" />
-                                              <div className="flex-1 min-w-0">
-                                                  <div className="text-[13px] text-white font-black truncate uppercase tracking-widest">{t.name}</div>
-                                                  <div className="text-[10px] text-slate-500 truncate mt-1">{t.album.name} • {t.artists.map((a:any)=>a.name).join(', ')}</div>
-                                              </div>
-                                              <div className="text-[9px] text-emerald-500 font-black tracking-widest uppercase opacity-0 group-hover:opacity-100 transition-opacity">Import Data →</div>
-                                          </div>
-                                      ))}
-                                  </div>
-                              </div>
-                              <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
-                                  <div className="space-y-3">
-                                      <label className="text-[10px] font-black uppercase text-[#1DB954] tracking-widest">Spotify Track Link</label>
-                                      <input value={editingSong?.spotifyLink} onChange={e => setEditingSong(prev => ({ ...prev!, spotifyLink: e.target.value }))} className="w-full bg-black border border-white/10 p-6 text-xs text-slate-500 font-mono outline-none" />
-                                  </div>
-                                  <div className="space-y-3">
-                                      <label className="text-[10px] font-black uppercase text-rose-500 tracking-widest">YouTube Music Link</label>
-                                      <input value={editingSong?.youtubeUrl} onChange={e => setEditingSong(prev => ({ ...prev!, youtubeUrl: e.target.value }))} className="w-full bg-black border border-white/10 p-6 text-xs text-slate-500 font-mono outline-none" />
-                                  </div>
-                              </div>
-                          </div>
-                      )}
                   </div>
               </div>
           </div>
