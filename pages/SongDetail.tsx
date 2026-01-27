@@ -7,10 +7,10 @@ import { Song } from '../types';
 import { useTranslation } from '../context/LanguageContext';
 
 const PlatformIcon = ({ name }: { name: string }) => {
-    if (name === 'spotify') return <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.66 0 12 0zm5.521 17.34c-.24.359-.66.48-1.021.24-2.82-1.74-6.36-2.101-10.561-1.141-.418.122-.779-.179-.899-.539-.12-.421.18-.78.54-.9 4.56-1.021 8.52-.6 11.64 1.32.42.18.479.659.301 1.02zm1.44-3.3c-.301.42-.841.6-1.262.3-3.239-1.98-8.159-2.58-11.939-1.38-.479.12-1.02-.12-1.14-.6-.12-.48.12-1.021.6-1.141C9.6 9.9 15 10.561 18.72 12.84c.361.181.54.78.241 1.2zm.12-3.36C15.24 8.4 8.82 8.16 5.16 9.301c-.6.179-1.2-.181-1.38-.721-.18-.601.18-1.2.72-1.381 4.26-1.26 11.28-1.02 15.721 1.621.539.3.719 1.02.419 1.56-.299.421-1.02.599-1.559.3z"/></svg>;
-    if (name === 'apple') return <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor"><path d="M22.256 9.471c.882 3.033-1.605 5.922-3.896 5.584-3.567-.532-3.141-5.748.182-6.666 1.487-.411 3.25.109 3.714 1.082zm-9.98 4.793c1.996-2.583 2.502-6.526-.81-7.85-3.376-1.35-6.636 2.454-4.225 6.784 1.246 2.238 3.528 2.923 5.035 1.066zm8.851 5.679c-2.321 4.958-9.455 5.592-13.627 2.066-4.524-3.824-2.85-11.758 2.651-13.344 5.955-1.719 10.601 2.373 12.396 6.824.582 1.442.22 3.298-1.42 4.454zm-14.755-7.81c.216-4.135 4.312-6.551 7.42-4.996 3.109 1.554 3.791 6.221.725 8.783-3.035 2.535-7.957.575-8.145-3.787z"/></svg>;
-    if (name === 'youtube') return <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor"><path d="M19.615 3.184c-3.604-.246-11.631-.245-15.23 0-3.897.266-4.356 2.62-4.385 8.816.029 6.185.484 8.549 4.385 8.816 3.6.245 11.626.246 15.23 0 3.897-.266 4.356-2.62 4.385-8.816-.029-6.185-.484-8.549-4.385-8.816zm-10.615 12.816v-8l8 3.993-8 4.007z"/></svg>;
-    if (name === 'tidal') return <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor"><path d="M12.012 8.036l-3.571-3.571-3.571 3.571 3.571 3.571 3.571-3.571zm-3.571-3.572l-3.572-3.571-3.571 3.571 3.571 3.571 3.572-3.571zm7.143 3.572l-3.571-3.571-3.571 3.571 3.571 3.571 3.571-3.571zm-3.571 3.571l-3.571-3.571-3.572 3.571 3.572 3.571 3.571-3.571zm3.571 3.571l-3.571-3.571-3.571 3.571 3.571 3.571 3.571-3.571zm7.143 0l-3.571-3.571-3.571 3.571 3.571 3.571 3.571-3.571z"/></svg>;
+    if (name === 'spotify') return <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.66 0 12 0zm5.521 17.34c-.24.359-.66.48-1.021.24-2.82-1.74-6.36-2.101-10.561-1.141-.418.122-.779-.179-.899-.539-.12-.421.18-.78.54-.9 4.56-1.021 8.52-.6 11.64 1.32.42.18.479.659.301 1.02zm1.44-3.3c-.301.42-.841.6-1.262.3-3.239-1.98-8.159-2.58-11.939-1.38-.479.12-1.02-.12-1.14-.6-.12-.48.12-1.021.6-1.141C9.6 9.9 15 10.561 18.72 12.84c.361.181.54.78.241 1.2zm.12-3.36C15.24 8.4 8.82 8.16 5.16 9.301c-.6.179-1.2-.181-1.38-.721-.18-.601.18-1.2.72-1.381 4.26-1.26 11.28-1.02 15.721 1.621.539.3.719 1.02.419 1.56-.299.421-1.02.599-1.559.3z"/></svg>;
+    if (name === 'apple') return <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor"><path d="M22.256 9.471c.882 3.033-1.605 5.922-3.896 5.584-3.567-.532-3.141-5.748.182-6.666 1.487-.411 3.25.109 3.714 1.082zm-9.98 4.793c1.996-2.583 2.502-6.526-.81-7.85-3.376-1.35-6.636 2.454-4.225 6.784 1.246 2.238 3.528 2.923 5.035 1.066zm8.851 5.679c-2.321 4.958-9.455 5.592-13.627 2.066-4.524-3.824-2.85-11.758 2.651-13.344 5.955-1.719 10.601 2.373 12.396 6.824.582 1.442.22 3.298-1.42 4.454zm-14.755-7.81c.216-4.135 4.312-6.551 7.42-4.996 3.109 1.554 3.791 6.221.725 8.783-3.035 2.535-7.957.575-8.145-3.787z"/></svg>;
+    if (name === 'youtube') return <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor"><path d="M19.615 3.184c-3.604-.246-11.631-.245-15.23 0-3.897.266-4.356 2.62-4.385 8.816.029 6.185.484 8.549 4.385 8.816 3.6.245 11.626.246 15.23 0 3.897-.266 4.356-2.62 4.385-8.816-.029-6.185-.484-8.549-4.385-8.816zm-10.615 12.816v-8l8 3.993-8 4.007z"/></svg>;
+    if (name === 'tidal') return <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor"><path d="M12.012 8.036l-3.571-3.571-3.571 3.571 3.571 3.571 3.571-3.571zm-3.571-3.572l-3.572-3.571-3.571 3.571 3.571 3.571 3.572-3.571zm7.143 3.572l-3.571-3.571-3.571 3.571 3.571 3.571 3.571-3.571zm-3.571 3.571l-3.571-3.571-3.571 3.571 3.571 3.571 3.571-3.571zm3.571 3.571l-3.571-3.571-3.571 3.571 3.571 3.571 3.571-3.571zm7.143 0l-3.571-3.571-3.571 3.571 3.571 3.571 3.571-3.571z"/></svg>;
     return null;
 }
 
@@ -65,8 +65,6 @@ const SongDetail: React.FC = () => {
 
   const appleMusicEmbedUrl = useMemo(() => {
       if (!song?.appleMusicLink) return null;
-      // Convert standard link to embed link
-      // e.g. https://music.apple.com/us/album/... -> https://embed.music.apple.com/us/album/...
       return song.appleMusicLink.replace('music.apple.com', 'embed.music.apple.com');
   }, [song]);
 
@@ -99,7 +97,7 @@ const SongDetail: React.FC = () => {
                     <span className="text-lg">←</span> BACK TO CATALOG
                 </Link>
                 <div className="flex gap-4">
-                    {/* LISTEN BUTTON: 嚴格限制，僅管理員可見 */}
+                    {/* LISTEN BUTTON: Admin Only */}
                     {isAdmin && (
                         <button 
                             onClick={() => playSong(song)} 
@@ -113,7 +111,7 @@ const SongDetail: React.FC = () => {
                         </button>
                     )}
                     
-                    {/* STUDIO GATE: 一般使用者的唯一入口 */}
+                    {/* STUDIO GATE */}
                     {song.isInteractiveActive ? (
                         <button 
                             onClick={() => navigate('/interactive', { state: { targetSongId: song.id } })} 
@@ -133,7 +131,6 @@ const SongDetail: React.FC = () => {
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-20">
                 <div className="lg:col-span-5 space-y-12">
                     <div className="aspect-square bg-slate-900 border border-white/10 shadow-2xl overflow-hidden rounded-sm group relative">
-                        {/* 這裡顯示的是資料庫中的封面 */}
                         <img src={cover} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-[5s]" alt="" />
                     </div>
 
@@ -165,27 +162,22 @@ const SongDetail: React.FC = () => {
                         </div>
                     </div>
 
-                    {/* STREAMING CONSOLE (Fairness Update) */}
+                    {/* STREAMING CONSOLE: TIDAL-INSPIRED LIST AESTHETIC */}
                     <div className="pt-8 animate-fade-in-up space-y-6">
                         <h4 className="text-[10px] text-slate-500 font-black uppercase tracking-[0.2em] border-b border-white/5 pb-2">Streaming Console</h4>
                         
                         {/* 1. Embeds Area (Visual Priority) */}
                         <div className="space-y-4">
-                            {/* Spotify Embed */}
                             {spotifyTrackId && (
                                 <div className="w-full rounded-sm overflow-hidden shadow-2xl border border-white/10">
                                     <iframe src={`https://open.spotify.com/embed/track/${spotifyTrackId}?utm_source=generator&theme=0`} width="100%" height="80" frameBorder="0" allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture" loading="lazy" className="bg-[#020617]"></iframe>
                                 </div>
                             )}
-
-                            {/* Apple Music Embed */}
                             {appleMusicEmbedUrl && (
                                 <div className="w-full rounded-sm overflow-hidden shadow-2xl border border-white/10">
                                     <iframe allow="autoplay *; encrypted-media *; fullscreen *; clipboard-write" frameBorder="0" height="150" style={{width:'100%', maxWidth:'660px', overflow:'hidden', background:'transparent'}} sandbox="allow-forms allow-popups allow-same-origin allow-scripts allow-storage-access-by-user-activation allow-top-navigation-by-user-activation" src={appleMusicEmbedUrl}></iframe>
                                 </div>
                             )}
-
-                            {/* YouTube Embed */}
                             {youtubeVideoId && (
                                 <div className="w-full aspect-video rounded-sm overflow-hidden shadow-2xl border border-white/10">
                                     <iframe width="100%" height="100%" src={`https://www.youtube.com/embed/${youtubeVideoId}`} title="YouTube video player" frameBorder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowFullScreen></iframe>
@@ -193,30 +185,42 @@ const SongDetail: React.FC = () => {
                             )}
                         </div>
 
-                        {/* 2. Direct Link Buttons (Equal Weight) */}
-                        <div className="grid grid-cols-2 gap-4">
+                        {/* 2. Platform List (Clean TIDAL Style) */}
+                        <div className="flex flex-col gap-2 mt-4">
+                            {song.tidalUrl && (
+                                <a href={song.tidalUrl} target="_blank" className="group flex items-center justify-between p-4 bg-[#0f172a]/50 border border-white/5 rounded-sm hover:border-white transition-all cursor-pointer">
+                                    <div className="flex items-center gap-4">
+                                        <div className="text-white opacity-60 group-hover:opacity-100 transition-opacity"><PlatformIcon name="tidal" /></div>
+                                        <span className="text-[11px] font-black uppercase tracking-widest text-slate-300 group-hover:text-white transition-colors">TIDAL</span>
+                                    </div>
+                                    <span className="text-slate-600 group-hover:text-white text-xs transition-colors">→</span>
+                                </a>
+                            )}
                             {song.spotifyLink && (
-                                <a href={song.spotifyLink} target="_blank" className="flex items-center justify-center gap-3 p-4 bg-[#1DB954]/10 border border-[#1DB954]/20 text-[#1DB954] hover:bg-[#1DB954] hover:text-black transition-all group">
-                                    <PlatformIcon name="spotify" />
-                                    <span className="text-[9px] font-black uppercase tracking-widest">Spotify</span>
+                                <a href={song.spotifyLink} target="_blank" className="group flex items-center justify-between p-4 bg-[#0f172a]/50 border border-white/5 rounded-sm hover:border-[#1DB954] transition-all cursor-pointer">
+                                    <div className="flex items-center gap-4">
+                                        <div className="text-white opacity-60 group-hover:opacity-100 group-hover:text-[#1DB954] transition-all"><PlatformIcon name="spotify" /></div>
+                                        <span className="text-[11px] font-black uppercase tracking-widest text-slate-300 group-hover:text-[#1DB954] transition-colors">Spotify</span>
+                                    </div>
+                                    <span className="text-slate-600 group-hover:text-[#1DB954] text-xs transition-colors">→</span>
                                 </a>
                             )}
                             {song.appleMusicLink && (
-                                <a href={song.appleMusicLink} target="_blank" className="flex items-center justify-center gap-3 p-4 bg-[#FA243C]/10 border border-[#FA243C]/20 text-[#FA243C] hover:bg-[#FA243C] hover:text-white transition-all group">
-                                    <PlatformIcon name="apple" />
-                                    <span className="text-[9px] font-black uppercase tracking-widest">Apple Music</span>
+                                <a href={song.appleMusicLink} target="_blank" className="group flex items-center justify-between p-4 bg-[#0f172a]/50 border border-white/5 rounded-sm hover:border-[#FA243C] transition-all cursor-pointer">
+                                    <div className="flex items-center gap-4">
+                                        <div className="text-white opacity-60 group-hover:opacity-100 group-hover:text-[#FA243C] transition-all"><PlatformIcon name="apple" /></div>
+                                        <span className="text-[11px] font-black uppercase tracking-widest text-slate-300 group-hover:text-[#FA243C] transition-colors">Apple Music</span>
+                                    </div>
+                                    <span className="text-slate-600 group-hover:text-[#FA243C] text-xs transition-colors">→</span>
                                 </a>
                             )}
                             {song.youtubeUrl && (
-                                <a href={song.youtubeUrl} target="_blank" className="flex items-center justify-center gap-3 p-4 bg-[#FF0000]/10 border border-[#FF0000]/20 text-[#FF0000] hover:bg-[#FF0000] hover:text-white transition-all group">
-                                    <PlatformIcon name="youtube" />
-                                    <span className="text-[9px] font-black uppercase tracking-widest">YouTube</span>
-                                </a>
-                            )}
-                            {song.tidalUrl && (
-                                <a href={song.tidalUrl} target="_blank" className="flex items-center justify-center gap-3 p-4 bg-white/10 border border-white/20 text-white hover:bg-white hover:text-black transition-all group">
-                                    <PlatformIcon name="tidal" />
-                                    <span className="text-[9px] font-black uppercase tracking-widest">TIDAL</span>
+                                <a href={song.youtubeUrl} target="_blank" className="group flex items-center justify-between p-4 bg-[#0f172a]/50 border border-white/5 rounded-sm hover:border-[#FF0000] transition-all cursor-pointer">
+                                    <div className="flex items-center gap-4">
+                                        <div className="text-white opacity-60 group-hover:opacity-100 group-hover:text-[#FF0000] transition-all"><PlatformIcon name="youtube" /></div>
+                                        <span className="text-[11px] font-black uppercase tracking-widest text-slate-300 group-hover:text-[#FF0000] transition-colors">YouTube</span>
+                                    </div>
+                                    <span className="text-slate-600 group-hover:text-[#FF0000] text-xs transition-colors">→</span>
                                 </a>
                             )}
                         </div>

@@ -19,6 +19,39 @@ const About: React.FC = () => {
             <p className="text-sm md:text-base text-brand-gold font-bold uppercase tracking-[0.3em]">Chen Wei-Er • Independent Musician</p>
         </div>
 
+        {/* GLOBAL RECOGNITION (New Section) */}
+        <div className="mb-24 p-10 bg-gradient-to-br from-[#0f172a] to-black border border-white/10 rounded-sm relative overflow-hidden group shadow-2xl">
+            {/* Decoration */}
+            <div className="absolute top-0 right-0 p-8 opacity-5 group-hover:opacity-10 transition-opacity">
+                <svg className="w-48 h-48 text-white" viewBox="0 0 24 24" fill="currentColor"><path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"/></svg>
+            </div>
+            
+            <div className="relative z-10">
+                <div className="flex items-center gap-4 mb-8">
+                     <span className="w-2 h-2 bg-[#FF6050] rounded-full animate-pulse shadow-[0_0_10px_#FF6050]"></span>
+                     <h3 className="text-[10px] font-black text-[#FF6050] uppercase tracking-[0.4em]">Global Recognition</h3>
+                </div>
+                
+                <h2 className="text-4xl md:text-6xl font-black text-white uppercase tracking-tighter mb-4 leading-tight">
+                    Musixmatch <br /> Official Verified
+                </h2>
+                
+                <p className="text-sm md:text-base text-slate-400 font-bold uppercase tracking-widest leading-loose mb-12 max-w-2xl">
+                    Historical 2nd Artist with Triple Identity<br/>
+                    <span className="text-white border-b-2 border-brand-gold pb-1">Artist • Curator • Specialist</span>
+                </p>
+
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-y-8 gap-x-4">
+                    {['Master Rank Qualified', 'Academy Certified', 'Global Core Circle', 'Founding Curator'].map(tag => (
+                        <div key={tag} className="border-l border-white/20 pl-4 py-1">
+                            <span className="text-[9px] text-slate-500 font-black uppercase tracking-widest block mb-2 opacity-60">Badge</span>
+                            <span className="text-[10px] md:text-xs font-bold text-white uppercase tracking-wider">{tag}</span>
+                        </div>
+                    ))}
+                </div>
+            </div>
+        </div>
+
         {/* Content Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-12 md:gap-20 mb-20">
             
