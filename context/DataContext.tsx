@@ -44,20 +44,23 @@ const SETTINGS_LOCAL_KEY = 'willwi_settings_backup';
 export const normalizeIdentifier = (val: string) => (val || '').trim().replace(/[^A-Z0-9]/gi, '').toUpperCase();
 
 /**
- * Resolves cloud storage links into direct browser-playable streams.
- * Handles Dropbox (?raw=1) and Google Drive (uc?id=) formats.
+ * Enhanced Robust Audio Link Resolver.
+ * Automatically fixes Dropbox and Google Drive sharing links into direct-streamable formats.
  */
 export const resolveDirectLink = (url: string) => {
     if (!url || typeof url !== 'string') return '';
     let cleanUrl = url.trim();
 
+    // Dropbox Optimization: ?dl=0 -> ?raw=1
     if (cleanUrl.includes('dropbox.com')) {
         let base = cleanUrl.split('?')[0];
+        // Ensure standard direct download subdomain
         base = base.replace('//www.dropbox.com', '//dl.dropboxusercontent.com')
                    .replace('//dropbox.com', '//dl.dropboxusercontent.com');
         return `${base}?raw=1`;
     }
 
+    // Google Drive Optimization: /file/d/ID/view -> /uc?id=ID
     if (cleanUrl.includes('drive.google.com')) {
         const fileIdMatch = cleanUrl.match(/\/file\/d\/([a-zA-Z0-9_-]+)/) || cleanUrl.match(/id=([a-zA-Z0-9_-]+)/);
         if (fileIdMatch && fileIdMatch[1]) {
@@ -93,10 +96,19 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     try {
         const list = data || songs;
         const payload = list.map(s => ({ 
-            id: s.id, title: s.title, isrc: s.isrc || '', upc: s.upc || '', 
-            cover_url: s.coverUrl, audio_url: s.audioUrl || '', 
-            lyrics: s.lyrics || '', language: s.language, release_date: s.releaseDate, 
-            is_interactive_active: !!s.isInteractiveActive, creative_note: s.creativeNote || ''
+            id: s.id, 
+            title: s.title, 
+            isrc: s.isrc || '', 
+            upc: s.upc || '', 
+            cover_url: s.coverUrl, 
+            audio_url: s.audioUrl || '', 
+            lyrics: s.lyrics || '', 
+            language: s.language, 
+            release_date: s.releaseDate, 
+            is_interactive_active: !!s.isInteractiveActive, 
+            creative_note: s.creativeNote || '',
+            lab_log: s.labLog || '',
+            credits: s.credits || ''
         }));
 
         const response = await fetch(`${SUPABASE_URL}/rest/v1/songs`, { 
@@ -142,8 +154,13 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
               
               if (songList.length > 0) {
                   const cloudSongs = songList.map((s: any) => ({ 
-                      ...s, coverUrl: s.cover_url, audioUrl: s.audio_url, releaseDate: s.release_date,
-                      isInteractiveActive: s.is_interactive_active, creativeNote: s.creative_note
+                      ...s, 
+                      coverUrl: s.cover_url, 
+                      audioUrl: s.audio_url, 
+                      releaseDate: s.release_date,
+                      isInteractiveActive: s.is_interactive_active, 
+                      creativeNote: s.creative_note,
+                      labLog: s.lab_log
                   }));
                   const combined = [...localSongs];
                   cloudSongs.forEach((cs: any) => {
