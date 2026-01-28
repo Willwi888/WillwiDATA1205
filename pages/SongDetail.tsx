@@ -58,7 +58,7 @@ const SongDetail: React.FC = () => {
         </div>
 
         <div className="max-w-[1700px] mx-auto">
-            <div className="mb-16 flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
+            <div className="mb-16 flex flex-col md:row justify-between items-start md:items-center gap-6">
                 <Link to="/database" className="text-[10px] text-slate-500 hover:text-white uppercase tracking-[0.5em] font-black">← BACK TO CATALOG</Link>
                 <div className="flex flex-wrap gap-4">
                     {isAdmin && (

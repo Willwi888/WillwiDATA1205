@@ -8,6 +8,7 @@ import AddSong from './pages/AddSong';
 import SongDetail from './pages/SongDetail';
 import Interactive from './pages/Interactive';
 import About from './pages/About';
+import Streaming from './pages/Streaming';
 import AdminDashboard from './pages/AdminDashboard';
 import ChatWidget from './components/ChatWidget';
 import { DataProvider } from './context/DataContext';
@@ -28,6 +29,7 @@ const App: React.FC = () => {
                     <Route path="/add" element={<AddSong />} />
                     <Route path="/song/:id" element={<SongDetail />} />
                     <Route path="/interactive" element={<Interactive />} />
+                    <Route path="/streaming" element={<Streaming />} />
                     <Route path="/admin" element={<AdminDashboard />} />
                   </Routes>
                   <ChatWidget />

@@ -9,7 +9,10 @@ const TRANSLATIONS = {
     nav_interactive: "STUDIO",
     nav_catalog: "CATALOG",
     nav_about: "ABOUT",
+    nav_streaming: "STREAMING",
+    nav_admin: "CONSOLE",
     nav_manager: "MANAGER",
+    nav_exit_admin: "EXIT ADMIN",
     manifesto_title: "EXISTENCE MANIFESTO",
     manifesto_content: "I am not making a tool\nI am leaving a place\nNot for being remembered but for remembering",
     before_start_title: "DECLARATION",
@@ -19,6 +22,7 @@ const TRANSLATIONS = {
     btn_get_mp4: "🎬 GET MY HANDCRAFTED VIDEO",
     db_search_placeholder: "SEARCH ALBUM / ISRC...",
     db_empty: "No works found",
+    footer_rights: "WILLWI MUSIC. ALL RIGHTS RESERVED.",
     
     // Modal Translations
     modal_title: "INTERACTIVE ACCESS",
@@ -26,10 +30,13 @@ const TRANSLATIONS = {
   },
   zh: {
     nav_home: "首頁",
-    nav_interactive: "互動實驗室",
+    nav_interactive: "互動創作",
     nav_catalog: "作品庫",
     nav_about: "關於",
+    nav_streaming: "串流頻道",
+    nav_admin: "後台管理",
     nav_manager: "管理員",
+    nav_exit_admin: "登出後台",
     manifesto_title: "存在宣言",
     manifesto_content: "我不是在做一個工具\n我是在留一個地方\n讓記憶裡的那個人有一個地方可以站著",
     before_start_title: "開始之前",
@@ -39,6 +46,7 @@ const TRANSLATIONS = {
     btn_get_mp4: "🎬 獲取手作對時影片",
     db_search_placeholder: "搜尋作品 / 專輯 / ISRC...",
     db_empty: "目前尚無資料",
+    footer_rights: "WILLWI MUSIC. 版權所有",
 
     // Modal Translations
     modal_title: "互動實驗室存取權",

@@ -1,26 +1,54 @@
 
-import React, { useState, useEffect, createContext, useContext } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import React, { useState, useEffect, createContext, useContext, useCallback } from 'react';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useTranslation } from '../context/LanguageContext';
-import GlobalPlayer from './GlobalPlayer';
+import { useUser } from '../context/UserContext';
+import ChatWidget from './ChatWidget';
+import Snowfall from './Snowfall';
 
+const DEFAULT_BG = "https://drive.google.com/thumbnail?id=18rpLhJQKHKK5EeonFqutlOoKAI2Eq_Hd&sz=w2560";
+
+// Define Toast Context for global notifications
 interface ToastContextType {
-  showToast: (message: string, type?: 'success' | 'error') => void;
+  showToast: (message: string, type?: 'success' | 'error' | 'info') => void;
 }
 
 const ToastContext = createContext<ToastContextType | undefined>(undefined);
 
+// Export useToast hook for use in other components to fix missing member errors
 export const useToast = () => {
   const context = useContext(ToastContext);
-  if (!context) throw new Error("useToast must be used within Layout");
+  if (!context) throw new Error('useToast must be used within a ToastProvider');
   return context;
 };
 
 const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [scrolled, setScrolled] = useState(false);
-  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
-  const { lang, setLang } = useTranslation();
   const location = useLocation();
+  const navigate = useNavigate();
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [scrolled, setScrolled] = useState(false);
+  const { t, lang, setLang } = useTranslation();
+  const { isAdmin, logoutAdmin } = useUser();
+  const [isSnowing, setIsSnowing] = useState(() => localStorage.getItem('willwi_snowing') === 'true');
+  
+  // Toast notification state and handler
+  const [toast, setToast] = useState<{message: string, type: 'success' | 'error' | 'info'} | null>(null);
+
+  const showToast = useCallback((message: string, type: 'success' | 'error' | 'info' = 'info') => {
+    setToast({ message, type });
+    setTimeout(() => setToast(null), 3000);
+  }, []);
+
+  const [bgImage, setBgImage] = useState(DEFAULT_BG);
+  const searchParams = new URLSearchParams(location.search);
+  const isEmbed = searchParams.get('embed') === 'true';
+
+  useEffect(() => {
+      const savedBg = localStorage.getItem('willwi_global_bg');
+      if (savedBg && savedBg.trim() !== '') {
+          setBgImage(savedBg);
+      }
+  }, [location.pathname]);
 
   useEffect(() => {
     const handleScroll = () => setScrolled(window.scrollY > 50);
@@ -28,86 +56,174 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
-  const showToast = (message: string, type: 'success' | 'error' = 'success') => {
-    setToast({ message, type });
-    setTimeout(() => setToast(null), 3000);
+  useEffect(() => {
+    const handleContextMenu = (e: MouseEvent) => e.preventDefault();
+    document.addEventListener('contextmenu', handleContextMenu);
+    return () => document.removeEventListener('contextmenu', handleContextMenu);
+  }, []);
+
+  const isHome = location.pathname === '/';
+
+  const isActive = (path: string) => location.pathname === path 
+    ? "text-white font-bold tracking-widest relative after:content-[''] after:absolute after:-bottom-2 after:left-0 after:w-full after:h-0.5 after:bg-brand-accent" 
+    : "text-slate-400 hover:text-white transition-colors font-medium tracking-wide hover:tracking-widest transition-all duration-300";
+
+  const mobileLinkClass = (path: string) => `block px-3 py-3 text-lg font-medium border-l-2 transition-all ${location.pathname === path ? 'border-brand-accent text-white bg-white/5' : 'border-transparent text-slate-400 hover:text-white hover:bg-white/5'}`;
+
+  const toggleLang = () => {
+    setLang(lang === 'en' ? 'zh' : 'en');
+  };
+
+  const toggleSnow = () => {
+    const newVal = !isSnowing;
+    setIsSnowing(newVal);
+    localStorage.setItem('willwi_snowing', String(newVal));
+  };
+
+  const handleExitAdmin = () => {
+      logoutAdmin();
+      navigate('/');
   };
 
   return (
     <ToastContext.Provider value={{ showToast }}>
-      <div className="min-h-screen bg-black text-white selection:bg-brand-gold selection:text-black">
+      <div className={`min-h-screen flex flex-col relative font-sans selection:bg-brand-accent selection:text-brand-darker text-slate-100 overflow-x-hidden ${isEmbed ? 'bg-transparent' : 'bg-slate-950'}`}>
         
-        {toast && (
-          <div className={`fixed top-10 left-1/2 -translate-x-1/2 z-[2000] px-8 py-4 rounded-sm shadow-2xl animate-fade-in-up flex items-center gap-4 ${toast.type === 'error' ? 'bg-rose-600' : 'bg-brand-gold text-black'}`}>
-            <span className="text-xs font-black uppercase tracking-widest">{toast.message}</span>
+        {isSnowing && <Snowfall />}
+
+        {!isEmbed && (
+          <div className="fixed inset-0 z-[-1] pointer-events-none h-full w-full bg-slate-950">
+              <div 
+                  className="absolute inset-0 bg-cover bg-no-repeat transition-all duration-1000 transform scale-[1.02] bg-[position:right_center] md:bg-right"
+                  style={{ backgroundImage: `url(${bgImage})` }}
+              ></div>
+              <div className={`absolute inset-0 transition-all duration-700 ${isHome ? 'bg-slate-950/5' : 'bg-slate-950/60 backdrop-blur-[2px]'}`}></div>
+              <div className={`absolute inset-0 transition-opacity duration-1000 ${isHome ? 'opacity-10' : 'opacity-50'} bg-[radial-gradient(circle_at_center,_transparent_0%,_rgba(2,6,23,0.4)_100%)]`}></div>
+              <div className={`absolute inset-x-0 bottom-0 h-1/3 bg-gradient-to-t from-slate-950 to-transparent ${isHome ? 'opacity-50' : 'opacity-100'}`}></div>
           </div>
         )}
 
-        <nav className={`fixed top-0 left-0 w-full z-[100] transition-all duration-500 px-10 md:px-20 py-8 ${scrolled ? 'bg-black/80 backdrop-blur-xl border-b border-white/5 py-5' : ''}`}>
-          <div className="max-w-[1600px] mx-auto flex justify-between items-center">
-            <Link to="/" className="group flex items-center gap-3">
-              <span className="text-2xl font-black tracking-tighter text-white uppercase group-hover:text-brand-gold transition-colors duration-300">
-                Willwi
-              </span>
-              <span className="text-[9px] tracking-[0.4em] text-brand-gold font-black opacity-80 pt-1">
-                1205
-              </span>
-            </Link>
-            
-            <div className="hidden md:flex items-center gap-12">
-              <Link to="/database" className={`text-[10px] font-black uppercase tracking-[0.3em] transition-all hover:text-brand-gold ${location.pathname === '/database' ? 'text-brand-gold' : 'text-white'}`}>作品庫</Link>
-              <Link to="/interactive" className={`text-[10px] font-black uppercase tracking-[0.3em] transition-all hover:text-brand-gold ${location.pathname === '/interactive' ? 'text-brand-gold' : 'text-white'}`}>錄製室</Link>
-              <Link to="/about" className={`text-[10px] font-black uppercase tracking-[0.3em] transition-all hover:text-brand-gold ${location.pathname === '/about' ? 'text-brand-gold' : 'text-white'}`}>關於</Link>
-              <Link to="/admin" className="text-[10px] font-black uppercase tracking-[0.3em] text-white/20 hover:text-white transition-all">控制台</Link>
-              
-              <div className="h-4 w-[1px] bg-white/10 mx-2"></div>
-              
-              <button 
-                onClick={() => setLang(lang === 'zh' ? 'en' : 'zh')} 
-                className="text-[9px] font-black uppercase tracking-widest text-brand-gold border border-brand-gold/30 px-3 py-1.5 hover:bg-brand-gold hover:text-black transition-all duration-300"
-              >
-                {lang === 'zh' ? 'ENG' : '中文'}
-              </button>
+        <nav className={`fixed w-full top-0 z-50 transition-all duration-500 border-b ${scrolled || !isHome ? (isEmbed ? 'bg-slate-950/80' : 'bg-slate-950/60') + ' backdrop-blur-xl border-white/5 py-2' : 'bg-transparent border-transparent py-6'}`}>
+          <div className="max-w-7xl mx-auto px-6 lg:px-8">
+            <div className="flex items-center justify-between h-14">
+              <div className="flex items-center gap-2">
+                <Link to={isEmbed ? "/?embed=true" : "/"} className="group flex items-center gap-2">
+                  <span className="text-2xl font-black tracking-[0.25em] text-white uppercase group-hover:text-brand-accent transition-colors duration-500 drop-shadow-lg">
+                      Willwi
+                  </span>
+                  <span className="text-[0.4rem] px-1 py-0.5 border border-slate-500 text-slate-300 rounded group-hover:border-brand-accent group-hover:text-brand-accent transition-colors tracking-widest bg-black/20 backdrop-blur-md">
+                      STUDIO
+                  </span>
+                </Link>
+                {isAdmin && (
+                    <span className="hidden sm:inline-block text-[9px] bg-brand-accent text-slate-950 px-2 py-0.5 font-black uppercase tracking-widest rounded shadow-lg animate-pulse">
+                        Admin
+                    </span>
+                )}
+              </div>
+
+              <div className="hidden md:flex items-center">
+                <div className="ml-10 flex items-center space-x-8 text-[11px] uppercase drop-shadow-md font-semibold">
+                  <Link to={isEmbed ? "/?embed=true" : "/"} className={isActive('/')}>{t('nav_home')}</Link>
+                  <Link to={isEmbed ? "/about?embed=true" : "/about"} className={isActive('/about')}>{t('nav_about')}</Link>
+                  <Link to="/database" className={isActive('/database')}>{t('nav_catalog')}</Link>
+                  <Link to={isEmbed ? "/interactive?embed=true" : "/interactive"} className={isActive('/interactive')}>{t('nav_interactive')}</Link>
+                  <Link to="/streaming" className={isActive('/streaming')}>{t('nav_streaming')}</Link>
+                  <Link to="/admin" className={isActive('/admin')}>{t('nav_admin')}</Link>
+                </div>
+              </div>
+
+              <div className="hidden md:flex items-center gap-4">
+                  {isAdmin && (
+                      <button 
+                          onClick={handleExitAdmin}
+                          className="text-[10px] font-bold text-red-500 border border-red-900/50 hover:bg-red-500 hover:text-white px-3 py-1.5 rounded transition-all uppercase tracking-widest"
+                      >
+                          {t('nav_exit_admin')}
+                      </button>
+                  )}
+                  <button 
+                    onClick={toggleSnow}
+                    title="Let it Snow"
+                    className={`text-sm transition-all p-2 rounded-full border ${isSnowing ? 'bg-white text-brand-darker border-white' : 'text-slate-400 border-slate-600 hover:border-white hover:text-white'}`}
+                  >
+                    ❄️
+                  </button>
+                  <button 
+                    onClick={toggleLang}
+                    className="text-xs font-bold text-slate-400 hover:text-white border border-slate-600 hover:border-white px-2 py-1 rounded transition-all uppercase tracking-wider"
+                  >
+                    {lang === 'en' ? '中文' : 'EN'}
+                  </button>
+              </div>
+
+              <div className="md:hidden flex items-center gap-4">
+                <button
+                  onClick={() => setIsMenuOpen(!isMenuOpen)}
+                  className="inline-flex items-center justify-center p-2 rounded-md text-slate-400 hover:text-white hover:bg-slate-700 focus:outline-none"
+                >
+                  {!isMenuOpen ? (
+                    <svg className="block h-6 w-6" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16M4 18h16" />
+                    </svg>
+                  ) : (
+                    <svg className="block h-6 w-6" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  )}
+                </button>
+              </div>
             </div>
           </div>
+
+          {isMenuOpen && (
+            <div className="md:hidden bg-slate-900/95 backdrop-blur-xl border-t border-slate-800 absolute w-full left-0 top-full shadow-2xl animate-fade-in-down">
+              <div className="px-2 pt-2 pb-3 space-y-1 sm:px-3">
+                <Link to="/" onClick={() => setIsMenuOpen(false)} className={mobileLinkClass('/')}>{t('nav_home')}</Link>
+                <Link to="/about" onClick={() => setIsMenuOpen(false)} className={mobileLinkClass('/about')}>{t('nav_about')}</Link>
+                <Link to="/database" onClick={() => setIsMenuOpen(false)} className={mobileLinkClass('/database')}>{t('nav_catalog')}</Link>
+                <Link to="/interactive" onClick={() => setIsMenuOpen(false)} className={mobileLinkClass('/interactive')}>{t('nav_interactive')}</Link>
+                <Link to="/streaming" onClick={() => setIsMenuOpen(false)} className={mobileLinkClass('/streaming')}>{t('nav_streaming')}</Link>
+                <Link to="/admin" onClick={() => setIsMenuOpen(false)} className={mobileLinkClass('/admin')}>{t('nav_admin')}</Link>
+                {isAdmin && (
+                    <button onClick={handleExitAdmin} className="w-full text-left px-3 py-3 text-lg font-medium text-red-500 border-l-2 border-transparent">{t('nav_exit_admin')}</button>
+                )}
+              </div>
+            </div>
+          )}
         </nav>
 
-        <main className="pb-24">{children}</main>
-
-        <footer className="py-24 px-10 border-t border-white/5 text-center bg-[#020617] mb-20 relative overflow-hidden">
-            <div className="absolute inset-0 bg-gradient-to-t from-black to-transparent pointer-events-none"></div>
-            
-            <div className="relative z-10 flex flex-wrap justify-center items-center gap-12 md:gap-16 mb-16">
-                {/* Spotify */}
-                <a href="https://open.spotify.com/artist/3ascZ8Rb2KDw4QyCy29Om4" target="_blank" rel="noreferrer" className="group opacity-30 hover:opacity-100 transition-all duration-500 hover:scale-110" aria-label="Spotify">
-                    <svg className="w-6 h-6 text-white group-hover:text-[#1DB954]" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.66 0 12 0zm5.521 17.34c-.24.359-.66.48-1.021.24-2.82-1.74-6.36-2.101-10.561-1.141-.418.122-.779-.179-.899-.539-.12-.421.18-.78.54-.9 4.56-1.021 8.52-.6 11.64 1.32.42.18.479.659.301 1.02zm1.44-3.3c-.301.42-.841.6-1.262.3-3.239-1.98-8.159-2.58-11.939-1.38-.479.12-1.02-.12-1.14-.6-.12-.48.12-1.021.6-1.141C9.6 9.9 15 10.561 18.72 12.84c.361.181.54.78.241 1.2zm.12-3.36C15.24 8.4 8.82 8.16 5.16 9.301c-.6.179-1.2-.181-1.38-.721-.18-.601.18-1.2.72-1.381 4.26-1.26 11.28-1.02 15.721 1.621.539.3.719 1.02.419 1.56-.299.421-1.02.599-1.559.3z"/></svg>
-                </a>
-                
-                {/* Apple Music */}
-                <a href="https://music.apple.com/us/artist/willwi/1798471457" target="_blank" rel="noreferrer" className="group opacity-30 hover:opacity-100 transition-all duration-500 hover:scale-110" aria-label="Apple Music">
-                    <svg className="w-6 h-6 text-white group-hover:text-[#FA243C]" viewBox="0 0 24 24" fill="currentColor"><path d="M22.256 9.471c.882 3.033-1.605 5.922-3.896 5.584-3.567-.532-3.141-5.748.182-6.666 1.487-.411 3.25.109 3.714 1.082zm-9.98 4.793c1.996-2.583 2.502-6.526-.81-7.85-3.376-1.35-6.636 2.454-4.225 6.784 1.246 2.238 3.528 2.923 5.035 1.066zm8.851 5.679c-2.321 4.958-9.455 5.592-13.627 2.066-4.524-3.824-2.85-11.758 2.651-13.344 5.955-1.719 10.601 2.373 12.396 6.824.582 1.442.22 3.298-1.42 4.454zm-14.755-7.81c.216-4.135 4.312-6.551 7.42-4.996 3.109 1.554 3.791 6.221.725 8.783-3.035 2.535-7.957.575-8.145-3.787z"/></svg>
-                </a>
-
-                {/* YouTube */}
-                <a href="https://www.youtube.com/@Willwi888" target="_blank" rel="noreferrer" className="group opacity-30 hover:opacity-100 transition-all duration-500 hover:scale-110" aria-label="YouTube">
-                    <svg className="w-7 h-7 text-white group-hover:text-[#FF0000]" viewBox="0 0 24 24" fill="currentColor"><path d="M19.615 3.184c-3.604-.246-11.631-.245-15.23 0-3.897.266-4.356 2.62-4.385 8.816.029 6.185.484 8.549 4.385 8.816 3.6.245 11.626.246 15.23 0 3.897-.266 4.356-2.62 4.385-8.816-.029-6.185-.484-8.549-4.385-8.816zm-10.615 12.816v-8l8 3.993-8 4.007z"/></svg>
-                </a>
-
-                {/* TIDAL */}
-                <a href="https://tidal.com/artist/54856609" target="_blank" rel="noreferrer" className="group opacity-30 hover:opacity-100 transition-all duration-500 hover:scale-110" aria-label="TIDAL">
-                    <svg className="w-6 h-6 text-white group-hover:text-white" viewBox="0 0 24 24" fill="currentColor"><path d="M12.012 8.036l-3.571-3.571-3.571 3.571 3.571 3.571 3.571-3.571zm-3.571-3.572l-3.572-3.571-3.571 3.571 3.571 3.571 3.572-3.571zm7.143 3.572l-3.571-3.571-3.571 3.571 3.571 3.571 3.571-3.571zm-3.571 3.571l-3.571-3.571-3.572 3.571 3.572 3.571 3.571-3.571zm3.571 3.571l-3.571-3.571-3.571 3.571 3.571 3.571 3.571-3.571zm7.143 0l-3.571-3.571-3.571 3.571 3.571 3.571 3.571-3.571z"/></svg>
-                </a>
-
-                {/* Musixmatch Verified */}
-                <a href="https://www.musixmatch.com/artist/Willwi-1798471457" target="_blank" rel="noreferrer" className="group opacity-30 hover:opacity-100 transition-all duration-500 hover:scale-110" aria-label="Musixmatch Verified">
-                    <svg className="w-6 h-6 text-white group-hover:text-[#FF6050]" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm4.5 14H15v-4.5l-2.5 4.5-2.5-4.5v4.5H8.5V8h2l1.5 2.7L13.5 8h2v8z"/></svg>
-                </a>
+        <main className="flex-grow pt-20 z-10 relative">
+          {children}
+        </main>
+        
+        {/* Render active Toast notification if set */}
+        {toast && (
+          <div className={`fixed top-24 right-6 z-[100] px-6 py-4 rounded-sm shadow-2xl animate-fade-in-down font-black text-[10px] uppercase tracking-[0.2em] border backdrop-blur-xl ${
+            toast.type === 'error' ? 'bg-rose-950/90 border-rose-500 text-rose-200 shadow-rose-500/20' : 
+            toast.type === 'success' ? 'bg-emerald-950/90 border-emerald-500 text-emerald-200 shadow-emerald-500/20' : 
+            'bg-slate-900/90 border-white/10 text-white'
+          }`}>
+            <div className="flex items-center gap-3">
+              <span className="w-1.5 h-1.5 rounded-full bg-current animate-pulse"></span>
+              {toast.message}
             </div>
-            <p className="text-[9px] text-slate-500 font-black uppercase tracking-[0.5em] mb-2">Willwi Official Music Database</p>
-            <p className="text-[8px] text-slate-700 font-mono uppercase tracking-[0.2em]">© 2025 ALL RIGHTS RESERVED.</p>
-        </footer>
+          </div>
+        )}
 
-        <GlobalPlayer />
+        <ChatWidget />
+
+        {!isEmbed && (
+          <footer className="bg-slate-950 border-t border-slate-800/50 mt-auto relative z-10">
+              <div className="max-w-7xl mx-auto py-8 px-4 sm:px-6 lg:px-8 flex justify-center items-center">
+                  <div className="text-center">
+                      <p className="text-slate-500 text-xs tracking-widest uppercase">
+                      &copy; {new Date().getFullYear()} {t('footer_rights')}
+                      </p>
+                  </div>
+              </div>
+          </footer>
+        )}
       </div>
     </ToastContext.Provider>
   );
