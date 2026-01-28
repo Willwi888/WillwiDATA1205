@@ -111,11 +111,18 @@ const Database: React.FC = () => {
                             <p className="text-[10px] text-slate-400 font-mono uppercase tracking-widest font-bold opacity-80">
                                 {main.releaseDate.split('-')[0]} • {main.releaseCompany || 'WILLWI MUSIC'}
                             </p>
-                            {main.upc && (
-                                <p className="text-[9px] text-slate-600 font-mono uppercase tracking-widest font-bold">
-                                    UPC: {main.upc}
-                                </p>
-                            )}
+                            <div className="space-y-0.5 mt-1">
+                                {main.isrc && (
+                                    <p className="text-[9px] text-brand-gold/70 font-mono uppercase tracking-widest font-bold">
+                                        ISRC: {main.isrc}
+                                    </p>
+                                )}
+                                {main.upc && (
+                                    <p className="text-[9px] text-slate-600 font-mono uppercase tracking-widest font-bold">
+                                        UPC: {main.upc}
+                                    </p>
+                                )}
+                            </div>
                         </div>
                       </div>
                   </div>

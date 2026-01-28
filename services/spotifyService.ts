@@ -86,6 +86,38 @@ export const searchSpotify = async (query: string, type: 'track' | 'album' | 'tr
   }
 };
 
+export const getArtistAlbums = async (artistId: string): Promise<SpotifyAlbum[]> => {
+  const token = await getSpotifyToken();
+  if (!token) return [];
+
+  try {
+    const response = await fetch(`https://api.spotify.com/v1/artists/${artistId}/albums?limit=10&include_groups=album,single`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    if (!response.ok) return [];
+    const data = await response.json();
+    return data.items || [];
+  } catch (error) {
+    return [];
+  }
+};
+
+export const getArtistTopTracks = async (artistId: string): Promise<SpotifyTrack[]> => {
+    const token = await getSpotifyToken();
+    if (!token) return [];
+
+    try {
+        const response = await fetch(`https://api.spotify.com/v1/artists/${artistId}/top-tracks?market=TW`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (!response.ok) return [];
+        const data = await response.json();
+        return data.tracks || [];
+    } catch (error) {
+        return [];
+    }
+};
+
 // 保持舊版相容性
 export const searchSpotifyTracks = async (query: string) => {
     const res = await searchSpotify(query, 'track');
@@ -124,13 +156,10 @@ export const getSpotifyAlbumTracks = async (albumId: string): Promise<SpotifyTra
         if (!response.ok) return [];
         const data = await response.json();
         
-        // 注意：專輯曲目列表 API 通常不包含 ISRC。
-        // 若要精確匯入，我們需要為每一首歌單獨請求一次詳細資料，或者在匯入時設為空值。
-        // 為了使用者體驗，我們在此處先返回基本資料，並帶入專輯的共同資訊。
         return data.items.map((t: any) => ({
             ...t,
             album: albumData,
-            external_ids: { isrc: '' } // 專輯曲目列表通常缺少此欄位
+            external_ids: { isrc: '' } 
         }));
     } catch (error) {
         return [];

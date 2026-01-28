@@ -90,32 +90,30 @@ const SongDetail: React.FC = () => {
                         <div className="absolute inset-0 border border-white/10 rounded pointer-events-none"></div>
                     </div>
                     
-                    {/* Spotify Embed Player Section */}
-                    {spotifyId && (
-                        <div className="space-y-8 animate-fade-in">
+                    {/* Enhanced Spotify Embed Player Section */}
+                    {spotifyId ? (
+                        <div className="space-y-8 animate-fade-in bg-white/[0.03] border border-white/5 p-8 rounded-sm">
                             <div className="flex items-center justify-between border-b border-white/10 pb-4">
                                 <h3 className="text-[11px] font-black text-brand-gold uppercase tracking-[0.6em] flex items-center gap-3">
-                                    <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24">
+                                    <svg className="w-4 h-4 fill-current text-[#1DB954]" viewBox="0 0 24 24">
                                         <path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.494 17.306c-.215.353-.673.464-1.027.249-2.85-1.741-6.439-2.134-10.665-1.168-.405.093-.811-.16-.904-.565-.093-.404.16-.811.565-.904 4.634-1.06 8.59-.61 11.782 1.339.354.215.465.673.249 1.027zm1.464-3.26c-.271.44-.847.579-1.287.308-3.262-2.004-8.235-2.586-12.093-1.414-.495.15-1.023-.129-1.173-.624-.15-.495.129-1.023.624-1.173 4.414-1.34 9.904-.683 13.621 1.595.44.27.579.847.308 1.287zm.126-3.41c-3.913-2.324-10.366-2.538-14.128-1.396-.6.182-1.23-.16-1.412-.76-.182-.6.16-1.23.76-1.412 4.316-1.31 11.439-1.056 15.952 1.623.54.32.716 1.014.396 1.554-.32.54-1.014.716-1.554.396z"/>
                                     </svg>
-                                    Streaming Access
+                                    Listen on Spotify
                                 </h3>
-                                {song.spotifyLink && (
-                                    <a 
-                                        href={song.spotifyLink} 
-                                        target="_blank" 
-                                        rel="noopener noreferrer"
-                                        className="text-[9px] font-black text-slate-500 hover:text-emerald-500 uppercase tracking-widest transition-colors flex items-center gap-2"
-                                    >
-                                        Open App <svg className="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" /></svg>
-                                    </a>
-                                )}
+                                <a 
+                                    href={song.spotifyLink} 
+                                    target="_blank" 
+                                    rel="noopener noreferrer"
+                                    className="text-[9px] font-black text-slate-500 hover:text-emerald-500 uppercase tracking-widest transition-colors flex items-center gap-2"
+                                >
+                                    Launch App <svg className="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" /></svg>
+                                </a>
                             </div>
                             
-                            <div className="w-full overflow-hidden rounded-xl shadow-2xl border border-white/5 bg-slate-900/40 backdrop-blur-md group relative">
+                            <div className="w-full overflow-hidden rounded-lg shadow-2xl bg-black/40 group relative">
                                 <div className="absolute inset-0 bg-brand-gold/5 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"></div>
                                 <iframe 
-                                    style={{ borderRadius: '12px', background: 'transparent' }} 
+                                    style={{ borderRadius: '8px', background: 'transparent' }} 
                                     src={`https://open.spotify.com/embed/track/${spotifyId}?utm_source=generator&theme=0`} 
                                     width="100%" 
                                     height="152" 
@@ -127,19 +125,20 @@ const SongDetail: React.FC = () => {
                                 ></iframe>
                             </div>
                             
-                            <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-4 border-t border-white/5">
-                                <p className="text-[9px] text-slate-500 uppercase tracking-widest font-bold">
-                                    Full fidelity audio powered by Spotify
-                                </p>
+                            <div className="pt-4 flex justify-center">
                                 <a 
                                     href={song.spotifyLink} 
                                     target="_blank" 
                                     rel="noopener noreferrer"
-                                    className="px-6 py-2.5 bg-[#1DB954] hover:bg-[#1ed760] text-white text-[9px] font-black uppercase tracking-[0.2em] rounded-full transition-all shadow-lg hover:scale-105 active:scale-95"
+                                    className="w-full text-center py-4 bg-[#1DB954] hover:bg-[#1ed760] text-white text-[10px] font-black uppercase tracking-[0.4em] rounded transition-all shadow-xl hover:scale-[1.01] active:scale-[0.98]"
                                 >
-                                    Play on Spotify
+                                    Listen to Full Audio
                                 </a>
                             </div>
+                        </div>
+                    ) : (
+                        <div className="p-12 border border-white/5 bg-white/[0.02] text-center rounded-sm">
+                            <span className="text-[10px] font-black text-slate-700 uppercase tracking-[0.4em]">Streaming Availability Pending</span>
                         </div>
                     )}
 
@@ -198,16 +197,16 @@ const SongDetail: React.FC = () => {
                                 </button>
                             )}
                         </div>
-                        <div className="text-base md:text-xl text-slate-300 leading-[2.2] whitespace-pre-line uppercase tracking-[0.2em] font-medium animate-fade-in">
-                            {displayLyrics ? displayLyrics : <span className="opacity-20 italic font-light tracking-normal">[ LYRICS PENDING ARCHIVAL ]</span>}
+                        <div className="text-base md:text-xl text-slate-300 leading-[2.2] whitespace-pre-line uppercase tracking-[0.2em] font-medium animate-fade-in min-h-[100px]">
+                            {displayLyrics ? displayLyrics : <span className="opacity-20 italic font-light tracking-normal select-none">[ LYRICS PENDING ARCHIVAL ]</span>}
                         </div>
                     </div>
 
                     {/* Credits Section */}
                     <div className="space-y-12 pt-20 border-t border-white/5">
                         <h3 className="text-[12px] font-black text-white uppercase tracking-[0.6em]">Credits 製作名單</h3>
-                        <div className="text-xs md:text-sm text-slate-400 leading-relaxed whitespace-pre-line font-mono tracking-wider opacity-80">
-                            {song.credits ? song.credits : <span className="opacity-20 italic font-light tracking-normal">[ PRODUCTION CREDITS INFORMATION PENDING ]</span>}
+                        <div className="text-xs md:text-sm text-slate-400 leading-relaxed whitespace-pre-line font-mono tracking-wider opacity-80 min-h-[60px]">
+                            {song.credits ? song.credits : <span className="opacity-20 italic font-light tracking-normal select-none">[ PRODUCTION CREDITS INFORMATION PENDING ]</span>}
                         </div>
                     </div>
                     
