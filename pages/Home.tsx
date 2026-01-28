@@ -33,7 +33,7 @@ const Home: React.FC = () => {
             </h1>
             
             <div className="max-w-3xl">
-                <p className="text-slate-200 text-sm md:text-xl tracking-[0.5em] uppercase font-semibold leading-relaxed opacity-80">
+                <p className="text-white text-sm md:text-xl tracking-[0.5em] uppercase font-semibold leading-relaxed">
                     {t('manifesto_content').split('\n').map((s, i) => <React.Fragment key={i}>{s}<br/></React.Fragment>)}
                 </p>
             </div>

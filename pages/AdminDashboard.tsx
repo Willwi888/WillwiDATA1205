@@ -155,7 +155,7 @@ const AdminDashboard: React.FC = () => {
                   <div key={key} className="bg-slate-900/60 p-10 border border-white/5 rounded-sm text-center group">
                       <h4 className="text-[10px] text-slate-500 font-black uppercase tracking-[0.3em] mb-8">{key.replace('_', ' ')} RESOURCE</h4>
                       <div className="aspect-square bg-black border border-white/10 mb-8 flex items-center justify-center overflow-hidden rounded-sm shadow-inner group-hover:border-brand-gold/50 transition-all">
-                          {settingsForm[key as keyof typeof settingsForm] ? <img src={settingsForm[key as keyof typeof settingsForm] as string} className="w-full h-full object-contain p-4" alt="" /> : <span className="text-slate-800 text-[9px] uppercase font-black tracking-widest">Resource Empty</span>}
+                          {settingsForm[key as keyof typeof settingsForm] ? <img src={settingsForm[key as keyof typeof settingsForm] as string} className="w-full h-full object-contain p-4" alt="" /> : <span className="text-white text-[9px] uppercase font-black tracking-widest">Resource Empty</span>}
                       </div>
                       <label className="block w-full py-4 bg-white text-black font-black uppercase text-[9px] tracking-widest cursor-pointer shadow-xl hover:bg-brand-gold transition-all">
                           Upload New Map
@@ -164,7 +164,7 @@ const AdminDashboard: React.FC = () => {
                   </div>
               ))}
               <div className="col-span-full pt-16">
-                  <button onClick={handleSaveSettings} className="w-full py-8 bg-brand-gold text-black font-black uppercase tracking-[0.6em] text-xs shadow-[0_20px_60px_rgba(251,191,36,0.3)] hover:scale-[1.01] transition-all">Commit Global Infrastructure Update</button>
+                  <button onClick={handleSaveSettings} className="w-full py-8 bg-brand-gold/10 border border-brand-gold/30 text-white font-black uppercase tracking-[0.6em] text-xs shadow-[0_20px_60px_rgba(251,191,36,0.15)] hover:bg-brand-gold hover:text-black hover:scale-[1.01] transition-all">Commit Global Infrastructure Update</button>
               </div>
           </div>
       )}
