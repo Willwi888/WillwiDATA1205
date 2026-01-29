@@ -24,7 +24,6 @@ export interface SpotifyTrack {
   uri: string;
   track_number?: number;
   duration_ms?: number;
-  // Added preview_url to fix Property 'preview_url' does not exist on type 'SpotifyTrack'
   preview_url?: string | null;
 }
 
@@ -93,7 +92,8 @@ export const getArtistAlbums = async (artistId: string): Promise<SpotifyAlbum[]>
   if (!token) return [];
 
   try {
-    const response = await fetch(`https://api.spotify.com/v1/artists/${artistId}/albums?limit=10&include_groups=album,single`, {
+    // 提升限制至 50，盡可能顯示所有 79 首作品中的大部分專輯/單曲
+    const response = await fetch(`https://api.spotify.com/v1/artists/${artistId}/albums?limit=50&include_groups=album,single`, {
       headers: { 'Authorization': `Bearer ${token}` }
     });
     if (!response.ok) return [];
@@ -102,28 +102,6 @@ export const getArtistAlbums = async (artistId: string): Promise<SpotifyAlbum[]>
   } catch (error) {
     return [];
   }
-};
-
-export const getArtistTopTracks = async (artistId: string): Promise<SpotifyTrack[]> => {
-    const token = await getSpotifyToken();
-    if (!token) return [];
-
-    try {
-        const response = await fetch(`https://api.spotify.com/v1/artists/${artistId}/top-tracks?market=TW`, {
-            headers: { 'Authorization': `Bearer ${token}` }
-        });
-        if (!response.ok) return [];
-        const data = await response.json();
-        return data.tracks || [];
-    } catch (error) {
-        return [];
-    }
-};
-
-// 保持舊版相容性
-export const searchSpotifyTracks = async (query: string) => {
-    const res = await searchSpotify(query, 'track');
-    return res.tracks;
 };
 
 export const getSpotifyAlbum = async (albumId: string): Promise<SpotifyAlbum | null> => {
@@ -141,16 +119,30 @@ export const getSpotifyAlbum = async (albumId: string): Promise<SpotifyAlbum | n
   }
 };
 
+export const getSpotifyFullTracks = async (trackIds: string[]): Promise<SpotifyTrack[]> => {
+    const token = await getSpotifyToken();
+    if (!token || trackIds.length === 0) return [];
+
+    try {
+        const response = await fetch(`https://api.spotify.com/v1/tracks?ids=${trackIds.join(',')}`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (!response.ok) return [];
+        const data = await response.json();
+        return data.tracks || [];
+    } catch (error) {
+        return [];
+    }
+};
+
 export const getSpotifyAlbumTracks = async (albumId: string): Promise<SpotifyTrack[]> => {
     const token = await getSpotifyToken();
     if (!token) return [];
 
     try {
-        // 獲取專輯詳細資料以獲取 UPC/Label
         const albumData = await getSpotifyAlbum(albumId);
         if (!albumData) return [];
 
-        // 獲取專輯內的所有曲目
         const response = await fetch(`https://api.spotify.com/v1/albums/${albumId}/tracks?limit=50`, {
             headers: { 'Authorization': `Bearer ${token}` }
         });
@@ -158,11 +150,36 @@ export const getSpotifyAlbumTracks = async (albumId: string): Promise<SpotifyTra
         if (!response.ok) return [];
         const data = await response.json();
         
-        return data.items.map((t: any) => ({
+        // Fetch full track info for ISRCs
+        const trackIds = data.items.map((t: any) => t.id);
+        const fullTracks = await getSpotifyFullTracks(trackIds);
+        
+        return fullTracks.map((t) => ({
             ...t,
-            album: albumData,
-            external_ids: { isrc: '' } 
+            album: albumData
         }));
+    } catch (error) {
+        return [];
+    }
+};
+
+// Existing compatibility
+export const searchSpotifyTracks = async (query: string) => {
+    const res = await searchSpotify(query, 'track');
+    return res.tracks;
+};
+
+export const getArtistTopTracks = async (artistId: string): Promise<SpotifyTrack[]> => {
+    const token = await getSpotifyToken();
+    if (!token) return [];
+
+    try {
+        const response = await fetch(`https://api.spotify.com/v1/artists/${artistId}/top-tracks?market=TW`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (!response.ok) return [];
+        const data = await response.json();
+        return data.tracks || [];
     } catch (error) {
         return [];
     }

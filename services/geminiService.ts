@@ -8,6 +8,54 @@ export const GRANDMA_SYSTEM_INSTRUCTION = `
 `;
 
 /**
+ * 專為 YouTube Music / YouTube 頻道「發行內容 (Releases)」分頁設計的解析器
+ * 針對用戶提供的截圖網格進行優化，提取專輯標題、曲目數與連結
+ */
+export const discoverYoutubeReleases = async (url: string): Promise<Partial<Song>[]> => {
+  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  try {
+    const response = await ai.models.generateContent({
+      model: 'gemini-3-pro-preview',
+      contents: `請使用 Google Search 工具瀏覽並解析這個 YouTube Music 頁面：${url}。
+      這是一個歌手的「發行內容 (Releases)」分頁，包含許多專輯和單曲。
+      
+      請列出網頁中所有作品的：
+      1. 標題 (Title)
+      2. 作品種類 (如：專輯、單曲)
+      3. 曲目數量 (如有顯示，例如 "8 首歌")
+      4. 該作品的 YouTube 連結 (例如 /playlist?list=... 或 /watch?v=...)
+      
+      請以 JSON 格式回傳陣列，格式如下：
+      [{"title": "作品名", "releaseCategory": "Album/Single", "description": "X 首歌", "youtubeUrl": "連結"}]。
+      請盡可能找出頁面上所有的項目，即使數量很多。`,
+      config: {
+        tools: [{ googleSearch: {} }],
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: Type.ARRAY,
+          items: {
+            type: Type.OBJECT,
+            properties: {
+              title: { type: Type.STRING },
+              releaseCategory: { type: Type.STRING },
+              description: { type: Type.STRING },
+              youtubeUrl: { type: Type.STRING }
+            },
+            required: ["title", "youtubeUrl"]
+          }
+        }
+      },
+    });
+
+    const results = JSON.parse(response.text || "[]");
+    return results;
+  } catch (error) {
+    console.error("YouTube AI Releases Discovery Error:", error);
+    return [];
+  }
+};
+
+/**
  * 利用 Gemini 3 Pro 配合 Google Search 工具解析 YouTube 網址
  * 支援：播放清單、單個影片分享連結、頻道影片列表
  */

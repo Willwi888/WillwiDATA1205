@@ -5,7 +5,8 @@ import { useData } from '../context/DataContext';
 import { useUser } from '../context/UserContext';
 import { useToast } from '../components/Layout';
 import { getRecordingByISRC, getReleaseBarcode } from '../services/musicbrainzService';
-import { discoverYoutubePlaylist } from '../services/geminiService';
+import { discoverYoutubePlaylist, discoverYoutubeReleases } from '../services/geminiService';
+import { getSpotifyAlbum, getSpotifyAlbumTracks, SpotifyAlbum, SpotifyTrack } from '../services/spotifyService';
 import { Song, Language, ProjectType, ReleaseCategory } from '../types';
 
 const AdminDashboard: React.FC = () => {
@@ -18,11 +19,19 @@ const AdminDashboard: React.FC = () => {
   const navigate = useNavigate();
   
   const [activeTab, setActiveTab] = useState<'catalog' | 'insights' | 'curation'>('catalog');
-  const [curationSource, setCurationSource] = useState<'mb' | 'youtube'>('mb');
+  const [curationSource, setCurationSource] = useState<'mb' | 'youtube' | 'spotify' | 'yt_releases'>('mb');
   const [searchTerm, setSearchTerm] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
   const [syncProgress, setSyncProgress] = useState({ current: 0, total: 0 });
+  
   const [ytUrl, setYtUrl] = useState('');
+  const [spotifyUrl, setSpotifyUrl] = useState('');
+  const [spotifyAlbumPreview, setSpotifyAlbumPreview] = useState<SpotifyAlbum | null>(null);
+  const [spotifyTracksPreview, setSpotifyTracksPreview] = useState<SpotifyTrack[]>([]);
+  
+  // YouTube Releases Preview
+  const [ytReleasesPreview, setYtReleasesPreview] = useState<Partial<Song>[]>([]);
+  
   const [passwordInput, setPasswordInput] = useState('');
 
   const insights = useMemo(() => {
@@ -38,7 +47,6 @@ const AdminDashboard: React.FC = () => {
   const groupedByUPC = useMemo(() => {
     const groups: Record<string, Song[]> = {};
     songs.forEach(s => {
-        // 如果沒有 UPC，嘗試使用發行日期與公司作為備份分組鍵
         const key = s.upc || `TEMP_${s.releaseDate}_${s.releaseCompany}`;
         if (!groups[key]) groups[key] = [];
         groups[key].push(s);
@@ -48,10 +56,6 @@ const AdminDashboard: React.FC = () => {
     ).sort((a, b) => b[1][0].releaseDate.localeCompare(a[1][0].releaseDate));
   }, [songs, searchTerm]);
 
-  /**
-   * 強化版的全球主資料同步
-   * 1.1s 延遲 + 深度抓取 UPC 與封面
-   */
   const handleMasterSync = async () => {
     const isrcSongs = songs.filter(s => s.isrc);
     if (isrcSongs.length === 0) return showToast("目前沒有具備 ISRC 的作品可供同步", "info");
@@ -70,7 +74,7 @@ const AdminDashboard: React.FC = () => {
         if (!s.isrc) continue;
 
         try {
-            await new Promise(resolve => setTimeout(resolve, 1100)); // 頻率限制
+            await new Promise(resolve => setTimeout(resolve, 1100));
             setSyncProgress(prev => ({ ...prev, current: prev.current + 1 }));
             
             const mbRecording = await getRecordingByISRC(s.isrc);
@@ -79,7 +83,6 @@ const AdminDashboard: React.FC = () => {
                 const release = mbRecording.releases?.find((r: any) => r.status === 'Official') || mbRecording.releases?.[0];
                 
                 let barcode = s.upc || '';
-                // 如果本地沒有 UPC，則發起額外請求獲取 Barcode
                 if (!barcode && release?.id) {
                     await new Promise(resolve => setTimeout(resolve, 1100));
                     barcode = await getReleaseBarcode(release.id);
@@ -135,11 +138,115 @@ const AdminDashboard: React.FC = () => {
     finally { setIsProcessing(false); }
   };
 
+  const handleFetchYtReleases = async () => {
+      if (!ytUrl) return showToast("請輸入 YouTube 發行分頁網址", "error");
+      setIsProcessing(true);
+      showToast("AI 正在深度掃描發行列表內容...");
+      try {
+          const results = await discoverYoutubeReleases(ytUrl);
+          if (results.length > 0) {
+              setYtReleasesPreview(results);
+              showToast(`成功抓取 ${results.length} 個發行項目`);
+          } else {
+              showToast("未偵測到發行項目，請確認網址是否正確", "error");
+          }
+      } catch (e) { showToast("掃描失敗", "error"); }
+      finally { setIsProcessing(false); }
+  };
+
+  const handleConfirmYtReleasesImport = async () => {
+      if (ytReleasesPreview.length === 0) return;
+      setIsProcessing(true);
+      try {
+          const newSongs: Song[] = ytReleasesPreview.map((r, idx) => ({
+              id: `YT_REL_${Date.now()}_${idx}`,
+              title: r.title || 'Untitled',
+              coverUrl: globalSettings.defaultCoverUrl,
+              language: Language.Mandarin,
+              projectType: ProjectType.Indie,
+              releaseDate: new Date().toISOString().split('T')[0],
+              releaseCategory: (r.releaseCategory?.toLowerCase().includes('album') || r.description?.includes('首歌')) ? ReleaseCategory.Album : ReleaseCategory.Single,
+              youtubeUrl: r.youtubeUrl,
+              description: r.description,
+              isInteractiveActive: true,
+              isEditorPick: false,
+              origin: 'local'
+          }));
+          await bulkAppendSongs(newSongs);
+          showToast(`已匯入 ${newSongs.length} 個項目。請至作品目錄完善 metadata。`);
+          setYtReleasesPreview([]);
+          setYtUrl('');
+      } catch (e) { showToast("匯入失敗", "error"); }
+      finally { setIsProcessing(false); }
+  };
+
+  const handleFetchSpotifyAlbum = async () => {
+    if (!spotifyUrl) return showToast("請輸入 Spotify 專輯連結或 ID", "error");
+    
+    let albumId = spotifyUrl.trim();
+    if (albumId.includes('spotify.com/album/')) {
+        const match = albumId.match(/album\/([a-zA-Z0-9]+)/);
+        if (match) albumId = match[1];
+    }
+    
+    setIsProcessing(true);
+    showToast("正在抓取 Spotify 專輯資料...");
+    try {
+        const album = await getSpotifyAlbum(albumId);
+        const tracks = await getSpotifyAlbumTracks(albumId);
+        if (album) {
+            setSpotifyAlbumPreview(album);
+            setSpotifyTracksPreview(tracks);
+            showToast(`成功抓取專輯：「${album.name}」共 ${tracks.length} 首曲目`);
+        } else {
+            showToast("找不到該專輯", "error");
+        }
+    } catch (e) {
+        showToast("抓取失敗", "error");
+    } finally {
+        setIsProcessing(false);
+    }
+  };
+
+  const handleConfirmSpotifyImport = async () => {
+    if (!spotifyAlbumPreview || spotifyTracksPreview.length === 0) return;
+    
+    setIsProcessing(true);
+    try {
+        const newSongs: Song[] = spotifyTracksPreview.map((t, idx) => ({
+            id: `SPOTIFY_${t.id}`,
+            title: t.name,
+            coverUrl: spotifyAlbumPreview.images?.[0]?.url || globalSettings.defaultCoverUrl,
+            language: Language.Mandarin,
+            projectType: ProjectType.Indie,
+            releaseDate: spotifyAlbumPreview.release_date,
+            releaseCategory: spotifyAlbumPreview.album_type === 'single' ? ReleaseCategory.Single : (spotifyAlbumPreview.album_type === 'compilation' ? ReleaseCategory.Album : ReleaseCategory.Album),
+            releaseCompany: spotifyAlbumPreview.label || '',
+            isrc: t.external_ids?.isrc || '',
+            upc: spotifyAlbumPreview.external_ids?.upc || spotifyAlbumPreview.external_ids?.ean || '',
+            spotifyLink: t.external_urls.spotify,
+            isInteractiveActive: true,
+            isEditorPick: false,
+            origin: 'local'
+        }));
+        
+        await bulkAppendSongs(newSongs);
+        showToast(`已成功匯入 ${newSongs.length} 首曲目至資料庫`);
+        setSpotifyAlbumPreview(null);
+        setSpotifyTracksPreview([]);
+        setSpotifyUrl('');
+    } catch (e) {
+        showToast("匯入失敗", "error");
+    } finally {
+        setIsProcessing(false);
+    }
+  };
+
   if (!isAdmin) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-black">
-        <div className="bg-slate-900 border border-white/10 p-12 max-w-md w-full shadow-2xl rounded-sm">
-          <h2 className="text-brand-gold font-black uppercase tracking-[0.4em] text-sm mb-10 text-center">Manager Access</h2>
+        <div className="bg-slate-900 border border-white/10 p-12 max-w-md w-full shadow-2xl rounded-sm text-center">
+          <h2 className="text-brand-gold font-black uppercase tracking-[0.4em] text-sm mb-10">Manager Access</h2>
           <form 
             onSubmit={(e) => { 
                 e.preventDefault(); 
@@ -247,18 +354,121 @@ const AdminDashboard: React.FC = () => {
 
       {activeTab === 'curation' && (
           <div className="space-y-12">
-              <div className="flex gap-4">
+              <div className="flex flex-wrap gap-4">
                   <button onClick={() => setCurationSource('mb')} className={`px-8 py-3 text-[10px] font-black uppercase ${curationSource === 'mb' ? 'bg-brand-gold text-black' : 'text-slate-500 border border-white/5'}`}>MusicBrainz</button>
-                  <button onClick={() => setCurationSource('youtube')} className={`px-8 py-3 text-[10px] font-black uppercase ${curationSource === 'youtube' ? 'bg-red-600 text-white' : 'text-slate-500 border border-white/5'}`}>YouTube 分享同步</button>
+                  <button onClick={() => setCurationSource('spotify')} className={`px-8 py-3 text-[10px] font-black uppercase ${curationSource === 'spotify' ? 'bg-[#1DB954] text-black' : 'text-slate-500 border border-white/5'}`}>Spotify Album</button>
+                  <button onClick={() => setCurationSource('yt_releases')} className={`px-8 py-3 text-[10px] font-black uppercase ${curationSource === 'yt_releases' ? 'bg-red-600 text-white' : 'text-slate-500 border border-white/5'}`}>YouTube 發行列表 (79+)</button>
+                  <button onClick={() => setCurationSource('youtube')} className={`px-8 py-3 text-[10px] font-black uppercase ${curationSource === 'youtube' ? 'bg-slate-700 text-white' : 'text-slate-500 border border-white/5'}`}>YouTube 單一分享</button>
               </div>
 
               {curationSource === 'youtube' && (
-                  <div className="bg-red-600/5 p-12 border border-red-600/20 rounded-sm text-center">
-                      <h3 className="text-red-600 font-black uppercase tracking-widest text-sm mb-6">YouTube Share Sync</h3>
+                  <div className="bg-slate-900 p-12 border border-white/5 rounded-sm text-center">
+                      <h3 className="text-slate-400 font-black uppercase tracking-widest text-sm mb-6">YouTube Share Sync</h3>
                       <input className="w-full bg-black border border-white/10 p-6 text-white text-center text-xs outline-none focus:border-brand-gold font-mono mb-6" placeholder="貼上 YouTube 分享連結 (youtu.be/...)" value={ytUrl} onChange={e => setYtUrl(e.target.value)} />
-                      <button onClick={handleYtImport} disabled={isProcessing} className="w-full py-6 bg-red-600 text-white font-black uppercase text-xs tracking-widest">
+                      <button onClick={handleYtImport} disabled={isProcessing} className="w-full py-6 bg-slate-100 text-black font-black uppercase text-xs tracking-widest">
                           {isProcessing ? "同步中..." : "開始 AI 嗅探與同步"}
                       </button>
+                  </div>
+              )}
+
+              {curationSource === 'yt_releases' && (
+                  <div className="bg-red-600/5 p-12 border border-red-600/20 rounded-sm">
+                      <h3 className="text-red-600 font-black uppercase tracking-widest text-sm mb-6 text-center">YouTube Music Releases Bulk Importer</h3>
+                      <p className="text-[10px] text-slate-500 text-center mb-8 uppercase tracking-widest">請貼上 YouTube Music 的「發行內容 (Releases)」分頁網址，AI 將解析所有專輯網格。</p>
+                      <div className="flex gap-4 mb-10">
+                          <input className="flex-1 bg-black border border-white/10 p-6 text-white text-xs outline-none focus:border-red-600 font-mono" placeholder="https://music.youtube.com/channel/.../releases" value={ytUrl} onChange={e => setYtUrl(e.target.value)} />
+                          <button onClick={handleFetchYtReleases} disabled={isProcessing} className="px-10 bg-red-600 text-white font-black uppercase text-xs tracking-widest">
+                            {isProcessing ? "掃描中..." : "深度抓取發行項目"}
+                          </button>
+                      </div>
+
+                      {ytReleasesPreview.length > 0 && (
+                          <div className="bg-slate-900 border border-white/5 p-10 animate-fade-in">
+                              <div className="flex justify-between items-center mb-10 border-b border-white/5 pb-6">
+                                  <div>
+                                      <h4 className="text-xl font-black text-white uppercase tracking-widest">Discovered Releases</h4>
+                                      <p className="text-[10px] text-slate-500 mt-2">共發現 {ytReleasesPreview.length} 個項目 (包含專輯與單曲)</p>
+                                  </div>
+                                  <button onClick={handleConfirmYtReleasesImport} disabled={isProcessing} className="px-12 py-5 bg-brand-gold text-black font-black uppercase text-xs tracking-widest shadow-2xl">
+                                      確認大量匯入
+                                  </button>
+                              </div>
+
+                              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                  {ytReleasesPreview.map((item, idx) => (
+                                      <div key={idx} className="p-4 bg-black/40 border border-white/5 rounded-sm flex items-center gap-4">
+                                          <div className="w-10 h-10 bg-slate-800 flex items-center justify-center text-[10px] font-mono text-slate-600">{idx+1}</div>
+                                          <div className="flex-1 min-w-0">
+                                              <div className="text-white font-bold text-xs truncate uppercase">{item.title}</div>
+                                              <div className="text-[9px] text-slate-500 mt-1 uppercase tracking-widest">{item.description || 'Single'}</div>
+                                          </div>
+                                      </div>
+                                  ))}
+                              </div>
+                          </div>
+                      )}
+                  </div>
+              )}
+
+              {curationSource === 'spotify' && (
+                  <div className="bg-[#1DB954]/5 p-12 border border-[#1DB954]/20 rounded-sm">
+                      <h3 className="text-[#1DB954] font-black uppercase tracking-widest text-sm mb-6 text-center">Spotify Album Import</h3>
+                      <div className="flex gap-4 mb-10">
+                          <input className="flex-1 bg-black border border-white/10 p-6 text-white text-xs outline-none focus:border-[#1DB954] font-mono" placeholder="貼上 Spotify 專輯連結或 ID" value={spotifyUrl} onChange={e => setSpotifyUrl(e.target.value)} />
+                          <button onClick={handleFetchSpotifyAlbum} disabled={isProcessing} className="px-10 bg-[#1DB954] text-black font-black uppercase text-xs tracking-widest">
+                            {isProcessing ? "處理中..." : "抓取專輯內容"}
+                          </button>
+                      </div>
+
+                      {spotifyAlbumPreview && (
+                          <div className="bg-slate-900 border border-white/5 p-10 animate-fade-in">
+                              <div className="flex flex-col md:flex-row gap-10 items-start mb-10 border-b border-white/5 pb-10">
+                                  <img src={spotifyAlbumPreview.images?.[0]?.url} className="w-48 h-48 object-cover shadow-2xl rounded" alt="" />
+                                  <div className="flex-1">
+                                      <h2 className="text-4xl font-black text-white uppercase mb-4">{spotifyAlbumPreview.name}</h2>
+                                      <div className="grid grid-cols-2 gap-y-4">
+                                          <div>
+                                              <span className="text-[10px] text-slate-500 font-black uppercase block mb-1">UPC</span>
+                                              <span className="text-brand-gold font-mono text-xs">{spotifyAlbumPreview.external_ids?.upc || 'N/A'}</span>
+                                          </div>
+                                          <div>
+                                              <span className="text-[10px] text-slate-500 font-black uppercase block mb-1">Release Date</span>
+                                              <span className="text-white font-mono text-xs">{spotifyAlbumPreview.release_date}</span>
+                                          </div>
+                                          <div>
+                                              <span className="text-[10px] text-slate-500 font-black uppercase block mb-1">Label</span>
+                                              <span className="text-white text-xs uppercase font-bold">{spotifyAlbumPreview.label}</span>
+                                          </div>
+                                          <div>
+                                              <span className="text-[10px] text-slate-500 font-black uppercase block mb-1">Tracks</span>
+                                              <span className="text-white text-xs font-bold">{spotifyTracksPreview.length} Tracks</span>
+                                          </div>
+                                      </div>
+                                  </div>
+                                  <button onClick={handleConfirmSpotifyImport} disabled={isProcessing} className="px-12 py-8 bg-brand-gold text-black font-black uppercase text-sm tracking-widest shadow-2xl hover:scale-105 transition-transform">
+                                      確認匯入至資料庫
+                                  </button>
+                              </div>
+
+                              <div className="space-y-2">
+                                  <h4 className="text-[11px] font-black text-slate-500 uppercase tracking-widest mb-6">Tracklist Preview (Ready for Import)</h4>
+                                  {spotifyTracksPreview.map((track, idx) => (
+                                      <div key={track.id} className="flex items-center justify-between py-3 border-b border-white/5 last:border-0 group">
+                                          <div className="flex items-center gap-6">
+                                              <span className="text-[10px] text-slate-600 font-mono w-4">{idx + 1}</span>
+                                              <div>
+                                                  <span className="text-white font-bold text-xs uppercase tracking-widest">{track.name}</span>
+                                                  <span className="text-[9px] text-brand-gold font-mono ml-4">ISRC: {track.external_ids?.isrc || 'N/A'}</span>
+                                              </div>
+                                          </div>
+                                          <span className="text-[9px] text-slate-600 font-mono">
+                                              {Math.floor(track.duration_ms! / 60000)}:{(Math.floor((track.duration_ms! % 60000) / 1000)).toString().padStart(2, '0')}
+                                          </span>
+                                      </div>
+                                  ))}
+                              </div>
+                          </div>
+                      )}
                   </div>
               )}
           </div>

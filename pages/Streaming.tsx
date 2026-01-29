@@ -1,6 +1,7 @@
+
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { useData } from '../context/DataContext';
-import { Song, ProjectType } from '../types';
+import { Song, ProjectType, ReleaseCategory } from '../types';
 import { getArtistAlbums, getArtistTopTracks, getSpotifyAlbumTracks, SpotifyAlbum, SpotifyTrack } from '../services/spotifyService';
 
 const WILLWI_SPOTIFY_ID = '3ascZ8Rb2KDw4QyCy29Om4';
@@ -32,7 +33,6 @@ const VideoSection: React.FC<{ title: string; songs: Song[] }> = ({ title, songs
             <div key={song.id} className="group flex flex-col space-y-4">
               <div className="aspect-video relative overflow-hidden rounded-sm bg-slate-900 border border-white/5 group-hover:border-brand-gold transition-all">
                 <img src={`https://img.youtube.com/vi/${ytId}/maxresdefault.jpg`} className="w-full h-full object-cover grayscale-[0.5] group-hover:grayscale-0 transition-all duration-700 group-hover:scale-105" alt={song.title} />
-                {/* Fixed mismatched tags: replaced stray div with proper a/div nesting for the play button overlay */}
                 <a href={song.youtubeUrl} target="_blank" rel="noreferrer" className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 bg-black/40 transition-all">
                   <div className="w-16 h-16 bg-brand-gold text-black rounded-full flex items-center justify-center shadow-2xl scale-75 group-hover:scale-100 transition-transform">
                     <svg className="w-6 h-6 ml-1" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
@@ -116,7 +116,7 @@ const Streaming: React.FC = () => {
     return groups;
   }, [songs]);
 
-  // 嘗試從本地資料庫獲取與 Spotify 專輯名稱匹配的致謝資訊
+  // 嘗試從本地資料庫獲取與 Spotify 專輯名稱匹配的致謝資訊與種類覆寫
   const localAlbumData = useMemo(() => {
       if (!selectedAlbum) return null;
       // 模糊匹配名稱或 UPC
@@ -126,6 +126,13 @@ const Streaming: React.FC = () => {
       );
   }, [selectedAlbum, songs]);
 
+  // 獲取最終顯示的分類標籤 (優先遵循本地 EP 標記)
+  const displayCategory = useMemo(() => {
+      if (!selectedAlbum) return '';
+      if (localAlbumData?.releaseCategory === ReleaseCategory.EP) return 'EP (迷你專輯)';
+      return selectedAlbum.album_type === 'single' ? 'Single (單曲)' : 'Album (專輯)';
+  }, [selectedAlbum, localAlbumData]);
+
   return (
     <div className="min-h-screen pt-32 pb-60 px-6 md:px-24 animate-fade-in bg-black overflow-x-hidden">
       <div className="max-w-[1600px] mx-auto">
@@ -133,6 +140,7 @@ const Streaming: React.FC = () => {
         <div className="mb-20">
           <span className="text-brand-gold font-black text-[11px] uppercase tracking-[0.6em] mb-4 block">Official Channel</span>
           <h2 className="text-6xl md:text-8xl font-black text-white tracking-tighter uppercase leading-none">Streaming</h2>
+          <p className="mt-4 text-[10px] text-slate-500 font-bold uppercase tracking-widest">Displaying all <span className="text-brand-gold">{spotifyAlbums.length}</span> Official Releases</p>
         </div>
 
         {/* Spotify Discography Grid */}
@@ -148,24 +156,33 @@ const Streaming: React.FC = () => {
                 </div>
             ) : (
                 <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-6">
-                    {spotifyAlbums.map(album => (
-                        <div 
-                            key={album.id} 
-                            onClick={() => handleAlbumClick(album)}
-                            className={`group cursor-pointer relative ${selectedAlbum?.id === album.id ? 'ring-2 ring-brand-gold' : ''}`}
-                        >
-                            <div className="aspect-square bg-slate-900 border border-white/10 overflow-hidden shadow-2xl rounded-sm">
-                                <img src={album.images?.[0]?.url} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" alt="" />
-                                <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-all">
-                                    <span className="text-[10px] text-white font-black uppercase tracking-widest">View Tracks</span>
+                    {spotifyAlbums.map(album => {
+                        const local = songs.find(s => s.title === album.name);
+                        const isEP = local?.releaseCategory === ReleaseCategory.EP;
+                        return (
+                            <div 
+                                key={album.id} 
+                                onClick={() => handleAlbumClick(album)}
+                                className={`group cursor-pointer relative ${selectedAlbum?.id === album.id ? 'ring-2 ring-brand-gold' : ''}`}
+                            >
+                                <div className="aspect-square bg-slate-900 border border-white/10 overflow-hidden shadow-2xl rounded-sm">
+                                    <img src={album.images?.[0]?.url} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" alt="" />
+                                    <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-all">
+                                        <span className="text-[10px] text-white font-black uppercase tracking-widest">View Tracks</span>
+                                    </div>
+                                    <div className="absolute bottom-2 left-2">
+                                        <span className={`text-[8px] font-black px-2 py-0.5 rounded-sm uppercase tracking-widest backdrop-blur-md ${isEP ? 'bg-brand-gold text-black' : 'bg-black/80 text-white'}`}>
+                                            {isEP ? 'EP' : (album.album_type?.toUpperCase())}
+                                        </span>
+                                    </div>
+                                </div>
+                                <div className="mt-3">
+                                    <h4 className="text-[11px] font-bold text-white uppercase truncate tracking-widest group-hover:text-brand-gold">{album.name}</h4>
+                                    <p className="text-[9px] text-slate-600 font-mono mt-1">{album.release_date.split('-')[0]} • {isEP ? 'EP' : album.album_type?.toUpperCase()}</p>
                                 </div>
                             </div>
-                            <div className="mt-3">
-                                <h4 className="text-[11px] font-bold text-white uppercase truncate tracking-widest group-hover:text-brand-gold">{album.name}</h4>
-                                <p className="text-[9px] text-slate-600 font-mono mt-1">{album.release_date.split('-')[0]} • {album.album_type?.toUpperCase()}</p>
-                            </div>
-                        </div>
-                    ))}
+                        );
+                    })}
                 </div>
             )}
         </div>
@@ -180,15 +197,15 @@ const Streaming: React.FC = () => {
                         
                         <div className="space-y-4 pt-4 border-t border-white/5">
                             <div className="space-y-1">
-                                <span className="text-[9px] text-slate-600 font-black uppercase tracking-widest">Release Company</span>
-                                <p className="text-[11px] text-white font-bold uppercase tracking-widest">{selectedAlbum.label || 'WILLWI MUSIC'}</p>
+                                <span className="text-[9px] text-slate-600 font-black uppercase tracking-widest">Release Company 發行單位</span>
+                                <p className="text-[11px] text-white font-bold uppercase tracking-widest">{selectedAlbum.label || localAlbumData?.releaseCompany || 'WILLWI MUSIC'}</p>
                             </div>
                             <div className="space-y-1">
-                                <span className="text-[9px] text-slate-600 font-black uppercase tracking-widest">Global Barcode (UPC)</span>
+                                <span className="text-[9px] text-slate-600 font-black uppercase tracking-widest">Global Barcode (UPC) 產品條碼</span>
                                 <p className="text-[11px] text-brand-gold font-mono font-bold tracking-widest">{selectedAlbum.external_ids?.upc || localAlbumData?.upc || 'UPC PENDING'}</p>
                             </div>
                             <div className="space-y-1">
-                                <span className="text-[9px] text-slate-600 font-black uppercase tracking-widest">Original Date</span>
+                                <span className="text-[9px] text-slate-600 font-black uppercase tracking-widest">Original Date 發行日期</span>
                                 <p className="text-[11px] text-white font-mono opacity-60">{selectedAlbum.release_date}</p>
                             </div>
                         </div>
@@ -204,7 +221,9 @@ const Streaming: React.FC = () => {
 
                     <div className="flex-1 w-full space-y-10">
                         <div>
-                            <span className="text-[10px] text-brand-gold font-black uppercase tracking-widest mb-3 block px-3 py-1 bg-brand-gold/10 border border-brand-gold/20 w-fit rounded-sm">{selectedAlbum.album_type}</span>
+                            <span className="text-[10px] text-brand-gold font-black uppercase tracking-widest mb-3 block px-3 py-1 bg-brand-gold/10 border border-brand-gold/20 w-fit rounded-sm">
+                                {displayCategory}
+                            </span>
                             <h3 className="text-4xl md:text-7xl font-black text-white uppercase tracking-tighter leading-none">{selectedAlbum.name}</h3>
                         </div>
                         
@@ -218,7 +237,6 @@ const Streaming: React.FC = () => {
                             ) : (
                                 <div className="space-y-1">
                                     {albumTracks.map((track, idx) => {
-                                        // 嘗試從本地資料庫獲取與 Spotify 曲目名稱匹配的 ISRC
                                         const localTrack = songs.find(s => s.title === track.name);
                                         const displayISRC = localTrack?.isrc || track.external_ids?.isrc || 'N/A';
                                         
