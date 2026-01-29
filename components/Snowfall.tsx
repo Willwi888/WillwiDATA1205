@@ -17,13 +17,13 @@ const CosmosParticles: React.FC = () => {
   }, []);
 
   const shootingStars = useMemo(() => {
-    // 只有 3 條流星軌道，且延遲非常長
-    return Array.from({ length: 3 }).map((_, i) => ({
+    // 只有 2 條流星軌道，出現頻率極低，確保「優雅且稀有」
+    return Array.from({ length: 2 }).map((_, i) => ({
       id: i,
-      top: `${Math.random() * 40 + 5}%`,
-      left: `${Math.random() * 10 - 5}%`,
-      delay: `${Math.random() * 50 + 5}s`, // 5 到 55 秒之間才出現一次
-      duration: `${Math.random() * 0.3 + 0.5}s` // 0.5s - 0.8s 瞬逝感
+      top: `${Math.random() * 40 - 10}%`, // 從上方甚至螢幕外開始
+      left: `${Math.random() * 40 + 60}%`, // 偏右側出發，向左下劃
+      delay: `${Math.random() * 80 + 20}s`, // 20s 到 100s 才出現一次
+      duration: `${Math.random() * 1 + 1.5}s` // 慢速滑行感: 1.5s - 2.5s
     }));
   }, []);
 
@@ -53,21 +53,21 @@ const CosmosParticles: React.FC = () => {
         />
       ))}
 
-      {/* 優雅流星 */}
+      {/* 真正優雅的流星 */}
       {shootingStars.map(s => (
         <div
           key={s.id}
           style={{
             position: 'absolute',
             height: '1px',
-            width: '80px', // 極細、極短
-            background: 'linear-gradient(to right, transparent, rgba(255,255,255,0.6), transparent)',
+            width: '300px', // 很長、很細的絲線
+            background: 'linear-gradient(to right, transparent, rgba(255,255,255,0.7), transparent)',
             top: s.top,
             left: s.left,
             animation: `shootingStar ${s.duration} linear ${s.delay} infinite`,
-            filter: 'blur(0.2px)',
+            filter: 'blur(1px)',
             opacity: 0,
-            transformOrigin: 'left center'
+            transformOrigin: 'right center'
           }}
         />
       ))}
