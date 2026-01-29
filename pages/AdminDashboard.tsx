@@ -13,7 +13,7 @@ const AdminDashboard: React.FC = () => {
     songs, deleteSong, globalSettings,
     uploadSongsToCloud, bulkAppendSongs, bulkAddSongs, syncSuccess
   } = useData();
-  const { isAdmin, logoutAdmin, getAllTransactions } = useUser();
+  const { isAdmin, logoutAdmin, getAllTransactions, enableAdmin } = useUser();
   const { showToast } = useToast();
   const navigate = useNavigate();
   
@@ -140,8 +140,26 @@ const AdminDashboard: React.FC = () => {
       <div className="min-h-screen flex items-center justify-center bg-black">
         <div className="bg-slate-900 border border-white/10 p-12 max-w-md w-full shadow-2xl rounded-sm">
           <h2 className="text-brand-gold font-black uppercase tracking-[0.4em] text-sm mb-10 text-center">Manager Access</h2>
-          <form onSubmit={(e) => { e.preventDefault(); if (passwordInput === '8520') window.location.reload(); }} className="space-y-6">
-            <input type="password" placeholder="••••" className="w-full bg-black border border-white/10 px-6 py-5 text-white text-center tracking-[1em] outline-none focus:border-brand-gold text-3xl font-mono" value={passwordInput} onChange={(e) => setPasswordInput(e.target.value)} autoFocus />
+          <form 
+            onSubmit={(e) => { 
+                e.preventDefault(); 
+                if (passwordInput === '8520') {
+                    enableAdmin();
+                    showToast("管理員權限已解鎖", "success");
+                } else {
+                    showToast("密碼錯誤", "error");
+                }
+            }} 
+            className="space-y-6"
+          >
+            <input 
+                type="password" 
+                placeholder="••••" 
+                className="w-full bg-black border border-white/10 px-6 py-5 text-white text-center tracking-[1em] outline-none focus:border-brand-gold text-3xl font-mono" 
+                value={passwordInput} 
+                onChange={(e) => setPasswordInput(e.target.value)} 
+                autoFocus 
+            />
             <button type="submit" className="w-full py-5 bg-white text-black font-black uppercase text-[10px] tracking-widest hover:bg-brand-gold transition-all">Unlock</button>
           </form>
         </div>
