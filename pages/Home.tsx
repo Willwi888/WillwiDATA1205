@@ -19,31 +19,20 @@ const Home: React.FC = () => {
       <div className="absolute inset-0 bg-gradient-to-b from-black via-transparent to-black"></div>
 
       <section className="relative z-10 w-full min-h-screen flex flex-col items-center justify-center px-10 md:px-24">
-        {/* New Manifesto Section - Updated to match screenshot style */}
-        <div className="flex flex-col items-center text-center animate-fade-in-up max-w-5xl">
-            <div className="space-y-4 md:space-y-6">
-                {t('manifesto_content').split('\n').map((line, i) => (
-                  <p 
-                    key={i} 
-                    className="text-white text-2xl md:text-5xl tracking-[0.1em] md:tracking-[0.2em] font-light leading-tight opacity-90"
-                  >
-                    {line}
-                  </p>
-                ))}
-            </div>
-            
-            {/* Main Action Button - White Square Button as seen in screenshot */}
-            <div className="mt-20 md:mt-24">
+        {/* Manifesto Section Removed per user request */}
+        <div className="flex flex-col items-center text-center animate-fade-in-up max-w-6xl">
+            {/* Main Action Button - White square block style */}
+            <div className="mt-0">
                 <button 
                   onClick={() => navigate('/interactive')} 
-                  className="px-12 md:px-24 py-6 md:py-8 bg-white text-black font-medium text-xs md:text-sm uppercase tracking-[0.8em] hover:bg-brand-gold transition-all duration-700 shadow-2xl rounded-sm"
+                  className="px-16 md:px-28 py-8 md:py-10 bg-white text-black font-medium text-sm md:text-base uppercase tracking-[0.6em] hover:bg-brand-gold transition-all duration-700 shadow-2xl rounded-sm"
                 >
                   {t('btn_start_studio')}
                 </button>
             </div>
         </div>
 
-        {/* Support Options - Moved down or made more discrete to maintain focus on the landing manifesto */}
+        {/* Support Options */}
         <div className="w-full max-w-[1200px] mt-40 opacity-40 hover:opacity-100 transition-opacity duration-1000 hidden md:block">
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-stretch grayscale hover:grayscale-0 transition-all">
                 <div onClick={() => navigate('/interactive')} className="group relative bg-white/[0.01] border border-white/5 p-8 flex flex-col transition-all cursor-pointer rounded-sm backdrop-blur-md">
