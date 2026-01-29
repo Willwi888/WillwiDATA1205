@@ -8,26 +8,31 @@ export const GRANDMA_SYSTEM_INSTRUCTION = `
 `;
 
 /**
- * 專為 YouTube Music / YouTube 頻道「發行內容 (Releases)」分頁設計的解析器
- * 針對用戶提供的截圖網格進行優化，提取專輯標題、曲目數與連結
+ * 專為 YouTube Music / YouTube 頻道設計的深度解析器
+ * 支援：發行內容 (Releases) 網格頁面、單一專輯播放清單頁面 (Playlist)
  */
 export const discoverYoutubeReleases = async (url: string): Promise<Partial<Song>[]> => {
+  // 過濾冗餘參數以提升搜尋成功率
+  const cleanUrl = url.split('&si=')[0];
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  
   try {
     const response = await ai.models.generateContent({
       model: 'gemini-3-pro-preview',
-      contents: `請使用 Google Search 工具瀏覽並解析這個 YouTube Music 頁面：${url}。
-      這是一個歌手的「發行內容 (Releases)」分頁，包含許多專輯和單曲。
+      contents: `請使用 Google Search 工具瀏覽並解析此 YouTube Music 頁面內容：${cleanUrl}。
       
-      請列出網頁中所有作品的：
-      1. 標題 (Title)
-      2. 作品種類 (如：專輯、單曲)
-      3. 曲目數量 (如有顯示，例如 "8 首歌")
-      4. 該作品的 YouTube 連結 (例如 /playlist?list=... 或 /watch?v=...)
+      場景解析說明：
+      1. 如果這是一個「發行內容 (Releases)」分頁：請列出所有的專輯與單曲項目。
+      2. 如果這是一個「播放清單 (Playlist/Album)」頁面：請將該播放清單視為一個專輯，並列出其中的所有曲目。
       
-      請以 JSON 格式回傳陣列，格式如下：
-      [{"title": "作品名", "releaseCategory": "Album/Single", "description": "X 首歌", "youtubeUrl": "連結"}]。
-      請盡可能找出頁面上所有的項目，即使數量很多。`,
+      提取要求：
+      - 標題 (Title)
+      - 作品種類 (Album/Single)
+      - 描述 (如 "8 首歌" 或曲序資訊)
+      - 該項目的 YouTube 播放或詳情連結
+      
+      請嚴格以 JSON 格式回傳陣列，若頁面內容很多（如 79+ 項目），請盡可能完整列出。
+      格式範例：[{"title": "作品名", "releaseCategory": "Album", "description": "10 首歌", "youtubeUrl": "連結"}]`,
       config: {
         tools: [{ googleSearch: {} }],
         responseMimeType: "application/json",
@@ -47,48 +52,32 @@ export const discoverYoutubeReleases = async (url: string): Promise<Partial<Song
       },
     });
 
-    const results = JSON.parse(response.text || "[]");
-    return results;
+    const text = response.text || "[]";
+    return JSON.parse(text);
   } catch (error) {
     console.error("YouTube AI Releases Discovery Error:", error);
-    return [];
+    throw error; // 丟出錯誤讓外部 UI 處理超時與重置
   }
 };
 
 /**
  * 利用 Gemini 3 Pro 配合 Google Search 工具解析 YouTube 網址
- * 支援：播放清單、單個影片分享連結、頻道影片列表
  */
 export const discoverYoutubePlaylist = async (url: string): Promise<Partial<Song>[]> => {
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   try {
     const response = await ai.models.generateContent({
       model: 'gemini-3-pro-preview',
-      contents: `請使用 Google Search 工具「瀏覽」並解析這個 YouTube 網址：${url}。
-      這可能是單個影片、分享連結或播放清單。
-      請列出網頁中所有音樂作品的「名稱（標題）」與「連結」。
-      請以 JSON 格式回傳陣列，格式為 [{"title": "歌曲名", "youtubeUrl": "連結"}]。`,
+      contents: `請使用 Google Search 工具解析此 YouTube 網址：${url}。
+      列出頁面中所有音樂作品的「名稱（標題）」與「連結」。
+      請以 JSON 回傳：[{"title": "歌曲名", "youtubeUrl": "連結"}]。`,
       config: {
         tools: [{ googleSearch: {} }],
         responseMimeType: "application/json",
-        responseSchema: {
-          type: Type.ARRAY,
-          items: {
-            type: Type.OBJECT,
-            properties: {
-              title: { type: Type.STRING },
-              youtubeUrl: { type: Type.STRING }
-            },
-            required: ["title"]
-          }
-        }
       },
     });
-
-    const results = JSON.parse(response.text || "[]");
-    return results;
+    return JSON.parse(response.text || "[]");
   } catch (error) {
-    console.error("YouTube AI Discovery Error:", error);
     return [];
   }
 };
@@ -99,18 +88,12 @@ export const discoverYoutubePlaylist = async (url: string): Promise<Partial<Song
 export const searchYouTubeMusicLink = async (title: string, isrc: string = ''): Promise<string | null> => {
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   try {
-    const query = `請搜尋歌曲「${title}」${isrc ? ` (ISRC: ${isrc})` : ''} 在 YouTube Music 上的官方播放連結。
-    請優先回傳 music.youtube.com 或 youtube.com/watch 的官方音訊連結。`;
-
+    const query = `請搜尋歌曲「${title}」${isrc ? ` (ISRC: ${isrc})` : ''} 在 YouTube Music 上的官方播放連結。`;
     const response = await ai.models.generateContent({
       model: 'gemini-3-pro-preview',
       contents: query,
-      config: {
-        tools: [{ googleSearch: {} }],
-      },
+      config: { tools: [{ googleSearch: {} }] },
     });
-
-    // 從 groundingMetadata 中提取搜尋來源網址
     const chunks = response.candidates?.[0]?.groundingMetadata?.groundingChunks;
     if (chunks) {
       for (const chunk of chunks) {
@@ -119,13 +102,8 @@ export const searchYouTubeMusicLink = async (title: string, isrc: string = ''): 
         }
       }
     }
-
-    // 備案：從回傳文字中擷取連結
-    const text = response.text || "";
-    const match = text.match(/https?:\/\/(?:music\.)?youtube\.com\/watch\?v=[a-zA-Z0-9_-]+/);
-    return match ? match[0] : null;
+    return null;
   } catch (error) {
-    console.error("YouTube AI Search Error:", error);
     return null;
   }
 };

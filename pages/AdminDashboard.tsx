@@ -28,10 +28,7 @@ const AdminDashboard: React.FC = () => {
   const [spotifyUrl, setSpotifyUrl] = useState('');
   const [spotifyAlbumPreview, setSpotifyAlbumPreview] = useState<SpotifyAlbum | null>(null);
   const [spotifyTracksPreview, setSpotifyTracksPreview] = useState<SpotifyTrack[]>([]);
-  
-  // YouTube Releases Preview
   const [ytReleasesPreview, setYtReleasesPreview] = useState<Partial<Song>[]>([]);
-  
   const [passwordInput, setPasswordInput] = useState('');
 
   const insights = useMemo(() => {
@@ -56,102 +53,35 @@ const AdminDashboard: React.FC = () => {
     ).sort((a, b) => b[1][0].releaseDate.localeCompare(a[1][0].releaseDate));
   }, [songs, searchTerm]);
 
-  const handleMasterSync = async () => {
-    const isrcSongs = songs.filter(s => s.isrc);
-    if (isrcSongs.length === 0) return showToast("目前沒有具備 ISRC 的作品可供同步", "info");
-
-    if (!window.confirm(`執行主資料對位？\n系統將自動補完 ISRC 對應的 UPC 與封面資訊。`)) return;
-    
-    setIsProcessing(true);
-    setSyncProgress({ current: 0, total: isrcSongs.length });
-    showToast("正在啟動 MusicBrainz 深度同步程序...");
-    
-    let updatedCount = 0;
-    const newSongsList = [...songs];
-
-    for (let i = 0; i < newSongsList.length; i++) {
-        const s = newSongsList[i];
-        if (!s.isrc) continue;
-
-        try {
-            await new Promise(resolve => setTimeout(resolve, 1100));
-            setSyncProgress(prev => ({ ...prev, current: prev.current + 1 }));
-            
-            const mbRecording = await getRecordingByISRC(s.isrc);
-            
-            if (mbRecording) {
-                const release = mbRecording.releases?.find((r: any) => r.status === 'Official') || mbRecording.releases?.[0];
-                
-                let barcode = s.upc || '';
-                if (!barcode && release?.id) {
-                    await new Promise(resolve => setTimeout(resolve, 1100));
-                    barcode = await getReleaseBarcode(release.id);
-                }
-
-                newSongsList[i] = {
-                    ...s,
-                    title: mbRecording.title || s.title,
-                    upc: barcode || s.upc,
-                    releaseDate: release?.date || s.releaseDate,
-                    releaseCompany: release?.['label-info']?.[0]?.label?.name || s.releaseCompany,
-                    releaseCategory: release?.['status'] === 'Official' ? ReleaseCategory.Album : s.releaseCategory,
-                    mbid: mbRecording.id,
-                    coverUrl: s.coverUrl || (release?.id ? `https://coverartarchive.org/release/${release.id}/front-500` : '')
-                };
-                updatedCount++;
-            }
-        } catch (err) {
-            console.warn(`Sync failed for ISRC ${s.isrc}`, err);
-        }
-    }
-
-    await bulkAddSongs(newSongsList);
-    showToast(`同步完成！已更新 ${updatedCount} 首作品的 UPC 與元數據`, "success");
-    setIsProcessing(false);
-    setSyncProgress({ current: 0, total: 0 });
-  };
-
-  const handleYtImport = async () => {
-    if (!ytUrl) return showToast("請輸入 YouTube 連結", "error");
-    setIsProcessing(true);
-    showToast("AI 正在解析 YouTube 分享內容...");
-    try {
-        const results = await discoverYoutubePlaylist(ytUrl);
-        if (results.length > 0) {
-            const newSongs: Song[] = results.map((r, idx) => ({
-                id: `YT_${Date.now()}_${idx}`,
-                title: r.title || 'Unknown',
-                coverUrl: globalSettings.defaultCoverUrl,
-                language: Language.Mandarin,
-                projectType: ProjectType.Indie,
-                releaseDate: new Date().toISOString().split('T')[0],
-                isInteractiveActive: true,
-                isEditorPick: false,
-                origin: 'local',
-                youtubeUrl: r.youtubeUrl
-            }));
-            await bulkAppendSongs(newSongs);
-            showToast(`已從 YouTube 同步 ${newSongs.length} 首作品`);
-            setYtUrl('');
-        }
-    } catch (e) { showToast("解析失敗", "error"); }
-    finally { setIsProcessing(false); }
-  };
-
   const handleFetchYtReleases = async () => {
-      if (!ytUrl) return showToast("請輸入 YouTube 發行分頁網址", "error");
+      if (!ytUrl) return showToast("請輸入 YouTube 網址", "error");
+      
       setIsProcessing(true);
-      showToast("AI 正在深度掃描發行列表內容...");
+      showToast("AI 正在掃描... 請稍候 (約需 10-20 秒)");
+      
+      // 加入超時保護，防止 API 無回應時 UI 永久卡死
+      const timeoutPromise = new Promise((_, reject) => 
+          setTimeout(() => reject(new Error("AI 解析超時，請重試或確認網址")), 25000)
+      );
+
       try {
-          const results = await discoverYoutubeReleases(ytUrl);
-          if (results.length > 0) {
+          const results = await Promise.race([
+              discoverYoutubeReleases(ytUrl),
+              timeoutPromise
+          ]) as Partial<Song>[];
+
+          if (results && results.length > 0) {
               setYtReleasesPreview(results);
-              showToast(`成功抓取 ${results.length} 個發行項目`);
+              showToast(`掃描成功：發現 ${results.length} 個項目`);
           } else {
-              showToast("未偵測到發行項目，請確認網址是否正確", "error");
+              showToast("未偵測到有效內容，請更換網址嘗試", "info");
           }
-      } catch (e) { showToast("掃描失敗", "error"); }
-      finally { setIsProcessing(false); }
+      } catch (e: any) { 
+          console.error(e);
+          showToast(e.message || "解析失敗", "error"); 
+      } finally { 
+          setIsProcessing(false); 
+      }
   };
 
   const handleConfirmYtReleasesImport = async () => {
@@ -173,73 +103,102 @@ const AdminDashboard: React.FC = () => {
               origin: 'local'
           }));
           await bulkAppendSongs(newSongs);
-          showToast(`已匯入 ${newSongs.length} 個項目。請至作品目錄完善 metadata。`);
+          showToast(`成功匯入 ${newSongs.length} 筆資料`);
           setYtReleasesPreview([]);
           setYtUrl('');
       } catch (e) { showToast("匯入失敗", "error"); }
       finally { setIsProcessing(false); }
   };
 
-  const handleFetchSpotifyAlbum = async () => {
-    if (!spotifyUrl) return showToast("請輸入 Spotify 專輯連結或 ID", "error");
+  const handleMasterSync = async () => {
+    const isrcSongs = songs.filter(s => s.isrc);
+    if (isrcSongs.length === 0) return showToast("目前沒有具備 ISRC 的作品可供同步", "info");
+    if (!window.confirm(`執行主資料對位？\n系統將自動補完 ISRC 對應的 UPC 與封面資訊。`)) return;
     
+    setIsProcessing(true);
+    setSyncProgress({ current: 0, total: isrcSongs.length });
+    
+    let updatedCount = 0;
+    const newSongsList = [...songs];
+
+    for (let i = 0; i < newSongsList.length; i++) {
+        const s = newSongsList[i];
+        if (!s.isrc) continue;
+        try {
+            await new Promise(resolve => setTimeout(resolve, 1100));
+            setSyncProgress(prev => ({ ...prev, current: prev.current + 1 }));
+            const mbRecording = await getRecordingByISRC(s.isrc);
+            if (mbRecording) {
+                const release = mbRecording.releases?.find((r: any) => r.status === 'Official') || mbRecording.releases?.[0];
+                let barcode = s.upc || '';
+                if (!barcode && release?.id) {
+                    await new Promise(resolve => setTimeout(resolve, 1100));
+                    barcode = await getReleaseBarcode(release.id);
+                }
+                newSongsList[i] = { ...s, title: mbRecording.title || s.title, upc: barcode || s.upc, releaseDate: release?.date || s.releaseDate, mbid: mbRecording.id };
+                updatedCount++;
+            }
+        } catch (err) {}
+    }
+    await bulkAddSongs(newSongsList);
+    showToast(`同步完成，更新 ${updatedCount} 筆`);
+    setIsProcessing(false);
+  };
+
+  const handleFetchSpotifyAlbum = async () => {
+    if (!spotifyUrl) return showToast("請輸入 Spotify 連結", "error");
     let albumId = spotifyUrl.trim();
     if (albumId.includes('spotify.com/album/')) {
         const match = albumId.match(/album\/([a-zA-Z0-9]+)/);
         if (match) albumId = match[1];
     }
-    
     setIsProcessing(true);
-    showToast("正在抓取 Spotify 專輯資料...");
     try {
         const album = await getSpotifyAlbum(albumId);
         const tracks = await getSpotifyAlbumTracks(albumId);
         if (album) {
             setSpotifyAlbumPreview(album);
             setSpotifyTracksPreview(tracks);
-            showToast(`成功抓取專輯：「${album.name}」共 ${tracks.length} 首曲目`);
-        } else {
-            showToast("找不到該專輯", "error");
+            showToast(`抓取成功：${album.name}`);
         }
-    } catch (e) {
-        showToast("抓取失敗", "error");
-    } finally {
-        setIsProcessing(false);
-    }
+    } catch (e) { showToast("抓取失敗", "error"); }
+    finally { setIsProcessing(false); }
   };
 
+  /**
+   * Fix: Implement handleConfirmSpotifyImport to resolve the compilation error
+   * This converts the previewed Spotify tracks into the app's Song format.
+   */
   const handleConfirmSpotifyImport = async () => {
-    if (!spotifyAlbumPreview || spotifyTracksPreview.length === 0) return;
-    
-    setIsProcessing(true);
-    try {
-        const newSongs: Song[] = spotifyTracksPreview.map((t, idx) => ({
-            id: `SPOTIFY_${t.id}`,
-            title: t.name,
-            coverUrl: spotifyAlbumPreview.images?.[0]?.url || globalSettings.defaultCoverUrl,
-            language: Language.Mandarin,
-            projectType: ProjectType.Indie,
-            releaseDate: spotifyAlbumPreview.release_date,
-            releaseCategory: spotifyAlbumPreview.album_type === 'single' ? ReleaseCategory.Single : (spotifyAlbumPreview.album_type === 'compilation' ? ReleaseCategory.Album : ReleaseCategory.Album),
-            releaseCompany: spotifyAlbumPreview.label || '',
-            isrc: t.external_ids?.isrc || '',
-            upc: spotifyAlbumPreview.external_ids?.upc || spotifyAlbumPreview.external_ids?.ean || '',
-            spotifyLink: t.external_urls.spotify,
-            isInteractiveActive: true,
-            isEditorPick: false,
-            origin: 'local'
-        }));
-        
-        await bulkAppendSongs(newSongs);
-        showToast(`已成功匯入 ${newSongs.length} 首曲目至資料庫`);
-        setSpotifyAlbumPreview(null);
-        setSpotifyTracksPreview([]);
-        setSpotifyUrl('');
-    } catch (e) {
-        showToast("匯入失敗", "error");
-    } finally {
-        setIsProcessing(false);
-    }
+      if (!spotifyAlbumPreview || spotifyTracksPreview.length === 0) return;
+      setIsProcessing(true);
+      try {
+          const newSongs: Song[] = spotifyTracksPreview.map((t) => ({
+              id: t.id,
+              title: t.name,
+              coverUrl: spotifyAlbumPreview.images?.[0]?.url || globalSettings.defaultCoverUrl,
+              language: Language.Mandarin,
+              projectType: ProjectType.Indie,
+              releaseDate: spotifyAlbumPreview.release_date || new Date().toISOString().split('T')[0],
+              releaseCategory: (spotifyAlbumPreview.album_type === 'album') ? ReleaseCategory.Album : (spotifyAlbumPreview.album_type === 'single' ? ReleaseCategory.Single : ReleaseCategory.Album),
+              spotifyLink: t.external_urls.spotify,
+              isrc: t.external_ids?.isrc || '',
+              upc: spotifyAlbumPreview.external_ids?.upc || spotifyAlbumPreview.external_ids?.ean || '',
+              releaseCompany: spotifyAlbumPreview.label || '',
+              isInteractiveActive: true,
+              isEditorPick: false,
+              origin: 'local'
+          }));
+          await bulkAppendSongs(newSongs);
+          showToast(`成功從 Spotify 匯入 ${newSongs.length} 筆資料`);
+          setSpotifyAlbumPreview(null);
+          setSpotifyTracksPreview([]);
+          setSpotifyUrl('');
+      } catch (e) { 
+          showToast("匯入失敗", "error"); 
+      } finally { 
+          setIsProcessing(false); 
+      }
   };
 
   if (!isAdmin) {
@@ -247,26 +206,8 @@ const AdminDashboard: React.FC = () => {
       <div className="min-h-screen flex items-center justify-center bg-black">
         <div className="bg-slate-900 border border-white/10 p-12 max-w-md w-full shadow-2xl rounded-sm text-center">
           <h2 className="text-brand-gold font-black uppercase tracking-[0.4em] text-sm mb-10">Manager Access</h2>
-          <form 
-            onSubmit={(e) => { 
-                e.preventDefault(); 
-                if (passwordInput === '8520') {
-                    enableAdmin();
-                    showToast("管理員權限已解鎖", "success");
-                } else {
-                    showToast("密碼錯誤", "error");
-                }
-            }} 
-            className="space-y-6"
-          >
-            <input 
-                type="password" 
-                placeholder="••••" 
-                className="w-full bg-black border border-white/10 px-6 py-5 text-white text-center tracking-[1em] outline-none focus:border-brand-gold text-3xl font-mono" 
-                value={passwordInput} 
-                onChange={(e) => setPasswordInput(e.target.value)} 
-                autoFocus 
-            />
+          <form onSubmit={(e) => { e.preventDefault(); if (passwordInput === '8520') { enableAdmin(); showToast("權限已解鎖", "success"); } else { showToast("密碼錯誤", "error"); } }} className="space-y-6">
+            <input type="password" placeholder="••••" className="w-full bg-black border border-white/10 px-6 py-5 text-white text-center tracking-[1em] outline-none focus:border-brand-gold text-3xl font-mono" value={passwordInput} onChange={(e) => setPasswordInput(e.target.value)} autoFocus />
             <button type="submit" className="w-full py-5 bg-white text-black font-black uppercase text-[10px] tracking-widest hover:bg-brand-gold transition-all">Unlock</button>
           </form>
         </div>
@@ -285,12 +226,8 @@ const AdminDashboard: React.FC = () => {
             </div>
           </div>
           <div className="flex gap-4">
-            <button 
-                onClick={handleMasterSync} 
-                disabled={isProcessing} 
-                className={`px-8 py-4 ${isProcessing ? 'bg-slate-800 text-slate-500' : 'bg-brand-gold text-black'} text-[10px] font-black uppercase tracking-widest transition-all shadow-xl min-w-[200px]`}
-            >
-                {isProcessing ? `[ ${syncProgress.current} / ${syncProgress.total} ] 同步中...` : "🔄 全球主資料對位"}
+            <button onClick={handleMasterSync} disabled={isProcessing} className={`px-8 py-4 ${isProcessing ? 'bg-slate-800 text-slate-500' : 'bg-brand-gold text-black'} text-[10px] font-black uppercase tracking-widest transition-all shadow-xl`}>
+                {isProcessing ? "同步中..." : "🔄 全球主資料對位"}
             </button>
             <button onClick={() => uploadSongsToCloud()} className="px-8 py-4 bg-white text-black text-[10px] font-black uppercase tracking-widest">備份雲端</button>
             <button onClick={logoutAdmin} className="px-8 py-4 border border-white/10 text-slate-500 text-[10px] font-black uppercase">登出</button>
@@ -305,80 +242,22 @@ const AdminDashboard: React.FC = () => {
           ))}
       </div>
 
-      {activeTab === 'insights' && (
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <div className="bg-slate-900/40 p-10 border border-white/5">
-                  <span className="text-[10px] text-slate-500 font-black uppercase block mb-2">總作品數</span>
-                  <div className="text-4xl font-black text-white">{insights.total}</div>
-              </div>
-              <div className="bg-slate-900/40 p-10 border border-white/5">
-                  <span className="text-[10px] text-slate-500 font-black uppercase block mb-2">資料完成度</span>
-                  <div className="text-4xl font-black text-brand-gold">{insights.completeness}%</div>
-              </div>
-              <div className="bg-slate-900/40 p-10 border border-white/5">
-                  <span className="text-[10px] text-slate-500 font-black uppercase block mb-2">累計支持金額</span>
-                  <div className="text-4xl font-black text-emerald-500">NT$ {insights.income.toLocaleString()}</div>
-              </div>
-          </div>
-      )}
-
-      {activeTab === 'catalog' && (
-          <div className="space-y-10">
-              <input type="text" placeholder="搜尋作品名稱或 ISRC..." className="w-full bg-slate-900 border border-white/5 p-6 text-white text-xs outline-none focus:border-brand-gold font-bold tracking-widest" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
-              {groupedByUPC.map(([upc, items]) => (
-                  <div key={upc} className="bg-slate-900/20 border border-white/5 p-8">
-                      <h3 className="text-white font-black uppercase tracking-widest text-lg mb-8 border-b border-white/5 pb-4">
-                        {upc.startsWith('TEMP_') ? '未定義專輯' : upc} <span className="text-[10px] text-slate-500 ml-4">({items.length} TRACKS)</span>
-                      </h3>
-                      <div className="space-y-4">
-                          {items.map(song => (
-                              <div key={song.id} className="flex items-center justify-between py-3 border-b border-white/5 last:border-0 group">
-                                  <div className="flex items-center gap-6">
-                                      <img src={song.coverUrl || globalSettings.defaultCoverUrl} className="w-10 h-10 object-cover rounded shadow-lg" alt="" />
-                                      <div>
-                                          <span className="text-slate-300 font-bold text-sm uppercase group-hover:text-white transition-colors">{song.title}</span>
-                                          <p className="text-[9px] text-slate-600 font-mono mt-1">ISRC: {song.isrc || 'N/A'} • {song.releaseDate}</p>
-                                      </div>
-                                  </div>
-                                  <div className="flex gap-4">
-                                      <button onClick={() => navigate(`/add?edit=${song.id}`)} className="text-[9px] text-brand-gold font-black uppercase px-4">EDIT</button>
-                                      <button onClick={() => { if(window.confirm('確定刪除？')) deleteSong(song.id); }} className="text-[9px] text-rose-500 font-black uppercase px-4">DEL</button>
-                                  </div>
-                              </div>
-                          ))}
-                      </div>
-                  </div>
-              ))}
-          </div>
-      )}
-
       {activeTab === 'curation' && (
           <div className="space-y-12">
               <div className="flex flex-wrap gap-4">
                   <button onClick={() => setCurationSource('mb')} className={`px-8 py-3 text-[10px] font-black uppercase ${curationSource === 'mb' ? 'bg-brand-gold text-black' : 'text-slate-500 border border-white/5'}`}>MusicBrainz</button>
                   <button onClick={() => setCurationSource('spotify')} className={`px-8 py-3 text-[10px] font-black uppercase ${curationSource === 'spotify' ? 'bg-[#1DB954] text-black' : 'text-slate-500 border border-white/5'}`}>Spotify Album</button>
-                  <button onClick={() => setCurationSource('yt_releases')} className={`px-8 py-3 text-[10px] font-black uppercase ${curationSource === 'yt_releases' ? 'bg-red-600 text-white' : 'text-slate-500 border border-white/5'}`}>YouTube 發行列表 (79+)</button>
-                  <button onClick={() => setCurationSource('youtube')} className={`px-8 py-3 text-[10px] font-black uppercase ${curationSource === 'youtube' ? 'bg-slate-700 text-white' : 'text-slate-500 border border-white/5'}`}>YouTube 單一分享</button>
+                  <button onClick={() => setCurationSource('yt_releases')} className={`px-8 py-3 text-[10px] font-black uppercase ${curationSource === 'yt_releases' ? 'bg-red-600 text-white' : 'text-slate-500 border border-white/5'}`}>YouTube 批量匯入 (79+)</button>
               </div>
-
-              {curationSource === 'youtube' && (
-                  <div className="bg-slate-900 p-12 border border-white/5 rounded-sm text-center">
-                      <h3 className="text-slate-400 font-black uppercase tracking-widest text-sm mb-6">YouTube Share Sync</h3>
-                      <input className="w-full bg-black border border-white/10 p-6 text-white text-center text-xs outline-none focus:border-brand-gold font-mono mb-6" placeholder="貼上 YouTube 分享連結 (youtu.be/...)" value={ytUrl} onChange={e => setYtUrl(e.target.value)} />
-                      <button onClick={handleYtImport} disabled={isProcessing} className="w-full py-6 bg-slate-100 text-black font-black uppercase text-xs tracking-widest">
-                          {isProcessing ? "同步中..." : "開始 AI 嗅探與同步"}
-                      </button>
-                  </div>
-              )}
 
               {curationSource === 'yt_releases' && (
                   <div className="bg-red-600/5 p-12 border border-red-600/20 rounded-sm">
-                      <h3 className="text-red-600 font-black uppercase tracking-widest text-sm mb-6 text-center">YouTube Music Releases Bulk Importer</h3>
-                      <p className="text-[10px] text-slate-500 text-center mb-8 uppercase tracking-widest">請貼上 YouTube Music 的「發行內容 (Releases)」分頁網址，AI 將解析所有專輯網格。</p>
+                      <h3 className="text-red-600 font-black uppercase tracking-widest text-sm mb-6 text-center">YouTube Music 深度同步</h3>
+                      <p className="text-[10px] text-slate-500 text-center mb-8 uppercase tracking-widest">貼上「發行內容」分頁或「專輯播放清單」連結，AI 將自動解析內容。</p>
                       <div className="flex gap-4 mb-10">
-                          <input className="flex-1 bg-black border border-white/10 p-6 text-white text-xs outline-none focus:border-red-600 font-mono" placeholder="https://music.youtube.com/channel/.../releases" value={ytUrl} onChange={e => setYtUrl(e.target.value)} />
-                          <button onClick={handleFetchYtReleases} disabled={isProcessing} className="px-10 bg-red-600 text-white font-black uppercase text-xs tracking-widest">
-                            {isProcessing ? "掃描中..." : "深度抓取發行項目"}
+                          <input className="flex-1 bg-black border border-white/10 p-6 text-white text-xs outline-none focus:border-red-600 font-mono" placeholder="https://music.youtube.com/..." value={ytUrl} onChange={e => setYtUrl(e.target.value)} />
+                          <button onClick={handleFetchYtReleases} disabled={isProcessing} className="px-10 bg-red-600 text-white font-black uppercase text-xs tracking-widest min-w-[150px]">
+                            {isProcessing ? "掃描中..." : "開始掃描"}
                           </button>
                       </div>
 
@@ -386,21 +265,18 @@ const AdminDashboard: React.FC = () => {
                           <div className="bg-slate-900 border border-white/5 p-10 animate-fade-in">
                               <div className="flex justify-between items-center mb-10 border-b border-white/5 pb-6">
                                   <div>
-                                      <h4 className="text-xl font-black text-white uppercase tracking-widest">Discovered Releases</h4>
-                                      <p className="text-[10px] text-slate-500 mt-2">共發現 {ytReleasesPreview.length} 個項目 (包含專輯與單曲)</p>
+                                      <h4 className="text-xl font-black text-white uppercase tracking-widest">解析結果</h4>
+                                      <p className="text-[10px] text-slate-500 mt-2">共偵測到 {ytReleasesPreview.length} 個項目</p>
                                   </div>
-                                  <button onClick={handleConfirmYtReleasesImport} disabled={isProcessing} className="px-12 py-5 bg-brand-gold text-black font-black uppercase text-xs tracking-widest shadow-2xl">
-                                      確認大量匯入
-                                  </button>
+                                  <button onClick={handleConfirmYtReleasesImport} disabled={isProcessing} className="px-12 py-5 bg-brand-gold text-black font-black uppercase text-xs tracking-widest">確認大量匯入</button>
                               </div>
-
                               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                                   {ytReleasesPreview.map((item, idx) => (
-                                      <div key={idx} className="p-4 bg-black/40 border border-white/5 rounded-sm flex items-center gap-4">
-                                          <div className="w-10 h-10 bg-slate-800 flex items-center justify-center text-[10px] font-mono text-slate-600">{idx+1}</div>
+                                      <div key={idx} className="p-4 bg-black/40 border border-white/5 flex items-center gap-4">
+                                          <div className="w-10 h-10 bg-slate-800 flex items-center justify-center text-[10px] text-slate-600">{idx+1}</div>
                                           <div className="flex-1 min-w-0">
                                               <div className="text-white font-bold text-xs truncate uppercase">{item.title}</div>
-                                              <div className="text-[9px] text-slate-500 mt-1 uppercase tracking-widest">{item.description || 'Single'}</div>
+                                              <div className="text-[9px] text-slate-500 uppercase">{item.description}</div>
                                           </div>
                                       </div>
                                   ))}
@@ -414,63 +290,56 @@ const AdminDashboard: React.FC = () => {
                   <div className="bg-[#1DB954]/5 p-12 border border-[#1DB954]/20 rounded-sm">
                       <h3 className="text-[#1DB954] font-black uppercase tracking-widest text-sm mb-6 text-center">Spotify Album Import</h3>
                       <div className="flex gap-4 mb-10">
-                          <input className="flex-1 bg-black border border-white/10 p-6 text-white text-xs outline-none focus:border-[#1DB954] font-mono" placeholder="貼上 Spotify 專輯連結或 ID" value={spotifyUrl} onChange={e => setSpotifyUrl(e.target.value)} />
-                          <button onClick={handleFetchSpotifyAlbum} disabled={isProcessing} className="px-10 bg-[#1DB954] text-black font-black uppercase text-xs tracking-widest">
-                            {isProcessing ? "處理中..." : "抓取專輯內容"}
-                          </button>
+                          <input className="flex-1 bg-black border border-white/10 p-6 text-white text-xs outline-none focus:border-[#1DB954] font-mono" placeholder="Spotify 專輯連結" value={spotifyUrl} onChange={e => setSpotifyUrl(e.target.value)} />
+                          <button onClick={handleFetchSpotifyAlbum} disabled={isProcessing} className="px-10 bg-[#1DB954] text-black font-black uppercase text-xs tracking-widest">{isProcessing ? "處理中..." : "抓取內容"}</button>
                       </div>
-
                       {spotifyAlbumPreview && (
-                          <div className="bg-slate-900 border border-white/5 p-10 animate-fade-in">
+                          <div className="bg-slate-900 border border-white/5 p-10">
                               <div className="flex flex-col md:flex-row gap-10 items-start mb-10 border-b border-white/5 pb-10">
-                                  <img src={spotifyAlbumPreview.images?.[0]?.url} className="w-48 h-48 object-cover shadow-2xl rounded" alt="" />
+                                  <img src={spotifyAlbumPreview.images?.[0]?.url} className="w-48 h-48 object-cover rounded" alt="" />
                                   <div className="flex-1">
                                       <h2 className="text-4xl font-black text-white uppercase mb-4">{spotifyAlbumPreview.name}</h2>
-                                      <div className="grid grid-cols-2 gap-y-4">
-                                          <div>
-                                              <span className="text-[10px] text-slate-500 font-black uppercase block mb-1">UPC</span>
-                                              <span className="text-brand-gold font-mono text-xs">{spotifyAlbumPreview.external_ids?.upc || 'N/A'}</span>
-                                          </div>
-                                          <div>
-                                              <span className="text-[10px] text-slate-500 font-black uppercase block mb-1">Release Date</span>
-                                              <span className="text-white font-mono text-xs">{spotifyAlbumPreview.release_date}</span>
-                                          </div>
-                                          <div>
-                                              <span className="text-[10px] text-slate-500 font-black uppercase block mb-1">Label</span>
-                                              <span className="text-white text-xs uppercase font-bold">{spotifyAlbumPreview.label}</span>
-                                          </div>
-                                          <div>
-                                              <span className="text-[10px] text-slate-500 font-black uppercase block mb-1">Tracks</span>
-                                              <span className="text-white text-xs font-bold">{spotifyTracksPreview.length} Tracks</span>
-                                          </div>
+                                      <div className="grid grid-cols-2 gap-4">
+                                          <div><span className="text-[10px] text-slate-500 uppercase block">UPC</span><span className="text-brand-gold font-mono text-xs">{spotifyAlbumPreview.external_ids?.upc || 'N/A'}</span></div>
+                                          <div><span className="text-[10px] text-slate-500 uppercase block">Date</span><span className="text-white font-mono text-xs">{spotifyAlbumPreview.release_date}</span></div>
                                       </div>
                                   </div>
-                                  <button onClick={handleConfirmSpotifyImport} disabled={isProcessing} className="px-12 py-8 bg-brand-gold text-black font-black uppercase text-sm tracking-widest shadow-2xl hover:scale-105 transition-transform">
-                                      確認匯入至資料庫
-                                  </button>
-                              </div>
-
-                              <div className="space-y-2">
-                                  <h4 className="text-[11px] font-black text-slate-500 uppercase tracking-widest mb-6">Tracklist Preview (Ready for Import)</h4>
-                                  {spotifyTracksPreview.map((track, idx) => (
-                                      <div key={track.id} className="flex items-center justify-between py-3 border-b border-white/5 last:border-0 group">
-                                          <div className="flex items-center gap-6">
-                                              <span className="text-[10px] text-slate-600 font-mono w-4">{idx + 1}</span>
-                                              <div>
-                                                  <span className="text-white font-bold text-xs uppercase tracking-widest">{track.name}</span>
-                                                  <span className="text-[9px] text-brand-gold font-mono ml-4">ISRC: {track.external_ids?.isrc || 'N/A'}</span>
-                                              </div>
-                                          </div>
-                                          <span className="text-[9px] text-slate-600 font-mono">
-                                              {Math.floor(track.duration_ms! / 60000)}:{(Math.floor((track.duration_ms! % 60000) / 1000)).toString().padStart(2, '0')}
-                                          </span>
-                                      </div>
-                                  ))}
+                                  <button onClick={handleConfirmSpotifyImport} disabled={isProcessing} className="px-12 py-8 bg-brand-gold text-black font-black uppercase text-sm tracking-widest">匯入資料庫</button>
                               </div>
                           </div>
                       )}
                   </div>
               )}
+          </div>
+      )}
+
+      {activeTab === 'catalog' && (
+          <div className="space-y-10">
+              <input type="text" placeholder="搜尋..." className="w-full bg-slate-900 border border-white/5 p-6 text-white text-xs font-bold" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
+              {groupedByUPC.map(([upc, items]) => (
+                  <div key={upc} className="bg-slate-900/20 border border-white/5 p-8 mb-6">
+                      <h3 className="text-white font-black uppercase tracking-widest text-lg mb-8 border-b border-white/5 pb-4">
+                        {upc.startsWith('TEMP_') ? '未定義專輯' : upc} <span className="text-[10px] text-slate-500 ml-4">({items.length} TRACKS)</span>
+                      </h3>
+                      <div className="space-y-4">
+                          {items.map(song => (
+                              <div key={song.id} className="flex items-center justify-between py-3 border-b border-white/5 group">
+                                  <div className="flex items-center gap-6">
+                                      <img src={song.coverUrl || globalSettings.defaultCoverUrl} className="w-10 h-10 object-cover rounded" alt="" />
+                                      <div>
+                                          <span className="text-slate-300 font-bold text-sm uppercase group-hover:text-white">{song.title}</span>
+                                          <p className="text-[9px] text-slate-600 font-mono mt-1">ISRC: {song.isrc || 'N/A'}</p>
+                                      </div>
+                                  </div>
+                                  <div className="flex gap-4">
+                                      <button onClick={() => navigate(`/add?edit=${song.id}`)} className="text-[9px] text-brand-gold font-black uppercase">EDIT</button>
+                                      <button onClick={() => { if(window.confirm('確定刪除？')) deleteSong(song.id); }} className="text-[9px] text-rose-500 font-black uppercase">DEL</button>
+                                  </div>
+                              </div>
+                          ))}
+                      </div>
+                  </div>
+              ))}
           </div>
       )}
     </div>

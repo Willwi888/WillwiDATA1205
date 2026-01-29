@@ -116,23 +116,6 @@ const Streaming: React.FC = () => {
     return groups;
   }, [songs]);
 
-  // 嘗試從本地資料庫獲取與 Spotify 專輯名稱匹配的致謝資訊與種類覆寫
-  const localAlbumData = useMemo(() => {
-      if (!selectedAlbum) return null;
-      // 模糊匹配名稱或 UPC
-      return songs.find(s => 
-          s.title === selectedAlbum.name || 
-          (s.upc && selectedAlbum.external_ids?.upc && s.upc === selectedAlbum.external_ids.upc)
-      );
-  }, [selectedAlbum, songs]);
-
-  // 獲取最終顯示的分類標籤 (優先遵循本地 EP 標記)
-  const displayCategory = useMemo(() => {
-      if (!selectedAlbum) return '';
-      if (localAlbumData?.releaseCategory === ReleaseCategory.EP) return 'EP (迷你專輯)';
-      return selectedAlbum.album_type === 'single' ? 'Single (單曲)' : 'Album (專輯)';
-  }, [selectedAlbum, localAlbumData]);
-
   return (
     <div className="min-h-screen pt-32 pb-60 px-6 md:px-24 animate-fade-in bg-black overflow-x-hidden">
       <div className="max-w-[1600px] mx-auto">
@@ -143,42 +126,39 @@ const Streaming: React.FC = () => {
           <p className="mt-4 text-[10px] text-slate-500 font-bold uppercase tracking-widest">Displaying all <span className="text-brand-gold">{spotifyAlbums.length}</span> Official Releases</p>
         </div>
 
-        {/* Spotify Discography Grid */}
+        {/* Spotify Discography Grid - Visual matching with screenshot */}
         <div className="mb-24 space-y-12">
-            <div className="flex items-center justify-between border-l-2 border-[#1DB954] pl-4">
-                <h3 className="text-xs font-black text-slate-500 uppercase tracking-[0.4em]">Spotify Artist Profile</h3>
-                <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">點擊專輯展開曲目並試聽預覽</span>
+            <div className="flex items-center justify-between border-l-2 border-slate-800 pl-4">
+                <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-[0.6em]">Spotify Artist Profile</h3>
             </div>
 
             {isSpotifyLoading ? (
-                <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-6 animate-pulse">
+                <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-x-6 gap-y-12 animate-pulse">
                     {[...Array(6)].map((_, i) => <div key={i} className="aspect-square bg-white/5 rounded-sm"></div>)}
                 </div>
             ) : (
-                <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-6">
+                <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-x-6 gap-y-12">
                     {spotifyAlbums.map(album => {
                         const local = songs.find(s => s.title === album.name);
                         const isEP = local?.releaseCategory === ReleaseCategory.EP;
+                        const typeLabel = isEP ? 'EP' : album.album_type?.toUpperCase();
+                        
                         return (
                             <div 
                                 key={album.id} 
                                 onClick={() => handleAlbumClick(album)}
-                                className={`group cursor-pointer relative ${selectedAlbum?.id === album.id ? 'ring-2 ring-brand-gold' : ''}`}
+                                className="group cursor-pointer relative"
                             >
-                                <div className="aspect-square bg-slate-900 border border-white/10 overflow-hidden shadow-2xl rounded-sm">
+                                <div className="aspect-square bg-slate-900 border border-white/5 overflow-hidden shadow-2xl rounded-sm transition-all duration-500 group-hover:border-brand-gold/30">
                                     <img src={album.images?.[0]?.url} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" alt="" />
                                     <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-all">
-                                        <span className="text-[10px] text-white font-black uppercase tracking-widest">View Tracks</span>
-                                    </div>
-                                    <div className="absolute bottom-2 left-2">
-                                        <span className={`text-[8px] font-black px-2 py-0.5 rounded-sm uppercase tracking-widest backdrop-blur-md ${isEP ? 'bg-brand-gold text-black' : 'bg-black/80 text-white'}`}>
-                                            {isEP ? 'EP' : (album.album_type?.toUpperCase())}
-                                        </span>
+                                        <span className="text-[10px] text-white font-black uppercase tracking-widest border border-white/20 px-4 py-2">View Tracks</span>
                                     </div>
                                 </div>
-                                <div className="mt-3">
-                                    <h4 className="text-[11px] font-bold text-white uppercase truncate tracking-widest group-hover:text-brand-gold">{album.name}</h4>
-                                    <p className="text-[9px] text-slate-600 font-mono mt-1">{album.release_date.split('-')[0]} • {isEP ? 'EP' : album.album_type?.toUpperCase()}</p>
+                                <div className="mt-4 space-y-1">
+                                    <h4 className="text-[11px] font-bold text-white uppercase truncate tracking-widest group-hover:text-brand-gold transition-colors">{album.name}</h4>
+                                    <p className="text-[9px] font-black text-white uppercase tracking-[0.2em]">{typeLabel}</p>
+                                    <p className="text-[8px] text-slate-600 font-mono tracking-widest">{album.release_date.split('-')[0]} • {typeLabel}</p>
                                 </div>
                             </div>
                         );
@@ -197,24 +177,16 @@ const Streaming: React.FC = () => {
                         
                         <div className="space-y-4 pt-4 border-t border-white/5">
                             <div className="space-y-1">
-                                <span className="text-[9px] text-slate-600 font-black uppercase tracking-widest">Release Company 發行單位</span>
-                                <p className="text-[11px] text-white font-bold uppercase tracking-widest">{selectedAlbum.label || localAlbumData?.releaseCompany || 'WILLWI MUSIC'}</p>
+                                <span className="text-[9px] text-slate-600 font-black uppercase tracking-widest">Release Company</span>
+                                <p className="text-[11px] text-white font-bold uppercase tracking-widest">{selectedAlbum.label || 'WILLWI MUSIC'}</p>
                             </div>
                             <div className="space-y-1">
-                                <span className="text-[9px] text-slate-600 font-black uppercase tracking-widest">Global Barcode (UPC) 產品條碼</span>
-                                <p className="text-[11px] text-brand-gold font-mono font-bold tracking-widest">{selectedAlbum.external_ids?.upc || localAlbumData?.upc || 'UPC PENDING'}</p>
+                                <span className="text-[9px] text-slate-600 font-black uppercase tracking-widest">Global Barcode (UPC)</span>
+                                <p className="text-[11px] text-brand-gold font-mono font-bold tracking-widest">{selectedAlbum.external_ids?.upc || 'UPC PENDING'}</p>
                             </div>
                             <div className="space-y-1">
-                                <span className="text-[9px] text-slate-600 font-black uppercase tracking-widest">Original Date 發行日期</span>
+                                <span className="text-[9px] text-slate-600 font-black uppercase tracking-widest">Original Date</span>
                                 <p className="text-[11px] text-white font-mono opacity-60">{selectedAlbum.release_date}</p>
-                            </div>
-                        </div>
-                        
-                        {/* Credits Section */}
-                        <div className="bg-black/20 border border-white/5 p-6 rounded-sm space-y-4">
-                            <h4 className="text-[10px] text-slate-400 font-black uppercase tracking-[0.2em] border-b border-white/5 pb-2">Credits 製作致謝</h4>
-                            <div className="text-[9px] leading-relaxed text-slate-500 font-medium whitespace-pre-wrap">
-                                {localAlbumData?.credits || "© 2025 Willwi Music. \nAll recordings produced and mixed by Willwi. \nMastered for streaming platforms."}
                             </div>
                         </div>
                     </div>
@@ -222,52 +194,38 @@ const Streaming: React.FC = () => {
                     <div className="flex-1 w-full space-y-10">
                         <div>
                             <span className="text-[10px] text-brand-gold font-black uppercase tracking-widest mb-3 block px-3 py-1 bg-brand-gold/10 border border-brand-gold/20 w-fit rounded-sm">
-                                {displayCategory}
+                                {selectedAlbum.album_type?.toUpperCase()}
                             </span>
                             <h3 className="text-4xl md:text-7xl font-black text-white uppercase tracking-tighter leading-none">{selectedAlbum.name}</h3>
                         </div>
                         
                         <div className="w-full bg-black/40 border border-white/5 rounded-sm p-4 md:p-8">
-                            <div className="flex items-center justify-between mb-8 border-b border-white/5 pb-4">
-                                <h4 className="text-[11px] text-slate-400 font-black uppercase tracking-[0.4em]">Master Tracklist</h4>
-                                <span className="text-[9px] text-slate-600 font-mono uppercase">Full Digital Index</span>
-                            </div>
                             {isLoadingTracks ? (
                                 <div className="space-y-4 py-20 text-center text-[10px] text-slate-600 animate-pulse uppercase tracking-[0.4em]">Establishing Data Connection...</div>
                             ) : (
                                 <div className="space-y-1">
-                                    {albumTracks.map((track, idx) => {
-                                        const localTrack = songs.find(s => s.title === track.name);
-                                        const displayISRC = localTrack?.isrc || track.external_ids?.isrc || 'N/A';
-                                        
-                                        return (
-                                            <div key={track.id} className="flex flex-col md:flex-row md:items-center justify-between py-4 border-b border-white/5 last:border-0 group hover:bg-white/[0.03] px-4 transition-all relative overflow-hidden">
-                                                <div className="flex items-center gap-6 z-10">
-                                                    <span className="text-[10px] text-slate-700 font-mono w-4">{idx + 1}</span>
-                                                    <div>
-                                                        <span className="text-sm text-white font-bold uppercase tracking-widest group-hover:text-brand-gold transition-colors block">{track.name}</span>
-                                                        <span className="text-[9px] text-slate-600 font-mono mt-1 block uppercase">ISRC: {displayISRC}</span>
-                                                    </div>
-                                                </div>
-                                                <div className="flex items-center gap-8 mt-4 md:mt-0 z-10">
-                                                    {track.preview_url && (
-                                                        <button 
-                                                            onClick={() => togglePreview(track)} 
-                                                            className={`flex items-center gap-2 text-[10px] font-black uppercase tracking-widest px-4 py-2 rounded-full border transition-all ${previewingTrackId === track.id ? 'bg-brand-gold text-black border-brand-gold shadow-[0_0_15px_rgba(251,191,36,0.5)]' : 'text-slate-500 border-white/10 hover:border-brand-gold hover:text-brand-gold'}`}
-                                                        >
-                                                            {previewingTrackId === track.id ? (
-                                                                <>
-                                                                    <span className="w-2 h-2 bg-black rounded-full animate-ping"></span>
-                                                                    Playing Preview
-                                                                </>
-                                                            ) : 'Play Preview'}
-                                                        </button>
-                                                    )}
-                                                    <a href={track.external_urls.spotify} target="_blank" rel="noreferrer" className="text-[10px] text-[#1DB954] font-black uppercase tracking-widest border border-[#1DB954]/20 px-4 py-2 rounded-full hover:bg-[#1DB954] hover:text-black transition-all">Spotify Full</a>
+                                    {albumTracks.map((track, idx) => (
+                                        <div key={track.id} className="flex flex-col md:flex-row md:items-center justify-between py-4 border-b border-white/5 last:border-0 group hover:bg-white/[0.03] px-4 transition-all">
+                                            <div className="flex items-center gap-6">
+                                                <span className="text-[10px] text-slate-700 font-mono w-4">{idx + 1}</span>
+                                                <div>
+                                                    <span className="text-sm text-white font-bold uppercase tracking-widest group-hover:text-brand-gold transition-colors block">{track.name}</span>
+                                                    <span className="text-[9px] text-slate-600 font-mono mt-1 block uppercase">ISRC: {track.external_ids?.isrc || 'N/A'}</span>
                                                 </div>
                                             </div>
-                                        );
-                                    })}
+                                            <div className="flex items-center gap-8 mt-4 md:mt-0">
+                                                {track.preview_url && (
+                                                    <button 
+                                                        onClick={() => togglePreview(track)} 
+                                                        className={`text-[10px] font-black uppercase tracking-widest px-4 py-2 rounded-full border transition-all ${previewingTrackId === track.id ? 'bg-brand-gold text-black border-brand-gold shadow-[0_0_15px_rgba(251,191,36,0.5)]' : 'text-slate-500 border-white/10 hover:border-brand-gold hover:text-brand-gold'}`}
+                                                    >
+                                                        {previewingTrackId === track.id ? 'Playing Preview' : 'Play Preview'}
+                                                    </button>
+                                                )}
+                                                <a href={track.external_urls.spotify} target="_blank" rel="noreferrer" className="text-[10px] text-[#1DB954] font-black uppercase tracking-widest border border-[#1DB954]/20 px-4 py-2 rounded-full hover:bg-[#1DB954] hover:text-black transition-all">Spotify Full</a>
+                                            </div>
+                                        </div>
+                                    ))}
                                 </div>
                             )}
                         </div>
@@ -286,7 +244,7 @@ const Streaming: React.FC = () => {
         )}
 
         <div className="space-y-8">
-          <h3 className="text-xs font-black text-slate-500 uppercase tracking-[0.4em] border-l-2 border-brand-accent pl-4 mb-12">Collections</h3>
+          <h3 className="text-xs font-black text-slate-500 uppercase tracking-[0.4em] border-l-2 border-slate-800 pl-4 mb-12">Collections</h3>
           {Object.entries(groupedByProject).map(([type, songs]) => (
             <VideoSection key={type} title={type} songs={songs} />
           ))}
