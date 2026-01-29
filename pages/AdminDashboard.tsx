@@ -5,11 +5,12 @@ import { useData, normalizeIdentifier } from '../context/DataContext';
 import { useUser } from '../context/UserContext';
 import { useToast } from '../components/Layout';
 import { Song, ProjectType } from '../types';
+import { STANDARD_CREDITS } from '../context/InitialData';
 
 const AdminDashboard: React.FC = () => {
   const { 
     songs, deleteSong, globalSettings, setGlobalSettings, uploadSettingsToCloud,
-    uploadSongsToCloud, syncSuccess, refreshData
+    uploadSongsToCloud, syncSuccess, refreshData, bulkAddSongs
   } = useData();
   const { isAdmin, logoutAdmin, enableAdmin, getAllUsers, getAllTransactions } = useUser();
   const { showToast } = useToast();
@@ -19,6 +20,7 @@ const AdminDashboard: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [passwordInput, setPasswordInput] = useState('');
   const [expandedAlbumId, setExpandedAlbumId] = useState<string | null>(null);
+  const [isBulkUpdating, setIsBulkUpdating] = useState(false);
 
   const [stats, setStats] = useState({
       totalUsers: 0,
@@ -40,7 +42,6 @@ const AdminDashboard: React.FC = () => {
     }
   }, [isAdmin, songs, getAllUsers, getAllTransactions]);
 
-  // 以專輯聚合邏輯
   const groupedAlbums = useMemo(() => {
     const groups: Record<string, Song[]> = {};
     const filtered = songs.filter(s => 
@@ -70,6 +71,29 @@ const AdminDashboard: React.FC = () => {
 
   const toggleAlbum = (id: string) => {
       setExpandedAlbumId(expandedAlbumId === id ? null : id);
+  };
+
+  // 批量更新製作名單功能
+  const handleBulkUpdateCredits = async () => {
+      if (!window.confirm("警告：這將會把目前所有作品（70+首）的製作名單，統一替換為 2025 Willwi Music 標準版。確定執行？")) return;
+      
+      setIsBulkUpdating(true);
+      try {
+          const updatedSongs = songs.map(s => ({
+              ...s,
+              credits: STANDARD_CREDITS
+          }));
+          const success = await bulkAddSongs(updatedSongs);
+          if (success) {
+              showToast("批量更新成功！所有作品已同步標準名單。", "success");
+          } else {
+              showToast("同步過程發生錯誤，請稍後再試。", "error");
+          }
+      } catch (e) {
+          showToast("更新失敗", "error");
+      } finally {
+          setIsBulkUpdating(false);
+      }
   };
 
   if (!isAdmin) {
@@ -124,11 +148,9 @@ const AdminDashboard: React.FC = () => {
                   {groupedAlbums.map(([groupKey, albumSongs]) => {
                       const main = albumSongs[0];
                       const isExpanded = expandedAlbumId === groupKey;
-                      const isAlbum = albumSongs.length > 1;
 
                       return (
                           <div key={groupKey} className="bg-white/[0.02] border border-white/5 rounded-sm overflow-hidden transition-all">
-                              {/* 專輯標題行 */}
                               <div 
                                   onClick={() => toggleAlbum(groupKey)}
                                   className={`p-6 flex items-center justify-between cursor-pointer transition-colors ${isExpanded ? 'bg-white/5 border-b border-white/10' : 'hover:bg-white/[0.03]'}`}
@@ -136,9 +158,6 @@ const AdminDashboard: React.FC = () => {
                                   <div className="flex items-center gap-8">
                                       <div className="relative group">
                                           <img src={main.coverUrl} className="w-16 h-16 object-cover border border-white/10 shadow-lg" alt="" />
-                                          <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-all">
-                                              <span className="text-[8px] text-white font-black">{isExpanded ? 'CLOSE' : 'OPEN'}</span>
-                                          </div>
                                       </div>
                                       <div>
                                           <span className="text-white font-bold text-base uppercase tracking-widest">{main.title}</span>
@@ -149,14 +168,11 @@ const AdminDashboard: React.FC = () => {
                                           </div>
                                       </div>
                                   </div>
-                                  <div className="flex items-center gap-6">
-                                      <div className={`transition-transform duration-500 ${isExpanded ? 'rotate-180' : ''}`}>
-                                          <svg className="w-6 h-6 text-slate-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1" d="M19 9l-7 7-7-7" /></svg>
-                                      </div>
+                                  <div className={`transition-transform duration-500 ${isExpanded ? 'rotate-180' : ''}`}>
+                                      <svg className="w-6 h-6 text-slate-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1" d="M19 9l-7 7-7-7" /></svg>
                                   </div>
                               </div>
 
-                              {/* 曲目清單詳情 */}
                               {isExpanded && (
                                   <div className="p-8 bg-black/40 animate-blur-in">
                                       <div className="mb-6 grid grid-cols-12 text-[9px] font-black text-slate-600 uppercase tracking-widest border-b border-white/5 pb-4 px-4">
@@ -215,6 +231,28 @@ const AdminDashboard: React.FC = () => {
 
       {activeTab === 'curation' && (
           <div className="space-y-24 animate-fade-in">
+              {/* 批量工具區塊 */}
+              <section className="p-12 bg-brand-gold/5 border border-brand-gold/20 rounded-sm space-y-8">
+                  <div>
+                      <h3 className="text-brand-gold font-black uppercase tracking-widest text-sm mb-2">資料庫維護工具</h3>
+                      <p className="text-slate-500 text-[10px] uppercase tracking-widest">快速處理重複性任務</p>
+                  </div>
+                  <div className="flex flex-col md:flex-row gap-6">
+                      <div className="flex-1 space-y-4">
+                          <p className="text-xs text-slate-400 leading-relaxed">
+                              點擊下方按鈕，系統將自動掃描全庫 <span className="text-brand-gold font-bold">{songs.length}</span> 首作品，並將製作名單 (Credits) 統一更新為標準條款。這將覆蓋您之前手動修改的 Credits 欄位。
+                          </p>
+                          <button 
+                              onClick={handleBulkUpdateCredits} 
+                              disabled={isBulkUpdating}
+                              className={`px-10 py-5 bg-brand-gold text-black text-[11px] font-black uppercase tracking-widest hover:bg-white transition-all shadow-xl ${isBulkUpdating ? 'animate-pulse opacity-50' : ''}`}
+                          >
+                              {isBulkUpdating ? '處理中...' : '同步全局標準製作名單'}
+                          </button>
+                      </div>
+                  </div>
+              </section>
+
               <section className="space-y-12">
                   <h3 className="text-brand-gold font-black uppercase tracking-widest text-xs border-l border-brand-gold pl-6">系統參數與通行碼</h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
@@ -244,7 +282,6 @@ const AdminDashboard: React.FC = () => {
   );
 };
 
-// 小組件：資產狀態標籤
 const AssetBadge: React.FC<{ label: string; active: boolean; color?: string }> = ({ label, active, color = 'emerald-500' }) => (
     <div className={`flex items-center gap-1.5 px-2 py-0.5 border rounded-sm transition-all ${active ? `border-${color}/40 text-${color}` : 'border-white/5 text-slate-800'}`}>
         <div className={`w-1 h-1 rounded-full ${active ? `bg-${color}` : 'bg-slate-900'}`}></div>

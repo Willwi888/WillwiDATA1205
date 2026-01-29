@@ -15,7 +15,7 @@ const SongDetail: React.FC = () => {
   
   const [song, setSong] = useState<Song | undefined>(undefined);
   const [lyricsView, setLyricsView] = useState<'original' | 'translated'>('original');
-  const [isCreditsOpen, setIsCreditsOpen] = useState(true); // 預設打開名單
+  const [isCreditsOpen, setIsCreditsOpen] = useState(false); // 改為預設收合
 
   useEffect(() => {
     if (id) {
@@ -43,14 +43,12 @@ const SongDetail: React.FC = () => {
 
   return (
     <div className="min-h-screen pb-60 pt-48 px-6 md:px-24 animate-fade-in relative bg-black overflow-x-hidden">
-        {/* Background Ambient Layer */}
         <div className="fixed inset-0 z-[-1]">
             <div className="absolute inset-0 bg-cover bg-center blur-[150px] opacity-20 scale-150 animate-pulse-glow" style={{ backgroundImage: `url(${cover})` }}></div>
             <div className="absolute inset-0 bg-gradient-to-b from-black via-slate-950/80 to-black"></div>
         </div>
 
         <div className="max-w-[1700px] mx-auto">
-            {/* Top Navigation & Controls */}
             <div className="mb-16 flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
                 <Link to="/database" className="text-[10px] text-slate-500 hover:text-white uppercase tracking-[0.5em] font-medium transition-colors">← CATALOG DATABASE 作品庫</Link>
                 <div className="flex gap-4">
@@ -62,7 +60,6 @@ const SongDetail: React.FC = () => {
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-20">
-                {/* Visuals & Players */}
                 <div className="lg:col-span-5 space-y-12">
                     <div className="relative group">
                         <img src={cover} className="w-full aspect-square object-cover rounded-sm shadow-2xl border border-white/10" alt={song.title} />
@@ -95,7 +92,6 @@ const SongDetail: React.FC = () => {
                     </div>
                 </div>
 
-                {/* Content & Information */}
                 <div className="lg:col-span-7 space-y-16">
                     <div>
                         <div className="flex items-center gap-6 mb-8">
@@ -111,7 +107,6 @@ const SongDetail: React.FC = () => {
                     </div>
 
                     <div className="space-y-24">
-                        {/* Lyrics Section */}
                         <div className="space-y-12">
                             <div className="flex justify-between items-center border-b border-white/5 pb-6">
                                 <h3 className="text-[10px] font-medium text-slate-600 uppercase tracking-[0.6em]">Lyrics 歌詞</h3>
@@ -129,7 +124,6 @@ const SongDetail: React.FC = () => {
                             </div>
                         </div>
 
-                        {/* Production Credits Section */}
                         {song.credits && (
                             <div className="pt-10 border-t border-white/5">
                                 <button 
@@ -152,7 +146,6 @@ const SongDetail: React.FC = () => {
                                             {song.credits}
                                         </div>
                                     </div>
-                                    {/* Metadata Footer */}
                                     <div className="mt-8 flex flex-wrap gap-12">
                                         <div className="space-y-1">
                                             <span className="text-[8px] text-slate-600 uppercase font-medium tracking-widest">Global Barcode (UPC)</span>
