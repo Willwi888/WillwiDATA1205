@@ -24,6 +24,8 @@ const AdminDashboard: React.FC = () => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [curationSearch, setCurationSearch] = useState('');
   const [ytUrl, setYtUrl] = useState('');
+  
+  // Login State
   const [passwordInput, setPasswordInput] = useState('');
   const [loginError, setLoginError] = useState('');
 
@@ -52,7 +54,7 @@ const AdminDashboard: React.FC = () => {
         groups[key].push(s);
     });
     return Object.entries(groups).filter(([_, list]) => 
-        list.some(s => s.title.toLowerCase().includes(searchTerm.toLowerCase()))
+        list.some(s => s.title.toLowerCase().includes(searchTerm.toLowerCase()) || (s.isrc && s.isrc.includes(searchTerm)))
     ).sort((a, b) => b[1][0].releaseDate.localeCompare(a[1][0].releaseDate));
   }, [songs, searchTerm]);
 
@@ -74,7 +76,7 @@ const AdminDashboard: React.FC = () => {
     try {
         const details = await getReleaseGroupDetails(rg.id, rg['primary-type']);
         if (!details) {
-            showToast("無法獲取發行詳情", "error");
+            showToast("無法獲獲取發行詳情", "error");
             return;
         }
         const coverUrl = await getCoverArtUrl(rg.id) || globalSettings.defaultCoverUrl;
@@ -177,46 +179,56 @@ const AdminDashboard: React.FC = () => {
     setIsProcessing(true);
     const uniqueMap = new Map<string, Song>();
     songs.forEach(s => {
+      // Create a key based on ISRC (priority) or Title
       const key = (s.isrc || s.title).trim().toUpperCase();
       if (!uniqueMap.has(key)) {
         uniqueMap.set(key, s);
       } else {
-        // Merge strategy: keep the one with lyrics/audio if existing
         const existing = uniqueMap.get(key)!;
+        // Keep the one that has lyrics or audioUrl if the new one doesn't
         if (!existing.lyrics && s.lyrics) uniqueMap.set(key, s);
         else if (!existing.audioUrl && s.audioUrl) uniqueMap.set(key, s);
+        // Otherwise keep the existing one
       }
     });
     const deduped = Array.from(uniqueMap.values());
     await bulkAddSongs(deduped);
-    showToast(`清理完成！已移除 ${songs.length - deduped.length} 個重複條目`);
+    showToast(`清理完成！已從 ${songs.length} 縮減至 ${deduped.length} 首作品`, "success");
     setIsProcessing(false);
+  };
+
+  const handleLogin = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (passwordInput === '8520') {
+      enableAdmin();
+      showToast("身份驗證成功", "success");
+    } else {
+      setLoginError("通行碼錯誤");
+      showToast("驗證失敗", "error");
+    }
   };
 
   if (!isAdmin) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-black px-10">
-        <div className="bg-slate-900 border border-white/5 p-12 max-w-md w-full shadow-2xl text-center">
-          <h2 className="text-brand-gold font-black uppercase tracking-[0.4em] text-sm mb-10">Command Hub Access</h2>
-          <form onSubmit={(e) => { 
-            e.preventDefault(); 
-            if (passwordInput === '8520') {
-              enableAdmin(); 
-              showToast("歡迎回來，管理員");
-            } else {
-              setLoginError('通行碼錯誤');
-              showToast("存取遭拒", "error");
-            }
-          }}>
-            <input 
-              type="password" 
-              placeholder="••••" 
-              className="w-full bg-black border border-white/10 px-6 py-5 text-white text-center tracking-[1em] mb-10 outline-none focus:border-brand-gold transition-all" 
-              value={passwordInput} 
-              onChange={(e) => setPasswordInput(e.target.value)} 
-            />
-            {loginError && <p className="text-rose-500 text-[10px] font-bold mb-6 uppercase tracking-widest">{loginError}</p>}
-            <button className="w-full py-5 bg-white text-black font-black uppercase text-[10px] tracking-widest hover:bg-brand-gold transition-all">Unlock Dashboard</button>
+        <div className="bg-slate-900 border border-white/10 p-12 max-w-md w-full shadow-2xl rounded-sm">
+          <div className="text-center mb-10">
+            <h2 className="text-brand-gold font-black uppercase tracking-[0.4em] text-sm mb-2">Command Hub</h2>
+            <p className="text-slate-500 text-[9px] font-bold uppercase tracking-widest">Authorized Personnel Only</p>
+          </div>
+          <form onSubmit={handleLogin} className="space-y-8">
+            <div className="space-y-4">
+              <input 
+                type="password" 
+                placeholder="••••" 
+                className="w-full bg-black border border-white/10 px-6 py-5 text-white text-center tracking-[1em] outline-none focus:border-brand-gold transition-all text-3xl font-mono" 
+                value={passwordInput} 
+                onChange={(e) => setPasswordInput(e.target.value)} 
+                autoFocus
+              />
+              {loginError && <p className="text-rose-500 text-[10px] font-black uppercase tracking-widest text-center animate-pulse">{loginError}</p>}
+            </div>
+            <button type="submit" className="w-full py-5 bg-white text-black font-black uppercase text-[10px] tracking-widest hover:bg-brand-gold transition-all shadow-xl">Unlock Console</button>
           </form>
         </div>
       </div>
@@ -269,19 +281,24 @@ const AdminDashboard: React.FC = () => {
                   </div>
               </div>
               
-              <div className="bg-rose-500/5 border border-rose-500/20 p-10 flex justify-between items-center rounded-sm">
-                <div>
-                  <h4 className="text-rose-500 font-black uppercase tracking-widest text-sm mb-1">資料維護專區</h4>
-                  <p className="text-[10px] text-slate-500 uppercase tracking-widest">移除資料庫中重複的 ISRC 或標題條目，保持數據純淨。</p>
-                </div>
-                <button onClick={handleDeduplicate} disabled={isProcessing} className="px-10 py-4 border border-rose-500 text-rose-500 font-black uppercase text-[10px] tracking-widest hover:bg-rose-500 hover:text-white transition-all">清理重複歌曲</button>
+              <div className="p-12 border border-rose-500/20 bg-rose-500/5 flex justify-between items-center rounded-sm group hover:border-rose-500/40 transition-all">
+                  <div>
+                    <h4 className="text-rose-500 font-black uppercase tracking-widest text-sm mb-2">資料清理專區</h4>
+                    <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">自動合併重複的 ISRC 或標題，保留含有歌詞與音檔的較完整版本。</p>
+                  </div>
+                  <button onClick={handleDeduplicate} disabled={isProcessing} className="px-10 py-4 border border-rose-500 text-rose-500 font-black uppercase text-[10px] tracking-widest hover:bg-rose-500 hover:text-white transition-all">
+                    {isProcessing ? "PROCESSING..." : "清理重複歌曲"}
+                  </button>
               </div>
           </div>
       )}
 
       {activeTab === 'catalog' && (
           <div className="space-y-12 animate-fade-in">
-              <input type="text" placeholder="搜尋作品名稱、UPC 或 ISRC..." className="w-full bg-slate-900 border border-white/5 p-6 text-white text-xs outline-none focus:border-brand-gold font-bold tracking-widest" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
+              <div className="flex gap-4">
+                <input type="text" placeholder="搜尋作品名稱、UPC 或 ISRC..." className="flex-1 bg-slate-900 border border-white/5 p-6 text-white text-xs outline-none focus:border-brand-gold font-bold tracking-widest" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
+              </div>
+              
               <div className="space-y-10">
                   {groupedByUPC.map(([upc, items]) => (
                       <div key={upc} className="bg-slate-900/20 border border-white/5 p-8 group hover:border-white/10 transition-all">
@@ -306,18 +323,29 @@ const AdminDashboard: React.FC = () => {
                                               {song.isInteractiveActive ? 'ACTIVE' : 'LOCKED'}
                                           </button>
                                           <button onClick={() => navigate(`/add?edit=${song.id}`)} className="text-[9px] text-brand-gold font-black uppercase hover:text-white px-4">EDIT</button>
-                                          <button onClick={() => {
-                                            if (window.confirm(`確定要永久刪除「${song.title}」嗎？此動作無法復原。`)) {
-                                              deleteSong(song.id);
-                                              showToast("作品已移除");
-                                            }
-                                          }} className="text-[9px] text-rose-500 font-black uppercase hover:text-rose-400 px-4">DEL</button>
+                                          <button 
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              if (window.confirm(`確定要永久刪除「${song.title}」嗎？此動作無法復原。`)) {
+                                                deleteSong(song.id);
+                                                showToast("作品已移除", "info");
+                                              }
+                                            }} 
+                                            className="text-[9px] text-rose-500 font-black uppercase hover:text-rose-400 px-4"
+                                          >
+                                            DEL
+                                          </button>
                                       </div>
                                   </div>
                               ))}
                           </div>
                       </div>
                   ))}
+                  {groupedByUPC.length === 0 && (
+                    <div className="text-center py-20 bg-slate-900/20 border border-dashed border-white/10">
+                      <p className="text-slate-500 text-xs font-black uppercase tracking-widest">查無相符的作品條目</p>
+                    </div>
+                  )}
               </div>
           </div>
       )}
