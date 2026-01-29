@@ -66,20 +66,25 @@
     <style>
       body {
         font-weight: 400;
-        letter-spacing: 0.02em;
+        letter-spacing: 0.03em;
         background-color: #000;
         color: #f8fafc;
         overflow-x: hidden;
-        font-style: normal !important; /* 強制移除斜體 */
+        font-style: normal !important;
       }
       
-      i, em { font-style: normal; } /* 確保傳統標籤也不會斜斜的 */
+      i, em, .italic { font-style: normal !important; }
 
       .custom-scrollbar::-webkit-scrollbar { width: 4px; }
       .custom-scrollbar::-webkit-scrollbar-track { background: rgba(0,0,0,0.95); }
       .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(251,191,36,0.4); border-radius: 20px; }
 
       *:focus { outline: none; }
+      
+      /* 移除過重字體的壓迫感 */
+      h1, h2, h3, h4, h5, h6, button, span {
+        font-weight: 500; /* 預設改為 Medium 而非 Black */
+      }
     </style>
   <script type="importmap">
 {

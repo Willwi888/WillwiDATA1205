@@ -19,14 +19,12 @@ const AddSong: React.FC = () => {
   const editId = queryParams.get('edit');
 
   const [activeTab, setActiveTab] = useState<'content' | 'storyline'>('content');
-  const [activeLangTab, setActiveLangTab] = useState<'original' | 'en' | 'jp' | 'zh'>('original');
   const [activeSearchSource, setActiveSearchSource] = useState<'spotify' | 'mb'>('mb');
   
   const [searchQuery, setSearchQuery] = useState('');
   const [spotifyResults, setSpotifyResults] = useState<any[]>([]);
   const [mbResults, setMbResults] = useState<MBRecording[]>([]);
   const [isSearching, setIsSearching] = useState(false);
-  const [isFindingYT, setIsFindingYT] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const [formData, setFormData] = useState<Partial<Song>>({
@@ -44,8 +42,6 @@ const AddSong: React.FC = () => {
     spotifyLink: '',
     appleMusicLink: '',
     youtubeUrl: '',
-    soundcloudUrl: '',
-    tidalUrl: '',
     credits: '',
     creativeNote: '',
     labLog: '',
@@ -57,21 +53,33 @@ const AddSong: React.FC = () => {
     if (!isAdmin) navigate('/admin');
   }, [isAdmin, navigate]);
 
-  const handleImportMB = (rec: MBRecording) => {
-    setFormData(prev => ({
-        ...prev,
-        title: rec.title,
-        isrc: rec.isrc || prev.isrc,
-        mbid: rec.id,
-        releaseDate: rec.releaseDate || prev.releaseDate,
-        releaseCompany: rec.releaseCompany || prev.releaseCompany,
-        releaseCategory: rec.releaseCategory || prev.releaseCategory
-    }));
-    showToast(`已從 MusicBrainz 導入 "${rec.title}"`);
+  useEffect(() => {
+    if (editId) {
+      const existing = getSong(editId);
+      if (existing) setFormData(existing);
+    }
+  }, [editId, getSong]);
+
+  const handleSearch = async () => {
+      if (!searchQuery) return;
+      setIsSearching(true);
+      try {
+          if (activeSearchSource === 'spotify') {
+              const res = await searchSpotifyTracks(searchQuery);
+              setSpotifyResults(res);
+          } else {
+              const res = await searchMBRecordings(searchQuery);
+              setMbResults(res);
+          }
+      } catch (e) {
+          showToast("搜尋失敗", "error");
+      } finally {
+          setIsSearching(false);
+      }
   };
 
   const handleImportSpotify = async (track: any) => {
-    showToast("正在獲取 Spotify 詳細資料...");
+    showToast("導入 Spotify 詳細資料...");
     let upc = '';
     let label = '';
     if (track.album?.id) {
@@ -94,69 +102,24 @@ const AddSong: React.FC = () => {
       spotifyLink: track.external_urls?.spotify || prev.spotifyLink,
       releaseCompany: label || track.album?.label || prev.releaseCompany
     }));
-    showToast("Spotify 資料已導入");
   };
-
-  const handleSearch = async () => {
-      if (!searchQuery) return;
-      setIsSearching(true);
-      try {
-          if (activeSearchSource === 'spotify') {
-              const res = await searchSpotifyTracks(searchQuery);
-              setSpotifyResults(res);
-          } else {
-              const res = await searchMBRecordings(searchQuery);
-              setMbResults(res);
-          }
-      } catch (e) {
-          showToast("搜尋失敗", "error");
-      } finally {
-          setIsSearching(false);
-      }
-  };
-
-  useEffect(() => {
-    if (editId) {
-      const existing = getSong(editId);
-      if (existing) setFormData(existing);
-    }
-  }, [editId, getSong]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
-  const handleTranslationChange = (lang: string, field: keyof SongTranslation, value: string) => {
-    setFormData(prev => ({
-      ...prev,
-      translations: { ...prev.translations, [lang]: { ...(prev.translations?.[lang] || {}), [field]: value } }
-    }));
-  };
-
-  const handleAutoFindYouTube = async () => {
-      if (!formData.title) return showToast("請先輸入歌曲名稱", "error");
-      setIsFindingYT(true);
-      try {
-          const link = await searchYouTubeMusicLink(formData.title, formData.isrc || '');
-          if (link) {
-              setFormData(prev => ({ ...prev, youtubeUrl: link }));
-              showToast("已找到 YouTube Music 連結");
-          }
-      } catch (e) {} finally { setIsFindingYT(false); }
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.title || !formData.isrc) return showToast("標題與 ISRC 為必填", "error");
+    if (!formData.title || !formData.isrc) return showToast("標題與 ISRC 為必填欄位", "error");
     setIsSubmitting(true);
     const success = editId ? await updateSong(editId, formData) : await addSong(formData as Song);
     if (success) {
-        showToast("資料已儲存");
+        showToast("雲端同步成功");
         navigate('/admin');
     } else {
         setIsSubmitting(false);
-        showToast("儲存失敗", "error");
+        showToast("同步失敗", "error");
     }
   };
 
@@ -170,19 +133,13 @@ const AddSong: React.FC = () => {
                         <button onClick={() => setActiveSearchSource('mb')} className={`text-[10px] font-black uppercase tracking-widest ${activeSearchSource === 'mb' ? 'text-brand-gold' : 'text-slate-500'}`}>MusicBrainz</button>
                         <button onClick={() => setActiveSearchSource('spotify')} className={`text-[10px] font-black uppercase tracking-widest ${activeSearchSource === 'spotify' ? 'text-[#1DB954]' : 'text-slate-500'}`}>Spotify</button>
                     </div>
-                    
                     <div className="flex gap-2">
-                        <input className="flex-1 bg-black border border-white/10 p-4 text-white text-xs outline-none focus:border-brand-gold transition-all" placeholder="搜尋..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleSearch()} />
-                        <button onClick={handleSearch} disabled={isSearching} className="px-6 bg-white text-black text-[10px] font-black uppercase">{isSearching ? '...' : 'Go'}</button>
+                        {/* Fix: replaced setSearchTerm with setSearchQuery */}
+                        <input className="flex-1 bg-black border border-white/10 p-4 text-white text-xs outline-none" placeholder="搜尋雲端資料庫..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleSearch()} />
+                        <button onClick={handleSearch} className="px-6 bg-white text-black text-[10px] font-black uppercase tracking-widest">Go</button>
                     </div>
-
-                    <div className="mt-6 space-y-3 max-h-80 overflow-y-auto custom-scrollbar pr-2">
-                        {activeSearchSource === 'mb' ? mbResults.map(r => (
-                            <div key={r.id} onClick={() => handleImportMB(r)} className="p-4 bg-white/[0.03] border border-white/5 hover:border-brand-gold cursor-pointer group">
-                                <div className="text-[11px] text-white font-bold group-hover:text-brand-gold">{r.title}</div>
-                                <div className="text-[9px] text-slate-500 mt-1 font-mono">{r.isrc || 'No ISRC'} • {r.releaseDate || 'Unknown Date'}</div>
-                            </div>
-                        )) : spotifyResults.map(t => (
+                    <div className="mt-6 space-y-3 max-h-80 overflow-y-auto custom-scrollbar">
+                        {activeSearchSource === 'spotify' && spotifyResults.map(t => (
                             <div key={t.id} onClick={() => handleImportSpotify(t)} className="flex items-center gap-4 p-4 bg-white/[0.03] border border-white/5 hover:border-[#1DB954] cursor-pointer group">
                                 <img src={t.album.images?.[0]?.url} className="w-10 h-10 object-cover" alt="" />
                                 <div className="flex-1 overflow-hidden">
@@ -194,16 +151,20 @@ const AddSong: React.FC = () => {
                     </div>
                 </div>
 
-                <div className="aspect-square bg-slate-900 border border-white/5 overflow-hidden shadow-2xl">
-                    {formData.coverUrl ? <img src={formData.coverUrl} className="w-full h-full object-cover" alt="" /> : <div className="w-full h-full flex items-center justify-center opacity-10 text-[10px] uppercase tracking-widest">Cover Preview</div>}
+                <div className="aspect-square bg-slate-900 border border-white/5 overflow-hidden shadow-2xl relative group">
+                    {formData.coverUrl ? <img src={formData.coverUrl} className="w-full h-full object-cover" alt="" /> : <div className="w-full h-full flex items-center justify-center text-slate-700 uppercase tracking-widest text-[10px]">No Cover</div>}
+                </div>
+                <div className="space-y-4">
+                    <label className="text-[10px] text-slate-500 font-black uppercase tracking-widest">封面網址 (Cover URL)</label>
+                    <input name="coverUrl" value={formData.coverUrl} onChange={handleChange} className="w-full bg-black border border-white/10 p-4 text-white text-xs outline-none focus:border-brand-gold" placeholder="https://..." />
                 </div>
             </div>
 
             <div className="lg:col-span-8 bg-[#0f172a]/40 backdrop-blur-3xl border border-white/5 p-12 rounded-sm shadow-2xl">
                 <form onSubmit={handleSubmit} className="space-y-8">
                     <div className="flex border-b border-white/10 gap-8 mb-8">
-                        <button type="button" onClick={() => setActiveTab('content')} className={`pb-4 text-[10px] font-black uppercase tracking-[0.3em] ${activeTab === 'content' ? 'text-brand-gold border-b-2 border-brand-gold' : 'text-slate-500'}`}>主要資訊</button>
-                        <button type="button" onClick={() => setActiveTab('storyline')} className={`pb-4 text-[10px] font-black uppercase tracking-[0.3em] ${activeTab === 'storyline' ? 'text-brand-gold border-b-2 border-brand-gold' : 'text-slate-500'}`}>日誌故事</button>
+                        <button type="button" onClick={() => setActiveTab('content')} className={`pb-4 text-[10px] font-black uppercase tracking-[0.3em] ${activeTab === 'content' ? 'text-brand-gold border-b-2 border-brand-gold' : 'text-slate-500'}`}>主要資訊內容</button>
+                        <button type="button" onClick={() => setActiveTab('storyline')} className={`pb-4 text-[10px] font-black uppercase tracking-[0.3em] ${activeTab === 'storyline' ? 'text-brand-gold border-b-2 border-brand-gold' : 'text-slate-500'}`}>日誌故事與幕後</button>
                     </div>
 
                     {activeTab === 'content' && (
@@ -211,38 +172,47 @@ const AddSong: React.FC = () => {
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
                                 <div className="space-y-4">
                                     <label className="text-[10px] text-slate-500 font-black uppercase">歌曲名稱</label>
-                                    <input name="title" value={formData.title} onChange={handleChange} className="w-full bg-black border border-white/10 p-6 text-white font-bold text-lg outline-none" />
+                                    <input name="title" value={formData.title} onChange={handleChange} className="w-full bg-black border border-white/10 p-6 text-white font-bold text-lg outline-none focus:border-brand-gold" />
                                 </div>
                                 <div className="space-y-4">
-                                    <label className="text-[10px] text-slate-500 font-black uppercase">ISRC (核心編碼)</label>
-                                    <input name="isrc" value={formData.isrc} onChange={handleChange} className="w-full bg-black border border-white/10 p-6 text-brand-gold font-mono outline-none" placeholder="TWUM..." />
+                                    <label className="text-[10px] text-slate-500 font-black uppercase">ISRC (核心唯一編碼)</label>
+                                    <input name="isrc" value={formData.isrc} onChange={handleChange} className="w-full bg-black border border-white/10 p-6 text-brand-gold font-mono outline-none focus:border-brand-gold" placeholder="TWUM..." />
                                 </div>
                             </div>
-                            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                                <div className="space-y-2">
-                                    <label className="text-[9px] text-slate-600 font-black uppercase">MBID (音樂腦 ID)</label>
-                                    <input name="mbid" value={formData.mbid} onChange={handleChange} className="w-full bg-black border border-white/5 p-4 text-[10px] text-slate-400 font-mono outline-none" readOnly />
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
+                                <div className="space-y-4">
+                                    <label className="text-[10px] text-slate-500 font-black uppercase">音訊網址 (Direct Audio Link)</label>
+                                    <input name="audioUrl" value={formData.audioUrl} onChange={handleChange} className="w-full bg-black border border-white/10 p-6 text-white text-xs font-mono outline-none focus:border-brand-gold" placeholder="Dropbox / Cloud Link" />
                                 </div>
-                                <div className="space-y-2">
-                                    <label className="text-[9px] text-slate-600 font-black uppercase">發行日期</label>
-                                    <input name="releaseDate" type="date" value={formData.releaseDate} onChange={handleChange} className="w-full bg-black border border-white/5 p-4 text-[10px] text-slate-400 outline-none" />
-                                </div>
-                                <div className="space-y-2">
-                                    <label className="text-[9px] text-slate-600 font-black uppercase">發行公司</label>
-                                    <input name="releaseCompany" value={formData.releaseCompany} onChange={handleChange} className="w-full bg-black border border-white/5 p-4 text-[10px] text-slate-400 outline-none" />
+                                <div className="space-y-4">
+                                    <label className="text-[10px] text-slate-500 font-black uppercase">UPC (專輯條碼)</label>
+                                    <input name="upc" value={formData.upc} onChange={handleChange} className="w-full bg-black border border-white/10 p-6 text-white text-xs font-mono outline-none focus:border-brand-gold" placeholder="199..." />
                                 </div>
                             </div>
                             <div className="space-y-4">
-                                <label className="text-[10px] text-slate-500 font-black uppercase">歌詞</label>
-                                <textarea name="lyrics" value={formData.lyrics} onChange={handleChange} className="w-full h-[300px] bg-black border border-white/10 p-8 text-white text-sm font-mono custom-scrollbar outline-none" />
+                                <label className="text-[10px] text-slate-500 font-black uppercase">動態歌詞 / 同步對時歌詞</label>
+                                <textarea name="lyrics" value={formData.lyrics} onChange={handleChange} className="w-full h-[400px] bg-black border border-white/10 p-8 text-white text-sm font-mono custom-scrollbar outline-none focus:border-brand-gold" placeholder="[00:12.34]第一句歌詞..." />
+                            </div>
+                        </div>
+                    )}
+
+                    {activeTab === 'storyline' && (
+                        <div className="space-y-10 animate-fade-in">
+                            <div className="space-y-4">
+                                <label className="text-[10px] text-slate-500 font-black uppercase">創意日誌 (Creative Note)</label>
+                                <textarea name="creativeNote" value={formData.creativeNote} onChange={handleChange} className="w-full h-[200px] bg-black border border-white/10 p-8 text-white text-sm outline-none" />
+                            </div>
+                            <div className="space-y-4">
+                                <label className="text-[10px] text-slate-500 font-black uppercase">製作名單 (Credits)</label>
+                                <textarea name="credits" value={formData.credits} onChange={handleChange} className="w-full h-[200px] bg-black border border-white/10 p-8 text-white text-sm outline-none" />
                             </div>
                         </div>
                     )}
 
                     <div className="flex justify-end gap-10 pt-16">
-                        <button type="button" onClick={() => navigate('/admin')} className="text-slate-600 font-black text-[11px] uppercase">取消</button>
+                        <button type="button" onClick={() => navigate('/admin')} className="text-slate-600 font-black text-[11px] uppercase tracking-widest">取消</button>
                         <button type="submit" disabled={isSubmitting} className="px-20 py-6 bg-white text-black font-black text-[12px] uppercase tracking-[0.4em] hover:bg-brand-gold transition-all">
-                            {isSubmitting ? '同步中...' : '儲存作品'}
+                            {isSubmitting ? '同步雲端資料庫...' : '儲存並同步作品'}
                         </button>
                     </div>
                 </form>

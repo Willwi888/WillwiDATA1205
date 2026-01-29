@@ -8,8 +8,8 @@ import { Song, Language, ProjectType, ReleaseCategory } from '../types';
 
 const AdminDashboard: React.FC = () => {
   const { 
-    songs, deleteSong, globalSettings,
-    uploadSongsToCloud, bulkAddSongs, syncSuccess
+    songs, deleteSong, globalSettings, playSong,
+    uploadSongsToCloud, syncSuccess
   } = useData();
   const { isAdmin, logoutAdmin, enableAdmin } = useUser();
   const { showToast } = useToast();
@@ -19,7 +19,7 @@ const AdminDashboard: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [passwordInput, setPasswordInput] = useState('');
 
-  const groupedByUPC = useMemo(() => {
+  const groupedByAlbum = useMemo(() => {
     const groups: Record<string, Song[]> = {};
     songs.forEach(s => {
         const key = s.upc || `未定義專輯`;
@@ -47,7 +47,7 @@ const AdminDashboard: React.FC = () => {
 
   return (
     <div className="max-w-[1600px] mx-auto px-10 pt-32 pb-60 bg-black animate-fade-in">
-      {/* Admin Header - Matching Screenshot */}
+      {/* Admin Header - Correct matching style */}
       <div className="flex flex-col md:flex-row justify-between items-start mb-24 gap-12">
           <div>
             <h1 className="text-7xl font-black text-white uppercase tracking-tighter leading-none mb-4">指揮中心</h1>
@@ -57,12 +57,12 @@ const AdminDashboard: React.FC = () => {
             </div>
           </div>
           <div className="flex gap-4">
-            <button onClick={() => uploadSongsToCloud()} className="px-10 py-5 bg-white text-black text-[11px] font-black uppercase tracking-widest shadow-xl hover:bg-brand-gold transition-all">備份雲端</button>
-            <button onClick={logoutAdmin} className="px-10 py-5 border border-white/10 text-slate-500 text-[11px] font-black uppercase tracking-widest hover:text-white transition-all">登出</button>
+            <button onClick={() => navigate('/add')} className="px-10 py-5 bg-brand-gold text-black text-[11px] font-black uppercase tracking-widest shadow-xl">新增作品</button>
+            <button onClick={() => uploadSongsToCloud()} className="px-10 py-5 bg-white text-black text-[11px] font-black uppercase tracking-widest shadow-xl">備份雲端</button>
+            <button onClick={logoutAdmin} className="px-10 py-5 border border-white/10 text-slate-500 text-[11px] font-black uppercase tracking-widest hover:text-white transition-all">登出系統</button>
           </div>
       </div>
 
-      {/* Tabs */}
       <div className="flex gap-16 border-b border-white/5 mb-16">
           {(['catalog', 'insights', 'curation'] as const).map(tab => (
               <button key={tab} onClick={() => setActiveTab(tab)} className={`pb-6 text-[12px] font-black uppercase tracking-[0.5em] transition-all ${activeTab === tab ? 'text-brand-gold border-b-2 border-brand-gold' : 'text-slate-600 hover:text-white'}`}>
@@ -73,9 +73,9 @@ const AdminDashboard: React.FC = () => {
 
       {activeTab === 'catalog' && (
           <div className="space-y-16">
-              <input type="text" placeholder="搜尋標題或 ISRC..." className="w-full bg-slate-900/30 border border-white/5 p-6 text-white text-xs font-bold tracking-widest outline-none focus:border-white/20 transition-all" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
+              <input type="text" placeholder="搜尋標題、ISRC 或 UPC..." className="w-full bg-slate-900/30 border border-white/5 p-6 text-white text-xs font-bold tracking-widest outline-none focus:border-white/20 transition-all" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
               
-              {groupedByUPC.map(([upc, items]) => (
+              {groupedByAlbum.map(([upc, items]) => (
                   <div key={upc} className="border-b border-white/5 pb-16">
                       <div className="flex items-center gap-4 mb-10">
                           <h3 className="text-white font-black uppercase tracking-widest text-xl">{upc}</h3>
@@ -85,8 +85,11 @@ const AdminDashboard: React.FC = () => {
                           {items.map(song => (
                               <div key={song.id} className="flex items-center justify-between py-5 border-b border-white/[0.03] group hover:bg-white/[0.02] px-4 transition-all">
                                   <div className="flex items-center gap-8">
-                                      <div className="w-12 h-12 bg-slate-900 border border-white/10 overflow-hidden rounded-sm">
+                                      <div className="w-12 h-12 bg-slate-900 border border-white/10 overflow-hidden rounded-sm relative">
                                           <img src={song.coverUrl || globalSettings.defaultCoverUrl} className="w-full h-full object-cover" alt="" />
+                                          <button onClick={(e) => { e.stopPropagation(); playSong(song); }} className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
+                                              <svg className="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+                                          </button>
                                       </div>
                                       <div>
                                           <span className="text-white font-bold text-sm uppercase tracking-widest group-hover:text-brand-gold transition-colors">{song.title}</span>
@@ -94,8 +97,8 @@ const AdminDashboard: React.FC = () => {
                                       </div>
                                   </div>
                                   <div className="flex gap-8">
-                                      <button onClick={() => navigate(`/add?edit=${song.id}`)} className="text-[10px] text-white/40 font-black uppercase tracking-widest hover:text-brand-gold">EDIT</button>
-                                      <button onClick={() => { if(window.confirm('確定刪除？')) deleteSong(song.id); }} className="text-[10px] text-rose-900 font-black uppercase tracking-widest hover:text-rose-500">DEL</button>
+                                      <button onClick={() => navigate(`/add?edit=${song.id}`)} className="text-[10px] text-white font-black uppercase tracking-widest border border-white/10 px-6 py-2 hover:bg-white hover:text-black">EDIT</button>
+                                      <button onClick={() => { if(window.confirm('確定從雲端與本地刪除作品？')) deleteSong(song.id); }} className="text-[10px] text-rose-900 font-black uppercase tracking-widest hover:text-rose-500">DEL</button>
                                   </div>
                               </div>
                           ))}

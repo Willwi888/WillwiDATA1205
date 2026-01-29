@@ -37,7 +37,7 @@ const SongDetail: React.FC = () => {
   const displayLyrics = (lyricsView === 'translated' && song?.translations?.[lang]?.lyrics) || song?.lyrics;
   const lyricsLines = useMemo(() => displayLyrics ? displayLyrics.split('\n') : [], [displayLyrics]);
 
-  if (!song) return <div className="min-h-screen flex items-center justify-center bg-black"><span className="text-brand-gold animate-pulse font-black uppercase tracking-widest">Finding Master Copy...</span></div>;
+  if (!song) return <div className="min-h-screen flex items-center justify-center bg-black"><span className="text-brand-gold animate-pulse font-medium uppercase tracking-widest">Finding Master Copy...</span></div>;
 
   const cover = song.coverUrl || globalSettings.defaultCoverUrl;
 
@@ -50,12 +50,12 @@ const SongDetail: React.FC = () => {
 
         <div className="max-w-[1700px] mx-auto">
             <div className="mb-16 flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
-                <Link to="/database" className="text-[10px] text-slate-500 hover:text-white uppercase tracking-[0.5em] font-black">← CATALOG</Link>
+                <Link to="/database" className="text-[10px] text-slate-500 hover:text-white uppercase tracking-[0.5em] font-medium transition-colors">← CATALOG</Link>
                 <div className="flex gap-4">
                     {isAdmin && (
-                        <button onClick={() => navigate(`/add?edit=${song.id}`)} className="px-8 py-3 text-[10px] font-black uppercase tracking-widest bg-white/10 text-white hover:bg-white/20">EDIT TRACK</button>
+                        <button onClick={() => navigate(`/add?edit=${song.id}`)} className="px-8 py-3 text-[10px] font-medium uppercase tracking-widest bg-white/10 text-white hover:bg-white/20 transition-all">EDIT TRACK</button>
                     )}
-                    <button onClick={() => navigate('/interactive', { state: { targetSongId: song.id } })} className="bg-brand-accent text-black px-10 py-4 text-[11px] font-black uppercase tracking-[0.2em] hover:bg-white transition-all shadow-xl">ENTER STUDIO</button>
+                    <button onClick={() => navigate('/interactive', { state: { targetSongId: song.id } })} className="bg-brand-accent text-black px-10 py-4 text-[11px] font-medium uppercase tracking-[0.2em] hover:bg-white transition-all shadow-xl">ENTER STUDIO</button>
                 </div>
             </div>
 
@@ -67,10 +67,10 @@ const SongDetail: React.FC = () => {
                     
                     {/* Spotify Embed Player */}
                     <div className="space-y-6">
-                        <h3 className="text-[11px] font-black text-brand-gold uppercase tracking-[0.6em]">Official Spotify Stream</h3>
+                        <h3 className="text-[11px] font-medium text-brand-gold uppercase tracking-[0.6em] opacity-80">Official Spotify Stream</h3>
                         {spotifyId ? (
                             <iframe 
-                                style={{ borderRadius: '12px' }} 
+                                style={{ borderRadius: '4px' }} 
                                 src={`https://open.spotify.com/embed/track/${spotifyId}?utm_source=generator&theme=0`} 
                                 width="100%" 
                                 height="152" 
@@ -80,7 +80,7 @@ const SongDetail: React.FC = () => {
                             ></iframe>
                         ) : (
                             <div className="p-12 border border-white/5 bg-white/[0.01] text-center">
-                                <span className="text-[10px] font-black text-slate-700 uppercase tracking-[0.4em]">Spotify Link Pending</span>
+                                <span className="text-[10px] font-medium text-slate-700 uppercase tracking-[0.4em]">Spotify Link Pending</span>
                             </div>
                         )}
                     </div>
@@ -89,28 +89,28 @@ const SongDetail: React.FC = () => {
                 <div className="lg:col-span-7 space-y-16">
                     <div>
                         <div className="flex items-center gap-6 mb-8">
-                            <span className="px-3 py-1 bg-brand-gold/10 border border-brand-gold/30 text-brand-gold text-[9px] font-black uppercase tracking-widest">{song.releaseCategory || 'SINGLE'}</span>
+                            <span className="px-3 py-1 bg-brand-gold/10 border border-brand-gold/30 text-brand-gold text-[9px] font-medium uppercase tracking-widest">{song.releaseCategory || 'SINGLE'}</span>
                             <span className="text-slate-500 text-[9px] font-mono">{song.releaseDate}</span>
-                            {song.isrc && <span className="text-slate-700 text-[9px] font-mono">ISRC: {song.isrc}</span>}
+                            {song.isrc && <span className="text-slate-700 text-[9px] font-mono opacity-60">ISRC: {song.isrc}</span>}
                         </div>
-                        <h1 className="text-5xl md:text-8xl font-black uppercase tracking-tighter text-white leading-none">
+                        <h1 className="text-5xl md:text-8xl font-medium uppercase tracking-tighter text-white leading-[0.9] opacity-90">
                             {displayTitle}
                         </h1>
                     </div>
 
                     <div className="space-y-12">
                         <div className="flex justify-between items-center border-b border-white/10 pb-6">
-                            <h3 className="text-[12px] font-black text-white uppercase tracking-[0.6em]">Lyrics 歌詞</h3>
+                            <h3 className="text-[11px] font-medium text-slate-500 uppercase tracking-[0.6em]">Lyrics 歌詞</h3>
                         </div>
-                        <div className="relative space-y-6">
+                        <div className="relative space-y-8">
                             {lyricsLines.length > 0 ? (
                                 lyricsLines.map((line, idx) => (
-                                    <p key={idx} className={`text-xl md:text-2xl font-bold uppercase tracking-[0.1em] transition-all duration-700 ${idx === activeLine ? 'text-white opacity-100' : 'text-slate-800 opacity-20'}`}>
+                                    <p key={idx} className={`text-xl md:text-2xl font-normal uppercase tracking-[0.1em] transition-all duration-700 ${idx === activeLine ? 'text-white opacity-100' : 'text-slate-800 opacity-20'}`}>
                                         {line}
                                     </p>
                                 ))
                             ) : (
-                                <p className="text-slate-800 text-sm uppercase tracking-widest italic">[ NO LYRICS DATA ]</p>
+                                <p className="text-slate-800 text-sm uppercase tracking-widest italic opacity-40">[ NO LYRICS DATA ]</p>
                             )}
                         </div>
                     </div>

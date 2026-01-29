@@ -102,9 +102,9 @@ const Interactive: React.FC = () => {
             const s = (ts.time % 60).toFixed(2).padStart(5, '0');
             return `[${m}:${s}]${ts.text}`;
           }).join('\n');
-          if (window.confirm("管理員：是否將結果回填？")) {
+          if (window.confirm("管理員：是否將對時結果同步至雲端資料庫？")) {
               await updateSong(selectedSong.id, { lyrics: lrc });
-              showToast("同步成功", "success");
+              showToast("雲端同步完成", "success");
           }
       }
       setMode('mastered');
@@ -138,7 +138,7 @@ const Interactive: React.FC = () => {
 
            {mode === 'unlock' && (
                <div className="bg-slate-950/80 border border-white/5 p-20 rounded-sm shadow-2xl animate-blur-in max-w-lg mx-auto w-full">
-                   <h3 className="text-brand-gold font-black uppercase tracking-[0.4em] text-[10px] mb-12">Authorization</h3>
+                   <h3 className="text-brand-gold font-black uppercase tracking-[0.4em] text-[10px] mb-12">Authorization Required</h3>
                    <input type="password" placeholder="••••" className="w-full bg-black border border-white/10 px-6 py-8 text-white text-center tracking-[1em] text-5xl mb-10 outline-none focus:border-brand-gold transition-all font-mono" value={unlockInput} onChange={(e) => setUnlockInput(e.target.value)} autoFocus />
                    <button onClick={handleVerifyUnlock} className="w-full py-6 bg-white text-black font-black uppercase text-xs tracking-widest hover:bg-brand-gold transition-all">Unlock Entrance</button>
                </div>
@@ -168,7 +168,7 @@ const Interactive: React.FC = () => {
 
            {mode === 'philosophy' && (
                <div className="space-y-16 animate-fade-in max-w-4xl mx-auto text-center">
-                   <span className="text-brand-gold font-black uppercase tracking-[0.4em] text-[10px]">A MOMENT OF FOCUS</span>
+                   <span className="text-brand-gold font-black uppercase tracking-[0.4em] text-[10px]">A MOMENT OF INTENT</span>
                    <p className="text-3xl md:text-5xl text-white leading-[1.3] font-black uppercase tracking-tight">{t('before_start_content')}</p>
                    <button onClick={() => setMode('guide')} className="px-20 py-10 bg-white text-black font-black uppercase tracking-[0.4em] hover:bg-brand-gold transition-all shadow-2xl">{t('btn_understand')}</button>
                </div>
