@@ -8,17 +8,18 @@ export const GRANDMA_SYSTEM_INSTRUCTION = `
 `;
 
 /**
- * 利用 Gemini 3 Pro 配合 Google Search 工具解析 YouTube 播放清單
- * 優點：無需 YouTube API Key，直接讀取網頁內容
+ * 利用 Gemini 3 Pro 配合 Google Search 工具解析 YouTube 網址
+ * 支援：播放清單、單個影片分享連結、頻道影片列表
  */
-export const discoverYoutubePlaylist = async (playlistUrl: string): Promise<Partial<Song>[]> => {
+export const discoverYoutubePlaylist = async (url: string): Promise<Partial<Song>[]> => {
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   try {
     const response = await ai.models.generateContent({
       model: 'gemini-3-pro-preview',
-      contents: `請使用 Google Search 工具「瀏覽」並解析這個 YouTube 播放清單網址：${playlistUrl}。
-      這是一個音樂人的作品集。請列出該清單中所有的「影片標題（歌曲名稱）」。
-      請忽略無關的資訊，並以 JSON 格式回傳一個陣列，每個物件包含 "title" 和 "youtubeUrl"。`,
+      contents: `請使用 Google Search 工具「瀏覽」並解析這個 YouTube 網址：${url}。
+      這可能是單個影片、分享連結或播放清單。
+      請列出網頁中所有音樂作品的「名稱（標題）」與「連結」。
+      請以 JSON 格式回傳陣列，格式為 [{"title": "歌曲名", "youtubeUrl": "連結"}]。`,
       config: {
         tools: [{ googleSearch: {} }],
         responseMimeType: "application/json",
@@ -27,14 +28,8 @@ export const discoverYoutubePlaylist = async (playlistUrl: string): Promise<Part
           items: {
             type: Type.OBJECT,
             properties: {
-              title: { 
-                type: Type.STRING,
-                description: "歌曲或影片的標題"
-              },
-              youtubeUrl: {
-                type: Type.STRING,
-                description: "該影片的直接連結"
-              }
+              title: { type: Type.STRING },
+              youtubeUrl: { type: Type.STRING }
             },
             required: ["title"]
           }
@@ -51,27 +46,38 @@ export const discoverYoutubePlaylist = async (playlistUrl: string): Promise<Part
 };
 
 /**
- * 使用 Gemini 3 Pro 搜尋歌曲的 YouTube Music 官方連結
+ * 利用 Gemini 3 Pro 與 Google Search 搜尋 YouTube Music 官方連結
  */
 export const searchYouTubeMusicLink = async (title: string, isrc: string = ''): Promise<string | null> => {
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   try {
+    const query = `請搜尋歌曲「${title}」${isrc ? ` (ISRC: ${isrc})` : ''} 在 YouTube Music 上的官方播放連結。
+    請優先回傳 music.youtube.com 或 youtube.com/watch 的官方音訊連結。`;
+
     const response = await ai.models.generateContent({
       model: 'gemini-3-pro-preview',
-      contents: `請幫我搜尋這首歌的 YouTube Music 官方連結：名稱「${title}」${isrc ? `，ISRC 為「${isrc}」` : ''}。
-      回傳結果僅需包含該連結網址即可。`,
+      contents: query,
       config: {
         tools: [{ googleSearch: {} }],
       },
     });
 
-    const link = response.text?.trim() || null;
-    if (link && (link.includes('youtube.com') || link.includes('youtu.be'))) {
-      return link;
+    // 從 groundingMetadata 中提取搜尋來源網址
+    const chunks = response.candidates?.[0]?.groundingMetadata?.groundingChunks;
+    if (chunks) {
+      for (const chunk of chunks) {
+        if (chunk.web && (chunk.web.uri.includes('music.youtube.com') || chunk.web.uri.includes('youtube.com/watch'))) {
+          return chunk.web.uri;
+        }
+      }
     }
-    return null;
+
+    // 備案：從回傳文字中擷取連結
+    const text = response.text || "";
+    const match = text.match(/https?:\/\/(?:music\.)?youtube\.com\/watch\?v=[a-zA-Z0-9_-]+/);
+    return match ? match[0] : null;
   } catch (error) {
-    console.error("YouTube Music Search Error:", error);
+    console.error("YouTube AI Search Error:", error);
     return null;
   }
 };
