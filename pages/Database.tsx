@@ -3,33 +3,21 @@ import React, { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useData, normalizeIdentifier } from '../context/DataContext';
 import { useUser } from '../context/UserContext';
-import { Language, Song } from '../types';
+import { Language, Song, ReleaseCategory } from '../types';
 
 const Database: React.FC = () => {
-  const { songs, globalSettings, playSong, currentSong, isPlaying } = useData();
+  const { songs, globalSettings, playSong } = useData();
   const { isAdmin } = useUser();
   const navigate = useNavigate();
   
   const [searchTerm, setSearchTerm] = useState('');
   const [filterLang, setFilterLang] = useState<string>('All');
 
-  /**
-   * 優化後的分組邏輯
-   * 1. 優先使用 UPC 分組。
-   * 2. 若無 UPC 或 UPC 僅包含空格，則將每首作品視為獨立個體，避免錯誤合併。
-   * 3. 確保展示所有 79 首作品。
-   */
   const groupedAlbums = useMemo(() => {
     const groups: Record<string, Song[]> = {};
-    
     songs.forEach(song => {
       const normalizedUPC = song.upc ? normalizeIdentifier(song.upc) : '';
-      
-      // 如果 UPC 經過標準化後為空，則使用該歌曲的唯一 ID 作為 Key，確保它獨立顯示
-      const groupKey = normalizedUPC 
-        ? normalizedUPC 
-        : `SINGLE_TRACK_${song.id}`;
-
+      const groupKey = normalizedUPC ? normalizedUPC : `SINGLE_${song.id}`;
       if (!groups[groupKey]) groups[groupKey] = [];
       groups[groupKey].push(song);
     });
@@ -42,132 +30,77 @@ const Database: React.FC = () => {
       );
       const matchesLang = filterLang === 'All' || group.some(s => s.language === filterLang);
       return matchesSearch && matchesLang;
-    }).sort((a, b) => {
-        // 排序優先級：發行日期 (新 -> 舊) > 標題
-        const dateA = new Date(a[0].releaseDate).getTime();
-        const dateB = new Date(b[0].releaseDate).getTime();
-        if (dateB !== dateA) return dateB - dateA;
-        return a[0].title.localeCompare(b[0].title);
-    });
+    }).sort((a, b) => new Date(b[0].releaseDate).getTime() - new Date(a[0].releaseDate).getTime());
   }, [songs, searchTerm, filterLang]);
 
   return (
-    <div className="animate-fade-in max-w-screen-2xl mx-auto px-10 pt-32 pb-60">
+    <div className="animate-fade-in max-w-[1600px] mx-auto px-10 pt-32 pb-60 bg-black">
+      {/* Header - Matching screenshot */}
       <div className="mb-20">
-           <span className="text-brand-gold font-black text-[11px] uppercase tracking-[0.6em] mb-4 block">Official Discography</span>
-           <h2 className="text-7xl font-black text-white tracking-tighter uppercase leading-none">Catalog</h2>
-           <div className="mt-6 flex items-center gap-4">
-              <span className="text-[10px] text-slate-500 font-bold uppercase tracking-widest bg-white/5 px-4 py-2 rounded-full border border-white/5">
-                Total Works: <span className="text-brand-gold">{songs.length}</span>
-              </span>
-              <span className="text-[10px] text-slate-500 font-bold uppercase tracking-widest bg-white/5 px-4 py-2 rounded-full border border-white/5">
-                Displaying {groupedAlbums.length} {groupedAlbums.length === songs.length ? 'Items' : 'Groups'}
-              </span>
+           <span className="text-[11px] font-black text-slate-500 uppercase tracking-[0.8em] mb-6 block">OFFICIAL DISCOGRAPHY</span>
+           <h2 className="text-[100px] font-black text-white tracking-tighter uppercase leading-[0.8] mb-12">CATALOG</h2>
+           <div className="flex gap-4">
+              <div className="px-6 py-3 bg-white/5 border border-white/10 rounded-full text-[10px] font-bold text-slate-500 uppercase tracking-widest">TOTAL WORKS: {songs.length}</div>
+              <div className="px-6 py-3 bg-white/5 border border-white/10 rounded-full text-[10px] font-bold text-slate-500 uppercase tracking-widest">DISPLAYING {groupedAlbums.length} ITEMS</div>
            </div>
       </div>
 
-      <div className="max-w-4xl mb-24 flex flex-col md:flex-row gap-4">
-        <div className="relative flex-1">
+      {/* Filter/Search Bar */}
+      <div className="grid grid-cols-1 md:grid-cols-12 gap-6 mb-24">
+        <div className="md:col-span-8 relative">
             <input
               type="text"
-              placeholder="SEARCH BY UPC / ISRC / TITLE..."
-              className="w-full bg-white/5 border border-white/20 px-6 py-5 text-white outline-none text-xs font-bold uppercase tracking-widest focus:border-brand-gold transition-all"
+              placeholder="SEARCH BY UPC / ISRC / TITLE"
+              className="w-full bg-slate-900/40 border border-white/5 px-8 py-6 text-white text-xs font-bold uppercase tracking-widest outline-none focus:border-brand-gold transition-all"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
             />
-            {searchTerm && (
-                <button onClick={() => setSearchTerm('')} className="absolute right-6 top-1/2 -translate-y-1/2 text-slate-500 hover:text-white text-[10px] font-black uppercase">Clear</button>
-            )}
         </div>
-        <select className="bg-white/5 text-white font-black px-6 py-5 text-[10px] uppercase tracking-widest outline-none border border-white/20" value={filterLang} onChange={(e) => setFilterLang(e.target.value)}>
-            <option value="All">All Languages</option>
-            {Object.values(Language).map(l => <option key={l} value={l}>{l}</option>)}
-        </select>
+        <div className="md:col-span-4">
+            <select className="w-full bg-slate-900/40 border border-white/5 px-8 py-6 text-white text-[10px] font-bold uppercase tracking-widest outline-none cursor-pointer" value={filterLang} onChange={(e) => setFilterLang(e.target.value)}>
+                <option value="All">All Languages</option>
+                {Object.values(Language).map(l => <option key={l} value={l}>{l}</option>)}
+            </select>
+        </div>
       </div>
 
-      {groupedAlbums.length === 0 ? (
-          <div className="py-40 text-center">
-              <p className="text-slate-600 font-black uppercase tracking-[0.5em] text-sm italic">No records matching your search</p>
-          </div>
-      ) : (
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-x-8 gap-y-16">
-              {groupedAlbums.map(albumSongs => {
-                  const main = albumSongs[0];
-                  let label = 'SINGLE';
-                  
-                  // 判斷類型標籤
-                  if (main.releaseCategory) {
-                      label = main.releaseCategory.split(' ')[0].toUpperCase();
-                  } else if (albumSongs.length > 1) {
-                      label = 'ALBUM';
-                  }
-                  
-                  const cover = main.coverUrl || globalSettings.defaultCoverUrl;
-                  const isCurrentPlaying = currentSong?.id === main.id;
+      {/* Grid Display - Exact visual match with Streaming page and screenshot */}
+      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-x-10 gap-y-20">
+          {groupedAlbums.map(albumSongs => {
+              const main = albumSongs[0];
+              const isEP = main.releaseCategory === ReleaseCategory.EP;
+              const isAlbum = main.releaseCategory === ReleaseCategory.Album || albumSongs.length > 1;
+              const typeLabel = isEP ? 'EP' : (isAlbum ? 'ALBUM' : 'SINGLE');
+              const cover = main.coverUrl || globalSettings.defaultCoverUrl;
 
-                  return (
-                      <div key={main.id} className="group cursor-pointer">
-                          <div className="aspect-square w-full relative overflow-hidden bg-slate-900 mb-5 border border-white/10 group-hover:border-brand-gold transition-all duration-500 shadow-2xl rounded-sm">
-                              <img 
-                                src={cover} 
-                                onClick={() => navigate(`/song/${main.id}`)}
-                                className="w-full h-full object-cover opacity-100 grayscale-0 transition-all duration-700 group-hover:scale-105" 
-                                alt={main.title} 
-                                onError={(e) => { (e.target as HTMLImageElement).src = globalSettings.defaultCoverUrl; }}
-                              />
-                              <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent pointer-events-none opacity-60"></div>
-                              
-                              {isAdmin && (
-                                <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-300 bg-black/40 backdrop-blur-[2px]">
-                                    <button 
-                                        onClick={(e) => { e.stopPropagation(); playSong(main); }}
-                                        className="w-14 h-14 bg-brand-gold text-black rounded-full flex items-center justify-center shadow-[0_0_30px_#fbbf24] hover:scale-110 transition-transform active:scale-95"
-                                    >
-                                        {isCurrentPlaying && isPlaying ? (
-                                            <svg className="w-5 h-5 ml-[1px]" fill="currentColor" viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
-                                        ) : (
-                                            <svg className="w-6 h-6 ml-[3px]" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
-                                        )}
-                                    </button>
-                                </div>
-                              )}
-
-                              <div className="absolute bottom-3 left-3 pointer-events-none flex flex-col gap-1 items-start">
-                                  <span className="text-[9px] font-black text-white bg-black/90 px-3 py-1 uppercase tracking-widest border border-white/20 backdrop-blur-md shadow-lg w-fit">
-                                      {label}
-                                  </span>
-                                  {albumSongs.length > 1 && (
-                                      <span className="text-[8px] font-black text-brand-gold bg-black/90 px-2 py-0.5 uppercase tracking-widest border border-brand-gold/20 backdrop-blur-md shadow-lg w-fit">
-                                          {albumSongs.length} Tracks
-                                      </span>
-                                  )}
-                              </div>
-                          </div>
-                          <div onClick={() => navigate(`/song/${main.id}`)}>
-                            <h4 className="text-sm font-bold text-white uppercase truncate tracking-widest group-hover:text-brand-gold transition-colors">{main.title}</h4>
-                            <div className="flex flex-col gap-1 mt-2">
-                                <p className="text-[10px] text-slate-400 font-mono uppercase tracking-widest font-bold opacity-80">
-                                    {main.releaseDate.split('-')[0]} • {main.releaseCompany || 'WILLWI MUSIC'}
-                                </p>
-                                <div className="space-y-0.5 mt-1">
-                                    {main.isrc && (
-                                        <p className="text-[9px] text-brand-gold/70 font-mono uppercase tracking-widest font-bold">
-                                            ISRC: {main.isrc}
-                                        </p>
-                                    )}
-                                    {main.upc && (
-                                        <p className="text-[9px] text-slate-600 font-mono uppercase tracking-widest font-bold">
-                                            UPC: {main.upc}
-                                        </p>
-                                    )}
-                                </div>
-                            </div>
+              return (
+                  <div key={main.id} className="group cursor-pointer">
+                      <div className="aspect-square relative overflow-hidden bg-slate-900 border border-white/5 transition-all duration-500 group-hover:border-brand-gold/30 shadow-2xl rounded-sm">
+                          <img 
+                            src={cover} 
+                            onClick={() => navigate(`/song/${main.id}`)}
+                            className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-105" 
+                            alt={main.title} 
+                            onError={(e) => { (e.target as HTMLImageElement).src = globalSettings.defaultCoverUrl; }}
+                          />
+                          {/* Screenshot visual: Black label in corner */}
+                          <div className="absolute bottom-4 left-4">
+                              <span className="bg-black border border-white/20 text-white text-[9px] font-black uppercase tracking-widest px-3 py-1.5">
+                                  {typeLabel}
+                              </span>
                           </div>
                       </div>
-                  );
-              })}
-          </div>
-      )}
+                      {/* Metadata structure from screenshot */}
+                      <div className="mt-6 space-y-1" onClick={() => navigate(`/song/${main.id}`)}>
+                        <h4 className="text-[13px] font-bold text-white uppercase tracking-widest group-hover:text-brand-gold truncate">{main.title}</h4>
+                        <p className="text-[10px] font-black text-white uppercase tracking-[0.2em]">{typeLabel}</p>
+                        <p className="text-[9px] text-slate-500 font-bold uppercase tracking-widest">{main.releaseDate.split('-')[0]} • {main.releaseCompany || 'WILLWI MUSIC'}</p>
+                        <p className="text-[8px] text-slate-700 font-mono tracking-widest mt-1">ISRC: {main.isrc || 'UNKNOWN'}</p>
+                      </div>
+                  </div>
+              );
+          })}
+      </div>
     </div>
   );
 }; 

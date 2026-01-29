@@ -9,11 +9,11 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "react": "^19.2.1",
-    "react-dom": "^19.2.1",
-    "@google/genai": "^1.31.0",
-    "react-router-dom": "^7.10.1",
-    "idb": "8.0.0"
+    "@google/genai": "^1.38.0",
+    "react": "^19.2.4",
+    "react-dom": "^19.2.4",
+    "react-router-dom": "^7.13.0",
+    "idb": "^8.0.3"
   },
   "devDependencies": {
     "@types/node": "^22.14.0",

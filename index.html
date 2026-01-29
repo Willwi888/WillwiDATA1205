@@ -70,27 +70,10 @@
         background-color: #000;
         color: #f8fafc;
         overflow-x: hidden;
-      }
-
-      .cinema-lyrics-blur {
-        animation: blurIn 0.8s cubic-bezier(0.23, 1, 0.32, 1) forwards;
-      }
-
-      .studio-ambient-glow {
-        background: radial-gradient(circle at 65% 45%, rgba(251, 191, 36, 0.2) 0%, transparent 75%);
-        pointer-events: none;
-        mix-blend-mode: screen;
+        font-style: normal !important; /* 強制移除斜體 */
       }
       
-      .dynamic-light-leak {
-        position: fixed;
-        width: 150vw;
-        height: 150vh;
-        background: radial-gradient(circle at 0% 0%, rgba(251,191,36,0.12) 0%, transparent 40%);
-        pointer-events: none;
-        z-index: 1;
-        animation: lightLeak 15s ease-in-out infinite alternate;
-      }
+      i, em { font-style: normal; } /* 確保傳統標籤也不會斜斜的 */
 
       .custom-scrollbar::-webkit-scrollbar { width: 4px; }
       .custom-scrollbar::-webkit-scrollbar-track { background: rgba(0,0,0,0.95); }
@@ -101,18 +84,17 @@
   <script type="importmap">
 {
   "imports": {
-    "react": "https://aistudiocdn.com/react@^19.2.1",
-    "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.1/",
-    "react/": "https://aistudiocdn.com/react@^19.2.1/",
-    "@google/genai": "https://aistudiocdn.com/@google/genai@^1.31.0",
-    "react-router-dom": "https://aistudiocdn.com/react-router-dom@^7.10.1",
-    "idb": "https://cdn.jsdelivr.net/npm/idb@8.0.0/+esm"
+    "@google/genai": "https://esm.sh/@google/genai@^1.38.0",
+    "react/": "https://esm.sh/react@^19.2.4/",
+    "react": "https://esm.sh/react@^19.2.4",
+    "react-dom/": "https://esm.sh/react-dom@^19.2.4/",
+    "react-router-dom": "https://esm.sh/react-router-dom@^7.13.0",
+    "idb": "https://esm.sh/idb@^8.0.3"
   }
 }
 </script>
 </head>
   <body class="antialiased font-sans">
-    <div class="dynamic-light-leak"></div>
     <div id="root"></div>
   </body>
 </html>
