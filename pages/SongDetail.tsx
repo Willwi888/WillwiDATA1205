@@ -15,7 +15,7 @@ const SongDetail: React.FC = () => {
   
   const [song, setSong] = useState<Song | undefined>(undefined);
   const [lyricsView, setLyricsView] = useState<'original' | 'translated'>('original');
-  const [isCreditsOpen, setIsCreditsOpen] = useState(false);
+  const [isCreditsOpen, setIsCreditsOpen] = useState(true); // 預設打開名單
 
   useEffect(() => {
     if (id) {
@@ -52,7 +52,7 @@ const SongDetail: React.FC = () => {
         <div className="max-w-[1700px] mx-auto">
             {/* Top Navigation & Controls */}
             <div className="mb-16 flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
-                <Link to="/database" className="text-[10px] text-slate-500 hover:text-white uppercase tracking-[0.5em] font-medium transition-colors">← CATALOG 作品庫</Link>
+                <Link to="/database" className="text-[10px] text-slate-500 hover:text-white uppercase tracking-[0.5em] font-medium transition-colors">← CATALOG DATABASE 作品庫</Link>
                 <div className="flex gap-4">
                     {isAdmin && (
                         <button onClick={() => navigate(`/add?edit=${song.id}`)} className="px-8 py-3 text-[10px] font-medium uppercase tracking-widest bg-white/10 text-white hover:bg-white/20 transition-all border border-white/5">編輯作品</button>
@@ -85,6 +85,13 @@ const SongDetail: React.FC = () => {
                                 <span className="text-[10px] font-medium text-slate-700 uppercase tracking-[0.4em]">串流連結尚未同步</span>
                             </div>
                         )}
+                        
+                        {song.audioUrl && (
+                            <div className="pt-6 border-t border-white/5">
+                                <span className="text-[9px] text-slate-500 uppercase font-black tracking-widest mb-2 block">Audio Reference</span>
+                                <audio src={song.audioUrl} controls className="w-full h-8 opacity-40 hover:opacity-100 transition-opacity" />
+                            </div>
+                        )}
                     </div>
                 </div>
 
@@ -94,11 +101,13 @@ const SongDetail: React.FC = () => {
                         <div className="flex items-center gap-6 mb-8">
                             <span className="px-3 py-1 bg-brand-gold/10 border border-brand-gold/30 text-brand-gold text-[9px] font-medium uppercase tracking-widest">{song.releaseCategory || 'SINGLE'}</span>
                             <span className="text-slate-500 text-[9px] font-mono tracking-widest">{song.releaseDate}</span>
-                            {song.isrc && <span className="text-slate-700 text-[9px] font-mono opacity-60">ISRC: {song.isrc}</span>}
+                            {song.isrc && <span className="text-slate-400 text-[10px] font-mono tracking-tighter bg-white/5 px-3 py-1">ISRC: {song.isrc}</span>}
+                            {song.upc && <span className="text-slate-400 text-[10px] font-mono tracking-tighter bg-white/5 px-3 py-1">UPC: {song.upc}</span>}
                         </div>
                         <h1 className="text-5xl md:text-8xl font-medium uppercase tracking-tighter text-white leading-[0.9] opacity-90">
                             {displayTitle}
                         </h1>
+                        <p className="mt-4 text-[10px] text-slate-500 font-bold uppercase tracking-[0.4em]">{song.releaseCompany || 'Willwi Music'}</p>
                     </div>
 
                     <div className="space-y-24">
@@ -120,7 +129,7 @@ const SongDetail: React.FC = () => {
                             </div>
                         </div>
 
-                        {/* Production Credits Section - Collapsible & Elegant */}
+                        {/* Production Credits Section */}
                         {song.credits && (
                             <div className="pt-10 border-t border-white/5">
                                 <button 
@@ -137,21 +146,25 @@ const SongDetail: React.FC = () => {
                                     </span>
                                 </button>
                                 
-                                <div className={`mt-6 overflow-hidden transition-all duration-1000 ease-in-out ${isCreditsOpen ? 'max-h-[1200px] opacity-100' : 'max-h-0 opacity-0'}`}>
-                                    <div className="p-10 bg-white/[0.01] border border-white/5 rounded-sm">
-                                        <div className="text-[11px] md:text-xs text-slate-400 font-light leading-loose tracking-[0.2em] whitespace-pre-line uppercase">
+                                <div className={`mt-6 overflow-hidden transition-all duration-1000 ease-in-out ${isCreditsOpen ? 'max-h-[1500px] opacity-100' : 'max-h-0 opacity-0'}`}>
+                                    <div className="p-10 bg-white/[0.01] border border-white/5 rounded-sm shadow-xl">
+                                        <div className="text-[11px] md:text-xs text-slate-300 font-light leading-loose tracking-[0.15em] whitespace-pre-line uppercase">
                                             {song.credits}
                                         </div>
                                     </div>
-                                    {/* Additional Metadata Footer */}
-                                    <div className="mt-8 flex gap-8">
+                                    {/* Metadata Footer */}
+                                    <div className="mt-8 flex flex-wrap gap-12">
                                         <div className="space-y-1">
-                                            <span className="text-[8px] text-slate-600 uppercase font-medium">Global UPC</span>
-                                            <p className="text-[9px] text-slate-400 font-mono">{song.upc || 'N/A'}</p>
+                                            <span className="text-[8px] text-slate-600 uppercase font-medium tracking-widest">Global Barcode (UPC)</span>
+                                            <p className="text-[10px] text-brand-gold font-mono">{song.upc || 'N/A'}</p>
                                         </div>
                                         <div className="space-y-1">
-                                            <span className="text-[8px] text-slate-600 uppercase font-medium">Publisher</span>
-                                            <p className="text-[9px] text-slate-400 font-mono">{song.publisher || 'WILLWI MUSIC'}</p>
+                                            <span className="text-[8px] text-slate-600 uppercase font-medium tracking-widest">Publisher</span>
+                                            <p className="text-[10px] text-slate-400 font-mono">{song.publisher || 'WILLWI MUSIC'}</p>
+                                        </div>
+                                        <div className="space-y-1">
+                                            <span className="text-[8px] text-slate-600 uppercase font-medium tracking-widest">Label</span>
+                                            <p className="text-[10px] text-slate-400 font-mono uppercase tracking-widest">{song.releaseCompany || 'WILLWI MUSIC'}</p>
                                         </div>
                                     </div>
                                 </div>

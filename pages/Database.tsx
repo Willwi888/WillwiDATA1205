@@ -87,13 +87,17 @@ const Database: React.FC = () => {
 
       {/* 展開式曲目清單 (Tracklist Overlay) */}
       {selectedAlbumId && currentAlbumSongs.length > 0 && (
-          <div ref={tracklistRef} className="mb-24 bg-[#0f172a]/80 backdrop-blur-3xl border border-white/10 rounded-sm p-8 md:p-16 animate-blur-in shadow-2xl relative">
+          <div ref={tracklistRef} className="mb-24 bg-[#050a14] border border-white/10 rounded-sm p-8 md:p-16 animate-blur-in shadow-2xl relative">
               <button onClick={() => setSelectedAlbumId(null)} className="absolute top-8 right-8 text-slate-500 hover:text-white uppercase text-[10px] font-bold tracking-widest transition-all">✕ 關閉清單</button>
               
               <div className="flex flex-col lg:flex-row gap-20">
                   <div className="w-full lg:w-96 shrink-0">
                       <img src={currentAlbumSongs[0].coverUrl || globalSettings.defaultCoverUrl} className="w-full aspect-square object-cover shadow-2xl border border-white/10" alt="" />
                       <div className="mt-10 space-y-6 pt-10 border-t border-white/5">
+                          <div className="space-y-1">
+                              <span className="text-[9px] text-slate-600 uppercase font-black tracking-widest">發行日期</span>
+                              <p className="text-white text-xs uppercase tracking-widest font-bold">{currentAlbumSongs[0].releaseDate}</p>
+                          </div>
                           <div className="space-y-1">
                               <span className="text-[9px] text-slate-600 uppercase font-black tracking-widest">發行廠牌</span>
                               <p className="text-white text-xs uppercase tracking-widest font-bold">{currentAlbumSongs[0].releaseCompany || 'Willwi Music'}</p>
@@ -113,20 +117,21 @@ const Database: React.FC = () => {
 
                       <div className="space-y-1 border-t border-white/5 pt-8">
                           {currentAlbumSongs.map((track, idx) => (
-                              <div key={track.id} className="group flex items-center justify-between py-6 border-b border-white/[0.03] hover:bg-white/[0.02] transition-all px-6 cursor-pointer" onClick={() => navigate(`/song/${track.id}`)}>
+                              <div key={track.id} className="group flex flex-col md:flex-row md:items-center justify-between py-6 border-b border-white/[0.03] hover:bg-white/[0.02] transition-all px-6 cursor-pointer" onClick={() => navigate(`/song/${track.id}`)}>
                                   <div className="flex items-center gap-10">
                                       <span className="text-slate-700 font-mono text-[11px] w-6">{String(idx + 1).padStart(2, '0')}</span>
                                       <div>
                                           <span className="text-base text-white font-medium uppercase tracking-widest group-hover:text-brand-gold transition-colors">{track.title}</span>
                                           <div className="flex gap-6 mt-2">
-                                              <span className="text-[9px] text-slate-500 font-mono uppercase">ISRC: {track.isrc}</span>
+                                              <span className="text-[9px] text-slate-500 font-mono uppercase tracking-tighter">ISRC: {track.isrc}</span>
                                               <span className="text-[9px] text-slate-600 uppercase font-bold tracking-widest">{track.language}</span>
                                           </div>
                                       </div>
                                   </div>
-                                  <div className="flex items-center gap-6">
+                                  <div className="flex items-center gap-6 mt-4 md:mt-0">
+                                      {track.audioUrl && <span className="text-[8px] border border-emerald-500/40 text-emerald-400 px-3 py-1 rounded-sm font-black uppercase tracking-tighter">Audio Attached</span>}
                                       {track.isInteractiveActive && <span className="text-[8px] text-brand-accent border border-brand-accent/30 px-3 py-1 rounded-sm font-black uppercase tracking-tighter">Studio Ready</span>}
-                                      <span className="text-slate-500 opacity-0 group-hover:opacity-100 transition-all text-[10px] uppercase font-bold tracking-widest">查看詳情 →</span>
+                                      <span className="text-white text-[10px] uppercase font-bold tracking-widest opacity-40 group-hover:opacity-100 transition-all">詳情與歌詞 →</span>
                                   </div>
                               </div>
                           ))}
@@ -156,7 +161,7 @@ const Database: React.FC = () => {
                           
                           <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-all flex items-center justify-center">
                               <span className="text-[10px] text-white font-black uppercase tracking-[0.4em] border border-white/20 px-6 py-3 bg-black/40 backdrop-blur-xl">
-                                  {isAlbum ? `收錄 ${albumSongs.length} 首` : '查看作品'}
+                                  {isAlbum ? `收錄 ${albumSongs.length} 首` : '查看作品資訊'}
                               </span>
                           </div>
 

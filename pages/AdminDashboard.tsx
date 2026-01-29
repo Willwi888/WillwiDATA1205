@@ -1,7 +1,7 @@
 
 import React, { useState, useMemo, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useData } from '../context/DataContext';
+import { useData, normalizeIdentifier } from '../context/DataContext';
 import { useUser } from '../context/UserContext';
 import { useToast } from '../components/Layout';
 import { Song, ProjectType } from '../types';
@@ -9,7 +9,7 @@ import { Song, ProjectType } from '../types';
 const AdminDashboard: React.FC = () => {
   const { 
     songs, deleteSong, globalSettings, setGlobalSettings, uploadSettingsToCloud,
-    uploadSongsToCloud, syncSuccess
+    uploadSongsToCloud, syncSuccess, refreshData
   } = useData();
   const { isAdmin, logoutAdmin, enableAdmin, getAllUsers, getAllTransactions } = useUser();
   const { showToast } = useToast();
@@ -18,6 +18,7 @@ const AdminDashboard: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'catalog' | 'insights' | 'curation'>('catalog');
   const [searchTerm, setSearchTerm] = useState('');
   const [passwordInput, setPasswordInput] = useState('');
+  const [expandedAlbumId, setExpandedAlbumId] = useState<string | null>(null);
 
   const [stats, setStats] = useState({
       totalUsers: 0,
@@ -39,12 +40,25 @@ const AdminDashboard: React.FC = () => {
     }
   }, [isAdmin, songs, getAllUsers, getAllTransactions]);
 
-  const filteredSongs = useMemo(() => {
-    return songs.filter(s => 
+  // 以專輯聚合邏輯
+  const groupedAlbums = useMemo(() => {
+    const groups: Record<string, Song[]> = {};
+    const filtered = songs.filter(s => 
         s.title.toLowerCase().includes(searchTerm.toLowerCase()) || 
         (s.isrc && s.isrc.includes(searchTerm)) ||
         (s.upc && s.upc.includes(searchTerm))
-    ).sort((a, b) => b.releaseDate.localeCompare(a.releaseDate));
+    );
+
+    filtered.forEach(song => {
+      const normalizedUPC = song.upc ? normalizeIdentifier(song.upc) : '';
+      const groupKey = normalizedUPC ? `ALBUM_${normalizedUPC}` : `SINGLE_${song.id}`;
+      if (!groups[groupKey]) groups[groupKey] = [];
+      groups[groupKey].push(song);
+    });
+
+    return Object.entries(groups).sort((a, b) => 
+        new Date(b[1][0].releaseDate).getTime() - new Date(a[1][0].releaseDate).getTime()
+    );
   }, [songs, searchTerm]);
 
   const handleUpdateSetting = (key: string, value: string) => {
@@ -52,6 +66,10 @@ const AdminDashboard: React.FC = () => {
       setGlobalSettings(newSettings);
       uploadSettingsToCloud(newSettings);
       showToast("設定已同步", "success");
+  };
+
+  const toggleAlbum = (id: string) => {
+      setExpandedAlbumId(expandedAlbumId === id ? null : id);
   };
 
   if (!isAdmin) {
@@ -80,7 +98,7 @@ const AdminDashboard: React.FC = () => {
           </div>
           <div className="flex gap-4">
             <button onClick={() => navigate('/add')} className="px-10 py-5 bg-brand-accent text-black text-[11px] font-black uppercase tracking-widest shadow-xl hover:bg-white transition-all">新增作品</button>
-            <button onClick={() => uploadSongsToCloud()} className="px-10 py-5 bg-white text-black text-[11px] font-black uppercase tracking-widest shadow-xl hover:bg-brand-gold transition-all">備份雲端</button>
+            <button onClick={() => { refreshData(); showToast("已從雲端刷新數據"); }} className="px-10 py-5 border border-white/10 text-white text-[11px] font-black uppercase tracking-widest hover:bg-white/10 transition-all">刷新雲端</button>
             <button onClick={logoutAdmin} className="px-10 py-5 border border-white/10 text-slate-500 text-[11px] font-black uppercase tracking-widest hover:text-white transition-all">登出系統</button>
           </div>
       </div>
@@ -88,7 +106,7 @@ const AdminDashboard: React.FC = () => {
       <div className="flex gap-16 border-b border-white/5 mb-16">
           {(['catalog', 'insights', 'curation'] as const).map(tab => (
               <button key={tab} onClick={() => setActiveTab(tab)} className={`pb-6 text-[12px] font-black uppercase tracking-[0.5em] transition-all ${activeTab === tab ? 'text-brand-gold border-b-2 border-brand-gold' : 'text-slate-600 hover:text-white'}`}>
-                  {tab === 'catalog' ? '作品目錄' : tab === 'insights' ? '數據洞察' : '策展工具'}
+                  {tab === 'catalog' ? '作品管理' : tab === 'insights' ? '數據洞察' : '策展工具'}
               </button>
           ))}
       </div>
@@ -96,54 +114,85 @@ const AdminDashboard: React.FC = () => {
       {activeTab === 'catalog' && (
           <div className="space-y-12">
               <div className="flex flex-col md:flex-row gap-6">
-                <input type="text" placeholder="搜尋 ISRC / UPC / 標題..." className="flex-1 bg-slate-900/30 border border-white/5 p-6 text-white text-xs font-bold tracking-widest outline-none focus:border-white/20 transition-all" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
+                <input type="text" placeholder="搜尋 ISRC / UPC / 作品標題..." className="flex-1 bg-slate-900/30 border border-white/5 p-6 text-white text-xs font-bold tracking-widest outline-none focus:border-white/20 transition-all" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
                 <div className="flex items-center gap-4 bg-white/5 px-8 rounded-sm text-[10px] font-black text-slate-500 uppercase tracking-widest">
-                    顯示 {filteredSongs.length} 首
+                    共有 {groupedAlbums.length} 個發行項目
                 </div>
               </div>
 
-              <div className="bg-slate-900/40 border border-white/5 rounded-sm overflow-hidden">
-                  <table className="w-full text-left">
-                      <thead className="bg-white/5 text-[9px] font-black text-slate-500 uppercase tracking-widest">
-                          <tr>
-                              <th className="p-6">作品資訊</th>
-                              <th className="p-6">ISRC</th>
-                              <th className="p-6">發行日期</th>
-                              <th className="p-6">資產狀態</th>
-                              <th className="p-6 text-right">操作</th>
-                          </tr>
-                      </thead>
-                      <tbody className="divide-y divide-white/5">
-                          {filteredSongs.map(song => (
-                              <tr key={song.id} className="group hover:bg-white/[0.02] transition-all">
-                                  <td className="p-6">
-                                      <div className="flex items-center gap-4">
-                                          <img src={song.coverUrl} className="w-10 h-10 object-cover border border-white/10" alt="" />
-                                          <div>
-                                              <span className="text-white font-bold text-xs uppercase tracking-widest">{song.title}</span>
-                                              <p className="text-[9px] text-slate-600 font-mono mt-1">{song.upc || '無 UPC'}</p>
+              <div className="space-y-4">
+                  {groupedAlbums.map(([groupKey, albumSongs]) => {
+                      const main = albumSongs[0];
+                      const isExpanded = expandedAlbumId === groupKey;
+                      const isAlbum = albumSongs.length > 1;
+
+                      return (
+                          <div key={groupKey} className="bg-white/[0.02] border border-white/5 rounded-sm overflow-hidden transition-all">
+                              {/* 專輯標題行 */}
+                              <div 
+                                  onClick={() => toggleAlbum(groupKey)}
+                                  className={`p-6 flex items-center justify-between cursor-pointer transition-colors ${isExpanded ? 'bg-white/5 border-b border-white/10' : 'hover:bg-white/[0.03]'}`}
+                              >
+                                  <div className="flex items-center gap-8">
+                                      <div className="relative group">
+                                          <img src={main.coverUrl} className="w-16 h-16 object-cover border border-white/10 shadow-lg" alt="" />
+                                          <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-all">
+                                              <span className="text-[8px] text-white font-black">{isExpanded ? 'CLOSE' : 'OPEN'}</span>
                                           </div>
                                       </div>
-                                  </td>
-                                  <td className="p-6 font-mono text-[10px] text-brand-gold">{song.isrc}</td>
-                                  <td className="p-6 font-mono text-[10px] text-slate-500">{song.releaseDate}</td>
-                                  <td className="p-6">
-                                      <div className="flex gap-2">
-                                          <div className={`w-2 h-2 rounded-full ${song.audioUrl ? 'bg-emerald-500' : 'bg-rose-500'}`} title={song.audioUrl ? '音檔已就緒' : '缺音檔'}></div>
-                                          <div className={`w-2 h-2 rounded-full ${song.lyrics ? 'bg-emerald-500' : 'bg-rose-500'}`} title={song.lyrics ? '歌詞已就緒' : '缺歌詞'}></div>
-                                          <div className={`w-2 h-2 rounded-full ${song.isInteractiveActive ? 'bg-brand-accent' : 'bg-slate-700'}`} title={song.isInteractiveActive ? '對時開放中' : '對時關閉'}></div>
+                                      <div>
+                                          <span className="text-white font-bold text-base uppercase tracking-widest">{main.title}</span>
+                                          <div className="flex gap-4 mt-2">
+                                              <span className="text-[9px] text-brand-gold font-mono uppercase tracking-tighter">UPC: {main.upc || 'SINGLE'}</span>
+                                              <span className="text-[9px] text-slate-600 font-black uppercase tracking-widest">{main.releaseDate}</span>
+                                              <span className="text-[9px] text-slate-400 font-black uppercase tracking-[0.2em]">{albumSongs.length} 曲目</span>
+                                          </div>
                                       </div>
-                                  </td>
-                                  <td className="p-6 text-right">
-                                      <div className="flex justify-end gap-6">
-                                          <button onClick={() => navigate(`/add?edit=${song.id}`)} className="text-[10px] text-white/40 font-black uppercase tracking-widest hover:text-white">Edit</button>
-                                          <button onClick={() => { if(window.confirm('確定刪除？')) deleteSong(song.id); }} className="text-[10px] text-rose-900 font-black uppercase tracking-widest hover:text-rose-500">Del</button>
+                                  </div>
+                                  <div className="flex items-center gap-6">
+                                      <div className={`transition-transform duration-500 ${isExpanded ? 'rotate-180' : ''}`}>
+                                          <svg className="w-6 h-6 text-slate-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1" d="M19 9l-7 7-7-7" /></svg>
                                       </div>
-                                  </td>
-                              </tr>
-                          ))}
-                      </tbody>
-                  </table>
+                                  </div>
+                              </div>
+
+                              {/* 曲目清單詳情 */}
+                              {isExpanded && (
+                                  <div className="p-8 bg-black/40 animate-blur-in">
+                                      <div className="mb-6 grid grid-cols-12 text-[9px] font-black text-slate-600 uppercase tracking-widest border-b border-white/5 pb-4 px-4">
+                                          <div className="col-span-1">#</div>
+                                          <div className="col-span-4">曲目標題 (Track Title)</div>
+                                          <div className="col-span-2">ISRC</div>
+                                          <div className="col-span-3 text-center">資產與對時 (Assets)</div>
+                                          <div className="col-span-2 text-right">操作 (Admin)</div>
+                                      </div>
+                                      <div className="space-y-1">
+                                          {albumSongs.sort((a,b)=> (a.isrc||'').localeCompare(b.isrc||'')).map((track, idx) => (
+                                              <div key={track.id} className="grid grid-cols-12 items-center p-4 border-b border-white/[0.03] last:border-0 hover:bg-white/[0.02] transition-all rounded-sm group">
+                                                  <div className="col-span-1 text-slate-700 font-mono text-[10px]">{idx + 1}</div>
+                                                  <div className="col-span-4">
+                                                      <span className="text-white text-[13px] font-medium uppercase tracking-widest block">{track.title}</span>
+                                                      <span className="text-[8px] text-slate-600 uppercase mt-1 block">{track.releaseCompany || 'Willwi Music'} • {track.language}</span>
+                                                  </div>
+                                                  <div className="col-span-2 text-brand-gold font-mono text-[10px]">{track.isrc}</div>
+                                                  <div className="col-span-3 flex justify-center gap-3">
+                                                      <AssetBadge label="Audio" active={!!track.audioUrl} />
+                                                      <AssetBadge label="Lyrics" active={!!track.lyrics} />
+                                                      <AssetBadge label="Credits" active={!!track.credits} />
+                                                      <AssetBadge label="Studio" active={!!track.isInteractiveActive} color="brand-accent" />
+                                                  </div>
+                                                  <div className="col-span-2 flex justify-end gap-6">
+                                                      <button onClick={() => navigate(`/add?edit=${track.id}`)} className="text-[10px] text-white/40 font-black uppercase tracking-widest hover:text-white transition-colors">編輯詳情</button>
+                                                      <button onClick={() => { if(window.confirm(`確定刪除曲目「${track.title}」？`)) deleteSong(track.id); }} className="text-[10px] text-rose-900 font-black uppercase tracking-widest hover:text-rose-500 transition-colors">刪除</button>
+                                                  </div>
+                                              </div>
+                                          ))}
+                                      </div>
+                                  </div>
+                              )}
+                          </div>
+                      );
+                  })}
               </div>
           </div>
       )}
@@ -151,10 +200,10 @@ const AdminDashboard: React.FC = () => {
       {activeTab === 'insights' && (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 animate-fade-in">
               {[
-                { label: 'Total Fans', value: stats.totalUsers, color: 'text-brand-accent' },
-                { label: 'Support Total', value: `NT$ ${stats.totalIncome.toLocaleString()}`, color: 'text-emerald-400' },
-                { label: 'Interactive Active', value: stats.activeInteractive, color: 'text-brand-gold' },
-                { label: 'Missing Assets', value: stats.missingData, color: 'text-rose-400' }
+                { label: '總聽眾數', value: stats.totalUsers, color: 'text-brand-accent' },
+                { label: '累積贊助額', value: `NT$ ${stats.totalIncome.toLocaleString()}`, color: 'text-emerald-400' },
+                { label: '開放對時作品', value: stats.activeInteractive, color: 'text-brand-gold' },
+                { label: '缺漏資產作品', value: stats.missingData, color: 'text-rose-400' }
               ].map(stat => (
                   <div key={stat.label} className="bg-white/5 border border-white/10 p-10 rounded-sm">
                       <span className="text-[10px] text-slate-500 font-black uppercase tracking-widest mb-6 block">{stat.label}</span>
@@ -194,5 +243,13 @@ const AdminDashboard: React.FC = () => {
     </div>
   );
 };
+
+// 小組件：資產狀態標籤
+const AssetBadge: React.FC<{ label: string; active: boolean; color?: string }> = ({ label, active, color = 'emerald-500' }) => (
+    <div className={`flex items-center gap-1.5 px-2 py-0.5 border rounded-sm transition-all ${active ? `border-${color}/40 text-${color}` : 'border-white/5 text-slate-800'}`}>
+        <div className={`w-1 h-1 rounded-full ${active ? `bg-${color}` : 'bg-slate-900'}`}></div>
+        <span className="text-[7px] font-black uppercase tracking-tighter">{label}</span>
+    </div>
+);
 
 export default AdminDashboard;
