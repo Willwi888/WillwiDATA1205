@@ -188,7 +188,7 @@ const AdminDashboard: React.FC = () => {
                           <div className="flex-1 space-y-2">
                               <h3 className="text-5xl text-white font-medium uppercase tracking-tighter mb-8">{selectedAlbum.name}</h3>
                               {isLoadingAlbum ? (
-                                  <div className="py-20 text-center text-slate-700 animate-pulse text-[10px] uppercase tracking-widest">正在獲取音軌與 ISRC...</div>
+                                  <div className="py-20 text-center text-slate-700 animate-pulse text-[10px] uppercase tracking-[0.4em]">正在獲取音軌與 ISRC...</div>
                               ) : (
                                   albumTracks.map((t, idx) => {
                                       const isCurPlaying = currentSong?.isrc === t.external_ids?.isrc && isPlaying;
@@ -295,7 +295,24 @@ const AdminDashboard: React.FC = () => {
                                   uploadSettingsToCloud(newSettings);
                               }}
                             />
-                            <p className="text-[9px] text-slate-600 mt-4 font-mono">支援自動解析 Dropbox (?raw=1) 與 Google Drive 直連連結。</p>
+                          </div>
+                      </div>
+                      {/* 背景影片設置欄位 */}
+                      <div className="p-8 bg-white/5 border border-white/10 space-y-6">
+                          <div>
+                            <label className="text-[11px] text-brand-accent font-bold uppercase tracking-widest mb-3 block">全站太空背景影片網址 (MP4 URL)</label>
+                            <input 
+                              type="text" 
+                              className="w-full bg-black border border-brand-accent/20 p-5 text-white text-xs outline-none focus:border-brand-accent"
+                              placeholder="貼上你的 10 秒背景影片直連 (Dropbox/MP4)..."
+                              value={globalSettings.backgroundVideoUrl || ''}
+                              onChange={(e) => {
+                                  const newSettings = { ...globalSettings, backgroundVideoUrl: e.target.value };
+                                  setGlobalSettings(newSettings);
+                                  uploadSettingsToCloud(newSettings);
+                              }}
+                            />
+                            <p className="text-[9px] text-slate-600 mt-4 font-mono">貼上後，首頁背景將自動切換為影片，原本的粒子會疊加在上方。</p>
                           </div>
                       </div>
                   </div>
@@ -339,7 +356,7 @@ const AdminDashboard: React.FC = () => {
                   <h3 className="text-brand-accent font-medium uppercase tracking-widest text-xs border-l border-brand-accent pl-6">全站視覺管理</h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
                       <div className="space-y-6">
-                          <span className="text-[9px] text-slate-500 font-medium uppercase tracking-widest">Global Background (全站背景)</span>
+                          <span className="text-[9px] text-slate-500 font-medium uppercase tracking-widest">Global Placeholder (影片載入前背景)</span>
                           <div className="aspect-video bg-black border border-white/10 overflow-hidden relative group">
                               <img src={globalSettings.portraitUrl} className="w-full h-full object-cover opacity-60" alt="" />
                               <label className="absolute inset-0 flex items-center justify-center bg-black/60 opacity-0 group-hover:opacity-100 cursor-pointer transition-opacity">

@@ -17,6 +17,7 @@ interface GlobalSettings {
     accessCode: string;
     exclusiveYoutubeUrl?: string;
     bgmUrl?: string;
+    backgroundVideoUrl?: string; // 新增：背景影片連結
 }
 
 interface ExtendedSongContextType extends SongContextType {
@@ -45,7 +46,7 @@ const SETTINGS_LOCAL_KEY = 'willwi_settings_backup';
 export const normalizeIdentifier = (val: string) => (val || '').trim().replace(/[^A-Z0-9]/gi, '').toUpperCase();
 
 /**
- * 終極音訊解析器
+ * 終極音訊/影片解析器
  */
 export const resolveDirectLink = (url: string) => {
     if (!url || typeof url !== 'string') return '';
@@ -59,7 +60,7 @@ export const resolveDirectLink = (url: string) => {
             .replace(/&dl=0$/, '&raw=1');
     }
 
-    // Google Drive 處理 (包含 thumbnail 連結自動轉載)
+    // Google Drive 處理
     if (cleanUrl.includes('drive.google.com')) {
         const fileIdMatch = cleanUrl.match(/\/file\/d\/([a-zA-Z0-9_-]+)/) || 
                             cleanUrl.match(/id=([a-zA-Z0-9_-]+)/);
@@ -88,7 +89,8 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           qr_global_payment: '', qr_line: '', 
           qr_production: '', qr_cinema: '', qr_support: '', accessCode: '8888',
           exclusiveYoutubeUrl: '',
-          bgmUrl: 'https://dl.dropboxusercontent.com/scl/fi/7m03jptv9j9a6itfjk8s7/Ambient-Background.mp3?rlkey=your-key&raw=1'
+          bgmUrl: 'https://dl.dropboxusercontent.com/scl/fi/7m03jptv9j9a6itfjk8s7/Ambient-Background.mp3?rlkey=your-key&raw=1',
+          backgroundVideoUrl: ''
       };
   });
 

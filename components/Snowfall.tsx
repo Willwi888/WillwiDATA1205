@@ -1,40 +1,78 @@
 
 import React, { useMemo } from 'react';
+import { useData, resolveDirectLink } from '../context/DataContext';
 
 const CosmosParticles: React.FC = () => {
+  const { globalSettings } = useData();
+  
+  const videoUrl = useMemo(() => {
+    return resolveDirectLink(globalSettings.backgroundVideoUrl || '');
+  }, [globalSettings.backgroundVideoUrl]);
+
   const stars = useMemo(() => {
-    return Array.from({ length: 320 }).map((_, i) => ({
+    return Array.from({ length: 400 }).map((_, i) => ({
       id: i,
-      size: Math.random() * 2 + 0.4, 
+      size: Math.random() * 1.5 + 0.2, 
       left: `${Math.random() * 100}%`,
       top: `${Math.random() * 100}%`,
-      twinkleDuration: `${Math.random() * 4 + 3}s`,
+      twinkleDuration: `${Math.random() * 8 + 4}s`,
       twinkleDelay: `${Math.random() * 15}s`,
-      driftDuration: `${Math.random() * 150 + 100}s`,
-      opacity: Math.random() * 0.5 + 0.1,
-      isGold: Math.random() > 0.92,
+      driftDuration: `${Math.random() * 250 + 150}s`,
+      opacity: Math.random() * 0.4 + 0.1,
+      isGold: Math.random() > 0.98,
     }));
   }, []);
 
   const shootingStars = useMemo(() => {
-    // 只有 2 條流星軌道，出現頻率極低，確保「優雅且稀有」
-    return Array.from({ length: 2 }).map((_, i) => ({
+    return Array.from({ length: 1 }).map((_, i) => ({
       id: i,
-      top: `${Math.random() * 40 - 10}%`, // 從上方甚至螢幕外開始
-      left: `${Math.random() * 40 + 60}%`, // 偏右側出發，向左下劃
-      delay: `${Math.random() * 80 + 20}s`, // 20s 到 100s 才出現一次
-      duration: `${Math.random() * 1 + 1.5}s` // 慢速滑行感: 1.5s - 2.5s
+      // Start from Bottom-Right area
+      top: `${Math.random() * 30 + 70}%`, 
+      left: `${Math.random() * 30 + 70}%`, 
+      delay: `${Math.random() * 25 + 5}s`,
+      duration: `3s`
     }));
   }, []);
 
   return (
     <div style={{ position: 'fixed', inset: 0, pointerEvents: 'none', overflow: 'hidden', zIndex: -1, backgroundColor: '#000' }}>
-      {/* 沉浸式宇宙深層背景 */}
-      <div style={{ position: 'absolute', inset: 0, background: 'radial-gradient(circle at center, #020617 0%, #000 100%)' }}></div>
-      <div style={{ position: 'absolute', inset: 0, opacity: 0.08, background: 'radial-gradient(ellipse at top right, #312e81 0%, transparent 70%)' }}></div>
-      <div style={{ position: 'absolute', inset: 0, opacity: 0.05, background: 'radial-gradient(ellipse at bottom left, #1e1b4b 0%, transparent 60%)' }}></div>
+      
+      {/* 1. Base Layer: Custom MP4 Video or Cinematic Gradient */}
+      {videoUrl ? (
+        <video 
+          key={videoUrl}
+          autoPlay 
+          loop 
+          muted 
+          playsInline 
+          style={{ 
+            position: 'absolute', 
+            inset: 0, 
+            width: '100%', 
+            height: '100%', 
+            objectFit: 'cover',
+            opacity: 0.7
+          }}
+        >
+          <source src={videoUrl} type="video/mp4" />
+        </video>
+      ) : (
+        <div style={{ position: 'absolute', inset: 0, background: 'radial-gradient(circle at 70% 30%, #080c1d 0%, #000 100%)' }}></div>
+      )}
+      
+      {/* 2. Horizon Glow overlay */}
+      <div style={{ 
+        position: 'absolute', 
+        bottom: '-20%', 
+        right: '-10%', 
+        width: '100vw', 
+        height: '80vh', 
+        background: 'radial-gradient(circle at center, rgba(56, 189, 248, 0.08) 0%, transparent 70%)',
+        filter: 'blur(100px)',
+        zIndex: 1
+      }}></div>
 
-      {/* 靜謐繁星 */}
+      {/* 3. Static/Twinkling Stars */}
       {stars.map(s => (
         <div
           key={s.id}
@@ -46,34 +84,51 @@ const CosmosParticles: React.FC = () => {
             left: s.left,
             top: s.top,
             backgroundColor: s.isGold ? '#fbbf24' : '#ffffff',
-            boxShadow: s.isGold ? '0 0 8px #fbbf24' : '0 0 4px rgba(255,255,255,0.3)',
+            boxShadow: s.isGold ? '0 0 4px #fbbf24' : 'none',
             animation: `twinkle ${s.twinkleDuration} ease-in-out ${s.twinkleDelay} infinite, floatSlow ${s.driftDuration} linear infinite`,
             opacity: s.opacity,
+            zIndex: 2
           }}
         />
       ))}
 
-      {/* 真正優雅的流星 */}
+      {/* 4. Lucky Upward Shooting Star (Correct Physics) */}
       {shootingStars.map(s => (
         <div
           key={s.id}
           style={{
             position: 'absolute',
-            height: '1px',
-            width: '300px', // 很長、很細的絲線
-            background: 'linear-gradient(to right, transparent, rgba(255,255,255,0.7), transparent)',
+            height: '2px',
+            width: '600px', 
+            // Gradient is opaque at the LEFT (Head) and fades to the RIGHT (Tail)
+            // Combined with rotate(-45deg), the Left side becomes the leading Top-Left edge
+            background: 'linear-gradient(to right, #fff 0%, rgba(255,255,255,0.4) 10%, rgba(56, 189, 248, 0.1) 40%, transparent 100%)',
             top: s.top,
             left: s.left,
-            animation: `shootingStar ${s.duration} linear ${s.delay} infinite`,
-            filter: 'blur(1px)',
+            animation: `luckyUpwardMeteor ${s.duration} cubic-bezier(0.1, 0.5, 0.2, 1) ${s.delay} infinite`,
+            filter: 'blur(0.5px)',
             opacity: 0,
-            transformOrigin: 'right center'
+            transformOrigin: 'left center',
+            zIndex: 3
           }}
-        />
+        >
+          {/* Leading Sparkle (Head) */}
+          <div style={{
+            position: 'absolute',
+            left: '-2px',
+            top: '50%',
+            transform: 'translateY(-50%)',
+            width: '4px',
+            height: '4px',
+            backgroundColor: '#fff',
+            borderRadius: '50%',
+            boxShadow: '0 0 20px 4px #fff, 0 0 40px 10px rgba(56, 189, 248, 0.4)'
+          }} />
+        </div>
       ))}
       
-      {/* 柔邊遮罩 */}
-      <div style={{ position: 'absolute', inset: 0, background: 'radial-gradient(circle at center, transparent 30%, rgba(0,0,0,0.4) 100%)' }}></div>
+      {/* 5. Depth Vignette */}
+      <div style={{ position: 'absolute', inset: 0, background: 'radial-gradient(circle at center, transparent 30%, rgba(0,0,0,0.5) 100%)', zIndex: 4 }}></div>
     </div>
   );
 };

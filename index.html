@@ -31,32 +31,40 @@
     </script>
     <style>
       @keyframes twinkle {
-        0%, 100% { opacity: 0.2; transform: scale(1); }
-        50% { opacity: 0.8; transform: scale(1.1); }
+        0%, 100% { opacity: 0.1; transform: scale(0.95); }
+        50% { opacity: 0.4; transform: scale(1.05); }
       }
       @keyframes floatSlow {
         0% { transform: translate(0, 0); }
-        50% { transform: translate(8px, -8px); }
+        50% { transform: translate(4px, -4px); }
         100% { transform: translate(0, 0); }
       }
-      @keyframes shootingStar {
-        0% { transform: translate(0, 0) rotate(-45deg); opacity: 0; }
-        5% { opacity: 1; }
-        25% { opacity: 1; }
-        50% { transform: translate(-120vw, 120vh) rotate(-45deg); opacity: 0; }
-        100% { transform: translate(-120vw, 120vh) rotate(-45deg); opacity: 0; }
-      }
-      @keyframes typingDot {
-        0%, 60%, 100% { transform: translateY(0); opacity: 0.2; }
-        30% { transform: translateY(-3px); opacity: 1; }
-      }
-      @keyframes fadeInUp {
-        from { opacity: 0; transform: translateY(20px); }
-        to { opacity: 1; transform: translateY(0); }
+      
+      /* 幸運上升流星：由右下往左上衝刺 */
+      @keyframes luckyUpwardMeteor {
+        0% { 
+          transform: translate(0, 0) rotate(-45deg); 
+          opacity: 0; 
+        }
+        10% { opacity: 1; }
+        90% { opacity: 1; }
+        100% { 
+          transform: translate(-120vw, -120vh) rotate(-45deg); 
+          opacity: 0; 
+        }
       }
 
-      .animate-typing-dot { animation: typingDot 1.4s infinite ease-in-out; }
-      .animate-fade-in-up { animation: fadeInUp 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+      @keyframes fadeInUp {
+        from { opacity: 0; transform: translateY(30px); }
+        to { opacity: 1; transform: translateY(0); }
+      }
+      @keyframes fadeIn {
+        from { opacity: 0; }
+        to { opacity: 1; }
+      }
+
+      .animate-fade-in-up { animation: fadeInUp 1.2s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+      .animate-fade-in { animation: fadeIn 2s ease-out forwards; }
 
       body {
         margin: 0;
@@ -64,7 +72,7 @@
         background-color: #000;
         color: #f8fafc;
         overflow: hidden;
-        font-weight: 300;
+        font-weight: 200;
         letter-spacing: 0.04em;
       }
       
@@ -78,7 +86,7 @@
 
       ::-webkit-scrollbar { width: 4px; }
       ::-webkit-scrollbar-track { background: transparent; }
-      ::-webkit-scrollbar-thumb { background: rgba(251, 191, 36, 0.1); border-radius: 10px; }
+      ::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.05); border-radius: 10px; }
     </style>
   <script type="importmap">
 {
