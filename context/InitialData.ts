@@ -10,19 +10,19 @@ export const ASSETS = {
 // Helper to generate consistent IDs based on Pinyin/English to ensure stability
 const id = (str: string) => str.replace(/[^A-Z0-9]/gi, '').toUpperCase();
 
-export const STANDARD_CREDITS = `© 2025 Willwi Music
+const STANDARD_CREDITS = `© 2025 Willwi Music
 ℗ 2025 Willwi Music
 
-Main Artist : Willwi 陳威兒
-Composer : Tsung Yu Chen
-Lyricist : Tsung Yu Chen
-Arranger : Willwi
-Producer : Will Chen
-Recording Engineer | Will Chen
-Mixing Engineer | Will Chen
-Mastering Engineer | Will Chen
-Recording Studio | Willwi Studio, Taipei
-Label | Willwi Music`;
+主要藝術家：Willwi 陳威兒
+作曲：陳宗宇
+作詞：陳宗宇
+編曲：威爾維
+製片：陳偉霆
+錄音工程師 | 威爾·陳
+混音工程師 | 威爾·陳
+母帶工程師 | Will Chen
+錄音室 | 台北威爾維錄音室
+廠牌 | Willwi Music`;
 
 export const OFFICIAL_CATALOG: Song[] = [
     // --- ALBUM: 黑灰色 (The Gray) ---
@@ -193,7 +193,23 @@ export const OFFICIAL_CATALOG: Song[] = [
     { id: id('ChongLai'), title: '重來', isrc: 'TWRESTART', releaseDate: '2025-03-08', releaseCategory: ReleaseCategory.Single, language: Language.Mandarin, projectType: ProjectType.Indie, coverUrl: ASSETS.defaultCover, isInteractiveActive: true, isEditorPick: false, origin: 'local', credits: STANDARD_CREDITS },
     { id: id('BuXiuZhiSheng'), title: '不朽之聲', isrc: 'TWUNFADINGVOICE', releaseDate: '2025-03-08', releaseCategory: ReleaseCategory.Single, language: Language.Mandarin, projectType: ProjectType.Indie, coverUrl: ASSETS.defaultCover, isInteractiveActive: true, isEditorPick: false, origin: 'local', credits: STANDARD_CREDITS },
     { id: id('DuZiYiRen'), title: '獨自一人', isrc: 'TWALONEINHOUSE', releaseDate: '2025-03-08', releaseCategory: ReleaseCategory.Single, language: Language.Mandarin, projectType: ProjectType.Indie, coverUrl: ASSETS.defaultCover, isInteractiveActive: true, isEditorPick: false, origin: 'local', credits: STANDARD_CREDITS },
-    { id: id('Maka_Return'), title: '戻れない時間', isrc: 'QZHN72590428', upc: '199079066892', releaseDate: '2025-03-08', releaseCategory: ReleaseCategory.Single, language: Language.Japanese, projectType: ProjectType.Indie, coverUrl: 'https://i.scdn.co/image/ab67616d0000b27312da053cb3da678d1148a468', isInteractiveActive: true, isEditorPick: false, origin: 'local', credits: STANDARD_CREDITS },
+    { 
+        id: '1765044243494', 
+        title: '戻れない時間', 
+        versionLabel: '', 
+        coverUrl: 'https://i.scdn.co/image/ab67616d0000b27312da053cb3da678d1148a468', 
+        language: Language.Japanese, 
+        projectType: ProjectType.Indie, 
+        releaseDate: '2025-03-08', 
+        isEditorPick: false, 
+        isrc: 'QZHN72590428', 
+        upc: '199079066892', 
+        spotifyLink: 'https://open.spotify.com/track/0ZsJVGFSQVgbxwS9XsZLwu', 
+        lyrics: "愛の届かぬ　後悔と\n弱さ見せずに　手放すよ\n仮面の裏で　泣いている\n\nもしも\n愛が戻る　奇跡なら\n物語の　結末を\n初めの場所に　戻したい\n\nもしも\n再会の時　痛みなく\n心の声を　今記す\n\n日々の引き裂き　痩せていく\n会話の度　傷つけて\n孤独で戰う　君は知らない\n本の中の　塵（ちり）に似て\n卑微な心　咲かせるよ\n\nもしも\n愛が戻る　奇跡なら\n物語の　結末を\n初めの場所に　戻したい\n\nもしも\n再会の時　痛みなく\n心の声を　今記す\n\nもしも\n愛が戻る　奇跡なら\n物語の　結末を\n初めの場所に　戻したい\n\n\nもしも\n再会の時　痛みなく\n心の声を　今記す\n\n日々の引き裂き　痩せていく\n会話の度　傷つけて\n孤独で戰う　君は知らない\n本の中の　塵（ちり）に似て\n卑微な心　咲かせるよ\n\nもし由\n再会の時　痛みなく\n心の声を　今記す", 
+        credits: "© 2025 Willwi Music\n℗ 2025 Willwi Music\nMain Artist : Willwi 陳威兒\nComposer : Tsung Yu Chen\nLyricist : Tsung Yu Chen\nArranger : Willwi\nProducer : Will Chen\nRecording Engineer | Will Chen\nMixing Engineer | Will Chen\nMastering Engineer | Will Chen\nRecording Studio | Willwi Studio, Taipei\nLabel | Willwi Music\n",
+        origin: 'local',
+        isInteractiveActive: true
+    },
     { id: id('RuGuoNiXiangQiWo'), title: '如果你想起我', isrc: 'TWIFYOUTHINKOFME', releaseDate: '2025-03-05', releaseCategory: ReleaseCategory.Single, language: Language.Mandarin, projectType: ProjectType.Indie, coverUrl: ASSETS.defaultCover, isInteractiveActive: true, isEditorPick: false, origin: 'local', credits: STANDARD_CREDITS },
     { id: id('SuiYueXian'), title: '歲月線', isrc: 'TWYEARSLINE', releaseDate: '2025-03-03', releaseCategory: ReleaseCategory.Single, language: Language.Mandarin, projectType: ProjectType.Indie, coverUrl: ASSETS.defaultCover, isInteractiveActive: true, isEditorPick: false, origin: 'local', credits: STANDARD_CREDITS },
     { id: id('ChiLaiDeTongZhi'), title: '遲來的通知', isrc: 'TWLATEWORD', releaseDate: '2025-03-03', releaseCategory: ReleaseCategory.Single, language: Language.Mandarin, projectType: ProjectType.Indie, coverUrl: ASSETS.defaultCover, isInteractiveActive: true, isEditorPick: false, origin: 'local', credits: STANDARD_CREDITS },
