@@ -16,7 +16,7 @@ interface GlobalSettings {
     qr_support: string;
     accessCode: string;
     exclusiveYoutubeUrl?: string;
-    bgmUrl?: string; // 新增背景音樂網址
+    bgmUrl?: string;
 }
 
 interface ExtendedSongContextType extends SongContextType {
@@ -45,25 +45,24 @@ const SETTINGS_LOCAL_KEY = 'willwi_settings_backup';
 export const normalizeIdentifier = (val: string) => (val || '').trim().replace(/[^A-Z0-9]/gi, '').toUpperCase();
 
 /**
- * Enhanced Robust Audio Link Resolver.
- * Automatically fixes Dropbox and Google Drive sharing links into direct-streamable formats.
+ * 終極音訊解析器
  */
 export const resolveDirectLink = (url: string) => {
     if (!url || typeof url !== 'string') return '';
     let cleanUrl = url.trim();
 
-    // Dropbox Optimization: ?dl=0 -> ?raw=1
+    // Dropbox 處理
     if (cleanUrl.includes('dropbox.com')) {
-        let base = cleanUrl.split('?')[0];
-        // Ensure standard direct download subdomain
-        base = base.replace('//www.dropbox.com', '//dl.dropboxusercontent.com')
-                   .replace('//dropbox.com', '//dl.dropboxusercontent.com');
-        return `${base}?raw=1`;
+        return cleanUrl
+            .replace('www.dropbox.com', 'dl.dropboxusercontent.com')
+            .replace('?dl=0', '?raw=1')
+            .replace(/&dl=0$/, '&raw=1');
     }
 
-    // Google Drive Optimization: /file/d/ID/view -> /uc?id=ID
+    // Google Drive 處理 (包含 thumbnail 連結自動轉載)
     if (cleanUrl.includes('drive.google.com')) {
-        const fileIdMatch = cleanUrl.match(/\/file\/d\/([a-zA-Z0-9_-]+)/) || cleanUrl.match(/id=([a-zA-Z0-9_-]+)/);
+        const fileIdMatch = cleanUrl.match(/\/file\/d\/([a-zA-Z0-9_-]+)/) || 
+                            cleanUrl.match(/id=([a-zA-Z0-9_-]+)/);
         if (fileIdMatch && fileIdMatch[1]) {
             return `https://docs.google.com/uc?export=download&id=${fileIdMatch[1]}`;
         }

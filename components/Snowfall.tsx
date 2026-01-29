@@ -3,71 +3,77 @@ import React, { useMemo } from 'react';
 
 const CosmosParticles: React.FC = () => {
   const stars = useMemo(() => {
-    return Array.from({ length: 280 }).map((_, i) => ({
+    return Array.from({ length: 320 }).map((_, i) => ({
       id: i,
-      size: Math.random() * 2.8 + 0.3,
+      size: Math.random() * 2 + 0.4, 
       left: `${Math.random() * 100}%`,
       top: `${Math.random() * 100}%`,
-      twinkleDuration: `${Math.random() * 3 + 1.2}s`,
-      twinkleDelay: `${Math.random() * 10}s`,
-      driftDuration: `${Math.random() * 60 + 30}s`,
-      opacity: Math.random() * 0.9 + 0.1,
-      isGold: Math.random() > 0.85,
+      twinkleDuration: `${Math.random() * 4 + 3}s`,
+      twinkleDelay: `${Math.random() * 15}s`,
+      driftDuration: `${Math.random() * 150 + 100}s`,
+      opacity: Math.random() * 0.5 + 0.1,
+      isGold: Math.random() > 0.92,
     }));
   }, []);
 
   const shootingStars = useMemo(() => {
-    // 增加流星數量與出現頻率
-    return Array.from({ length: 12 }).map((_, i) => ({
+    // 只有 3 條流星軌道，且延遲非常長
+    return Array.from({ length: 3 }).map((_, i) => ({
       id: i,
-      top: `${Math.random() * 60}%`,
-      left: `${Math.random() * 70}%`,
-      delay: `${Math.random() * 15}s`,
-      duration: `${Math.random() * 1.5 + 0.8}s`
+      top: `${Math.random() * 40 + 5}%`,
+      left: `${Math.random() * 10 - 5}%`,
+      delay: `${Math.random() * 50 + 5}s`, // 5 到 55 秒之間才出現一次
+      duration: `${Math.random() * 0.3 + 0.5}s` // 0.5s - 0.8s 瞬逝感
     }));
   }, []);
 
   return (
-    <div className="fixed inset-0 pointer-events-none overflow-hidden z-[-1] bg-black">
-      {/* 深空星雲漸層 */}
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_#050812_0%,_#000000_100%)]"></div>
-      <div className="absolute inset-0 opacity-20 bg-[radial-gradient(ellipse_at_top_right,_#1e1b4b_0%,_transparent_60%)]"></div>
-      <div className="absolute inset-0 opacity-15 bg-[radial-gradient(ellipse_at_bottom_left,_#312e81_0%,_transparent_60%)]"></div>
+    <div style={{ position: 'fixed', inset: 0, pointerEvents: 'none', overflow: 'hidden', zIndex: -1, backgroundColor: '#000' }}>
+      {/* 沉浸式宇宙深層背景 */}
+      <div style={{ position: 'absolute', inset: 0, background: 'radial-gradient(circle at center, #020617 0%, #000 100%)' }}></div>
+      <div style={{ position: 'absolute', inset: 0, opacity: 0.08, background: 'radial-gradient(ellipse at top right, #312e81 0%, transparent 70%)' }}></div>
+      <div style={{ position: 'absolute', inset: 0, opacity: 0.05, background: 'radial-gradient(ellipse at bottom left, #1e1b4b 0%, transparent 60%)' }}></div>
 
-      {/* 繁星點點 */}
+      {/* 靜謐繁星 */}
       {stars.map(s => (
         <div
           key={s.id}
-          className="absolute rounded-full transition-opacity duration-1000"
           style={{
+            position: 'absolute',
+            borderRadius: '50%',
             width: `${s.size}px`,
             height: `${s.size}px`,
             left: s.left,
             top: s.top,
             backgroundColor: s.isGold ? '#fbbf24' : '#ffffff',
-            boxShadow: s.isGold ? '0 0 15px #fbbf24' : '0 0 10px rgba(255,255,255,0.4)',
-            animation: `twinkle ${s.twinkleDuration} ease-in-out ${s.twinkleDelay} infinite, float-slow ${s.driftDuration} linear infinite`,
+            boxShadow: s.isGold ? '0 0 8px #fbbf24' : '0 0 4px rgba(255,255,255,0.3)',
+            animation: `twinkle ${s.twinkleDuration} ease-in-out ${s.twinkleDelay} infinite, floatSlow ${s.driftDuration} linear infinite`,
             opacity: s.opacity,
           }}
         />
       ))}
 
-      {/* 強化流星 */}
+      {/* 優雅流星 */}
       {shootingStars.map(s => (
         <div
           key={s.id}
-          className="absolute h-[1px] w-[500px] bg-gradient-to-r from-transparent via-white to-transparent opacity-0"
           style={{
+            position: 'absolute',
+            height: '1px',
+            width: '80px', // 極細、極短
+            background: 'linear-gradient(to right, transparent, rgba(255,255,255,0.6), transparent)',
             top: s.top,
             left: s.left,
-            animation: `shooting-star ${s.duration} linear ${s.delay} infinite`,
-            filter: 'blur(0.5px) drop-shadow(0 0 15px rgba(255,255,255,0.9))',
+            animation: `shootingStar ${s.duration} linear ${s.delay} infinite`,
+            filter: 'blur(0.2px)',
+            opacity: 0,
+            transformOrigin: 'left center'
           }}
         />
       ))}
       
-      {/* 視窗周圍暗角，增加中心深邃感 */}
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_transparent_40%,_rgba(0,0,0,0.9)_100%)]"></div>
+      {/* 柔邊遮罩 */}
+      <div style={{ position: 'absolute', inset: 0, background: 'radial-gradient(circle at center, transparent 30%, rgba(0,0,0,0.4) 100%)' }}></div>
     </div>
   );
 };
