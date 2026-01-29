@@ -18,6 +18,8 @@ export interface SpotifyTrack {
     images: { url: string }[];
     external_ids?: { upc?: string; ean?: string };
     label?: string;
+    // Added album_type to match API response and fix TS errors in components like AddSong.tsx
+    album_type?: 'album' | 'single' | 'compilation';
   };
   external_ids: { isrc?: string };
   external_urls: { spotify: string };
