@@ -24,6 +24,8 @@ export interface SpotifyTrack {
   uri: string;
   track_number?: number;
   duration_ms?: number;
+  // Added preview_url to fix Property 'preview_url' does not exist on type 'SpotifyTrack'
+  preview_url?: string | null;
 }
 
 export interface SpotifyAlbum {

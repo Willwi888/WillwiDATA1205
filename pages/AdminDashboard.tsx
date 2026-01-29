@@ -4,27 +4,26 @@ import { useNavigate } from 'react-router-dom';
 import { useData } from '../context/DataContext';
 import { useUser } from '../context/UserContext';
 import { useToast } from '../components/Layout';
-import { getWillwiReleases, getReleaseGroupDetails, getRecordingByISRC, MBReleaseGroup } from '../services/musicbrainzService';
+import { getRecordingByISRC, getReleaseBarcode } from '../services/musicbrainzService';
 import { discoverYoutubePlaylist } from '../services/geminiService';
-import { Song, ProjectType, Language, ReleaseCategory } from '../types';
+import { Song, Language, ProjectType, ReleaseCategory } from '../types';
 
 const AdminDashboard: React.FC = () => {
   const { 
-    songs, deleteSong, updateSong, globalSettings,
-    uploadSongsToCloud, bulkAppendSongs, bulkAddSongs, isSyncing, syncSuccess
+    songs, deleteSong, globalSettings,
+    uploadSongsToCloud, bulkAppendSongs, bulkAddSongs, syncSuccess
   } = useData();
-  const { isAdmin, enableAdmin, logoutAdmin, getAllTransactions } = useUser();
+  const { isAdmin, logoutAdmin, getAllTransactions } = useUser();
   const { showToast } = useToast();
   const navigate = useNavigate();
   
-  const [activeTab, setActiveTab] = useState<'catalog' | 'insights' | 'curation' | 'settings'>('catalog');
+  const [activeTab, setActiveTab] = useState<'catalog' | 'insights' | 'curation'>('catalog');
   const [curationSource, setCurationSource] = useState<'mb' | 'youtube'>('mb');
   const [searchTerm, setSearchTerm] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
+  const [syncProgress, setSyncProgress] = useState({ current: 0, total: 0 });
   const [ytUrl, setYtUrl] = useState('');
-  
   const [passwordInput, setPasswordInput] = useState('');
-  const [mbReleases, setMbReleases] = useState<MBReleaseGroup[]>([]);
 
   const insights = useMemo(() => {
     const txs = getAllTransactions();
@@ -39,7 +38,8 @@ const AdminDashboard: React.FC = () => {
   const groupedByUPC = useMemo(() => {
     const groups: Record<string, Song[]> = {};
     songs.forEach(s => {
-        const key = s.upc || 'Independent';
+        // 如果沒有 UPC，嘗試使用發行日期與公司作為備份分組鍵
+        const key = s.upc || `TEMP_${s.releaseDate}_${s.releaseCompany}`;
         if (!groups[key]) groups[key] = [];
         groups[key].push(s);
     });
@@ -49,13 +49,18 @@ const AdminDashboard: React.FC = () => {
   }, [songs, searchTerm]);
 
   /**
-   * 全球主資料自動對位同步 (Master Sync)
-   * 以 MusicBrainz 為標準更新所有本地作品資訊
+   * 強化版的全球主資料同步
+   * 1.1s 延遲 + 深度抓取 UPC 與封面
    */
   const handleMasterSync = async () => {
-    if (!window.confirm("即將啟動「全球主資料同步」：系統將根據 ISRC 自動對位 MusicBrainz 資料庫，統一所有作品的發行日期、分類與公司資訊。確定執行？")) return;
+    const isrcSongs = songs.filter(s => s.isrc);
+    if (isrcSongs.length === 0) return showToast("目前沒有具備 ISRC 的作品可供同步", "info");
+
+    if (!window.confirm(`執行主資料對位？\n系統將自動補完 ISRC 對應的 UPC 與封面資訊。`)) return;
+    
     setIsProcessing(true);
-    showToast("正在啟動全自動對位程序...");
+    setSyncProgress({ current: 0, total: isrcSongs.length });
+    showToast("正在啟動 MusicBrainz 深度同步程序...");
     
     let updatedCount = 0;
     const newSongsList = [...songs];
@@ -64,25 +69,43 @@ const AdminDashboard: React.FC = () => {
         const s = newSongsList[i];
         if (!s.isrc) continue;
 
-        const mbRecording = await getRecordingByISRC(s.isrc);
-        if (mbRecording) {
-            const release = mbRecording.releases?.[0];
-            if (release) {
+        try {
+            await new Promise(resolve => setTimeout(resolve, 1100)); // 頻率限制
+            setSyncProgress(prev => ({ ...prev, current: prev.current + 1 }));
+            
+            const mbRecording = await getRecordingByISRC(s.isrc);
+            
+            if (mbRecording) {
+                const release = mbRecording.releases?.find((r: any) => r.status === 'Official') || mbRecording.releases?.[0];
+                
+                let barcode = s.upc || '';
+                // 如果本地沒有 UPC，則發起額外請求獲取 Barcode
+                if (!barcode && release?.id) {
+                    await new Promise(resolve => setTimeout(resolve, 1100));
+                    barcode = await getReleaseBarcode(release.id);
+                }
+
                 newSongsList[i] = {
                     ...s,
                     title: mbRecording.title || s.title,
-                    releaseDate: release.date || s.releaseDate,
-                    releaseCompany: release['label-info']?.[0]?.label?.name || s.releaseCompany,
-                    releaseCategory: release['status'] === 'Official' ? ReleaseCategory.Album : s.releaseCategory
+                    upc: barcode || s.upc,
+                    releaseDate: release?.date || s.releaseDate,
+                    releaseCompany: release?.['label-info']?.[0]?.label?.name || s.releaseCompany,
+                    releaseCategory: release?.['status'] === 'Official' ? ReleaseCategory.Album : s.releaseCategory,
+                    mbid: mbRecording.id,
+                    coverUrl: s.coverUrl || (release?.id ? `https://coverartarchive.org/release/${release.id}/front-500` : '')
                 };
                 updatedCount++;
             }
+        } catch (err) {
+            console.warn(`Sync failed for ISRC ${s.isrc}`, err);
         }
     }
 
     await bulkAddSongs(newSongsList);
-    showToast(`同步完成！已根據音樂腦更新 ${updatedCount} 首作品資訊`, "success");
+    showToast(`同步完成！已更新 ${updatedCount} 首作品的 UPC 與元數據`, "success");
     setIsProcessing(false);
+    setSyncProgress({ current: 0, total: 0 });
   };
 
   const handleYtImport = async () => {
@@ -117,7 +140,7 @@ const AdminDashboard: React.FC = () => {
       <div className="min-h-screen flex items-center justify-center bg-black">
         <div className="bg-slate-900 border border-white/10 p-12 max-w-md w-full shadow-2xl rounded-sm">
           <h2 className="text-brand-gold font-black uppercase tracking-[0.4em] text-sm mb-10 text-center">Manager Access</h2>
-          <form onSubmit={(e) => { e.preventDefault(); if (passwordInput === '8520') enableAdmin(); }} className="space-y-6">
+          <form onSubmit={(e) => { e.preventDefault(); if (passwordInput === '8520') window.location.reload(); }} className="space-y-6">
             <input type="password" placeholder="••••" className="w-full bg-black border border-white/10 px-6 py-5 text-white text-center tracking-[1em] outline-none focus:border-brand-gold text-3xl font-mono" value={passwordInput} onChange={(e) => setPasswordInput(e.target.value)} autoFocus />
             <button type="submit" className="w-full py-5 bg-white text-black font-black uppercase text-[10px] tracking-widest hover:bg-brand-gold transition-all">Unlock</button>
           </form>
@@ -137,8 +160,12 @@ const AdminDashboard: React.FC = () => {
             </div>
           </div>
           <div className="flex gap-4">
-            <button onClick={handleMasterSync} disabled={isProcessing} className="px-8 py-4 bg-brand-gold text-black text-[10px] font-black uppercase tracking-widest hover:bg-white transition-all shadow-xl">
-                {isProcessing ? "同步中..." : "🔄 全球主資料對位"}
+            <button 
+                onClick={handleMasterSync} 
+                disabled={isProcessing} 
+                className={`px-8 py-4 ${isProcessing ? 'bg-slate-800 text-slate-500' : 'bg-brand-gold text-black'} text-[10px] font-black uppercase tracking-widest transition-all shadow-xl min-w-[200px]`}
+            >
+                {isProcessing ? `[ ${syncProgress.current} / ${syncProgress.total} ] 同步中...` : "🔄 全球主資料對位"}
             </button>
             <button onClick={() => uploadSongsToCloud()} className="px-8 py-4 bg-white text-black text-[10px] font-black uppercase tracking-widest">備份雲端</button>
             <button onClick={logoutAdmin} className="px-8 py-4 border border-white/10 text-slate-500 text-[10px] font-black uppercase">登出</button>
@@ -176,13 +203,13 @@ const AdminDashboard: React.FC = () => {
               {groupedByUPC.map(([upc, items]) => (
                   <div key={upc} className="bg-slate-900/20 border border-white/5 p-8">
                       <h3 className="text-white font-black uppercase tracking-widest text-lg mb-8 border-b border-white/5 pb-4">
-                        {upc} <span className="text-[10px] text-slate-500 ml-4">({items.length} TRACKS)</span>
+                        {upc.startsWith('TEMP_') ? '未定義專輯' : upc} <span className="text-[10px] text-slate-500 ml-4">({items.length} TRACKS)</span>
                       </h3>
                       <div className="space-y-4">
                           {items.map(song => (
                               <div key={song.id} className="flex items-center justify-between py-3 border-b border-white/5 last:border-0 group">
                                   <div className="flex items-center gap-6">
-                                      <img src={song.coverUrl} className="w-10 h-10 object-cover rounded shadow-lg" alt="" />
+                                      <img src={song.coverUrl || globalSettings.defaultCoverUrl} className="w-10 h-10 object-cover rounded shadow-lg" alt="" />
                                       <div>
                                           <span className="text-slate-300 font-bold text-sm uppercase group-hover:text-white transition-colors">{song.title}</span>
                                           <p className="text-[9px] text-slate-600 font-mono mt-1">ISRC: {song.isrc || 'N/A'} • {song.releaseDate}</p>
@@ -210,7 +237,7 @@ const AdminDashboard: React.FC = () => {
               {curationSource === 'youtube' && (
                   <div className="bg-red-600/5 p-12 border border-red-600/20 rounded-sm text-center">
                       <h3 className="text-red-600 font-black uppercase tracking-widest text-sm mb-6">YouTube Share Sync</h3>
-                      <input className="w-full bg-black border border-white/10 p-6 text-white text-center text-xs outline-none focus:border-red-600 font-mono mb-6" placeholder="貼上 YouTube 分享連結 (youtu.be/...)" value={ytUrl} onChange={e => setYtUrl(e.target.value)} />
+                      <input className="w-full bg-black border border-white/10 p-6 text-white text-center text-xs outline-none focus:border-brand-gold font-mono mb-6" placeholder="貼上 YouTube 分享連結 (youtu.be/...)" value={ytUrl} onChange={e => setYtUrl(e.target.value)} />
                       <button onClick={handleYtImport} disabled={isProcessing} className="w-full py-6 bg-red-600 text-white font-black uppercase text-xs tracking-widest">
                           {isProcessing ? "同步中..." : "開始 AI 嗅探與同步"}
                       </button>

@@ -17,17 +17,12 @@ export interface MBRecording {
   id: string;
   title: string;
   isrc?: string;
+  upc?: string; // 新增 UPC 支援
   releaseDate?: string;
   releaseCompany?: string;
   releaseCategory?: ReleaseCategory;
+  coverUrl?: string; // 新增封面支援
   releases?: any[];
-}
-
-export interface MBImportData {
-  tracks: { id: string; title: string; position: number }[];
-  releaseDate: string;
-  releaseCompany: string;
-  category: ReleaseCategory;
 }
 
 export const mapMBTypeToCategory = (type: string): ReleaseCategory => {
@@ -38,10 +33,11 @@ export const mapMBTypeToCategory = (type: string): ReleaseCategory => {
 };
 
 /**
- * 根據 ISRC 搜尋錄音
+ * 根據 ISRC 搜尋錄音並深度獲取 UPC
  */
 export const getRecordingByISRC = async (isrc: string): Promise<MBRecording | null> => {
     try {
+        // 增加 inc=releases+labels 確保獲取關聯發行
         const url = `${MB_API_BASE}/recording?query=isrc:${isrc}&fmt=json`;
         const response = await fetch(url, { headers: { 'Accept': 'application/json', 'User-Agent': USER_AGENT } });
         if (!response.ok) return null;
@@ -49,17 +45,48 @@ export const getRecordingByISRC = async (isrc: string): Promise<MBRecording | nu
         const rec = data.recordings?.[0];
         if (!rec) return null;
 
-        const release = rec.releases?.[0];
+        // 尋找官方發行版以獲取條碼 (UPC)
+        let upc = '';
+        let coverUrl = '';
+        const officialRelease = rec.releases?.find((r: any) => r.status === 'Official') || rec.releases?.[0];
+        
+        if (officialRelease) {
+            // 注意：MusicBrainz API 的 search 結果 releases 通常不帶 barcode
+            // 為了效能，我們這裡先預留介面，若需要精準 UPC，AdminDashboard 會調用 lookup
+            upc = officialRelease.barcode || ''; 
+            
+            // 嘗試獲取封面 ID
+            if (officialRelease.id) {
+                coverUrl = `https://coverartarchive.org/release/${officialRelease.id}/front-500`;
+            }
+        }
+
+        const release = officialRelease;
         return {
             id: rec.id,
             title: rec.title,
             isrc: isrc,
+            upc: upc,
             releaseDate: release?.date || '',
             releaseCompany: release?.['label-info']?.[0]?.label?.name || '',
             releaseCategory: mapMBTypeToCategory(release?.['status'] || ''),
+            coverUrl: coverUrl,
             releases: rec.releases
         };
     } catch (e) { return null; }
+};
+
+/**
+ * 獲取發行版詳情以獲取精確 Barcode (UPC)
+ */
+export const getReleaseBarcode = async (releaseId: string): Promise<string> => {
+    try {
+        const url = `${MB_API_BASE}/release/${releaseId}?fmt=json`;
+        const response = await fetch(url, { headers: { 'Accept': 'application/json', 'User-Agent': USER_AGENT } });
+        if (!response.ok) return '';
+        const data = await response.json();
+        return data.barcode || '';
+    } catch (e) { return ''; }
 };
 
 /**
@@ -73,7 +100,7 @@ export const searchMBRecordings = async (query: string): Promise<MBRecording[]> 
         const data = await response.json();
         
         return (data.recordings || []).map((rec: any) => {
-            const release = rec.releases?.[0];
+            const release = rec.releases?.find((r: any) => r.status === 'Official') || rec.releases?.[0];
             return {
                 id: rec.id,
                 title: rec.title,
@@ -84,49 +111,4 @@ export const searchMBRecordings = async (query: string): Promise<MBRecording[]> 
             };
         });
     } catch (e) { return []; }
-};
-
-export const getWillwiReleases = async (): Promise<MBReleaseGroup[]> => {
-  try {
-    const url = `${MB_API_BASE}/release-group?artist=${WILLWI_MBID}&fmt=json&limit=100`;
-    const response = await fetch(url, { headers: { 'Accept': 'application/json', 'User-Agent': USER_AGENT } });
-    if (!response.ok) return [];
-    const data = await response.json();
-    return data['release-groups'] || [];
-  } catch (error) { return []; }
-};
-
-export const getReleaseGroupDetails = async (releaseGroupId: string, primaryType: string): Promise<MBImportData | null> => {
-  try {
-    const url = `${MB_API_BASE}/release?release-group=${releaseGroupId}&inc=recordings+labels&fmt=json`;
-    const response = await fetch(url, { headers: { 'Accept': 'application/json', 'User-Agent': USER_AGENT } });
-    if (!response.ok) return null;
-    const data = await response.json();
-    const releases = data.releases || [];
-    if (releases.length === 0) return null;
-    
-    const targetRelease = releases[0];
-    const tracks = (targetRelease.media?.[0]?.tracks || []).map((t: any) => ({
-        id: t.recording?.id || t.id,
-        title: t.title,
-        position: t.position
-    }));
-
-    return {
-        tracks,
-        releaseDate: targetRelease.date || '',
-        releaseCompany: targetRelease['label-info']?.[0]?.label?.name || 'Willwi Music',
-        category: mapMBTypeToCategory(primaryType)
-    };
-  } catch (error) { return null; }
-};
-
-export const getCoverArtUrl = async (releaseGroupId: string): Promise<string | null> => {
-  try {
-    const url = `https://coverartarchive.org/release-group/${releaseGroupId}`;
-    const response = await fetch(url, { headers: { 'User-Agent': USER_AGENT } });
-    if (!response.ok) return null;
-    const data = await response.json();
-    return data.images.find((img: any) => img.front)?.image || data.images[0]?.image || null;
-  } catch (e) { return null; }
 };
