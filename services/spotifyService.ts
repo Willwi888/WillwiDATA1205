@@ -72,35 +72,20 @@ export const searchSpotify = async (query: string, type: 'track' | 'album' | 'tr
   if (!token) return { tracks: [], albums: [] };
 
   try {
-    const response = await fetch(`https://api.spotify.com/v1/search?q=${encodeURIComponent(query)}&type=${type}&limit=20`, {
+    const response = await fetch(`https://api.spotify.com/v1/search?q=${encodeURIComponent(query)}&type=${type}&limit=30`, {
       headers: { 'Authorization': `Bearer ${token}` }
     });
 
     if (!response.ok) return { tracks: [], albums: [] };
     const data = await response.json();
+    
+    // For single tracks, we might want to fetch full track data to get ISRC if search results are truncated
     return {
         tracks: data.tracks?.items || [],
         albums: data.albums?.items || []
     };
   } catch (error) {
     return { tracks: [], albums: [] };
-  }
-};
-
-export const getArtistAlbums = async (artistId: string): Promise<SpotifyAlbum[]> => {
-  const token = await getSpotifyToken();
-  if (!token) return [];
-
-  try {
-    // 提升限制至 50，盡可能顯示所有 79 首作品中的大部分專輯/單曲
-    const response = await fetch(`https://api.spotify.com/v1/artists/${artistId}/albums?limit=50&include_groups=album,single`, {
-      headers: { 'Authorization': `Bearer ${token}` }
-    });
-    if (!response.ok) return [];
-    const data = await response.json();
-    return data.items || [];
-  } catch (error) {
-    return [];
   }
 };
 
@@ -150,7 +135,7 @@ export const getSpotifyAlbumTracks = async (albumId: string): Promise<SpotifyTra
         if (!response.ok) return [];
         const data = await response.json();
         
-        // Fetch full track info for ISRCs
+        // Fetch full track info in batches to get ISRC (crucial for local DB mapping)
         const trackIds = data.items.map((t: any) => t.id);
         const fullTracks = await getSpotifyFullTracks(trackIds);
         
@@ -163,24 +148,24 @@ export const getSpotifyAlbumTracks = async (albumId: string): Promise<SpotifyTra
     }
 };
 
+export const getArtistAlbums = async (artistId: string): Promise<SpotifyAlbum[]> => {
+  const token = await getSpotifyToken();
+  if (!token) return [];
+
+  try {
+    const response = await fetch(`https://api.spotify.com/v1/artists/${artistId}/albums?limit=50&include_groups=album,single`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    if (!response.ok) return [];
+    const data = await response.json();
+    return data.items || [];
+  } catch (error) {
+    return [];
+  }
+};
+
 // Existing compatibility
 export const searchSpotifyTracks = async (query: string) => {
     const res = await searchSpotify(query, 'track');
     return res.tracks;
-};
-
-export const getArtistTopTracks = async (artistId: string): Promise<SpotifyTrack[]> => {
-    const token = await getSpotifyToken();
-    if (!token) return [];
-
-    try {
-        const response = await fetch(`https://api.spotify.com/v1/artists/${artistId}/top-tracks?market=TW`, {
-            headers: { 'Authorization': `Bearer ${token}` }
-        });
-        if (!response.ok) return [];
-        const data = await response.json();
-        return data.tracks || [];
-    } catch (error) {
-        return [];
-    }
 };

@@ -47,60 +47,69 @@ const Database: React.FC = () => {
         <div className="md:col-span-8 relative">
             <input
               type="text"
-              placeholder="SEARCH BY UPC / ISRC / TITLE"
-              className="w-full bg-slate-900/40 border border-white/5 px-8 py-6 text-white text-xs font-light uppercase tracking-widest outline-none focus:border-brand-gold/40 transition-all"
+              placeholder="搜尋作品名稱或 ISRC..."
+              className="w-full bg-slate-900/40 border border-white/5 px-8 py-6 text-white text-xs font-medium uppercase tracking-widest outline-none focus:border-brand-gold/40 transition-all"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
             />
         </div>
         <div className="md:col-span-4">
-            <select className="w-full bg-slate-900/40 border border-white/5 px-8 py-6 text-white text-[10px] font-light uppercase tracking-widest outline-none cursor-pointer" value={filterLang} onChange={(e) => setFilterLang(e.target.value)}>
-                <option value="All">All Languages</option>
+            <select className="w-full bg-slate-900/40 border border-white/5 px-8 py-6 text-white text-[10px] font-medium uppercase tracking-widest outline-none cursor-pointer" value={filterLang} onChange={(e) => setFilterLang(e.target.value)}>
+                <option value="All">所有語言</option>
                 {Object.values(Language).map(l => <option key={l} value={l}>{l}</option>)}
             </select>
         </div>
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-x-10 gap-y-20">
+      <div className="space-y-6">
+          <div className="hidden md:grid grid-cols-12 gap-4 px-8 py-4 bg-white/5 text-[10px] font-medium text-slate-500 uppercase tracking-widest border-b border-white/10">
+              <div className="col-span-1">PREVIEW</div>
+              <div className="col-span-3">作品名稱</div>
+              <div className="col-span-2 text-center">ISRC</div>
+              <div className="col-span-1 text-center">發行類別</div>
+              <div className="col-span-1 text-center">語系</div>
+              <div className="col-span-1 text-center">日期</div>
+              <div className="col-span-1 text-center">發行公司</div>
+              <div className="col-span-2 text-right">ACTIONS</div>
+          </div>
+          
           {groupedAlbums.map(albumSongs => {
               const main = albumSongs[0];
               const isAlbum = albumSongs.length > 1;
-              const typeLabel = isAlbum ? 'ALBUM' : main.releaseCategory?.replace(' (單曲)', '').toUpperCase() || 'SINGLE';
-              const cover = main.coverUrl || globalSettings.defaultCoverUrl;
-
+              const typeLabel = isAlbum ? 'ALBUM' : main.releaseCategory?.replace(' (單曲)', '').toUpperCase() || '--';
+              
               return (
-                  <div key={main.id} className="group cursor-pointer">
-                      <div className="aspect-square relative overflow-hidden bg-slate-900 border border-white/5 transition-all duration-500 group-hover:border-brand-gold/30 shadow-2xl rounded-sm">
-                          <img 
-                            src={cover} 
-                            onClick={() => navigate(`/song/${main.id}`)}
-                            className="w-full h-full object-cover transition-transform duration-[1.5s] group-hover:scale-110 group-hover:opacity-40" 
-                            alt={main.title} 
-                          />
-                          
-                          {/* Hover Tracklist Preview - 仿照串流頻道互動 */}
-                          <div className="absolute inset-0 p-6 flex flex-col justify-end opacity-0 group-hover:opacity-100 transition-all duration-500 pointer-events-none">
-                              <div className="space-y-1.5 transform translate-y-4 group-hover:translate-y-0 transition-transform">
-                                  {albumSongs.slice(0, 4).map((s, i) => (
-                                      <div key={s.id} className="flex items-baseline gap-2">
-                                          <span className="text-[8px] text-brand-gold font-mono opacity-60">0{i+1}</span>
-                                          <span className="text-[10px] text-white font-light uppercase tracking-widest truncate">{s.title}</span>
-                                      </div>
-                                  ))}
-                                  {albumSongs.length > 4 && <div className="text-[8px] text-slate-500 font-medium pt-2">+ {albumSongs.length - 4} MORE TRACKS</div>}
-                              </div>
-                          </div>
-
-                          <div className="absolute bottom-4 left-4 group-hover:opacity-0 transition-opacity">
-                              <span className="bg-black/80 backdrop-blur-md border border-white/10 text-white text-[9px] font-medium uppercase tracking-widest px-3 py-1.5">
-                                  {typeLabel}
-                              </span>
+                  <div key={main.id} className="grid grid-cols-1 md:grid-cols-12 gap-4 px-8 py-6 bg-[#050a14] border border-white/5 items-center hover:bg-white/[0.03] transition-all group rounded-sm">
+                      <div className="col-span-1">
+                          <button onClick={() => playSong(main)} className="w-10 h-10 rounded-full border border-white/10 flex items-center justify-center text-white hover:bg-brand-gold hover:text-black transition-all">
+                              ▶
+                          </button>
+                      </div>
+                      <div className="col-span-3 flex items-center gap-4">
+                          <img src={main.coverUrl} className="w-12 h-12 object-cover rounded-sm shadow-xl" alt="" />
+                          <div>
+                              <h4 className="text-sm font-medium text-white uppercase tracking-widest truncate">{main.title}</h4>
+                              <p className="text-[9px] text-slate-600 uppercase tracking-widest mt-1">ORIGINAL</p>
                           </div>
                       </div>
-                      <div className="mt-6 space-y-1" onClick={() => navigate(`/song/${main.id}`)}>
-                        <h4 className="text-[13px] font-medium text-white uppercase tracking-widest group-hover:text-brand-gold transition-colors truncate">{main.title}</h4>
-                        <p className="text-[10px] font-light text-white uppercase tracking-[0.2em] opacity-80">{typeLabel}</p>
-                        <p className="text-[9px] text-slate-500 font-light uppercase tracking-widest">{main.releaseDate.split('-')[0]} • {main.releaseCompany || 'WILLWI MUSIC'}</p>
+                      <div className="col-span-2 text-center text-[10px] font-mono text-brand-gold uppercase tracking-widest">
+                          {main.isrc || '--'}
+                      </div>
+                      <div className="col-span-1 text-center text-[10px] text-slate-400 uppercase tracking-widest">
+                          {typeLabel}
+                      </div>
+                      <div className="col-span-1 text-center">
+                          <span className="px-3 py-1 bg-white/5 border border-white/10 text-white text-[9px] font-medium uppercase tracking-widest rounded-sm">{main.language}</span>
+                      </div>
+                      <div className="col-span-1 text-center text-[10px] text-slate-500 font-mono">
+                          {main.releaseDate}
+                      </div>
+                      <div className="col-span-1 text-center text-[10px] text-slate-600 uppercase tracking-widest truncate">
+                          {main.releaseCompany || '--'}
+                      </div>
+                      <div className="col-span-2 flex justify-end gap-3">
+                          <button onClick={() => navigate(`/song/${main.id}`)} className="px-5 py-2 border border-white/10 text-white text-[9px] font-medium uppercase tracking-widest hover:bg-white/10 transition-all">INFO</button>
+                          <button onClick={() => navigate(`/interactive`, { state: { targetSongId: main.id } })} className="px-5 py-2 bg-white text-black text-[9px] font-medium uppercase tracking-widest hover:bg-brand-gold transition-all">START LAB</button>
                       </div>
                   </div>
               );
