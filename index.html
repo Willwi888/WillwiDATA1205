@@ -7,7 +7,7 @@
     <title>Willwi Music Database | Official</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@100;300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@100;200;300;400;500;600;700;800;900&display=swap" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
       tailwind.config = {
@@ -26,37 +26,30 @@
               }
             },
             animation: {
-              'pulse-glow': 'pulseGlow 12s ease-in-out infinite',
-              'studio-breathe': 'studioBreathe 10s ease-in-out infinite',
+              'cosmos-drift': 'cosmosDrift 60s linear infinite',
+              'shooting-star': 'shootingStar 5s linear infinite',
               'fade-in-up': 'fadeInUp 1.4s cubic-bezier(0.16, 1, 0.3, 1) forwards',
-              'light-leak': 'lightLeak 20s ease-in-out infinite alternate',
-              'blur-in': 'blurIn 0.8s ease-out forwards',
-              'zen-spin': 'zenSpin 60s linear infinite',
+              'float-slow': 'floatSlow 15s ease-in-out infinite',
+              'twinkle': 'twinkle 4s ease-in-out infinite',
             },
             keyframes: {
-              zenSpin: {
-                '0%': { transform: 'rotate(0deg)' },
-                '100%': { transform: 'rotate(360deg)' }
+              floatSlow: {
+                '0%, 100%': { transform: 'translate3d(0, 0, 0) scale(1)' },
+                '50%': { transform: 'translate3d(20px, -20px, 0) scale(1.05)' }
               },
-              pulseGlow: {
-                '0%, 100% { opacity: 0.15; transform: scale(1); }',
-                '50% { opacity: 0.35; transform: scale(1.1); }',
+              twinkle: {
+                '0%, 100%': { opacity: 0.2, transform: 'scale(1)' },
+                '50%': { opacity: 1, transform: 'scale(1.2)' }
               },
-              studioBreathe: {
-                '0%, 100% { transform: scale(1.0); }',
-                '50% { transform: scale(1.05); }',
+              shootingStar: {
+                '0%': { transform: 'translate3d(-400px, -400px, 0) rotate(-45deg)', opacity: 0 },
+                '10%': { opacity: 1 },
+                '20%': { transform: 'translate3d(1200px, 1200px, 0) rotate(-45deg)', opacity: 0 },
+                '100%': { transform: 'translate3d(1200px, 1200px, 0) rotate(-45deg)', opacity: 0 }
               },
               fadeInUp: {
-                '0% { opacity: 0; transform: translate3d(0, 40px, 0); }',
-                '100% { opacity: 1; transform: translate3d(0, 0, 0); }',
-              },
-              lightLeak: {
-                '0% { transform: translate(-10%, -10%) rotate(0deg); opacity: 0.05; }',
-                '100% { transform: translate(10%, 10%) rotate(5deg); opacity: 0.15; }',
-              },
-              blurIn: {
-                '0% { filter: blur(20px); opacity: 0; transform: scale(0.95); }',
-                '100% { filter: blur(0); opacity: 1; transform: scale(1); }'
+                '0%': { opacity: 0, transform: 'translate3d(0, 80px, 0)' },
+                '100%': { opacity: 1, transform: 'translate3d(0, 0, 0)' },
               }
             }
           }
@@ -65,38 +58,39 @@
     </script>
     <style>
       body {
-        font-weight: 300; /* Light 權重讓視覺更優雅 */
+        font-weight: 300;
         letter-spacing: 0.04em;
         background-color: #000;
         color: #f8fafc;
-        overflow-x: hidden;
-        font-style: normal !important;
+        overflow: hidden;
       }
       
+      #root {
+        height: 100vh;
+        overflow-y: auto;
+      }
+
       i, em, .italic { font-style: normal !important; }
-
-      .custom-scrollbar::-webkit-scrollbar { width: 4px; }
-      .custom-scrollbar::-webkit-scrollbar-track { background: rgba(0,0,0,0.95); }
-      .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(251,191,36,0.3); border-radius: 20px; }
-
-      *:focus { outline: none; }
       
-      /* 全局字體權重修正：取消 Black，改為 Medium */
-      h1, h2, h3, h4, h5, h6, button, span, .font-black {
-        font-weight: 500 !important;
+      .massive-text {
+        font-size: clamp(3rem, 10vw, 9rem);
+        line-height: 1.1;
+        letter-spacing: 0.3em;
+        font-weight: 200 !important;
       }
-      
-      .font-bold { font-weight: 400 !important; }
-      .font-medium { font-weight: 500 !important; }
+
+      ::-webkit-scrollbar { width: 4px; }
+      ::-webkit-scrollbar-track { background: transparent; }
+      ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 10px; }
     </style>
   <script type="importmap">
 {
   "imports": {
-    "@google/genai": "https://esm.sh/@google/genai@^1.38.0",
     "react/": "https://esm.sh/react@^19.2.4/",
     "react": "https://esm.sh/react@^19.2.4",
-    "react-dom/": "https://esm.sh/react-dom@^19.2.4/",
     "react-router-dom": "https://esm.sh/react-router-dom@^7.13.0",
+    "react-dom/": "https://esm.sh/react-dom@^19.2.4/",
+    "@google/genai": "https://esm.sh/@google/genai@^1.38.0",
     "idb": "https://esm.sh/idb@^8.0.3"
   }
 }

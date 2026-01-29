@@ -2,57 +2,46 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from '../context/LanguageContext';
-import { useData } from '../context/DataContext';
 
 const Home: React.FC = () => {
   const { t } = useTranslation();
-  const { globalSettings } = useData();
   const navigate = useNavigate();
 
   return (
-    <div className="min-h-screen relative flex flex-col items-center overflow-hidden bg-black">
-      <div 
-        className="absolute inset-0 bg-cover bg-center opacity-40 transition-transform duration-[10000ms] scale-110"
-        style={{ backgroundImage: `url(${globalSettings.portraitUrl})` }}
-      ></div>
-      <div className="absolute inset-0 bg-gradient-to-b from-black via-transparent to-black"></div>
+    <div className="min-h-screen relative flex flex-col items-center justify-between overflow-hidden bg-transparent">
+      {/* 中心區域留白，讓宇宙背景展現，徹底移除標題與描述 */}
+      <div className="flex-grow"></div>
 
-      <section className="relative z-10 w-full min-h-screen flex flex-col items-center justify-center px-10 md:px-24 pt-48 pb-32">
-        <div className="flex flex-col items-center text-center mb-12 animate-fade-in-up">
-            <div className="w-12 h-[1px] bg-brand-gold/50 mb-6"></div>
-            <span className="text-brand-gold font-medium text-[11px] uppercase tracking-[0.8em] mb-8 opacity-80">
-                {t('manifesto_title')}
-            </span>
-            
-            <h1 className="text-[20vw] md:text-[14rem] font-medium tracking-tighter uppercase leading-[0.7] mb-12 text-white select-none opacity-90">
-              WILLWI
-            </h1>
-            
-            <div className="max-w-4xl">
-                <p className="text-white text-sm md:text-xl tracking-[0.4em] uppercase font-light leading-relaxed opacity-80">
-                    {t('manifesto_content').split('\n').map((s, i) => <React.Fragment key={i}>{s}<br/></React.Fragment>)}
-                </p>
-            </div>
-        </div>
-
-        <div className="w-full max-w-[1400px] mt-24">
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-stretch">
-                <div onClick={() => navigate('/interactive')} className="group relative bg-white/[0.02] border border-white/10 p-12 flex flex-col hover:border-brand-gold/30 transition-all duration-700 cursor-pointer rounded-sm backdrop-blur-xl">
-                    <div className="mb-10"><h3 className="text-brand-gold font-medium text-[12px] uppercase tracking-[0.4em] mb-4">互動實驗室</h3><p className="text-slate-400 text-[10px] uppercase tracking-widest font-normal opacity-60">Handcrafted Interaction</p></div>
-                    <div className="mb-12"><div className="text-5xl font-light text-white tracking-tighter flex items-baseline gap-2"><span className="text-xs font-normal opacity-30 tracking-normal">NT$</span>320</div></div>
-                    <button className="w-full py-6 border border-white/10 text-white font-medium text-[10px] uppercase tracking-[0.6em] group-hover:bg-brand-gold group-hover:text-black transition-all duration-500">ENTER STUDIO</button>
+      {/* 底部卡片區域 - 保持不變，提供核心功能入口 */}
+      <section className="relative z-10 w-full flex flex-col items-center px-10 pb-32">
+        <div className="w-full max-w-[1300px] grid grid-cols-1 md:grid-cols-3 gap-12 animate-fade-in-up">
+            {[
+                { label: '互動實驗室', price: '320', sub: 'Handcrafted Interaction', target: '/interactive' },
+                { label: '雲端影院 + 簽名', price: '2,800', sub: 'Cloud Cinema & Sig', target: '/interactive', highlight: true },
+                { label: '音樂食糧', price: '100', sub: 'Creative Support', target: '/interactive' }
+            ].map((item, idx) => (
+                <div 
+                  key={idx} 
+                  onClick={() => navigate(item.target)}
+                  className={`group relative p-12 flex flex-col border transition-all duration-700 cursor-pointer rounded-none overflow-hidden ${item.highlight ? 'bg-white/[0.02] border-white/20' : 'bg-transparent border-white/5 hover:border-white/20'}`}
+                >
+                    <div className="absolute inset-0 bg-white/5 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                    <div className="relative z-10">
+                        <div className="mb-10 text-left">
+                            <h3 className="text-white/80 font-light text-[11px] uppercase tracking-[0.4em] mb-4">{item.label}</h3>
+                            <p className="text-slate-600 text-[9px] uppercase tracking-widest font-normal">{item.sub}</p>
+                        </div>
+                        <div className="mb-12 text-left">
+                            <div className="text-5xl font-thin text-white tracking-tighter flex items-baseline gap-3">
+                                <span className="text-[10px] font-normal opacity-30 tracking-normal">NT$</span>{item.price}
+                            </div>
+                        </div>
+                        <button className="w-full py-5 border border-white/10 text-white/50 font-medium text-[9px] uppercase tracking-[0.8em] group-hover:bg-white group-hover:text-black group-hover:border-white transition-all duration-500 pl-[0.8em]">
+                            SELECT OPTION
+                        </button>
+                    </div>
                 </div>
-                <div onClick={() => navigate('/interactive')} className="group relative bg-brand-accent/5 border border-brand-accent/20 p-12 flex flex-col scale-105 z-20 backdrop-blur-2xl rounded-sm hover:bg-brand-accent/10 transition-all duration-700 cursor-pointer overflow-hidden shadow-2xl">
-                    <div className="mb-10"><h3 className="text-brand-accent font-medium text-[12px] uppercase tracking-[0.4em] mb-4">雲端影院 + 簽名</h3><p className="text-white text-[10px] uppercase tracking-widest font-normal">Cloud Cinema & Sig</p></div>
-                    <div className="mb-12"><div className="text-5xl font-light text-white tracking-tighter flex items-baseline gap-2"><span className="text-xs font-normal opacity-30 tracking-normal">NT$</span>2,800</div></div>
-                    <button className="w-full py-7 bg-brand-accent text-black font-medium text-[10px] uppercase tracking-[0.6em] hover:bg-white transition-all duration-500">PREMIUM ACCESS</button>
-                </div>
-                <div onClick={() => navigate('/interactive')} className="group relative bg-white/[0.01] border border-white/5 p-12 flex flex-col hover:border-white/20 transition-all duration-700 cursor-pointer rounded-sm backdrop-blur-md">
-                    <div className="mb-10"><h3 className="text-white font-medium text-[12px] uppercase tracking-[0.4em] mb-4 opacity-80">音樂食糧</h3><p className="text-slate-500 text-[10px] uppercase tracking-widest font-normal opacity-40">Creative Support</p></div>
-                    <div className="mb-12"><div className="text-5xl font-light text-white tracking-tighter flex items-baseline gap-2"><span className="text-xs font-normal opacity-30 tracking-normal">NT$</span>100</div></div>
-                    <button className="w-full py-6 border border-white/5 text-slate-500 font-medium text-[10px] uppercase tracking-[0.6em] group-hover:bg-white group-hover:text-black transition-all duration-500">SUPPORT</button>
-                </div>
-            </div>
+            ))}
         </div>
       </section>
     </div>

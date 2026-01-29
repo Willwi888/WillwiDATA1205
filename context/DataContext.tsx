@@ -16,6 +16,7 @@ interface GlobalSettings {
     qr_support: string;
     accessCode: string;
     exclusiveYoutubeUrl?: string;
+    bgmUrl?: string; // 新增背景音樂網址
 }
 
 interface ExtendedSongContextType extends SongContextType {
@@ -87,7 +88,8 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           defaultCoverUrl: ASSETS.defaultCover,
           qr_global_payment: '', qr_line: '', 
           qr_production: '', qr_cinema: '', qr_support: '', accessCode: '8888',
-          exclusiveYoutubeUrl: ''
+          exclusiveYoutubeUrl: '',
+          bgmUrl: 'https://dl.dropboxusercontent.com/scl/fi/7m03jptv9j9a6itfjk8s7/Ambient-Background.mp3?rlkey=your-key&raw=1'
       };
   });
 

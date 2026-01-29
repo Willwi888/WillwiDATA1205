@@ -86,7 +86,7 @@ const AdminDashboard: React.FC = () => {
 
     try {
       await bulkAppendSongs(newSongs);
-      showToast(`匯入完成！ 本地寫入: ${newSongs.length} 筆`, "success");
+      showToast(`匯入完成！`, "success");
       setSelectedAlbum(null);
       setActiveTab('catalog');
     } catch (e) {
@@ -278,6 +278,29 @@ const AdminDashboard: React.FC = () => {
 
       {activeTab === 'curation' && (
           <div className="space-y-24 animate-fade-in">
+              <section className="space-y-12">
+                  <h3 className="text-brand-gold font-medium uppercase tracking-widest text-xs border-l border-brand-gold pl-6">音訊與串流設置 (Audio & Streaming)</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
+                      <div className="p-8 bg-white/5 border border-white/10 space-y-6">
+                          <div>
+                            <label className="text-[11px] text-slate-400 font-bold uppercase tracking-widest mb-3 block">全站背景音樂網址 (BGM URL)</label>
+                            <input 
+                              type="text" 
+                              className="w-full bg-black border border-white/10 p-5 text-white text-xs outline-none focus:border-brand-gold"
+                              placeholder="貼上 Dropbox/Google Drive 音樂直連..."
+                              value={globalSettings.bgmUrl || ''}
+                              onChange={(e) => {
+                                  const newSettings = { ...globalSettings, bgmUrl: e.target.value };
+                                  setGlobalSettings(newSettings);
+                                  uploadSettingsToCloud(newSettings);
+                              }}
+                            />
+                            <p className="text-[9px] text-slate-600 mt-4 font-mono">支援自動解析 Dropbox (?raw=1) 與 Google Drive 直連連結。</p>
+                          </div>
+                      </div>
+                  </div>
+              </section>
+
               <section className="space-y-12">
                   <h3 className="text-brand-gold font-medium uppercase tracking-widest text-xs border-l border-brand-gold pl-6">金流 QR Code 設置</h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">

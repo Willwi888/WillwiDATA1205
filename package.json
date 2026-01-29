@@ -9,10 +9,10 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@google/genai": "^1.38.0",
     "react": "^19.2.4",
-    "react-dom": "^19.2.4",
     "react-router-dom": "^7.13.0",
+    "react-dom": "^19.2.4",
+    "@google/genai": "^1.38.0",
     "idb": "^8.0.3"
   },
   "devDependencies": {
