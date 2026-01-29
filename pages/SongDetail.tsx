@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useData } from '../context/DataContext';
 import { useUser } from '../context/UserContext';
@@ -9,13 +9,13 @@ import { useTranslation } from '../context/LanguageContext';
 const SongDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { songs, getSong, globalSettings, playSong, currentSong, isPlaying } = useData(); 
+  const { getSong, globalSettings } = useData(); 
   const { isAdmin } = useUser(); 
   const { lang } = useTranslation();
   
   const [song, setSong] = useState<Song | undefined>(undefined);
   const [lyricsView, setLyricsView] = useState<'original' | 'translated'>('original');
-  const [activeLine, setActiveLine] = useState(0);
+  const [isCreditsOpen, setIsCreditsOpen] = useState(false);
 
   useEffect(() => {
     if (id) {
@@ -44,7 +44,7 @@ const SongDetail: React.FC = () => {
   return (
     <div className="min-h-screen pb-60 pt-48 px-6 md:px-24 animate-fade-in relative bg-black overflow-x-hidden">
         <div className="fixed inset-0 z-[-1]">
-            <div className="absolute inset-0 bg-cover bg-center blur-[150px] opacity-30 scale-150 animate-pulse-glow" style={{ backgroundImage: `url(${cover})` }}></div>
+            <div className="absolute inset-0 bg-cover bg-center blur-[150px] opacity-20 scale-150 animate-pulse-glow" style={{ backgroundImage: `url(${cover})` }}></div>
             <div className="absolute inset-0 bg-gradient-to-b from-black via-slate-950/80 to-black"></div>
         </div>
 
@@ -62,12 +62,11 @@ const SongDetail: React.FC = () => {
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-20">
                 <div className="lg:col-span-5 space-y-12">
                     <div className="relative group">
-                        <img src={cover} className="w-full aspect-square object-cover rounded shadow-2xl border border-white/10" alt="" />
+                        <img src={cover} className="w-full aspect-square object-cover rounded-sm shadow-2xl border border-white/10" alt="" />
                     </div>
                     
-                    {/* Spotify Embed Player */}
                     <div className="space-y-6">
-                        <h3 className="text-[11px] font-medium text-brand-gold uppercase tracking-[0.6em] opacity-80">Official Spotify Stream</h3>
+                        <h3 className="text-[10px] font-medium text-brand-gold uppercase tracking-[0.6em] opacity-80">Official Spotify Stream</h3>
                         {spotifyId ? (
                             <iframe 
                                 style={{ borderRadius: '4px' }} 
@@ -80,7 +79,7 @@ const SongDetail: React.FC = () => {
                             ></iframe>
                         ) : (
                             <div className="p-12 border border-white/5 bg-white/[0.01] text-center">
-                                <span className="text-[10px] font-medium text-slate-700 uppercase tracking-[0.4em]">Spotify Link Pending</span>
+                                <span className="text-[10px] font-medium text-slate-700 uppercase tracking-[0.4em]">Streaming Data Pending</span>
                             </div>
                         )}
                     </div>
@@ -98,21 +97,51 @@ const SongDetail: React.FC = () => {
                         </h1>
                     </div>
 
-                    <div className="space-y-12">
-                        <div className="flex justify-between items-center border-b border-white/10 pb-6">
-                            <h3 className="text-[11px] font-medium text-slate-500 uppercase tracking-[0.6em]">Lyrics 歌詞</h3>
+                    <div className="space-y-20">
+                        {/* Lyrics Section */}
+                        <div className="space-y-12">
+                            <div className="flex justify-between items-center border-b border-white/10 pb-6">
+                                <h3 className="text-[10px] font-medium text-slate-500 uppercase tracking-[0.6em]">Lyrics 歌詞內容</h3>
+                            </div>
+                            <div className="relative space-y-8 max-w-3xl">
+                                {lyricsLines.length > 0 ? (
+                                    lyricsLines.map((line, idx) => (
+                                        <p key={idx} className="text-xl md:text-2xl font-light uppercase tracking-[0.1em] text-white opacity-80 leading-relaxed">
+                                            {line}
+                                        </p>
+                                    ))
+                                ) : (
+                                    <p className="text-slate-700 text-sm uppercase tracking-widest italic opacity-40">[ NO LYRICS DATA ]</p>
+                                )}
+                            </div>
                         </div>
-                        <div className="relative space-y-8">
-                            {lyricsLines.length > 0 ? (
-                                lyricsLines.map((line, idx) => (
-                                    <p key={idx} className={`text-xl md:text-2xl font-normal uppercase tracking-[0.1em] transition-all duration-700 ${idx === activeLine ? 'text-white opacity-100' : 'text-slate-800 opacity-20'}`}>
-                                        {line}
-                                    </p>
-                                ))
-                            ) : (
-                                <p className="text-slate-800 text-sm uppercase tracking-widest italic opacity-40">[ NO LYRICS DATA ]</p>
-                            )}
-                        </div>
+
+                        {/* Credits Section - Collapsible & Clean */}
+                        {song.credits && (
+                            <div className="pt-10 border-t border-white/5">
+                                <button 
+                                    onClick={() => setIsCreditsOpen(!isCreditsOpen)}
+                                    className="flex items-center gap-4 group"
+                                >
+                                    <h3 className="text-[10px] font-medium text-slate-500 uppercase tracking-[0.6em] group-hover:text-brand-gold transition-colors">
+                                        Production Credits 製作名單
+                                    </h3>
+                                    <span className={`text-slate-700 transition-transform duration-500 ${isCreditsOpen ? 'rotate-180' : ''}`}>
+                                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M19 9l-7 7-7-7" />
+                                        </svg>
+                                    </span>
+                                </button>
+                                
+                                <div className={`mt-8 overflow-hidden transition-all duration-700 ease-in-out ${isCreditsOpen ? 'max-h-[1000px] opacity-100' : 'max-h-0 opacity-0'}`}>
+                                    <div className="p-8 bg-white/[0.02] border border-white/5 rounded-sm">
+                                        <div className="text-[11px] md:text-xs text-slate-400 font-light leading-loose tracking-[0.15em] whitespace-pre-line uppercase">
+                                            {song.credits}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
                     </div>
                 </div>
             </div>

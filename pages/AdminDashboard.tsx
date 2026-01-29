@@ -161,7 +161,7 @@ const AdminDashboard: React.FC = () => {
               <section className="space-y-12">
                   <h3 className="text-brand-gold font-medium uppercase tracking-widest text-xs border-l border-brand-gold pl-6">金流 QR Code 設置</h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
-                      {['qr_global_payment', 'qr_production', 'qr_cinema', 'qr_support'].map(key => (
+                      {['qr_global_payment', 'qr_production', 'qr_cinema', 'qr_support', 'qr_line'].map(key => (
                           <div key={key} className="p-8 bg-white/5 border border-white/5 text-center group">
                               <span className="text-[9px] text-slate-500 font-medium uppercase tracking-widest mb-6 block">{key.replace('qr_', '').toUpperCase()}</span>
                               <div className="aspect-square bg-black border border-white/10 mb-6 flex items-center justify-center overflow-hidden">
